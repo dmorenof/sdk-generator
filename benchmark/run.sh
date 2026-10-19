@@ -22,7 +22,7 @@ measure() {
   echo "Measuring $api / $impl / trial $trial"
   if [[ "$impl" == ours ]]; then
     /usr/bin/time -f '%e,%U,%S,%M' -o "$tim" php bin/generate-sdk.php "$spec" "$dest" \
-      "Benchmark\${api}Sdk" "benchmark/$api-sdk" > "$log" 2>&1
+      "Benchmark\\${api}Sdk" "benchmark/$api-sdk" > "$log" 2>&1
   else
     /usr/bin/time -f '%e,%U,%S,%M' -o "$tim" java -Xms64m -Xmx1g -jar "$JAR" generate \
       -g php -i "$spec" -o "$dest" \
