@@ -85,4 +85,57 @@ if ($api === 'accounts') {
 } else {
     throw new InvalidArgumentException('Expected accounts or catalog fixture.');
 }
+// Prove the factory works inside the independently Composer-installed SDK,
+// not only within the generator's own PHPUnit/autoloader environment.
+if ($api === 'accounts') {
+    $payload = json_encode([
+        'id' => 27, 'name' => 'Standalone',
+        'role' => 'viewer',
+        'profile' => ['city' => 'Madrid', 'visits' => 1],
+        'labels' => ['installed'],
+    ], JSON_THROW_ON_ERROR);
+    $events = [];
+    $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([
+        new \GuzzleHttp\Psr7\Response(200, [], $payload),
+    ]));
+    $stack->push(\GuzzleHttp\Middleware::mapRequest(
+        function (\Psr\Http\Message\RequestInterface $request) use (&$events): \Psr\Http\Message\RequestInterface {
+            $events[] = 'before';
+            return $request->withHeader('X-Preview', 'yes');
+        }
+    ));
+    $stack->push(\GuzzleHttp\Middleware::mapResponse(
+        function (\Psr\Http\Message\ResponseInterface $response) use (&$events): \Psr\Http\Message\ResponseInterface {
+            $events[] = 'after';
+            return $response;
+        }
+    ));
+
+    $ready = \Preview\AccountsSdk\Api\ApiClient::connect(
+        'https://api.example.test/v1',
+        new \GuzzleHttp\Client(['handler' => $stack]),
+        ['Authorization' => 'Bearer example'],
+    );
+    $result = $ready->getUser(27);
+    checkPreview($result->name === 'Standalone', 'Ready-to-use Accounts DTO mismatch');
+    checkPreview($events === ['before', 'after'], 'Guzzle middleware chain did not run');
+} else {
+    $payload = json_encode([
+        'sku' => 'BOOK-09', 'title' => 'Ready',
+        'price' => 19.75,
+        'genre' => 'fiction',
+        'warehouse' => ['region' => 'Madrid'],
+        'tags' => ['installed'],
+    ], JSON_THROW_ON_ERROR);
+    $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([
+        new \GuzzleHttp\Psr7\Response(200, [], $payload),
+    ]));
+    $ready = \Preview\CatalogSdk\Api\ApiClient::connect(
+        'https://catalog.example.test/api/v2',
+        new \GuzzleHttp\Client(['handler' => $stack]),
+    );
+    $result = $ready->findBook('BOOK-09');
+    checkPreview($result->title === 'Ready', 'Ready-to-use Catalog DTO mismatch');
+}
+echo "READY_PSR18_CONSUMER_OK: $api\n";
 echo "PREVIEW_CONSUMER_OK: $api GET/POST, typed DTOs, enums and collections\n";
