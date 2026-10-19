@@ -10,7 +10,7 @@ fi
 java -jar "$JAR" version | grep -q '^7.26.0$'
 for api in accounts catalog; do
   spec="tests/fixtures/$api-openapi30.json"
-  php bin/generate-sdk.php "$spec" "$OUT/clients/$api/ours" "Benchmark\\@{api^}Sdk" "benchmark/$api-sdk"
+  php bin/generate-sdk.php "$spec" "$OUT/clients/$api/ours" "Benchmark\\${api^}Sdk" "benchmark/$api-sdk"
   java -Xms64m -Xmx1g -jar "$JAR" generate -i "$spec" -g php -o "$OUT/clients/$api/openapi" \
     --additional-properties="invokerPackage=OpenAPI\\Client,composerPackageName=benchmark/$api-sdk,library=guzzle,modern=true" \
     --global-property='modelDocs=false,apiDocs=false,modelTests=false,apiTests=false' >"$OUT/logs/generate-$api.log" 2>&1
