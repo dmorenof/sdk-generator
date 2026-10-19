@@ -134,16 +134,16 @@ PHP;
             . "    ) {}\n\n"
             . "    /**\n"
             . "     * Ready-to-use SDK, Guzzle by default, PSR-18 injection optional.\n"
-            . "     * @param array<string, string> \\$headers\n"
+            . "     * @param array<string, string> \$headers\n"
             . "     */\n"
             . "    public static function connect(\n"
-            . "        string \\$baseUrl,\n"
-            . "        ?\\Psr\\Http\\Client\\ClientInterface \\$httpClient = null,\n"
-            . "        array \\$headers = [],\n"
+            . "        string \$baseUrl,\n"
+            . "        ?\\Psr\\Http\\Client\\ClientInterface \$httpClient = null,\n"
+            . "        array \$headers = [],\n"
             . "    ): self\n"
             . "    {\n"
-            . "        \\$client = \\$httpClient ?? new \\GuzzleHttp\\Client(['http_errors' => false]);\n"
-            . "        return new self(new $ns\\Transport\\Psr18Transport(\\$client, \\$headers), \\$baseUrl);\n"
+            . "        \$client = \$httpClient ?? new \\GuzzleHttp\\Client(['http_errors' => false]);\n"
+            . "        return new self(new $ns\\Transport\\Psr18Transport(\$client, \$headers), \$baseUrl);\n"
             . "    }\n\n";
 
         foreach ($contract->operations as $operation) {
