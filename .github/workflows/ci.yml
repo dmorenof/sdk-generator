@@ -1,15 +1,24 @@
 name: PHP package CI
 
 on:
-  push:
   pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: package-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Keep the stable "validate" check for repository branch protection.
   validate:
+    name: validate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -19,11 +28,85 @@ jobs:
           php-version: '8.3'
           tools: composer:v2
           coverage: none
-      - name: Validate Composer metadata
+      - name: Validate Composer library metadata
         run: composer validate --strict --no-check-lock
+      - name: Verify dependencies and PSR-4
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          composer dump-autoload --optimize --strict-psr --strict-ambiguous
+
+  # Reserved job name for mandatory testing once source classes are added.
+  # Empty scaffolds run strict quality checks and explicitly report zero behavior tests.
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: pcov
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-php83-${{ runner.os }}-${{ hashFiles('composer.json') }}
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
-      - name: Check PSR-4 autoload configuration
-        run: composer dump-autoload --optimize --strict-psr --strict-ambiguous
-      - name: Check PHP syntax when source or tests exist
-        run: find src tests -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
+      - name: Lint PHP, validate autoloading and run real tests if source exists
+        run: bash ci/run-tests.sh --coverage
+      - name: Preserve code coverage, when available
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-8.3-coverage
+          path: coverage/clover.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  compatibility:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: bash ci/run-tests.sh
+
+  minimum-dependencies:
+    name: Minimum compatible dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - run: composer update --prefer-lowest --prefer-stable --no-interaction --prefer-dist --no-progress
+      - run: bash ci/run-tests.sh
+
+  security:
+    name: Dependency advisory audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: composer audit --no-interaction --format=plain

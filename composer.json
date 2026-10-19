@@ -1,6 +1,6 @@
 {
     "name": "dmorenof/sdk-generator",
-    "description": "PHP SDK generator library (initial project scaffold).",
+    "description": "Contract-driven PHP SDK generator, built around a small reusable runtime.",
     "type": "library",
     "license": "MIT",
     "require": {
@@ -21,5 +21,26 @@
     },
     "scripts": {
         "validate": "@composer validate --strict --no-check-lock"
+    },
+    "keywords": [
+        "sdk",
+        "generator",
+        "php",
+        "api-client",
+        "openapi"
+    ],
+    "homepage": "https://github.com/dmorenof/sdk-generator",
+    "authors": [
+        {
+            "name": "David Moreno Falero",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/dmorenof/sdk-generator/issues",
+        "source": "https://github.com/dmorenof/sdk-generator"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
     }
 }

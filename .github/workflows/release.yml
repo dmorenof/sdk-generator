@@ -1,0 +1,111 @@
+name: Publish version
+
+# Publishing is deliberately dormant until a future implementation PR adds
+# a VERSION file. No tag or release is created by CI-only setup changes.
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-publish-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish immutable Git tag and Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - name: Validate requested release
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f VERSION ]]; then
+            echo "No VERSION file. Package is not ready for release." >&2
+            exit 1
+          fi
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "VERSION must be numeric X.Y.Z, without a leading v." >&2
+            exit 1
+          fi
+          if ! find src -type f -name '*.php' -print -quit | grep -q .; then
+            echo "Refusing to release a scaffold with no production PHP code." >&2
+            exit 1
+          fi
+          if ! find tests -type f -name '*Test.php' -print -quit | grep -q .; then
+            echo "Refusing to release code without PHPUnit behavior tests." >&2
+            exit 1
+          fi
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Verify immutable tag
+        id: probe
+        shell: bash
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch origin --tags
+          if git rev-parse -q --verify "refs/tags/${TAG}^{commit}" >/dev/null; then
+            TAG_SHA="$(git rev-list -n 1 "$TAG")"
+            if [[ "$TAG_SHA" != "$GITHUB_SHA" ]]; then
+              echo "$TAG already exists at $TAG_SHA, not $GITHUB_SHA; never retag." >&2
+              exit 1
+            fi
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Validate Composer and dependencies
+        if: steps.probe.outputs.new == 'true'
+        run: |
+          composer validate --strict --no-check-lock
+          composer install --no-interaction --prefer-dist --no-progress
+      - name: Check PHP and run tests
+        if: steps.probe.outputs.new == 'true'
+        run: bash ci/run-tests.sh
+      - name: Audit dependencies
+        if: steps.probe.outputs.new == 'true'
+        run: composer audit --no-interaction --format=plain
+      - name: Create new version tag
+        if: steps.probe.outputs.new == 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG appeared while validating; will not replace it." >&2
+            exit 1
+          fi
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
+      - name: Create GitHub Release if absent
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists; leaving unchanged."
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
+          fi
