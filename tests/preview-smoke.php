@@ -77,8 +77,10 @@ if ($api === 'accounts') {
     $client->addBook($body);
     checkPreview($transport->calls[1]['method'] === 'POST', 'Catalog POST mismatch');
     checkPreview(
-        json_decode((string)$transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR) === ['title' => 'A new book', 'price' => 12.5],
-        'Catalog POST JSON mismatch',
+        count(json_decode((string)$transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR)) === 2
+            && (json_decode((string)$transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR)['title'] ?? null) === 'A new book'
+            && (json_decode((string)$transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR)['price'] ?? null) === 12.5,
+        'Catalog POST JSON value mismatch',
     );
 } else {
     throw new InvalidArgumentException('Expected accounts or catalog fixture.');
