@@ -197,6 +197,7 @@ final class PhpContractEmitter
             if ($case === '' || preg_match(self::IDENTIFIER, $case) !== 1) {
                 throw new InvalidArgumentException("Cannot safely name enum case in $name");
             }
+            $this->checkName($case, 'enum case');
             if (isset($seen[strtolower($case)])) {
                 throw new InvalidArgumentException("Duplicate PHP enum case in $name: $case");
             }
@@ -220,7 +221,6 @@ final class PhpContractEmitter
             $methodArgs = [];
             foreach ($operation->parameters as $parameter) {
                 $this->checkName($parameter->wireName, 'operation parameter');
-                $dummyFiles = [];
                 // Parameters must be simple scalars in the initial generated API.
                 $type = $this->primitiveParameterType($parameter->schema, $operation->operationId);
                 $methodArgs[] = [$parameter->wireName, $type, $parameter->required];

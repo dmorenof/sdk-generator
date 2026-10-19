@@ -166,6 +166,22 @@ final class PhpContractEmitterTest extends TestCase
         (new PhpContractEmitter())->emit($contract);
     }
 
+    public function testRejectsEnumValuesWhichWouldGenerateReservedPHPCaseNames(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['components']['schemas']['User']['properties']['role']['enum'][] = 'class';
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid PHP enum case identifier: Class');
+        (new PhpContractEmitter())->emit($contract);
+    }
+
     public function testRejectsNonObjectTopLevelModelUntilAliasesSupported(): void
     {
         $raw = json_decode(
