@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
@@ -54,7 +54,7 @@ jobs:
           find runtime-compare-output/clients -type d -name vendor -prune -exec rm -rf {} + || true
       - name: Upload report, raw observations and generated code
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: generated-sdk-runtime-comparison
           path: runtime-compare-output/

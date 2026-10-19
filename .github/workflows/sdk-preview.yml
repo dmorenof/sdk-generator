@@ -37,7 +37,7 @@ jobs:
             package: preview/catalog-sdk
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
@@ -79,11 +79,11 @@ jobs:
           GitHub Actions installed and smoke-tested it independently with
           a fake HTTP transport. No real API network requests or credentials.
           No local tools required to download and inspect the sources.
-          Runtime requires PHP 8.3+, Composer and an HTTP transport adapter.
+          Runtime requires PHP 8.3+ and the generated Composer dependencies (Guzzle 7 is provided by default).
           NOTICE
 
       - name: Upload downloadable ZIP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sdk-preview-${{ matrix.api }}-php83
           path: preview/${{ matrix.api }}/

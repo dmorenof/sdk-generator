@@ -58,7 +58,7 @@ try {
 
     fwrite(STDOUT, "Generated " . count($files) . " files in $output\n");
     fwrite(STDOUT, "Source: " . $input . "\n");
-    fwrite(STDOUT, "Generated SDK requires typedarray/typedarray; endpoints use injected HTTP transport.\n");
+    fwrite(STDOUT, "Generated SDK uses Guzzle 7 by default (PSR-18); a custom client or transport can be injected.\n");
 } catch (Throwable $error) {
     fwrite(STDERR, 'Generation failed: ' . $error->getMessage() . "\n");
     exit(1);
