@@ -143,7 +143,7 @@ PHP;
             . "    ): self\n"
             . "    {\n"
             . "        \$client = \$httpClient ?? new \\GuzzleHttp\\Client(['http_errors' => false]);\n"
-            . "        return new self(new $ns\\Transport\\Psr18Transport(\$client, \$headers), \$baseUrl);\n"
+            . "        return new self(new \\$ns\\Transport\\Psr18Transport(\$client, \$headers), \$baseUrl);\n"
             . "    }\n\n";
 
         foreach ($contract->operations as $operation) {
