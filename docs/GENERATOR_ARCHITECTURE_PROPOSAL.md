@@ -1,99 +1,153 @@
-# SDK Generator — architecture proposal (review required)
+# SDK Generator — contract-first, format-neutral PHP code generator
 
-Status: **PROPOSED, NOT ACCEPTED**. Documentation only; no PHP implementation,
-new dependency, package tag or release.
+**Status:** architecture proposal, not yet accepted. Corrects the earlier
+Casafari-first/DTO-first sequence. No PHP source, dependencies or tags changed.
 
-## Codebase evidence
+## Goal: one path from any supported API specification to a PHP SDK
 
-- `dmorenof/casafari-sdk` ships `src/Core/v1.json`, a Swagger 2.0
-  snapshot of the **Casafari CRM API** (not the separate REST/Platform API).
-- Its code contains concrete endpoint classes (`AgencyApi`, `PropertyApi`, etc.),
-  DTO, request, response, backed enum and typed-collection classes.
-- `Tests/SwaggerContractTest.php` maps **14** CRM operations to typed
-  endpoint entrypoints and checks response model properties.
-- `sdk-runtime` and `sdk-generator` contain scaffolds, not yet functional APIs.
-
-## Strict separation of responsibilities
+This project's primary product is a **source-code generator**, analogous in
+purpose to OpenAPI Generator, with our own small reusable architecture and
+typed PHP output. A vendor integration such as Casafari is a regression
+**fixture**, not the template from which design decisions are derived.
 
 ```text
-Swagger 2.0 / OpenAPI 3.x
-             |
-         Parse/validate
-             |
-         Normalized IR
-             |
-   Validate names/types/refs
-             |
-        Deterministic emit
-          /          \
-generated SDK    golden fixtures
-          |
-  Runtime at execution time
+                  Specification sources
+       Swagger 2.0   OpenAPI 3.0   OpenAPI 3.1
+             \           |            /
+              Versioned format adapters
+                         |
+                 Canonical contract IR
+          Models/types + operations + security
+                         |
+          Semantic validation + name resolution
+                         |
+               PHP source emitter
+                         |
+          Typed, self-contained SDK source
+            DTOs | enums | typed collections
+            endpoints | requests | responses
+                         |
+           small, shared sdk-runtime package
 ```
 
-Generator **execution** should not require loading the generated runtime.
-Emitted packages may depend on SDK Runtime plus TypedArray if that architecture
-is approved. Do not mix code generation into runtime classes.
+The generator is a **build-time dependency only**; generated SDKs do not call
+the parser/normalizer during ordinary HTTP requests.
 
-## Initial intermediate representation (IR) concepts
+## Scope: specification-neutral but not protocol-magical
 
-- API: title, server/base URLs, operations, schemas, common security schemes.
-- Operation: stable identifier, HTTP method, path, parameter locations
-  (path/query/header/body), request/response body media types, response status.
-- Model: named schema, properties, required/optional, nullable, defaults,
-  references, array item type, enum values.
-- Type: scalar / object reference / collection / backed enum; unsupported
-  constructs must give a meaningful diagnostic rather than be silently dropped.
+Swagger 2.0, OpenAPI 3.0 and 3.1 are different *dialects of HTTP API
+contracts*. Other well-specified HTTP formats can be supported by additional
+input adapters. A completely arbitrary proprietary API description cannot
+be supported without defining and implementing an adapter. Non-HTTP protocols
+are not silently considered supported.
 
-Do **not** immediately create generic frameworks for all OpenAPI features.
-Model the minimum proven by concrete examples and extend by contract tests.
+## Canonical intermediate representation (IR)
 
-## First generator vertical slice (after Runtime semantics approval)
+Make the IR a **typed, explicit set of objects**, not an unstructured bag of
+Swagger-specific arrays. Model at least:
 
-Input: a **small, owned synthetic Swagger 2.0 fixture** with one endpoint,
-nested DTO, backed enum and a collection. The use of an owned fixture avoids
-tying the generator implementation to one vendor's contract.
+- `ApiContract`: source/provenance, title, servers, operations, schemas,
+  reusable components and security declarations.
+- `Operation`: semantic operation identity, HTTP method, templated path,
+  operation tags/grouping hints, parameters, request content and named/status-
+  keyed responses, security requirements, errors.
+- `Parameter`: wire name, location (path/query/header/cookie), required,
+  schema, serialization style/explode and defaults when present.
+- `RequestBody` and `Response`: status, media types, headers, body schemas.
+- `Schema`/`Type`: primitive+format, object, array, map, reference, enums,
+  required vs optional, nullable, read/write mode, constraints, composed
+  schemas, discriminator, additionalProperties.
+- `SecurityScheme`: API key, HTTP auth, OAuth2, OpenID Connect (where the
+  input dialect supports it). Preserve the *operation requirement*, not only
+  a global list of schemes.
+- `SourceLocation`: enough source pointer for actionable diagnostics when
+  input is invalid or a construct is unsupported.
 
-Output: reproducible PHP source for:
-- One API operation with native parameter and return types.
-- DTO model classes with exact JSON property names.
-- A backed enum.
-- A typed collection using the agreed TypedArray package.
-- Composer autoload metadata and a smoke test.
+This list is the intended **semantic surface**, not permission to claim every
+construct is implemented. Start with a deliberately small tested subset and
+extend it with cases.
 
-Tests:
-1. Parse the fixture and normalize it consistently into the IR.
-2. Render exactly the same files on repeated runs (byte-for-byte), including
-   deterministic ordering and stable names.
-3. `php -l` every generated PHP file and validate generated Composer metadata.
-4. Install the generated package into a **clean consumer fixture** (when
-   dependency versions are published) and test hydration/serialization.
-5. Ensure unsupported schemas produce explicit diagnostics.
-6. Introduce the actual CRM Swagger as an **integration fixture** later and
-   check all 14 operations against the existing Casafari SDK behavior, without
-   copying Casafari-specific models into the runtime.
-7. Benchmark generation time/output size/generated runtime speed and memory
-   against a pinned OpenAPI Generator version and a fixed fixture. No
-   speculative performance claims.
+Crucial property: **semantically equivalent Swagger 2.0 and OpenAPI 3.x
+contracts normalize to equivalent IR** for the common supported subset.
+Syntax differences are resolved *before* PHP generation. Do not put
+`if swagger2`/`if openapi3` logic in DTO or endpoint emitters.
 
-## Decisions and constraints
+## Single generation route
 
-- Use the `sdk-runtime` architecture proposal in parallel. In particular,
-  null/absent behavior, unknown properties, coercion and empty collections must
-  be decided once, then reflected in generator output and tests.
-- A package-name change is staged in the *unmerged* TypedArray PR #1.
-  Do not put unreleased `php-typed-array/php-typed-array` into emitted Composer
-  dependencies until it is available and an explicit migration is approved.
-- Preserve transport independence of the IR. Authentication and HTTP error
-  semantics belong to generated API configuration, not general JSON models.
-- Swagger 2.0 is the first end-to-end target because it is the verified
-  reference. Add OpenAPI 3.x with separate fixtures, rather than claiming
-  support until tests prove it.
-- No generator release before a representative generation flow, compiler
-  checks, independent consumer tests and six-job CI are green.
+1. Parse JSON/YAML with explicit dialect detection and informative errors.
+2. Resolve references / paths / components while preserving source locations.
+3. Normalize `definitions`/`parameters` and `components/schemas`,
+   `basePath+schemes+host` versus `servers`, `body` parameters versus
+   `requestBody`, MIME types, form/query/path headers and response forms.
+4. Validate the IR: stable identifiers, collisions, reserved PHP keywords,
+   ambiguous `operationId`, cycles, unsupported schema combinations.
+5. Emit *native PHP types* and small classes deterministically:
+   model DTOs, backed enums, typed collections, request and response types,
+   endpoint facades, Composer metadata, runtime adapters/tests/docs as needed.
+6. Validate generated output via PHP lint, static analysis, Composer, PHPUnit
+   and smoke installation in a clean consumer.
 
-## Review gate
+## Separation from sdk-runtime
 
-Approve responsibilities, minimal IR and first fixture before a functional
-implementation PR. Do not merge this design as an implicit authorization to
-change the TypedArray package or its mutability semantics.
+Generator knows **how a contract becomes PHP code**; runtime knows only how
+the resulting SDK performs common work (serialization/hydration, transport
+and error context). Runtime must never import OpenAPI parsers, Swagger
+semantics, vendor DTOs, endpoint names or templates.
+
+TypedArray stays a separate library; do not duplicate member validation.
+Its package rename proposed in unmerged `dmorenof/TypedArray` PR #1 must
+not be assumed published.
+
+## Test-first milestones, in the right order
+
+**M1 — Cross-format equivalence (first implementation PR):**
+Create two **owned synthetic fixtures**, one Swagger 2.0 and one OpenAPI 3.0,
+representing the same tiny API: one GET operation with a required path id,
+optional query parameter, JSON response, scalar fields, nested object, enum,
+typed list and required/optional distinction. Parse and normalize *both*.
+Assert equality of canonical semantic IR and actionable errors for an
+unrecognized input format. Add OpenAPI 3.1 equivalent fixture as its own
+explicitly tested dialect. This is the architecture's first executable proof.
+
+**M2 — Deterministic PHP generation:**
+Emit a small SDK for that IR using one code-generation path. Golden tests
+verify byte-for-byte stable output, exact wire field names, valid PHP and
+typed endpoint signatures. No hand-written Casafari classes inside the
+generator.
+
+**M3 — Execute the generated SDK:**
+Provide the minimal runtime support needed by output from M2. Test
+serialization, hydration, endpoint method/path/parameter transmission and
+errors using an injected fake HTTP transport.
+
+**M4 — Real contract regression:**
+Normalize the Casafari CRM Swagger 2.0 and another unrelated OpenAPI 3.x
+contract. Check the documented CRM's 14 operations as one regression suite,
+not a set of hand-coded parsing exceptions. Check generated package
+installation independently.
+
+**M5 — Measure and extend:**
+Benchmark generation time, generated lines/size, Composer dependencies,
+memory and request execution against a **pinned OpenAPI Generator** version,
+on reproducible fixtures. Claim only measured improvements.
+
+## Policy originates in the contract, not a universal DTO switch
+
+For extra properties (`additionalProperties`), nullability, required vs
+absent, scalar formats/coercion, array vs object, content type, aliases and
+request/response validation, keep **schema semantics** in the IR and
+generated adapters. When a specification is silent or ambiguous, document
+the generator option and test its default. Do **not** ask users to choose a
+single global “reject/ignore unknown JSON fields” policy as a prerequisite
+for building the cross-format pipeline.
+
+## Acceptance criteria
+
+- One normalized type/operation representation consumed by one PHP emitter.
+- Semantically equivalent inputs yield equivalent IR and generated output.
+- No vendor-specific mapping in the generic adapters or emitter.
+- Every claimed supported feature is covered by positive and negative
+  fixtures; unsupported features fail visibly.
+- Generated SDK needs no generator at runtime.
+- All six required GitHub Actions checks pass, PR reviewed before merge.
+- No tags or releases until actual end-to-end generation works.
