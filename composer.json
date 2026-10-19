@@ -41,6 +41,7 @@
         "source": "https://github.com/dmorenof/sdk-generator"
     },
     "require-dev": {
-        "phpunit/phpunit": "^11.5"
+        "phpunit/phpunit": "^11.5",
+        "typedarray/typedarray": "^1.0"
     }
 }
