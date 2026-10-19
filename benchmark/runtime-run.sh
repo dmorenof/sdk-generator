@@ -16,10 +16,10 @@ for api in accounts catalog; do
     --global-property='modelDocs=false,apiDocs=false,modelTests=false,apiTests=false' >"$OUT/logs/generate-$api.log" 2>&1
   for impl in ours openapi; do
     pkg="$OUT/clients/$api/$impl"
-    (cd "$pkg" && composer install --no-interaction --prefer-dist --no-progress --no-ansi)
+    (cd "$pkg" && composer install --no-dev --no-interaction --prefer-dist --no-progress --no-ansi)
     composer validate --working-dir="$pkg" --no-check-lock
     du -s -k "$pkg/vendor" | awk -v a="$api" -v m="$impl" '{printf "VENDOR_KiB %s %s %d\n",a,m,$1}' | tee -a "$OUT/logs/installed-size.log"
-    (cd "$pkg" && composer show -i --no-ansi --no-interaction | wc -l) | awk -v a="$api" -v m="$impl" '{printf "INSTALLED_PACKAGES %s %s %d\n",a,m,$1}' | tee -a "$OUT/logs/installed-size.log"
+    (cd "$pkg" && composer show --no-dev --no-ansi --no-interaction | wc -l) | awk -v a="$api" -v m="$impl" '{printf "INSTALLED_PACKAGES %s %s %d\n",a,m,$1}' | tee -a "$OUT/logs/installed-size.log"
   done
 done
 echo 'api,implementation,trial,wall_seconds,peak_rss_kib,startup_ms,ops_ms,us_per_request,php_peak_mib' > "$OUT/observations.csv"
