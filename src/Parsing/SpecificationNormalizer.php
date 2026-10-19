@@ -223,7 +223,9 @@ final class SpecificationNormalizer
             if (!in_array($loc, ['path', 'query', 'header'], true)) {
                 throw new InvalidArgumentException("Unsupported parameter location $loc at $where.");
             }
-            $schema = $dialect === 'swagger2' ? $raw : ($raw['schema'] ?? null);
+            $schema = $dialect === 'swagger2'
+                ? array_diff_key($raw, array_flip(['name', 'in', 'required', 'description']))
+                : ($raw['schema'] ?? null);
             if (!is_array($schema)) {
                 throw new InvalidArgumentException("Missing parameter schema at $where.");
             }
