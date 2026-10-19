@@ -1,0 +1,153 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Sample Library Catalog",
+    "version": "1.0.0"
+  },
+  "host": "catalog.example.test",
+  "basePath": "/api/v2",
+  "schemes": [
+    "https"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "definitions": {
+    "BookDraft": {
+      "type": "object",
+      "required": [
+        "title",
+        "price"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "genre": {
+          "type": "string",
+          "enum": [
+            "fiction",
+            "nonfiction"
+          ]
+        }
+      }
+    },
+    "Warehouse": {
+      "type": "object",
+      "required": [
+        "region"
+      ],
+      "properties": {
+        "region": {
+          "type": "string"
+        },
+        "temperature": {
+          "type": "number",
+          "format": "float"
+        }
+      }
+    },
+    "Book": {
+      "type": "object",
+      "required": [
+        "sku",
+        "title",
+        "price"
+      ],
+      "properties": {
+        "sku": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "genre": {
+          "type": "string",
+          "enum": [
+            "fiction",
+            "nonfiction"
+          ]
+        },
+        "stock": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "warehouse": {
+          "$ref": "#/definitions/Warehouse"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/books/{sku}": {
+      "get": {
+        "operationId": "findBook",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sku",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Book found",
+            "schema": {
+              "$ref": "#/definitions/Book"
+            }
+          }
+        }
+      }
+    },
+    "/books": {
+      "post": {
+        "operationId": "addBook",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "payload",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BookDraft"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": {
+              "$ref": "#/definitions/Book"
+            }
+          }
+        }
+      }
+    }
+  }
+}
