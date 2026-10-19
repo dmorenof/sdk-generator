@@ -1,0 +1,62 @@
+name: Compare generated SDK runtime
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/compare-sdk-runtime.yml'
+      - 'benchmark/runtime-*'
+      - 'src/**'
+      - 'bin/**'
+      - 'tests/fixtures/**'
+      - 'composer.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    name: Typed GET and DTO hydration under Guzzle
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install build-time PHP generator
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Capture environment
+        run: |
+          php -v
+          java -version
+          composer --version
+          nproc
+      - name: Generate, independently Composer-install, and benchmark both SDKs
+        run: bash benchmark/runtime-run.sh
+      - name: Diagnostics if benchmark fails
+        if: failure()
+        run: |
+          cat runtime-compare-output/observations.csv || true
+          for file in runtime-compare-output/logs/*.log runtime-compare-output/logs/*.json runtime-compare-output/logs/*.time; do
+            if [[ -f "$file" ]]; then
+              echo "=== $file ==="
+              tail -30 "$file"
+            fi
+          done
+      - name: Remove downloaded dependency trees before artifact upload
+        if: always()
+        run: |
+          find runtime-compare-output/clients -type d -name vendor -prune -exec rm -rf {} + || true
+      - name: Upload report, raw observations and generated code
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: generated-sdk-runtime-comparison
+          path: runtime-compare-output/
+          if-no-files-found: warn
+          retention-days: 14
