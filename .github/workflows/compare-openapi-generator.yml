@@ -40,6 +40,16 @@ jobs:
           nproc
       - name: Measure identical contracts with both generators
         run: bash benchmark/run.sh
+      - name: Print measurement diagnostics on failure
+        if: failure()
+        run: |
+          cat benchmark-output/raw.csv || true
+          for file in benchmark-output/logs/*.log benchmark-output/logs/*.time; do
+            if [[ -f "$file" ]]; then
+              echo "==== $file ===="
+              tail -40 "$file"
+            fi
+          done
       - name: Publish CSV, markdown report, logs and both sets of PHP sources
         if: always()
         uses: actions/upload-artifact@v4

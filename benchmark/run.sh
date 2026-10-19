@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+trap 'echo "Benchmark failed at line $LINENO (exit $?)" >&2' ERR
 cd "$(dirname "$0")/.."
 VERSION=7.26.0
 JAR="${RUNNER_TEMP:-/tmp}/openapi-generator-cli-$VERSION.jar"
@@ -18,6 +19,7 @@ measure() {
   local log="$OUT/logs/$api-$impl-$trial.log"
   local tim="$OUT/logs/$api-$impl-$trial.time"
   mkdir -p "$(dirname "$dest")"
+  echo "Measuring $api / $impl / trial $trial"
   if [[ "$impl" == ours ]]; then
     /usr/bin/time -f '%e,%U,%S,%M' -o "$tim" php bin/generate-sdk.php "$spec" "$dest" \
       "Benchmark\${api}Sdk" "benchmark/$api-sdk" > "$log" 2>&1
