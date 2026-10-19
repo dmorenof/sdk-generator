@@ -1,23 +1,23 @@
-# Download and review generated SDKs without local PHP
+# Review generated SDKs without local PHP
 
-GitHub Actions generates two PHP SDKs from **synthetic** specifications:
-Accounts and Catalog. Each is installed by Composer on the runner, smoke-
-tested with simulated GET/POST traffic and published as a ZIP artifact.
+GitHub Actions creates **two complete, standalone PHP Composer SDK packages** from independent **synthetic** API contracts: Accounts and Catalog. Both are smoke-tested after independent Composer installation, with a Guzzle mock handler. The tests verify real GET/POST serialization and nested DTO/enum/typed collection hydration; they also exercise PSR-18/Guzzle injection and request/response middleware hooks.
 
-1. Open **Actions → Downloadable SDK previews**, or use the workflow run
-   from PR #9 (the PR includes the new workflow).
-2. Wait for **Preview accounts** and **Preview catalog** to pass.
-3. Under **Artifacts**, download one of the ZIPs named
-   `sdk-preview-accounts-php83` or
-   `sdk-preview-catalog-php83`.
-4. Inspect the PHP files and composer.json; no software installation is
-   needed to download or read them.
+1. Open [Actions → Downloadable SDK previews](https://github.com/dmorenof/sdk-generator/actions/workflows/sdk-preview.yml).
+2. Select the newest successful workflow run (the workflow also supports **Run workflow** from the default branch).
+3. Under **Artifacts**, download sdk-preview-accounts-php83 or sdk-preview-catalog-php83.
+4. Inspect the PHP source and generated composer.json directly in the ZIP. You **do not need PHP or Composer locally** to review it.
 
-The artifacts expire in 14 days. The workflow can be rerun manually after
-its introduction is merged to main (via the **Run workflow** button).
-PR runs are automatic when relevant generator inputs change.
+These are **source-only previews**, not signed or production-tested API releases. The artifact excludes vendor packages to keep downloads small. Each generated SDK is separately installable using its own composer.json.
 
-This is an experimental PHP generator and these artifacts are **not
-production SDK releases**. End-to-end tests use fake HTTP transports and
-do not access actual accounts or APIs. Swagger 2.0 and OpenAPI 3.0/3.1
-are tested on the supported subset, not as fully conformant generators.
+Workflow artifacts expire 14 days after upload; rerun the workflow to get fresh copies. CI does not use real API accounts, credentials, or live HTTP traffic.
+
+For code running under PHP 8.3+, a generated SDK connects with the simple static factory:
+
+~~~php
+$api = \Preview\AccountsSdk\Api\ApiClient::connect('https://api.example.com/v1');
+$user = $api->getUser(88);
+~~~
+
+A real Guzzle 7 implementation is selected by default; custom PSR-18 client and default headers are optional.
+
+**Scope:** limited JSON Swagger/OpenAPI subset; security schemes and outbound full required-field validation are not implemented. See [SUPPORTED_SCOPE.md](SUPPORTED_SCOPE.md) and [README.md](../README.md).
