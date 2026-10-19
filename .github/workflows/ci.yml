@@ -1,0 +1,29 @@
+name: PHP package CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - name: Validate Composer metadata
+        run: composer validate --strict --no-check-lock
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Check PSR-4 autoload configuration
+        run: composer dump-autoload --optimize --strict-psr --strict-ambiguous
+      - name: Check PHP syntax when source or tests exist
+        run: find src tests -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
