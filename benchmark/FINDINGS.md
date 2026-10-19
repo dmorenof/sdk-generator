@@ -39,3 +39,32 @@ El nuestro tiene DTOs con propiedades PHP tipadas y clases `TypedArray` para col
 4. Medición de operaciones repetidas con datos de distintos tamaños y condiciones de memoria/caché para confirmar o refutar esta primera ventaja.
 
 El usuario no necesita instalar PHP: descargar el artefacto de GitHub Actions permite inspeccionar `REPORT.md`, `observations.csv`, cada medición individual, los logs, la configuración de dependencias y ambos SDKs generados.
+
+
+## Auditoría adicional: reutilización, DTOs, tipo nativo y prevalidación
+
+Esta revisión examina el código generado. No constituye todavía una prueba de casos negativos ejecutados con ambos SDKs y por tanto no acredita una nueva ventaja.
+
+### OpenAPI Generator PHP: hay DTOs y reutilización, con límites
+
+- Sí genera **modelos equivalentes a DTOs**: [Pet.php](https://github.com/OpenAPITools/openapi-generator/blob/master/samples/client/petstore/php/OpenAPIClient-php/lib/Model/Pet.php), 623 líneas en el ejemplo revisado. Proporciona getters/setters, PHPDoc, mapas de tipos/formats y métodos de validación de propiedades.
+- [PetApi.php](https://github.com/OpenAPITools/openapi-generator/blob/master/samples/client/petstore/php/OpenAPIClient-php/lib/Api/PetApi.php) consta de 3559 líneas en el ejemplo. Cada operación expande varias variantes: addPet, addPetWithHttpInfo, addPetAsync, addPetAsyncWithHttpInfo y addPetRequest. Las variantes aportan funcionalidad, pero multiplican el código generado.
+- **Sí reutiliza** [ObjectSerializer.php](https://github.com/OpenAPITools/openapi-generator/blob/master/samples/client/petstore/php/OpenAPIClient-php/lib/ObjectSerializer.php) y otros helpers (Configuration, HeaderSelector). Decir que no reutiliza nada sería inexacto.
+- Pet::setName acepta un parámetro sin tipo PHP nativo y comprueba null, pero no que sea un string. PetApi::addPet admite un parámetro sin tipo nativo y verifica presencia, no instancia de Pet. Existen otros validadores de campo, pero no son equivalentes a control estricto de tipo en la frontera de llamada.
+
+### Nuestro SDK: ventajas y defectos identificados
+
+- Genera propiedades con tipos PHP nativos, enums, colecciones TypedArray y firmas tipadas de endpoint. Eso favorece la ayuda del IDE y la detección temprana de errores de tipos.
+- Reutiliza clases de soporte para HTTP e hidratación. **Todavía repite** la construcción de rutas, query, serialización y comparación de status por operación, y duplica información que aparece en OperationCatalog. Conviene extraer un ejecutor compartido sin perder métodos públicos tipados.
+- **Error de validación pendiente:** un DTO saliente puede omitir un campo obligatorio sin inicializar, porque jsonSerialize usa get_object_vars y solo incluye propiedades inicializadas. El control REQUIRED_FIELDS se aplica al hidratar respuestas, no antes de enviar.
+- Faltan validaciones sistemáticas de rango, longitud, patrón, formatos, aliases y composición de esquemas cuando lo exija la especificación. Un tipo string nativo no equivale a un validador completo de OpenAPI.
+
+### Pruebas comparativas que faltan
+
+1. Contar líneas y ramas por operación distinguiendo helpers compartidos de duplicación.
+2. Comprobar autocompletado y descubribilidad de modelos, tipos y colecciones.
+3. Intentar enviar datos inválidos: tipo escalar, DTO de clase incorrecta, requerido ausente, enum inválido, colección de elemento incorrecto y restricciones explícitas del esquema.
+4. Registrar si cada caso falla antes de invocar el transporte, falla al serializar o se transmite silenciosamente.
+5. Repetir los benchmarks de CPU/memoria una vez añadida la validación necesaria: **omitir verificaciones no debe interpretarse como mejor rendimiento**.
+
+No se ha ejecutado esta nueva batería de tests; estos son hallazgos de inspección fuente y criterios de aceptación.
