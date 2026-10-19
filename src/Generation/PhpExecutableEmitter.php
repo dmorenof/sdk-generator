@@ -58,10 +58,67 @@ final class PhpExecutableEmitter
             . "    /** @param array<string, string> \$headers */\n"
             . "    public function __construct(public int \$status, public string \$body, public array \$headers = []) {}\n"
             . "}\n";
+        // The default adapter is PSR-18-compatible and uses Guzzle 7 out of the box.
+        // Build-time generator code is not loaded by the emitted package.
+        $files['src/Transport/Psr18Transport.php'] = $this->renderPsr18Transport();
+
+        $manifest = json_decode($files['composer.json'], true, 512, JSON_THROW_ON_ERROR);
+        $manifest['require']['guzzlehttp/guzzle'] = '^7.9';
+        $manifest['require']['psr/http-client'] = '^1.0';
+        ksort($manifest['require']);
+        $files['composer.json'] = json_encode(
+            $manifest,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+        ) . "\n";
         $files['src/Support/JsonHydrator.php'] = $this->renderHydrator();
         $files['src/Api/ApiClient.php'] = $this->renderClient($contract);
         ksort($files, SORT_STRING);
         return $files;
+    }
+
+    private function renderPsr18Transport(): string
+    {
+        $ns = $this->namespace;
+        return $this->header($ns . '\Transport') . <<<'PHP'
+use GuzzleHttp\Psr7\Request;
+use Psr\Http\Client\ClientInterface;
+
+/**
+ * Uses a real PSR-18 HTTP client. A configured Guzzle client with HandlerStack
+ * can be injected for middleware, but no client setup is required by default.
+ */
+final readonly class Psr18Transport implements TransportInterface
+{
+    /** @param array<string, string> $defaultHeaders */
+    public function __construct(
+        private ClientInterface $client,
+        private array $defaultHeaders = [],
+    ) {}
+
+    /** @param array<string, string> $headers */
+    public function send(string $method, string $url, array $headers, ?string $body): HttpResponse
+    {
+        $request = new Request(
+            $method,
+            $url,
+            array_replace($this->defaultHeaders, $headers),
+            $body ?? '',
+        );
+        // Guzzle's PSR-18 sendRequest() does not throw on HTTP status codes.
+        $response = $this->client->sendRequest($request);
+        $resultHeaders = [];
+        foreach ($response->getHeaders() as $name => $values) {
+            $resultHeaders[$name] = implode(', ', $values);
+        }
+
+        return new HttpResponse(
+            $response->getStatusCode(),
+            (string) $response->getBody(),
+            $resultHeaders,
+        );
+    }
+}
+PHP;
     }
 
     private function renderClient(ApiContract $contract): string
@@ -74,7 +131,20 @@ final class PhpExecutableEmitter
             . "    public function __construct(\n"
             . "        private TransportInterface \$transport,\n"
             . "        private string \$baseUrl,\n"
-            . "    ) {}\n\n";
+            . "    ) {}\n\n"
+            . "    /**\n"
+            . "     * Ready-to-use SDK, Guzzle by default, PSR-18 injection optional.\n"
+            . "     * @param array<string, string> \\$headers\n"
+            . "     */\n"
+            . "    public static function connect(\n"
+            . "        string \\$baseUrl,\n"
+            . "        ?\\Psr\\Http\\Client\\ClientInterface \\$httpClient = null,\n"
+            . "        array \\$headers = [],\n"
+            . "    ): self\n"
+            . "    {\n"
+            . "        \\$client = \\$httpClient ?? new \\GuzzleHttp\\Client(['http_errors' => false]);\n"
+            . "        return new self(new $ns\\Transport\\Psr18Transport(\\$client, \\$headers), \\$baseUrl);\n"
+            . "    }\n\n";
 
         foreach ($contract->operations as $operation) {
             $source .= $this->renderOperation($operation);
