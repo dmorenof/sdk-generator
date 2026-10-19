@@ -1,0 +1,91 @@
+name: Downloadable SDK previews
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/sdk-preview.yml'
+      - 'src/**'
+      - 'bin/**'
+      - 'tests/fixtures/**'
+      - 'tests/preview-smoke.php'
+      - 'composer.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-previews-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  preview:
+    name: Preview ${{ matrix.api }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: accounts
+            spec: tests/fixtures/accounts-openapi31.json
+            namespace: 'Preview\AccountsSdk'
+            package: preview/accounts-sdk
+          - api: catalog
+            spec: tests/fixtures/catalog-openapi31.json
+            namespace: 'Preview\CatalogSdk'
+            package: preview/catalog-sdk
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install generator dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Generate SDK source files
+        env:
+          SPEC: ${{ matrix.spec }}
+          OUT: preview/${{ matrix.api }}
+          SDK_NAMESPACE: ${{ matrix.namespace }}
+          SDK_PACKAGE: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          php bin/generate-sdk.php "$SPEC" "$OUT" "$SDK_NAMESPACE" "$SDK_PACKAGE"
+          find "$OUT/src" -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
+
+      - name: Install and execute the generated SDK independently
+        working-directory: preview/${{ matrix.api }}
+        env:
+          PREVIEW_API: ${{ matrix.api }}
+        run: |
+          set -euo pipefail
+          composer validate --no-check-lock
+          composer install --no-interaction --prefer-dist --no-progress
+          php ../../tests/preview-smoke.php "$PREVIEW_API"
+
+      - name: Package the generated PHP source without vendor dependencies
+        run: |
+          set -euo pipefail
+          rm -rf "preview/${{ matrix.api }}/vendor" "preview/${{ matrix.api }}/composer.lock"
+          cat > "preview/${{ matrix.api }}/PREVIEW-NOTICE.md" <<'NOTICE'
+          # Generated SDK preview — not a release
+
+          Source-only PHP package generated from a synthetic API contract.
+          GitHub Actions installed and smoke-tested it independently with
+          a fake HTTP transport. No real API network requests or credentials.
+          No local tools required to download and inspect the sources.
+          Runtime requires PHP 8.3+, Composer and an HTTP transport adapter.
+          NOTICE
+
+      - name: Upload downloadable ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-preview-${{ matrix.api }}-php83
+          path: preview/${{ matrix.api }}/
+          if-no-files-found: error
+          retention-days: 14
