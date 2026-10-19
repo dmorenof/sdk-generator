@@ -1,0 +1,54 @@
+name: Compare with OpenAPI Generator
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/compare-openapi-generator.yml'
+      - 'benchmark/**'
+      - 'src/**'
+      - 'bin/**'
+      - 'tests/fixtures/**'
+      - 'composer.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  generation-benchmark:
+    name: Generator CPU and memory baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install PHP generator
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Record execution environment
+        run: |
+          php -v
+          java -version
+          composer --version
+          python3 --version
+          /usr/bin/time --version | head -1
+          nproc
+      - name: Measure identical contracts with both generators
+        run: bash benchmark/run.sh
+      - name: Publish CSV, markdown report, logs and both sets of PHP sources
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-generator-7-26-0-generation-comparison
+          path: |
+            benchmark-output/REPORT.md
+            benchmark-output/raw.csv
+            benchmark-output/logs/
+            benchmark-output/comparison/
+          if-no-files-found: warn
+          retention-days: 14
