@@ -26,9 +26,6 @@ final class CoreInheritanceTest extends TestCase
     {
         $files = self::generated();
         foreach ([
-            'src/Core/ApiClient.php',
-            'src/Core/HttpMiddlewareInterface.php',
-            'src/Core/HttpClient.php',
             'src/Core/DTO.php',
             'src/Core/Request.php',
             'src/Core/Response.php',
@@ -41,6 +38,10 @@ final class CoreInheritanceTest extends TestCase
             'src/Models/User.php',
             'src/Transport/HttpResponse.php',
             'src/Transport/TransportInterface.php',
+            'src/Core/HttpMiddlewareInterface.php',
+            'src/Core/HttpClient.php',
+            'src/Core/ApiClient.php',
+            'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
             'src/Api/Operations.php',
             'src/Api/ApiClient.php',
