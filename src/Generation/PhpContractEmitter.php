@@ -133,6 +133,7 @@ final class PhpContractEmitter
     private function renderModel(ModelDefinition $model, array &$files, string $baseClass): string
     {
         $fields = [];
+        $validation = [];
         $seen = [];
         foreach ($model->schema->properties as $property) {
             $this->checkName($property->wireName, 'model property');
@@ -150,6 +151,9 @@ final class PhpContractEmitter
             // Deliberately uninitialized when absent, including optional fields.
             // Calling get_object_vars() preserves the absent-vs-null distinction.
             $fields[] = '    public ' . $type . ' $' . $property->wireName . ';';
+            if ($property->schema->validation !== []) {
+                $validation[$property->wireName] = $property->schema->validation;
+            }
         }
 
         $required = [];
@@ -164,6 +168,9 @@ final class PhpContractEmitter
         $source = $this->header($namespace)
             . 'final class ' . $class . ' extends \\' . $this->namespace . '\\Core\\' . $baseClass . "\n{\n"
             . "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n";
+        if ($validation !== []) {
+            $source .= "    protected const array VALIDATION = " . PhpLiteral::export($validation) . ";\n\n";
+        }
         if ($fields !== []) {
             $source .= implode("\n", $fields) . "\n\n";
         }
@@ -206,6 +213,9 @@ final class PhpContractEmitter
     {
         if ($schema->items === null) {
             throw new InvalidArgumentException("Missing collection items at $hint");
+        }
+        if ($schema->items->validation !== []) {
+            throw new InvalidArgumentException("Constraints on individual array items are not supported yet at $hint.items");
         }
         $entry = $this->modelNames->derived($hint . 'Array', 'Collections');
         $name = $entry['class'];

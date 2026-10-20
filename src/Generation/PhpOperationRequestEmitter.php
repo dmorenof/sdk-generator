@@ -34,6 +34,7 @@ final readonly class PhpOperationRequestEmitter
             }
             $fields = [];
             $required = [];
+            $validation = [];
             $seen = [];
             foreach ($operation->parameters as $parameter) {
                 $field = $parameter->wireName;
@@ -53,6 +54,9 @@ final readonly class PhpOperationRequestEmitter
                     throw new InvalidArgumentException("Unsupported nullable/enum Request parameter $field in $name");
                 }
                 $fields[] = '    public ' . ($parameter->required ? $type : '?' . $type) . ' $' . $field . ';';
+                if ($parameter->schema->validation !== []) {
+                    $validation[$field] = $parameter->schema->validation;
+                }
                 if ($parameter->required) {
                     $required[] = $field;
                 }
@@ -80,6 +84,8 @@ final readonly class PhpOperationRequestEmitter
             $source = $header . 'final class ' . $name . ' extends \\' . $this->namespace
                 . "\\Core\\Request\n{\n"
                 . '    public const array REQUIRED_FIELDS = ' . PhpLiteral::export($required) . ";\n\n"
+                . ($validation !== [] ? '    protected const array VALIDATION = '
+                    . PhpLiteral::export($validation) . ";\n\n" : '')
                 . implode("\n", $fields) . "\n}\n";
             $files[$path] = $source;
         }
