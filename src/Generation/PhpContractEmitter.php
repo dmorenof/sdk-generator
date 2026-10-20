@@ -163,7 +163,7 @@ final class PhpContractEmitter
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
         $source = $this->header($namespace)
             . 'final class ' . $class . ' extends \\' . $this->namespace . '\\Core\\' . $baseClass . "\n{\n"
-            . "    public const array REQUIRED_FIELDS = " . var_export($required, true) . ";\n\n";
+            . "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n";
         if ($fields !== []) {
             $source .= implode("\n", $fields) . "\n\n";
         }
@@ -366,7 +366,7 @@ final class PhpContractEmitter
             ];
         }
         ksort($routes);
-        $literal = var_export($routes, true);
+        $literal = PhpLiteral::export($routes);
         return $this->header($this->namespace . '\\Api')
             . "final class OperationCatalog\n{\n"
             . "    public const array ROUTES = $literal;\n"

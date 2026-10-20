@@ -79,7 +79,7 @@ final readonly class PhpOperationRequestEmitter
                 . "namespace {$this->namespace}\\Requests;\n\n";
             $source = $header . 'final class ' . $name . ' extends \\' . $this->namespace
                 . "\\Core\\Request\n{\n"
-                . '    public const array REQUIRED_FIELDS = ' . var_export($required, true) . ";\n\n"
+                . '    public const array REQUIRED_FIELDS = ' . PhpLiteral::export($required) . ";\n\n"
                 . implode("\n", $fields) . "\n}\n";
             $files[$path] = $source;
         }
