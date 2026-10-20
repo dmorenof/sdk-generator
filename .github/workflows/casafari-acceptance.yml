@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/casafari-acceptance.yml'
       - 'bin/check-openapi-acceptance.php'
+      - 'tests/fixtures/casafari-openapi31.json'
       - 'src/**'
       - 'composer.json'
 
@@ -27,24 +28,20 @@ jobs:
           coverage: none
       - name: Install generator
         run: composer install --no-interaction --prefer-dist --no-progress
-      - name: Retrieve Casafari official OpenAPI 3.1 document
+      - name: Verify exact uploaded OpenAPI fixture (original CRLF bytes)
         run: |
-          curl --fail --location --silent --show-error --retry 3 --max-time 60 \
-            https://developers.casafari.com/openapi.json -o "$RUNNER_TEMP/casafari-openapi.json"
-          sha256sum "$RUNNER_TEMP/casafari-openapi.json"
+          echo "d6dce87639a6a16b7f2aac2e17ab5845b21e4e7937e68fca20243442be15ba04  tests/fixtures/casafari-openapi31.json" | sha256sum --check
       - name: Analyze full contract and each operation against the pinned document
         run: |
-          php bin/check-openapi-acceptance.php "$RUNNER_TEMP/casafari-openapi.json" \
+          php bin/check-openapi-acceptance.php tests/fixtures/casafari-openapi31.json \
             --sha256 d6dce87639a6a16b7f2aac2e17ab5845b21e4e7937e68fca20243442be15ba04 \
             > "$RUNNER_TEMP/casafari-acceptance-report.json"
-          # Intentionally fails until the whole pinned spec and all operations generate.
-      - name: Archive source and operation-level report even on failure
+          # Intentionally fails until all operations and the complete spec generate.
+      - name: Archive operation-level report on expected failure
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: casafari-0.2.0-acceptance
-          path: |
-            ${{ runner.temp }}/casafari-openapi.json
-            ${{ runner.temp }}/casafari-acceptance-report.json
+          path: ${{ runner.temp }}/casafari-acceptance-report.json
           if-no-files-found: warn
           retention-days: 30
