@@ -29,7 +29,7 @@ if ($api === 'accounts') {
         }
     };
     $client = new \Preview\AccountsSdk\Api\ApiClient($transport, 'https://api.example.test/v1');
-    $user = $client->getUser(27, true);
+    $user = $client->getUser(new \Preview\AccountsSdk\Requests\GetUserRequest((object)['id' => 27, 'verbose' => true]));
     checkPreview($user instanceof \Preview\AccountsSdk\Models\User, 'Accounts DTO type mismatch');
     checkPreview($user->role === \Preview\AccountsSdk\Enums\UserRoleEnum::Admin, 'Accounts enum mismatch');
     checkPreview($user->profile->visits === 4, 'Accounts nested model mismatch');
@@ -63,7 +63,7 @@ if ($api === 'accounts') {
         }
     };
     $client = new \Preview\CatalogSdk\Api\ApiClient($transport, 'https://catalog.example.test/api/v2');
-    $book = $client->findBook('BOOK-09', false);
+    $book = $client->findBook(new \Preview\CatalogSdk\Requests\FindBookRequest((object)['sku' => 'BOOK-09', 'expand' => false]));
     checkPreview($book instanceof \Preview\CatalogSdk\Models\Book, 'Catalog DTO type mismatch');
     checkPreview($book->price === 19.75, 'Catalog float mismatch');
     checkPreview($book->genre === \Preview\CatalogSdk\Enums\BookGenreEnum::Fiction, 'Catalog enum mismatch');
@@ -116,7 +116,7 @@ if ($api === 'accounts') {
         new \GuzzleHttp\Client(['handler' => $stack]),
         ['Authorization' => 'Bearer example'],
     );
-    $result = $ready->getUser(27);
+    $result = $ready->getUser(new \Preview\AccountsSdk\Requests\GetUserRequest((object)['id' => 27]));
     checkPreview($result->name === 'Standalone', 'Ready-to-use Accounts DTO mismatch');
     checkPreview($events === ['before', 'after'], 'Guzzle middleware chain did not run');
 } else {
@@ -134,7 +134,7 @@ if ($api === 'accounts') {
         'https://catalog.example.test/api/v2',
         new \GuzzleHttp\Client(['handler' => $stack]),
     );
-    $result = $ready->findBook('BOOK-09');
+    $result = $ready->findBook(new \Preview\CatalogSdk\Requests\FindBookRequest((object)['sku' => 'BOOK-09']));
     checkPreview($result->title === 'Ready', 'Ready-to-use Catalog DTO mismatch');
 }
 echo "READY_PSR18_CONSUMER_OK: $api\n";

@@ -8,7 +8,7 @@ Our generated package after Composer installation:
 
 ```php
 $api = \Benchmark\AccountsSdk\Api\ApiClient::connect('https://api.example.test/v1');
-$user = $api->getUser(88);
+$user = $api->getUser(new \Benchmark\AccountsSdk\Requests\GetUserRequest((object)['id' => 88]));
 ```
 
 OpenAPI Generator PHP/Guzzle (verify default host and generated `DefaultApi` class on actual output):

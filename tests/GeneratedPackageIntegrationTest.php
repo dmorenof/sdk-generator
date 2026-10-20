@@ -82,7 +82,7 @@ $fake = new class implements \Acme\PublicSdk\Transport\TransportInterface {
     }
 };
 $client = new \Acme\PublicSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
-$user = $client->getUser(88, true);
+$user = $client->getUser(new \Acme\PublicSdk\Requests\GetUserRequest((object)['id' => 88, 'verbose' => true]));
 if (!$user instanceof \Acme\PublicSdk\Models\User
     || $user->role !== \Acme\PublicSdk\Enums\UserRoleEnum::Viewer
     || $user->profile->city !== 'Bilbao'

@@ -69,7 +69,7 @@ $check = static function (object $result) use ($kind, $api, $expectedName, $expe
     }
 };
 $execute = static function () use ($client, $api): object {
-    return $api === 'accounts' ? $client->getUser(88, false) : $client->findBook('BOOK-09', false);
+    return $api === 'accounts' ? $client->getUser(new \Benchmark\AccountsSdk\Requests\GetUserRequest((object)['id' => 88, 'verbose' => false])) : $client->findBook(new \Benchmark\CatalogSdk\Requests\FindBookRequest((object)['sku' => 'BOOK-09', 'expand' => false]));
 };
 
 // Warm both implementations to avoid counting lazy autoload initialization

@@ -36,6 +36,7 @@ final class CoreInheritanceTest extends TestCase
             'src/Models/Profile.php',
             'src/Models/NewUser.php',
             'src/Models/User.php',
+            'src/Requests/GetUserRequest.php',
             'src/Transport/HttpResponse.php',
             'src/Transport/TransportInterface.php',
             'src/Core/HttpMiddlewareInterface.php',
@@ -168,6 +169,21 @@ final class CoreInheritanceTest extends TestCase
         );
         self::assertSame('Grace', $fromJson->entries[0]->name);
         self::assertSame(\Example\NestedSdk\Enums\BundleRolesItemEnum::Viewer, $fromJson->roles[0]);
+    }
+
+    public function testOperationRequestRetainsRequiredPathAndOptionalQueryTypes(): void
+    {
+        $request = new \Example\InheritanceSdk\Requests\GetUserRequest(
+            (object) ['id' => 88, 'verbose' => false],
+        );
+        self::assertInstanceOf(\Example\InheritanceSdk\Core\Request::class, $request);
+        self::assertSame(88, $request->id);
+        self::assertFalse($request->verbose);
+        self::assertSame(['id' => 88, 'verbose' => false], json_decode((string) $request, true, 512, JSON_THROW_ON_ERROR));
+        $empty = new \Example\InheritanceSdk\Requests\GetUserRequest();
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage('Required JSON property');
+        json_encode($empty, JSON_THROW_ON_ERROR);
     }
 
     public function testTypedFieldRejectsUnrelatedClass(): void

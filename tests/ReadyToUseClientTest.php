@@ -38,6 +38,7 @@ final class ReadyToUseClientTest extends TestCase
             'src/Models/Profile.php',
             'src/Models/NewUser.php',
             'src/Models/User.php',
+            'src/Requests/GetUserRequest.php',
             'src/Transport/HttpResponse.php',
             'src/Transport/TransportInterface.php',
             'src/Core/HttpMiddlewareInterface.php',
@@ -100,7 +101,7 @@ final class ReadyToUseClientTest extends TestCase
             new Client(['handler' => $stack]),
             ['Authorization' => 'Bearer demo'],
         );
-        $user = $api->getUser(88, false);
+        $user = $api->getUser(new \Example\ReadySdk\Requests\GetUserRequest((object)['id' => 88, 'verbose' => false]));
         self::assertInstanceOf(\Example\ReadySdk\Models\User::class, $user);
         self::assertSame('Madrid', $user->profile->city);
         self::assertSame(\Example\ReadySdk\Enums\UserRoleEnum::Admin, $user->role);
@@ -150,7 +151,7 @@ final class ReadyToUseClientTest extends TestCase
         $api = \Example\ReadySdk\Api\ApiClient::connect('https://api.example.test/v1', $http);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from getUser: 404');
-        $api->getUser(88);
+        $api->getUser(new \Example\ReadySdk\Requests\GetUserRequest((object)['id' => 88]));
     }
 
     public function testCasafariStyleCoreMiddlewareHooksRunOnPSR18WithoutDuplicatingTransport(): void
@@ -179,7 +180,7 @@ final class ReadyToUseClientTest extends TestCase
         });
 
         self::assertInstanceOf(\Example\ReadySdk\Core\ApiClient::class, $api);
-        self::assertSame('Ada', $api->getUser(88)->name);
+        self::assertSame('Ada', $api->getUser(new \Example\ReadySdk\Requests\GetUserRequest((object)['id' => 88]))->name);
         self::assertSame(['before', 'after:yes'], $events->getArrayCopy());
         self::assertSame('yes', $history[0]['request']->getHeaderLine('X-Sdk-Core'));
     }
@@ -209,7 +210,7 @@ final class ReadyToUseClientTest extends TestCase
             }
         });
         try {
-            $api->getUser(88);
+            $api->getUser(new \Example\ReadySdk\Requests\GetUserRequest((object)['id' => 88]));
             self::fail('Middleware failed to abort the request');
         } catch (\DomainException $caught) {
             self::assertSame($exception, $caught);

@@ -45,6 +45,7 @@ final class PhpContractEmitterTest extends TestCase
             'src/Models/NewUser.php',
             'src/Models/Profile.php',
             'src/Models/User.php',
+            'src/Requests/GetUserRequest.php',
         ], array_keys($swagger));
     }
 
@@ -80,7 +81,7 @@ final class PhpContractEmitterTest extends TestCase
         $files = $this->generated();
         $operations = $files['src/Api/Operations.php'];
         self::assertStringContainsString(
-            'public function getUser(int $id, ?bool $verbose = null): \\Example\\AccountsSdk\\Models\\User;',
+            'public function getUser(\\Example\\AccountsSdk\\Requests\\GetUserRequest $request): \\Example\\AccountsSdk\\Models\\User;',
             $operations,
         );
         self::assertStringContainsString(

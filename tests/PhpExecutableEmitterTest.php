@@ -34,6 +34,7 @@ final class PhpExecutableEmitterTest extends TestCase
             'src/Models/Profile.php',
             'src/Models/NewUser.php',
             'src/Models/User.php',
+            'src/Requests/GetUserRequest.php',
             'src/Transport/HttpResponse.php',
             'src/Transport/TransportInterface.php',
             'src/Core/HttpMiddlewareInterface.php',
@@ -104,7 +105,7 @@ final class PhpExecutableEmitterTest extends TestCase
             }
         };
         $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1/');
-        $user = $client->getUser(42, false);
+        $user = $client->getUser(new \Example\ExecutableSdk\Requests\GetUserRequest((object)['id' => 42, 'verbose' => false]));
         self::assertInstanceOf(\Example\ExecutableSdk\Models\User::class, $user);
         self::assertSame(42, $user->id);
         self::assertSame('Ada', $user->name);
@@ -148,7 +149,7 @@ final class PhpExecutableEmitterTest extends TestCase
         $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from getUser: 404');
-        $client->getUser(1);
+        $client->getUser(new \Example\ExecutableSdk\Requests\GetUserRequest((object)['id' => 1]));
     }
 
     public function testHydratorRejectsMissingRequiredJsonFields(): void
@@ -165,7 +166,7 @@ final class PhpExecutableEmitterTest extends TestCase
         $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Required JSON property');
-        $client->getUser(1);
+        $client->getUser(new \Example\ExecutableSdk\Requests\GetUserRequest((object)['id' => 1]));
     }
 
     public function testHydratorRejectsInvalidScalarTypes(): void
@@ -182,6 +183,6 @@ final class PhpExecutableEmitterTest extends TestCase
         $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Invalid scalar value');
-        $client->getUser(1);
+        $client->getUser(new \Example\ExecutableSdk\Requests\GetUserRequest((object)['id' => 1]));
     }
 }
