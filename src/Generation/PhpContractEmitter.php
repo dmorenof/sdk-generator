@@ -70,6 +70,7 @@ final class PhpContractEmitter
             $files['src/Models/' . $model->name . '.php'] = $this->renderModel($model, $files, $roles[$model->name] ?? 'DTO');
         }
 
+        $files = array_replace($files, (new PhpOperationRequestEmitter($this->namespace))->emit($contract));
         $files['src/Api/Operations.php'] = $this->renderOperations($contract);
         $files['src/Api/OperationCatalog.php'] = $this->renderCatalog($contract);
         $manifest = [
@@ -258,13 +259,16 @@ final class PhpContractEmitter
             }
             $seen[strtolower($operation->operationId)] = true;
             $methodArgs = [];
-            foreach ($operation->parameters as $parameter) {
-                $this->checkName($parameter->wireName, 'operation parameter');
-                // Parameters must be simple scalars in the initial generated API.
-                $type = $this->primitiveParameterType($parameter->schema, $operation->operationId);
-                $methodArgs[] = [$parameter->wireName, $type, $parameter->required];
-            }
-            if ($operation->requestBody !== null) {
+            if ($operation->parameters !== []) {
+                // Keep URL/header fields together in a discoverable typed
+                // Request instead of several unrelated scalar arguments.
+                $methodArgs[] = [
+                    'request',
+                    (new PhpOperationRequestEmitter($this->namespace))->fqcn($operation),
+                    true,
+                ];
+            } elseif ($operation->requestBody !== null) {
+                // A body-only model already extends Core\Request.
                 $methodArgs[] = [
                     'body',
                     $this->bodyType($operation->requestBody->schema, $operation->operationId),
