@@ -152,6 +152,28 @@ final class PhpExecutableEmitterTest extends TestCase
         $client->getUser(new \Example\ExecutableSdk\Requests\GetUserRequest((object)['id' => 1]));
     }
 
+    public function testUndeclaredHTTPErrorRetainsStatusAndResponseWithoutAssumingErrorDTO(): void
+    {
+        if (!class_exists(\Example\ExecutableSdk\Api\ApiClient::class, false)) {
+            $this->loadGeneratedClasses();
+        }
+        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+            {
+                return new \Example\ExecutableSdk\Transport\HttpResponse(429, '{"reason":"throttled"}');
+            }
+        };
+        $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
+        try {
+            $client->getUser(new \Example\ExecutableSdk\Requests\GetUserRequest((object)['id' => 1]));
+            self::fail('Unexpected status did not throw');
+        } catch (\Example\ExecutableSdk\Core\ApiException $e) {
+            self::assertSame(429, $e->getCode());
+            self::assertNull($e->error);
+            self::assertSame('{"reason":"throttled"}', $e->response->body);
+        }
+    }
+
     public function testHydratorRejectsMissingRequiredJsonFields(): void
     {
         if (!class_exists(\Example\ExecutableSdk\Api\ApiClient::class, false)) {
