@@ -194,7 +194,8 @@ final class HierarchicalNamesTest extends TestCase
         ]);
         $response = $api->updateAgency($request);
         self::assertSame('An agency', $response->name);
-        self::assertSame(
+        // JSON objects are unordered; preserve the order-sensitive list assertions above.
+        self::assertEquals(
             ['name' => 'An agency', 'owner' => ['email' => 'agency@example.test'],
                 'labels' => ['commercial', 'residential'], 'status' => 'active'],
             json_decode($transport->calls[0]['body'], true, 512, JSON_THROW_ON_ERROR),
