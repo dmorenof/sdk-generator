@@ -1,0 +1,31 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Dmorenof\SdkGenerator\Acceptance\OpenApiAcceptanceAnalyzer;
+
+if (!in_array($argc, [2, 4], true) || ($argc === 4 && $argv[2] !== '--sha256')) {
+    fwrite(STDERR, "Usage: php bin/check-openapi-acceptance.php spec.json [--sha256 expected-hash]\n");
+    exit(2);
+}
+$source = @file_get_contents($argv[1]);
+if ($source === false) {
+    fwrite(STDERR, "Cannot read OpenAPI JSON: {$argv[1]}\n");
+    exit(2);
+}
+$actualHash = hash('sha256', $source);
+if ($argc === 4 && !hash_equals(strtolower($argv[3]), $actualHash)) {
+    fwrite(STDERR, "SPECIFICATION DRIFT: expected {$argv[3]}, received $actualHash. This is not the pinned acceptance input.\n");
+    exit(3);
+}
+try {
+    $report = (new OpenApiAcceptanceAnalyzer())->analyze($source);
+    echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), "\n";
+    // An honest failing gate until EVERY operation and the entire source generate.
+    exit($report['accepted'] ? 0 : 1);
+} catch (Throwable $exception) {
+    fwrite(STDERR, "Acceptance analysis failed: " . $exception->getMessage() . "\n");
+    exit(2);
+}
