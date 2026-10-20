@@ -28,25 +28,6 @@ final class PhpExecutableEmitter
     public function emit(ApiContract $contract): array
     {
         $files = (new PhpContractEmitter($this->namespace, $this->packageName))->emit($contract);
-        foreach ($contract->models as $model) {
-            $path = 'src/Models/' . $model->name . '.php';
-            $required = [];
-            foreach ($model->schema->properties as $property) {
-                if ($property->required) {
-                    $required[] = $property->wireName;
-                }
-            }
-            $anchor = 'final class ' . $model->name . " implements \\JsonSerializable\n{\n";
-            if (!str_contains($files[$path], $anchor)) {
-                throw new InvalidArgumentException("Unexpected generated model shape: $path");
-            }
-            $files[$path] = str_replace(
-                $anchor,
-                $anchor . '    public const array REQUIRED_FIELDS = ' . var_export($required, true) . ";\n\n",
-                $files[$path],
-            );
-        }
-
         $ns = $this->namespace;
         $files['src/Transport/TransportInterface.php'] = $this->header($ns . '\\Transport')
             . "interface TransportInterface\n{\n"
@@ -286,94 +267,25 @@ PHP;
 
     private function renderHydrator(): string
     {
-        // This implementation is used for the synthetic end-to-end test.
-        // It is not yet the stable public runtime API.
         $namespace = $this->namespace . '\\Support';
         return $this->header($namespace) . <<<'PHP'
 /**
- * Initial generated JSON-object hydrator.
- *
- * Only maps named, public, typed properties. Additional fields are ignored
- * by this experimental slice; schema-driven policies come later.
+ * Compatibility entry point. All JSON-to-object logic lives in Core\DTO,
+ * so direct DTO construction and HTTP response hydration behave identically.
  */
 final class JsonHydrator
 {
-    /** @template T of object @param class-string<T> $type @return T */
+    /** @template T of \JsonSerializable @param class-string<T> $type @return T */
     public static function decode(string $body, string $type): object
     {
         $data = json_decode($body, false, 512, JSON_THROW_ON_ERROR);
-        return self::hydrate($data, $type);
-    }
-
-    /** @template T of object @param class-string<T> $type @return T */
-    private static function hydrate(mixed $data, string $type): object
-    {
         if (!is_object($data)) {
             throw new \UnexpectedValueException("Expected a JSON object for $type.");
         }
-
-        $result = new $type();
-        $reflection = new \ReflectionClass($type);
-        foreach ($type::REQUIRED_FIELDS as $required) {
-            if (!property_exists($data, $required)) {
-                throw new \UnexpectedValueException("Required JSON property $type::$required is absent.");
-            }
+        if (!is_subclass_of($type, \JsonSerializable::class)) {
+            throw new \InvalidArgumentException("Expected generated DTO class, got $type.");
         }
-        foreach (get_object_vars($data) as $name => $value) {
-            if (!$reflection->hasProperty($name)) {
-                continue;
-            }
-            $property = $reflection->getProperty($name);
-            $declaration = $property->getType();
-            if (!$declaration instanceof \ReflectionNamedType) {
-                throw new \UnexpectedValueException("Unsupported property declaration $type::$name.");
-            }
-            if ($value === null) {
-                if (!$declaration->allowsNull()) {
-                    throw new \UnexpectedValueException("Unexpected null at $type::$name.");
-                }
-                $result->{$name} = null;
-                continue;
-            }
-
-            $kind = $declaration->getName();
-            if ($declaration->isBuiltin()) {
-                if ($kind === 'float' && is_int($value)) {
-                    $value = (float) $value;
-                }
-                $valid = match ($kind) {
-                    'int' => is_int($value),
-                    'float' => is_float($value),
-                    'string' => is_string($value),
-                    'bool' => is_bool($value),
-                    default => false,
-                };
-                if (!$valid) {
-                    throw new \UnexpectedValueException("Invalid scalar value at $type::$name.");
-                }
-            } elseif (enum_exists($kind)) {
-                $value = $kind::from($value);
-            } elseif (is_subclass_of($kind, \TypedArray\TypedArray::class)) {
-                if (!is_array($value)) {
-                    throw new \UnexpectedValueException("Expected a JSON array at $type::$name.");
-                }
-                $array = new $kind();
-                $itemType = (new \ReflectionProperty($kind, 'expected_type'))->getValue($array);
-                foreach ($value as $item) {
-                    if (enum_exists($itemType)) {
-                        $item = $itemType::from($item);
-                    } elseif (class_exists($itemType)) {
-                        $item = self::hydrate($item, $itemType);
-                    }
-                    $array->append($item);
-                }
-                $value = $array;
-            } else {
-                $value = self::hydrate($value, $kind);
-            }
-            $result->{$name} = $value;
-        }
-        return $result;
+        return new $type($data);
     }
 }
 PHP;

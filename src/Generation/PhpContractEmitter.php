@@ -51,7 +51,7 @@ final class PhpContractEmitter
     /** @return array<string, string> Stable generated relative paths => UTF-8 contents. */
     public function emit(ApiContract $contract): array
     {
-        $files = [];
+        $files = (new PhpCoreEmitter($this->namespace))->emit();
         $names = [];
         foreach ($contract->models as $model) {
             $this->checkName($model->name, 'model');
@@ -110,16 +110,19 @@ final class PhpContractEmitter
             $fields[] = '    public ' . $type . ' $' . $property->wireName . ';';
         }
 
+        $required = [];
+        foreach ($model->schema->properties as $property) {
+            if ($property->required) {
+                $required[] = $property->wireName;
+            }
+        }
         $source = $this->header($this->namespace . '\\Models')
-            . "final class " . $model->name . " implements \\JsonSerializable\n{\n";
+            . 'final class ' . $model->name . ' extends \\' . $this->namespace . "\\Core\\DTO\n{\n"
+            . "    public const array REQUIRED_FIELDS = " . var_export($required, true) . ";\n\n";
         if ($fields !== []) {
             $source .= implode("\n", $fields) . "\n\n";
         }
-        $source .= "    public function jsonSerialize(): object\n"
-            . "    {\n"
-            . "        return (object) get_object_vars(\$this);\n"
-            . "    }\n"
-            . "}\n";
+        $source .= "}\n";
         return $source;
     }
 
@@ -173,7 +176,7 @@ final class PhpContractEmitter
         };
         $file = $this->header($this->namespace . '\\Collections')
             . "/** @extends \\TypedArray\\TypedArray<" . $itemType . "> */\n"
-            . "final class $name extends \\TypedArray\\TypedArray\n"
+            . "final class $name extends \\{$this->namespace}\\Core\\TypedArray\n"
             . "{\n"
             . "    protected string \$expected_type = $expected;\n"
             . "}\n";
