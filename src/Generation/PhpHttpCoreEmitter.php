@@ -27,7 +27,7 @@ use Psr\Http\Message\ResponseInterface;
 interface HttpMiddlewareInterface
 {
     public function beforeRequest(RequestInterface $request): RequestInterface;
-    public function afterResponse(ResponseInterface $response): ResponseInterface;
+    public function afterResponse(RequestInterface $request, ResponseInterface $response): ResponseInterface;
 }
 PHP;
 
@@ -75,7 +75,7 @@ class HttpClient implements TransportInterface
         $response = $this->client->sendRequest($request);
 
         foreach ($this->middlewares as $middleware) {
-            $response = $middleware->afterResponse($response);
+            $response = $middleware->afterResponse($request, $response);
         }
 
         $resultHeaders = [];

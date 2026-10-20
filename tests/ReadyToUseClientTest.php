@@ -171,17 +171,50 @@ final class ReadyToUseClientTest extends TestCase
                 return $request->withHeader('X-Sdk-Core', 'yes');
             }
 
-            public function afterResponse(ResponseInterface $response): ResponseInterface
+            public function afterResponse(RequestInterface $request, ResponseInterface $response): ResponseInterface
             {
-                $this->events->append('after');
+                $this->events->append('after:' . $request->getHeaderLine('X-Sdk-Core'));
                 return $response->withHeader('X-Sdk-Core-Response', 'processed');
             }
         });
 
         self::assertInstanceOf(\Example\ReadySdk\Core\ApiClient::class, $api);
         self::assertSame('Ada', $api->getUser(88)->name);
-        self::assertSame(['before', 'after'], $events->getArrayCopy());
+        self::assertSame(['before', 'after:yes'], $events->getArrayCopy());
         self::assertSame('yes', $history[0]['request']->getHeaderLine('X-Sdk-Core'));
+    }
+
+    public function testMiddlewareMayAbortBeforeHttpWithoutChangingExceptionIdentity(): void
+    {
+        $sent = new \ArrayObject();
+        $http = new class($sent) implements ClientInterface {
+            public function __construct(private \ArrayObject $sent) {}
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $this->sent->append($request);
+                throw new \LogicException('Transport must not be called');
+            }
+        };
+        $api = \Example\ReadySdk\Api\ApiClient::connect('https://api.example.test/v1', $http);
+        $exception = new \DomainException('SDK middleware stopped request');
+        $api->withMiddleware(new class($exception) implements \Example\ReadySdk\Core\HttpMiddlewareInterface {
+            public function __construct(private \DomainException $reason) {}
+            public function beforeRequest(RequestInterface $request): RequestInterface
+            {
+                throw $this->reason;
+            }
+            public function afterResponse(RequestInterface $request, ResponseInterface $response): ResponseInterface
+            {
+                return $response;
+            }
+        });
+        try {
+            $api->getUser(88);
+            self::fail('Middleware failed to abort the request');
+        } catch (\DomainException $caught) {
+            self::assertSame($exception, $caught);
+        }
+        self::assertCount(0, $sent);
     }
 
     public function testGeneratedPhpFilesAllPassSyntaxValidation(): void
