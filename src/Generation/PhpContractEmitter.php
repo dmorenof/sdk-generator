@@ -53,6 +53,7 @@ final class PhpContractEmitter
     {
         $files = (new PhpCoreEmitter($this->namespace))->emit();
         $names = [];
+        $roles = $this->modelRoles($contract);
         foreach ($contract->models as $model) {
             $this->checkName($model->name, 'model');
             $key = strtolower($model->name);
@@ -66,7 +67,7 @@ final class PhpContractEmitter
             if ($model->schema->additionalProperties !== null) {
                 throw new InvalidArgumentException("Unsupported additionalProperties in model: $model->name");
             }
-            $files['src/Models/' . $model->name . '.php'] = $this->renderModel($model, $files);
+            $files['src/Models/' . $model->name . '.php'] = $this->renderModel($model, $files, $roles[$model->name] ?? 'DTO');
         }
 
         $files['src/Api/Operations.php'] = $this->renderOperations($contract);
@@ -87,8 +88,43 @@ final class PhpContractEmitter
         return $files;
     }
 
+    /**
+     * Infer roles only from root request/response schema references.
+     * Models used both for input and output retain a neutral DTO type.
+     * Unreferenced nested models retain neutral DTO semantics.
+     *
+     * @return array<string, 'DTO'|'Request'|'Response'>
+     */
+    private function modelRoles(ApiContract $contract): array
+    {
+        $uses = [];
+        foreach ($contract->operations as $operation) {
+            $request = $operation->requestBody?->schema;
+            if ($request?->kind === SchemaKind::Reference && $request->reference !== null) {
+                $uses[$request->reference]['request'] = true;
+            }
+            foreach ($operation->responses as $response) {
+                if (preg_match('/^2[0-9]{2}$/', $response->status) !== 1) {
+                    continue;
+                }
+                $schema = $response->schema;
+                if ($schema?->kind === SchemaKind::Reference && $schema->reference !== null) {
+                    $uses[$schema->reference]['response'] = true;
+                }
+            }
+        }
+        $roles = [];
+        foreach ($contract->models as $model) {
+            $request = $uses[$model->name]['request'] ?? false;
+            $response = $uses[$model->name]['response'] ?? false;
+            $roles[$model->name] = $request && !$response ? 'Request'
+                : ($response && !$request ? 'Response' : 'DTO');
+        }
+        return $roles;
+    }
+
     /** @param array<string,string> $files */
-    private function renderModel(ModelDefinition $model, array &$files): string
+    private function renderModel(ModelDefinition $model, array &$files, string $baseClass): string
     {
         $fields = [];
         $seen = [];
@@ -117,7 +153,7 @@ final class PhpContractEmitter
             }
         }
         $source = $this->header($this->namespace . '\\Models')
-            . 'final class ' . $model->name . ' extends \\' . $this->namespace . "\\Core\\DTO\n{\n"
+            . 'final class ' . $model->name . ' extends \\' . $this->namespace . '\\Core\\' . $baseClass . "\n{\n"
             . "    public const array REQUIRED_FIELDS = " . var_export($required, true) . ";\n\n";
         if ($fields !== []) {
             $source .= implode("\n", $fields) . "\n\n";
