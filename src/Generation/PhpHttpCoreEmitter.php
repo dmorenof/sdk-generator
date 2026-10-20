@@ -111,10 +111,58 @@ abstract readonly class ApiClient
 }
 PHP;
 
+        $apiException = $header
+            . "use \\{$ns}\\Transport\\HttpResponse;\n\n"
+            . <<<'PHP'
+/**
+ * Typed HTTP API error that preserves the raw response even when error DTO
+ * decoding fails. Connection/transport exceptions retain their original type.
+ */
+class ApiException extends \RuntimeException
+{
+    public function __construct(
+        public readonly HttpResponse $response,
+        public readonly ?DTO $error,
+        string $operation,
+        ?\Throwable $previous = null,
+    ) {
+        parent::__construct(
+            "Unexpected HTTP status from $operation: " . $response->status,
+            $response->status,
+            $previous,
+        );
+    }
+
+    /** @param class-string<DTO>|null $errorType */
+    public static function fromResponse(HttpResponse $response, string $operation, ?string $errorType): self
+    {
+        $error = null;
+        $previous = null;
+        if ($errorType !== null) {
+            try {
+                if (!is_a($errorType, DTO::class, true)) {
+                    throw new \LogicException("Error type $errorType must extend Core\\DTO.");
+                }
+                $json = json_decode($response->body, false, 512, JSON_THROW_ON_ERROR);
+                if (!is_object($json)) {
+                    throw new \UnexpectedValueException("Expected JSON object for error type $errorType.");
+                }
+                $error = new $errorType($json);
+            } catch (\Throwable $exception) {
+                // Always expose HTTP response information to the caller.
+                $previous = $exception;
+            }
+        }
+        return new self($response, $error, $operation, $previous);
+    }
+}
+PHP;
+
         return [
             'src/Core/HttpMiddlewareInterface.php' => $middleware,
             'src/Core/HttpClient.php' => $client,
             'src/Core/ApiClient.php' => $base,
+            'src/Core/ApiException.php' => $apiException,
         ];
     }
 }
