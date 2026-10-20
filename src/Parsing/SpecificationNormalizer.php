@@ -316,7 +316,8 @@ final class SpecificationNormalizer
         $allowed = [
             '$ref', 'type', 'format', 'properties', 'required', 'items',
             'enum', 'nullable', 'x-nullable', 'additionalProperties',
-            'description', 'title', 'example',
+            'description', 'title', 'example', 'minLength', 'maxLength',
+            'minimum', 'maximum', 'minItems', 'maxItems',
         ];
         foreach (array_keys($raw) as $key) {
             if (!in_array($key, $allowed, true)) {
@@ -405,6 +406,39 @@ final class SpecificationNormalizer
         }
         usort($enumValues, static fn ($a, $b): int => strcmp(json_encode($a), json_encode($b)));
 
+        $rules = [
+            'minLength' => SchemaKind::String,
+            'maxLength' => SchemaKind::String,
+            'minimum' => SchemaKind::Integer,
+            'maximum' => SchemaKind::Integer,
+            'minItems' => SchemaKind::Array,
+            'maxItems' => SchemaKind::Array,
+        ];
+        $validation = [];
+        foreach ($rules as $rule => $expected) {
+            if (!array_key_exists($rule, $raw)) {
+                continue;
+            }
+            $value = $raw[$rule];
+            // Numeric bounds also apply to floating-point JSON numbers.
+            $applies = $kind === $expected
+                || (in_array($rule, ['minimum', 'maximum'], true) && $kind === SchemaKind::Number);
+            if (!$applies) {
+                throw new InvalidArgumentException("Constraint $rule is not applicable to $kind->value at $where.");
+            }
+            $numeric = in_array($rule, ['minimum', 'maximum'], true);
+            if ($numeric ? (!is_int($value) && !is_float($value))
+                : (!is_int($value) || $value < 0)) {
+                throw new InvalidArgumentException("Invalid $rule limit at $where.");
+            }
+            $validation[$rule] = $value;
+        }
+        foreach ([['minLength', 'maxLength'], ['minimum', 'maximum'], ['minItems', 'maxItems']] as [$lower, $upper]) {
+            if (isset($validation[$lower], $validation[$upper]) && $validation[$lower] > $validation[$upper]) {
+                throw new InvalidArgumentException("Contradictory $lower and $upper at $where.");
+            }
+        }
+
         return new SchemaDefinition(
             kind: $kind,
             nullable: $nullable,
@@ -413,6 +447,7 @@ final class SpecificationNormalizer
             properties: $properties,
             enumValues: $enumValues,
             additionalProperties: $additional,
+            validation: $validation,
         );
     }
 

@@ -18,5 +18,7 @@ final readonly class SchemaDefinition
         public array $properties = [],
         public array $enumValues = [],
         public bool|self|null $additionalProperties = null,
+        /** @var array<string, int|float> OpenAPI primitive/array constraints */
+        public array $validation = [],
     ) {}
 }
