@@ -19,6 +19,7 @@ use InvalidArgumentException;
  */
 final class PhpContractEmitter
 {
+    private ?PhpModelNameResolver $modelNames = null;
     private const IDENTIFIER = '/^[A-Za-z_][A-Za-z0-9_]*$/D';
     private const PHP_KEYWORDS = [
         'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch',
@@ -52,10 +53,10 @@ final class PhpContractEmitter
     public function emit(ApiContract $contract): array
     {
         $files = (new PhpCoreEmitter($this->namespace))->emit();
+        $this->modelNames = new PhpModelNameResolver($this->namespace, $contract->models);
         $names = [];
         $roles = $this->modelRoles($contract);
         foreach ($contract->models as $model) {
-            $this->checkName($model->name, 'model');
             $key = strtolower($model->name);
             if (isset($names[$key])) {
                 throw new InvalidArgumentException("Duplicate PHP model name: $model->name");
@@ -67,7 +68,11 @@ final class PhpContractEmitter
             if ($model->schema->additionalProperties !== null) {
                 throw new InvalidArgumentException("Unsupported additionalProperties in model: $model->name");
             }
-            $files['src/Models/' . $model->name . '.php'] = $this->renderModel($model, $files, $roles[$model->name] ?? 'DTO');
+            $path = $this->modelNames->path($model->name);
+            if (isset($files[$path])) {
+                throw new InvalidArgumentException("Generated class path collides with SDK Core: $path");
+            }
+            $files[$path] = $this->renderModel($model, $files, $roles[$model->name] ?? 'DTO');
         }
 
         $files = array_replace($files, (new PhpOperationRequestEmitter($this->namespace))->emit($contract));
@@ -153,8 +158,11 @@ final class PhpContractEmitter
                 $required[] = $property->wireName;
             }
         }
-        $source = $this->header($this->namespace . '\\Models')
-            . 'final class ' . $model->name . ' extends \\' . $this->namespace . '\\Core\\' . $baseClass . "\n{\n"
+        $fqcn = $this->modelNames->fqcn($model->name);
+        $class = substr($fqcn, strrpos($fqcn, '\\') + 1);
+        $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
+        $source = $this->header($namespace)
+            . 'final class ' . $class . ' extends \\' . $this->namespace . '\\Core\\' . $baseClass . "\n{\n"
             . "    public const array REQUIRED_FIELDS = " . var_export($required, true) . ";\n\n";
         if ($fields !== []) {
             $source .= implode("\n", $fields) . "\n\n";
@@ -170,10 +178,9 @@ final class PhpContractEmitter
             if (!in_array($schema->kind, [SchemaKind::String, SchemaKind::Integer], true)) {
                 throw new InvalidArgumentException("Only string/integer backed enums are supported at $hint");
             }
-            $this->checkName($hint, 'enum');
-            $enumName = $hint . 'Enum';
-            $this->addFile($files, 'src/Enums/' . $enumName . '.php', $this->renderEnum($enumName, $schema));
-            return '\\' . $this->namespace . '\\Enums\\' . $enumName;
+            $entry = $this->modelNames->derived($hint . 'Enum', 'Enums');
+            $this->addFile($files, $entry['path'], $this->renderEnum($entry['class'], $schema, ltrim($entry['namespace'], '\\')));
+            return $entry['type'];
         }
         return match ($schema->kind) {
             SchemaKind::String => 'string',
@@ -191,8 +198,7 @@ final class PhpContractEmitter
         if ($schema->reference === null) {
             throw new InvalidArgumentException('Missing model reference.');
         }
-        $this->checkName($schema->reference, 'model reference');
-        return '\\' . $this->namespace . '\\Models\\' . $schema->reference;
+        return $this->modelNames->fqcn($schema->reference);
     }
 
     /** @param array<string,string> $files */
@@ -201,8 +207,8 @@ final class PhpContractEmitter
         if ($schema->items === null) {
             throw new InvalidArgumentException("Missing collection items at $hint");
         }
-        $this->checkName($hint, 'collection');
-        $name = $hint . 'Array';
+        $entry = $this->modelNames->derived($hint . 'Array', 'Collections');
+        $name = $entry['class'];
         $itemType = $this->typeFor($schema->items, $hint . 'Item', $files);
         $expected = match ($itemType) {
             'string' => "'string'",
@@ -211,17 +217,17 @@ final class PhpContractEmitter
             'bool' => "'boolean'",
             default => $itemType . '::class',
         };
-        $file = $this->header($this->namespace . '\\Collections')
+        $file = $this->header(ltrim($entry['namespace'], '\\'))
             . "/** @extends \\TypedArray\\TypedArray<" . $itemType . "> */\n"
             . "final class $name extends \\{$this->namespace}\\Core\\TypedArray\n"
             . "{\n"
             . "    protected string \$expected_type = $expected;\n"
             . "}\n";
-        $this->addFile($files, 'src/Collections/' . $name . '.php', $file);
-        return '\\' . $this->namespace . '\\Collections\\' . $name;
+        $this->addFile($files, $entry['path'], $file);
+        return $entry['type'];
     }
 
-    private function renderEnum(string $name, SchemaDefinition $schema): string
+    private function renderEnum(string $name, SchemaDefinition $schema, string $namespace): string
     {
         $backing = $schema->kind === SchemaKind::String ? 'string' : 'int';
         $cases = [];
@@ -244,7 +250,7 @@ final class PhpContractEmitter
             $seen[strtolower($case)] = true;
             $cases[] = '    case ' . $case . ' = ' . var_export($value, true) . ';';
         }
-        return $this->header($this->namespace . '\\Enums')
+        return $this->header($namespace)
             . "enum $name: $backing\n{\n" . implode("\n", $cases) . "\n}\n";
     }
 
