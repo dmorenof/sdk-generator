@@ -1,0 +1,50 @@
+name: Casafari 0.2.0 acceptance (strict)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['release/0.2.0']
+    paths:
+      - '.github/workflows/casafari-acceptance.yml'
+      - 'bin/check-openapi-acceptance.php'
+      - 'src/**'
+      - 'composer.json'
+
+permissions:
+  contents: read
+
+jobs:
+  casafari-acceptance:
+    name: Full OpenAPI compatibility gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+      - name: Install generator
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Retrieve Casafari official OpenAPI 3.1 document
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 60 \
+            https://developers.casafari.com/openapi.json -o "$RUNNER_TEMP/casafari-openapi.json"
+          sha256sum "$RUNNER_TEMP/casafari-openapi.json"
+      - name: Analyze full contract and each operation against the pinned document
+        run: |
+          php bin/check-openapi-acceptance.php "$RUNNER_TEMP/casafari-openapi.json" \
+            --sha256 d6dce87639a6a16b7f2aac2e17ab5845b21e4e7937e68fca20243442be15ba04 \
+            > "$RUNNER_TEMP/casafari-acceptance-report.json"
+          # Intentionally fails until the whole pinned spec and all operations generate.
+      - name: Archive source and operation-level report even on failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: casafari-0.2.0-acceptance
+          path: |
+            ${{ runner.temp }}/casafari-openapi.json
+            ${{ runner.temp }}/casafari-acceptance-report.json
+          if-no-files-found: warn
+          retention-days: 30
