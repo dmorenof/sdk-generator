@@ -66,7 +66,7 @@ final readonly class PhpOperationRequestEmitter
                 if (isset($seen['body'])) {
                     throw new InvalidArgumentException("Request body conflicts with parameter in $name");
                 }
-                $this->checkName($body->schema->reference);
+                // Full dotted Swagger model refs are resolved by the shared registry.
                 $type = ($this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models))
                     ->fqcn($body->schema->reference);
                 $fields[] = '    public ' . ($body->required ? $type : '?' . $type) . ' $body;';
