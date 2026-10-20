@@ -52,7 +52,7 @@ final class DtoValidationTest extends TestCase
             'src/Requests/GetUserRequest.php',
             'src/Transport/HttpResponse.php', 'src/Transport/TransportInterface.php',
             'src/Core/HttpMiddlewareInterface.php', 'src/Core/HttpClient.php',
-            'src/Core/ApiClient.php', 'src/Transport/Psr18Transport.php',
+            'src/Core/ApiClient.php', 'src/Core/ApiException.php', 'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php', 'src/Api/Operations.php', 'src/Api/ApiClient.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);

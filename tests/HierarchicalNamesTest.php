@@ -156,7 +156,7 @@ final class HierarchicalNamesTest extends TestCase
             'src/Transport/TransportInterface.php',
             'src/Core/HttpMiddlewareInterface.php',
             'src/Core/HttpClient.php',
-            'src/Core/ApiClient.php',
+            'src/Core/ApiClient.php', 'src/Core/ApiException.php',
             'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
             'src/Api/Operations.php',
