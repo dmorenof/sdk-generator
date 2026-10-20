@@ -109,15 +109,15 @@ class DTO implements \JsonSerializable, \Stringable
             foreach ($value as $index => $item) {
                 $itemWhere = $where . "[$index]";
                 if (enum_exists($expectedType)) {
-                    if (!is_string($item) && !is_int($item)) {
+                    if (!$item instanceof $expectedType && !is_string($item) && !is_int($item)) {
                         throw new \UnexpectedValueException("Invalid enum value at $itemWhere.");
                     }
-                    $item = $expectedType::from($item);
+                    $item = $item instanceof $expectedType ? $item : $expectedType::from($item);
                 } elseif (is_subclass_of($expectedType, self::class)) {
                     if (!is_object($item)) {
                         throw new \UnexpectedValueException("Expected object at $itemWhere.");
                     }
-                    $item = new $expectedType($item);
+                    $item = $item instanceof $expectedType ? $item : new $expectedType($item);
                 }
                 // Element type validation belongs to the existing TypedArray library.
                 $result->append($item);

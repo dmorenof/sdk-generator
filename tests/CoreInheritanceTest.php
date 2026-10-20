@@ -132,6 +132,41 @@ final class CoreInheritanceTest extends TestCase
         self::assertSame(0, $transport->calls);
     }
 
+    public function testNestedTypedArraysAcceptHydratedElements(): void
+    {
+        $source = file_get_contents(__DIR__ . '/fixtures/typed-collections-openapi31.json');
+        self::assertIsString($source);
+        $contract = (new SpecificationNormalizer())->fromJson($source);
+        $files = (new PhpExecutableEmitter('Example\\NestedSdk', 'example/nested-sdk'))->emit($contract);
+        foreach ([
+            'src/Core/DTO.php', 'src/Core/TypedArray.php',
+            'src/Enums/BundleRolesItemEnum.php',
+            'src/Collections/BundleEntriesArray.php',
+            'src/Collections/BundleRolesArray.php',
+            'src/Models/Entry.php', 'src/Models/Bundle.php',
+        ] as $file) {
+            eval(substr($files[$file], strlen('<?php')));
+        }
+
+        $entry = new \Example\NestedSdk\Models\Entry((object) ['name' => 'Ada']);
+        $role = \Example\NestedSdk\Enums\BundleRolesItemEnum::Admin;
+        $bundle = new \Example\NestedSdk\Models\Bundle((object) [
+            'entries' => [$entry], 'roles' => [$role],
+        ]);
+        self::assertSame($entry, $bundle->entries[0]);
+        self::assertSame($role, $bundle->roles[0]);
+        self::assertSame(
+            ['entries' => [['name' => 'Ada']], 'roles' => ['admin']],
+            json_decode((string) $bundle, true, 512, JSON_THROW_ON_ERROR),
+        );
+
+        $fromJson = new \Example\NestedSdk\Models\Bundle(
+            json_decode('{"entries":[{"name":"Grace"}],"roles":["viewer"]}', false, 512, JSON_THROW_ON_ERROR),
+        );
+        self::assertSame('Grace', $fromJson->entries[0]->name);
+        self::assertSame(\Example\NestedSdk\Enums\BundleRolesItemEnum::Viewer, $fromJson->roles[0]);
+    }
+
     public function testTypedFieldRejectsUnrelatedClass(): void
     {
         $user = new \Example\InheritanceSdk\Models\User();
