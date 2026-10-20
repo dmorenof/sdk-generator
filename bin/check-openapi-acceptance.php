@@ -23,6 +23,29 @@ if ($argc === 4 && !hash_equals(strtolower($argv[3]), $actualHash)) {
 try {
     $report = (new OpenApiAcceptanceAnalyzer())->analyze($source);
     echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), "\n";
+    // Short diagnostic summary to CI logs; full per-operation data stays in artifact.
+    fwrite(STDERR, "Casafari acceptance: " . $report['summary']['generated'] . '/'
+        . $report['operationCount'] . " isolated operations generated; full source: "
+        . $report['full']['status'] . ".\n");
+    if ($report['full']['error'] !== null) {
+        fwrite(STDERR, "Full source blocker: " . $report['full']['error']['message'] . "\n");
+    }
+    $groups = [];
+    foreach ($report['operations'] as $operation) {
+        if ($operation['status'] === 'generated') {
+            continue;
+        }
+        $key = $operation['status'] . ': ' . ($operation['error']['message'] ?? 'unknown');
+        if (!isset($groups[$key])) {
+            $groups[$key] = ['count' => 0, 'example' => $operation['method'] . ' ' . $operation['path']];
+        }
+        ++$groups[$key]['count'];
+    }
+    uasort($groups, static fn(array $a, array $b): int => $b['count'] <=> $a['count']);
+    foreach (array_slice($groups, 0, 14, true) as $reason => $details) {
+        fwrite(STDERR, $details['count'] . " operation(s): " . $reason
+            . " [e.g. " . $details['example'] . "]\n");
+    }
     // An honest failing gate until EVERY operation and the entire source generate.
     exit($report['accepted'] ? 0 : 1);
 } catch (Throwable $exception) {
