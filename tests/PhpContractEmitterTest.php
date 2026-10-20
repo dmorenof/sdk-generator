@@ -52,6 +52,15 @@ final class PhpContractEmitterTest extends TestCase
     {
         $files = $this->generated();
         $user = $files['src/Models/User.php'];
+        self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\Response', $user);
+        self::assertStringContainsString(
+            'extends \\Example\\AccountsSdk\\Core\\Request',
+            $files['src/Models/NewUser.php'],
+        );
+        self::assertStringContainsString(
+            'extends \\Example\\AccountsSdk\\Core\\DTO',
+            $files['src/Models/Profile.php'],
+        );
         self::assertStringContainsString('public int $id;', $user);
         self::assertStringContainsString('public string $name;', $user);
         self::assertStringContainsString('public ?string $nickname;', $user);
@@ -158,6 +167,28 @@ final class PhpContractEmitterTest extends TestCase
         $data = json_decode(json_encode($user, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
         self::assertArrayHasKey('nickname', $data);
         self::assertNull($data['nickname']);
+    }
+
+    public function testSharedInputOutputModelStaysNeutralDto(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['paths']['/users']['post']['requestBody']['content']['application/json']['schema']['$ref']
+            = '#/components/schemas/User';
+        $modified = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpContractEmitter('Example\\BothRoles', 'example/both-roles'))->emit($modified);
+        self::assertStringContainsString(
+            'final class User extends \\Example\\BothRoles\\Core\\DTO',
+            $files['src/Models/User.php'],
+        );
+        self::assertStringNotContainsString(
+            'extends \\Example\\BothRoles\\Core\\Response',
+            $files['src/Models/User.php'],
+        );
     }
 
     public function testRejectsUnrepresentableWireNameInsteadOfEmittingBrokenPhp(): void

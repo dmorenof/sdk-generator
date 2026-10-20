@@ -57,6 +57,9 @@ final class CoreInheritanceTest extends TestCase
             self::assertArrayHasKey('src/Core/' . $name . '.php', $files);
         }
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Models\User::class, \Example\InheritanceSdk\Core\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Models\NewUser::class, \Example\InheritanceSdk\Core\Request::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Models\User::class, \Example\InheritanceSdk\Core\Response::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Models\Profile::class, \Example\InheritanceSdk\Core\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Core\Request::class, \Example\InheritanceSdk\Core\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Core\Response::class, \Example\InheritanceSdk\Core\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\UserLabelsArray::class, \Example\InheritanceSdk\Core\TypedArray::class));
