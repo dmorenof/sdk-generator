@@ -104,6 +104,31 @@ PHP;
         self::assertContains('GENERATED_CONSUMER_OK', $lines);
     }
 
+    public function testCliDerivesSdkNamespaceFromOpenApiTitleWhenNotSpecified(): void
+    {
+        $generator = dirname(__DIR__) . '/bin/generate-sdk.php';
+        $fixture = __DIR__ . '/fixtures/accounts-openapi31.json';
+        $dest = $this->directory . '/automatic-root';
+        // The shorter CLI form supplies only vendor/package; no PHP namespace.
+        $cmd = implode(' ', array_map('escapeshellarg', [
+            PHP_BINARY, $generator, $fixture, $dest, 'example/automatic-accounts-sdk',
+        ]));
+        $lines = [];
+        $exit = 0;
+        exec($cmd . ' 2>&1', $lines, $exit);
+        self::assertSame(0, $exit, implode("\n", $lines));
+        $manifest = json_decode(
+            (string) file_get_contents($dest . '/composer.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        // "Example Accounts" comes from the OpenAPI info.title, not a model name.
+        self::assertSame('src/', $manifest['autoload']['psr-4']['ExampleAccounts\\']);
+        self::assertFileExists($dest . '/src/Models/User.php');
+        self::assertFileExists($dest . '/src/Requests/GetUserRequest.php');
+    }
+
     public function testCliRefusesToOverwriteNonemptyOutputDirectory(): void
     {
         $generator = dirname(__DIR__) . '/bin/generate-sdk.php';
