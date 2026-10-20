@@ -68,8 +68,26 @@ $check = static function (object $result) use ($kind, $api, $expectedName, $expe
         throw new RuntimeException('Response DTO semantics differ from fixture.');
     }
 };
-$execute = static function () use ($client, $api): object {
-    return $api === 'accounts' ? $client->getUser(new \Benchmark\AccountsSdk\Requests\GetUserRequest((object)['id' => 88, 'verbose' => false])) : $client->findBook(new \Benchmark\CatalogSdk\Requests\FindBookRequest((object)['sku' => 'BOOK-09', 'expand' => false]));
+// Instantiate the same reusable typed request outside the measured loop.
+// Official OpenAPI Generator keeps its existing scalar-argument API.
+$request = null;
+if ($kind === 'ours') {
+    $name = 'Benchmark\\' . ucfirst($api) . 'Sdk\\Requests\\'
+        . ($api === 'accounts' ? 'GetUserRequest' : 'FindBookRequest');
+    $values = $api === 'accounts'
+        ? (object)['id' => 88, 'verbose' => false]
+        : (object)['sku' => 'BOOK-09', 'expand' => false];
+    $request = new $name($values);
+}
+$execute = static function () use ($client, $api, $kind, $request): object {
+    if ($kind === 'ours') {
+        return $api === 'accounts'
+            ? $client->getUser($request)
+            : $client->findBook($request);
+    }
+    return $api === 'accounts'
+        ? $client->getUser(88, false)
+        : $client->findBook('BOOK-09', false);
 };
 
 // Warm both implementations to avoid counting lazy autoload initialization
