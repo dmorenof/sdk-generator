@@ -7,18 +7,16 @@ use Dmorenof\SdkGenerator\Contract\ModelDefinition;
 use InvalidArgumentException;
 
 /**
- * Map Swagger names into PSR-4 namespaces.
+ * Map schema identifiers to PHP files without modifying their hierarchy.
  *
- * If every schema has a shared dotted API prefix, remove that prefix from
- * generated class paths: the SDK root namespace already represents the API.
+ * Casafari.Crm.Api.Dtos.Agency.AgencyDto
+ *   -> src/Casafari/Crm/Api/Dtos/Agency/AgencyDto.php
+ *   -> \Vendor\Sdk\Casafari\Crm\Api\Dtos\Agency\AgencyDto
  *
- * Example (SDK namespace CasafariCrmApi):
- *   Casafari.Crm.Api.Dtos.Agency.AgencyDto
- *      -> src/Dtos/Agency/AgencyDto.php
- *      -> \CasafariCrmApi\Dtos\Agency\AgencyDto
+ * The namespace of the SDK is a separate concern: it is explicitly configured
+ * or derived from OpenAPI/Swagger info.title, NEVER inferred from model paths.
  *
- * A final common domain category (Dtos/Models/etc) is preserved.
- * Undotted schemas retain the existing Models/ layout.
+ * Undotted schemas retain the historical src/Models/ layout.
  */
 final readonly class PhpModelNameResolver
 {
@@ -41,28 +39,26 @@ final readonly class PhpModelNameResolver
     private array $paths;
     /** @var array<string, string> */
     private array $types;
-    /** @var list<string> */
-    private array $commonApiPrefix;
 
     /** @param list<ModelDefinition> $models */
     public function __construct(private string $namespace, array $models)
     {
-        $this->commonApiPrefix = $this->inferCommonApiPrefix($models);
         $paths = [];
         $types = [];
         $occupied = [];
         foreach ($models as $model) {
-            $raw = $model->name;
-            [$path, $type] = $this->resolve($raw, 'Models');
+            $name = $model->name;
+            [$path, $type] = $this->resolve($name, 'Models');
+            // On case-insensitive filesystems, path collisions must also fail.
             $key = strtolower($path);
             if (isset($occupied[$key])) {
                 throw new InvalidArgumentException(
-                    "Generated PHP schema name collision: '$raw' and '{$occupied[$key]}' both map to $path.",
+                    "Generated PHP schema name collision: '$name' and '{$occupied[$key]}' both map to $path.",
                 );
             }
-            $occupied[$key] = $raw;
-            $paths[$raw] = $path;
-            $types[$raw] = $type;
+            $occupied[$key] = $name;
+            $paths[$name] = $path;
+            $types[$name] = $type;
         }
         $this->paths = $paths;
         $this->types = $types;
@@ -81,105 +77,49 @@ final readonly class PhpModelNameResolver
     }
 
     /**
-     * For generated enums and collections, retain the declaring model's
-     * subnamespace, but place the type under Enums/ or Collections/.
+     * Keep the full source hierarchy for derived collections and enums too.
      *
-     * @return array{path:string, type:string, namespace:string, class:string}
+     * @return array{path:string,type:string,namespace:string,class:string}
      */
-    public function derived(string $hint, string $kind): array
+    public function derived(string $hint, string $category): array
     {
-        if (!in_array($kind, ['Enums', 'Collections'], true)) {
-            throw new InvalidArgumentException("Unsupported derived type category: $kind");
+        if (!in_array($category, ['Enums', 'Collections'], true)) {
+            throw new InvalidArgumentException("Unsupported derived type category: $category");
         }
-        [$path, $type] = $this->resolve($hint, $kind);
-        $class = substr($type, strrpos($type, '\\') + 1);
-        $namespace = substr($type, 0, strrpos($type, '\\'));
-        return compact('path', 'type', 'namespace', 'class');
+        [$path, $type] = $this->resolve($hint, $category);
+        $index = strrpos($type, '\\');
+        return [
+            'path' => $path,
+            'type' => $type,
+            'namespace' => substr($type, 0, $index),
+            'class' => substr($type, $index + 1),
+        ];
     }
 
-    /** @return array{string, string} */
+    /** @return array{string,string} */
     private function resolve(string $name, string $category): array
     {
         if (!str_contains($name, '.')) {
             $this->checkSegment($name);
-            return ['src/' . $category . '/' . $name . '.php',
-                '\\' . $this->namespace . '\\' . $category . '\\' . $name];
+            return [
+                'src/' . $category . '/' . $name . '.php',
+                '\\' . $this->namespace . '\\' . $category . '\\' . $name,
+            ];
         }
 
         $segments = explode('.', $name);
-        if ($this->commonApiPrefix !== []
-            && array_slice($segments, 0, count($this->commonApiPrefix)) === $this->commonApiPrefix) {
-            $segments = array_slice($segments, count($this->commonApiPrefix));
-        }
-        if ($segments === []) {
-            throw new InvalidArgumentException("Empty PHP class name from '$name'.");
-        }
         foreach ($segments as $segment) {
             $this->checkSegment($segment);
         }
-        $relative = implode('/', $segments);
+        $path = implode('/', $segments);
         $namespace = implode('\\', $segments);
-        // Dotted model definitions live directly under the SDK root; helper
-        // enums/collections retain their hierarchy under their type category.
         if ($category === 'Models') {
-            return ['src/' . $relative . '.php', '\\' . $this->namespace . '\\' . $namespace];
+            return ['src/' . $path . '.php', '\\' . $this->namespace . '\\' . $namespace];
         }
-        return ['src/' . $category . '/' . $relative . '.php',
-            '\\' . $this->namespace . '\\' . $category . '\\' . $namespace];
-    }
-
-    /**
-     * Only collapse when ALL model definitions share a dotted prefix.
-     * Avoid swallowing meaningful type groups (Dtos, Models, etc), even if
-     * they are present in every definition. Keep at least the class segment.
-     *
-     * @param list<ModelDefinition> $models
-     * @return list<string>
-     */
-    private function inferCommonApiPrefix(array $models): array
-    {
-        if ($models === []) {
-            return [];
-        }
-        $prefix = null;
-        foreach ($models as $model) {
-            $segments = explode('.', $model->name);
-            if (count($segments) < 2) {
-                // A mixed flat/hierarchical API has no single reliable root.
-                return [];
-            }
-            if ($prefix === null) {
-                $prefix = $segments;
-                continue;
-            }
-            $common = 0;
-            $limit = min(count($segments), count($prefix));
-            while ($common < $limit && $prefix[$common] === $segments[$common]) {
-                ++$common;
-            }
-            $prefix = array_slice($prefix, 0, $common);
-            if ($prefix === []) {
-                return [];
-            }
-        }
-        // A model itself is not an API namespace.
-        $shortest = min(array_map(static fn (ModelDefinition $m): int => count(explode('.', $m->name)), $models));
-        $prefix = array_slice($prefix ?? [], 0, $shortest - 1);
-        $domainCategories = [
-            'dto', 'dtos', 'model', 'models', 'entity', 'entities',
-            'request', 'requests', 'response', 'responses',
-            'collection', 'collections', 'enum', 'enums',
+        return [
+            'src/' . $category . '/' . $path . '.php',
+            '\\' . $this->namespace . '\\' . $category . '\\' . $namespace,
         ];
-        while ($prefix !== [] && in_array(strtolower($prefix[count($prefix) - 1]), $domainCategories, true)) {
-            array_pop($prefix);
-        }
-        return $prefix;
-    }
-
-    /** For reporting only; the explicitly configured PHP root namespace remains authoritative. */
-    public function inferredApiName(): ?string
-    {
-        return $this->commonApiPrefix === [] ? null : implode('', $this->commonApiPrefix);
     }
 
     private function checkSegment(string $segment): void
