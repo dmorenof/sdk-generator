@@ -28,6 +28,9 @@ final readonly class PhpCoreEmitter
  */
 class DTO implements \JsonSerializable, \Stringable
 {
+    /** @var array<string,array<string,int|float>> */
+    protected const array VALIDATION = [];
+
     public function __construct(?object $json = null)
     {
         if ($json === null) {
@@ -52,7 +55,7 @@ class DTO implements \JsonSerializable, \Stringable
 
         // Schema-required fields are checked both when hydrating incoming JSON
         // and again before encoding a manually created outbound DTO.
-        $this->assertRequiredFields();
+        $this->validate();
     }
 
     private static function convert(mixed $value, \ReflectionNamedType $type, string $where): mixed
@@ -151,9 +154,90 @@ class DTO implements \JsonSerializable, \Stringable
         }
     }
 
-    public function jsonSerialize(): object
+    /**
+     * Run optional, declarative constraints and validate nested DTOs.
+     * Undefined optional fields are skipped; a nullable field can be null.
+     * Generated DTO classes declare rules, never duplicate implementations.
+     */
+    public function validate(): void
     {
         $this->assertRequiredFields();
+        $fields = get_object_vars($this);
+        foreach (static::VALIDATION as $field => $rules) {
+            if (!property_exists($this, $field)) {
+                throw new \LogicException("Validation refers to an unknown field " . static::class . "::$field.");
+            }
+            if (!array_key_exists($field, $fields) || $fields[$field] === null) {
+                continue;
+            }
+            foreach ($rules as $name => $limit) {
+                $this->assertConstraint($field, $fields[$field], $name, $limit);
+            }
+        }
+        foreach ($fields as $value) {
+            if ($value instanceof self) {
+                $value->validate();
+            } elseif ($value instanceof TypedArray) {
+                foreach ($value as $item) {
+                    if ($item instanceof self) {
+                        $item->validate();
+                    }
+                }
+            }
+        }
+    }
+
+    private function assertConstraint(string $field, mixed $value, string $rule, mixed $limit): void
+    {
+        $where = static::class . "::$field";
+        if (!is_int($limit) && !is_float($limit)) {
+            throw new \LogicException("Invalid $rule constraint for $where.");
+        }
+
+        $valid = match ($rule) {
+            'minLength', 'maxLength' => $this->validateStringLength($value, $rule, $limit, $where),
+            'minimum', 'maximum' => $this->validateNumber($value, $rule, $limit, $where),
+            'minItems', 'maxItems' => $this->validateItemCount($value, $rule, $limit, $where),
+            default => throw new \LogicException("Unknown validation rule $rule for $where."),
+        };
+        if (!$valid) {
+            throw new \UnexpectedValueException("Validation $rule failed at $where (limit $limit).");
+        }
+    }
+
+    private function validateStringLength(mixed $value, string $rule, int|float $limit, string $where): bool
+    {
+        if (!is_string($value)) {
+            throw new \UnexpectedValueException("Expected string for $rule at $where.");
+        }
+        // OpenAPI length counts Unicode code points, not UTF-8 bytes.
+        $length = preg_match_all('/./us', $value);
+        if ($length === false) {
+            throw new \UnexpectedValueException("Invalid UTF-8 string at $where.");
+        }
+        return $rule === 'minLength' ? $length >= $limit : $length <= $limit;
+    }
+
+    private function validateNumber(mixed $value, string $rule, int|float $limit, string $where): bool
+    {
+        if (!is_int($value) && !is_float($value)) {
+            throw new \UnexpectedValueException("Expected number for $rule at $where.");
+        }
+        return $rule === 'minimum' ? $value >= $limit : $value <= $limit;
+    }
+
+    private function validateItemCount(mixed $value, string $rule, int|float $limit, string $where): bool
+    {
+        if (!is_array($value) && !$value instanceof \Countable) {
+            throw new \UnexpectedValueException("Expected array/collection for $rule at $where.");
+        }
+        $count = count($value);
+        return $rule === 'minItems' ? $count >= $limit : $count <= $limit;
+    }
+
+    public function jsonSerialize(): object
+    {
+        $this->validate();
         return (object) get_object_vars($this);
     }
 
