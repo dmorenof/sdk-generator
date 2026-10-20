@@ -19,6 +19,7 @@ use InvalidArgumentException;
  */
 final class PhpExecutableEmitter
 {
+    private ?PhpModelNameResolver $modelNames = null;
     public function __construct(
         private readonly string $namespace = 'Generated\\Sdk',
         private readonly string $packageName = 'example/generated-sdk',
@@ -27,6 +28,7 @@ final class PhpExecutableEmitter
     /** @return array<string, string> */
     public function emit(ApiContract $contract): array
     {
+        $this->modelNames = new PhpModelNameResolver($this->namespace, $contract->models);
         $files = (new PhpContractEmitter($this->namespace, $this->packageName))->emit($contract);
         $ns = $this->namespace;
         $files['src/Transport/TransportInterface.php'] = $this->header($ns . '\\Transport')
@@ -233,7 +235,7 @@ final class PhpExecutableEmitter
         if ($schema->reference === null) {
             throw new InvalidArgumentException('Missing model reference.');
         }
-        return '\\' . $this->namespace . '\\Models\\' . $schema->reference;
+        return $this->modelNames->fqcn($schema->reference);
     }
 
     private function header(string $namespace): string

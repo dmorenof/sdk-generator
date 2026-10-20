@@ -75,7 +75,7 @@ final class PhpContractEmitter
             $files[$path] = $this->renderModel($model, $files, $roles[$model->name] ?? 'DTO');
         }
 
-        $files = array_replace($files, (new PhpOperationRequestEmitter($this->namespace))->emit($contract));
+        $files = array_replace($files, (new PhpOperationRequestEmitter($this->namespace, $this->modelNames))->emit($contract));
         $files['src/Api/Operations.php'] = $this->renderOperations($contract);
         $files['src/Api/OperationCatalog.php'] = $this->renderCatalog($contract);
         $manifest = [

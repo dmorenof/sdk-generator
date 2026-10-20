@@ -14,7 +14,10 @@ use InvalidArgumentException;
  */
 final readonly class PhpOperationRequestEmitter
 {
-    public function __construct(private string $namespace) {}
+    public function __construct(
+        private string $namespace,
+        private ?PhpModelNameResolver $modelNames = null,
+    ) {}
 
     /** @return array<string, string> */
     public function emit(ApiContract $contract): array
@@ -64,7 +67,8 @@ final readonly class PhpOperationRequestEmitter
                     throw new InvalidArgumentException("Request body conflicts with parameter in $name");
                 }
                 $this->checkName($body->schema->reference);
-                $type = '\\' . $this->namespace . '\\Models\\' . $body->schema->reference;
+                $type = ($this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models))
+                    ->fqcn($body->schema->reference);
                 $fields[] = '    public ' . ($body->required ? $type : '?' . $type) . ' $body;';
                 if ($body->required) {
                     $required[] = 'body';
