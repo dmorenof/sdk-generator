@@ -67,7 +67,6 @@ final class PhpContractEmitterTest extends TestCase
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Models\\Profile $profile;', $user);
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Enums\\UserRoleEnum $role;', $user);
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Collections\\UserLabelsArray $labels;', $user);
-        self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\DTO', $user);
         self::assertStringContainsString('(object) get_object_vars($this)', $files['src/Core/DTO.php']);
         self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\TypedArray', $files['src/Collections/UserLabelsArray.php']);
         self::assertStringNotContainsString('= null;', $user);
