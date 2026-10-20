@@ -5,14 +5,20 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 
 use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
+use Dmorenof\SdkGenerator\Generation\PhpApiNameResolver;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 
-if ($argc !== 5) {
-    fwrite(STDERR, "Usage: php bin/generate-sdk.php <swagger-or-openapi.json> <output-directory> <Php\\Namespace> <vendor/package>\n");
+if (!in_array($argc, [4, 5], true)) {
+    fwrite(STDERR, "Usage: php bin/generate-sdk.php <swagger-or-openapi.json> <output-directory> [Php\\Namespace] <vendor/package>\n");
     exit(2);
 }
 
-[, $input, $output, $namespace, $packageName] = $argv;
+if ($argc === 5) {
+    [, $input, $output, $namespace, $packageName] = $argv;
+} else {
+    [, $input, $output, $packageName] = $argv;
+    $namespace = null; // Use the API's declared info.title, not schema prefixes.
+}
 
 try {
     if (!is_file($input) || !is_readable($input)) {
@@ -34,6 +40,7 @@ try {
 
     // Build and validate all files before writing anything to disk.
     $contract = (new SpecificationNormalizer())->fromJson($source);
+    $namespace ??= PhpApiNameResolver::fromTitle($contract->title);
     $files = (new PhpExecutableEmitter($namespace, $packageName))->emit($contract);
 
     foreach ($files as $relative => $content) {
