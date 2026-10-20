@@ -24,6 +24,10 @@ final class PhpExecutableEmitterTest extends TestCase
         // not depend on sdk-generator in order to run.
         $files = $this->files();
         foreach ([
+            'src/Core/DTO.php',
+            'src/Core/Request.php',
+            'src/Core/Response.php',
+            'src/Core/TypedArray.php',
             'src/Enums/NewUserRoleEnum.php',
             'src/Enums/UserRoleEnum.php',
             'src/Collections/UserLabelsArray.php',

@@ -28,6 +28,10 @@ final class ReadyToUseClientTest extends TestCase
     {
         $files = self::generatedFiles();
         foreach ([
+            'src/Core/DTO.php',
+            'src/Core/Request.php',
+            'src/Core/Response.php',
+            'src/Core/TypedArray.php',
             'src/Enums/NewUserRoleEnum.php',
             'src/Enums/UserRoleEnum.php',
             'src/Collections/UserLabelsArray.php',

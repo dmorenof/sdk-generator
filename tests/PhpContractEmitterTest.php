@@ -36,6 +36,10 @@ final class PhpContractEmitterTest extends TestCase
             'src/Api/OperationCatalog.php',
             'src/Api/Operations.php',
             'src/Collections/UserLabelsArray.php',
+            'src/Core/DTO.php',
+            'src/Core/Request.php',
+            'src/Core/Response.php',
+            'src/Core/TypedArray.php',
             'src/Enums/NewUserRoleEnum.php',
             'src/Enums/UserRoleEnum.php',
             'src/Models/NewUser.php',
@@ -54,7 +58,9 @@ final class PhpContractEmitterTest extends TestCase
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Models\\Profile $profile;', $user);
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Enums\\UserRoleEnum $role;', $user);
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Collections\\UserLabelsArray $labels;', $user);
-        self::assertStringContainsString('(object) get_object_vars($this)', $user);
+        self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\DTO', $user);
+        self::assertStringContainsString('(object) get_object_vars($this)', $files['src/Core/DTO.php']);
+        self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\TypedArray', $files['src/Collections/UserLabelsArray.php']);
         self::assertStringNotContainsString('= null;', $user);
         self::assertStringContainsString("case Admin = 'admin';", $files['src/Enums/UserRoleEnum.php']);
         self::assertStringContainsString("case Viewer = 'viewer';", $files['src/Enums/UserRoleEnum.php']);
@@ -115,6 +121,10 @@ final class PhpContractEmitterTest extends TestCase
         $files = $this->generated();
         // Load only the PHP classes this smoke test needs (no HTTP runtime).
         foreach ([
+            'src/Core/DTO.php',
+            'src/Core/Request.php',
+            'src/Core/Response.php',
+            'src/Core/TypedArray.php',
             'src/Enums/UserRoleEnum.php',
             'src/Models/Profile.php',
             'src/Models/User.php',
