@@ -153,6 +153,19 @@ final class PhpExecutableEmitter
             throw new InvalidArgumentException("Unsupported response schema at $operation->operationId");
         }
         $return = $response->schema === null ? 'void' : $this->reference($response->schema);
+        // A non-success response can carry a DTO defined by the API contract.
+        // Do not throw away that structure or hardcode provider-specific errors.
+        $errorTypes = [];
+        foreach ($operation->responses as $other) {
+            if ($other->status === $response->status || $other->schema === null) {
+                continue;
+            }
+            if ($other->schema->kind !== SchemaKind::Reference) {
+                throw new InvalidArgumentException("Unsupported inline error response schema at $operation->operationId.$other->status");
+            }
+            $errorTypes[$other->status] = $this->reference($other->schema);
+        }
+
         $path = var_export($operation->path, true);
         $method = var_export($operation->method, true);
         $source = '    public function ' . $operation->operationId
@@ -205,9 +218,10 @@ final class PhpExecutableEmitter
             . "        }\n"
             . "        \$response = \$this->transport->send($method, \$url, \$headers, \$bodyJson);\n"
             . '        if ($response->status !== ' . (int) $response->status . ") {\n"
-            . '            throw new \RuntimeException('
-            . var_export("Unexpected HTTP status from $operation->operationId: ", true)
-            . " . \$response->status, \$response->status);\n"
+            . "            \$errorTypes = " . PhpLiteral::export($errorTypes) . ";\n"
+            . "            throw \\{$this->namespace}\\Core\\ApiException::fromResponse(\$response, "
+            . var_export($operation->operationId, true)
+            . ", \$errorTypes[\$response->status] ?? \$errorTypes['default'] ?? null);\n"
             . "        }\n";
 
         if ($response->schema === null) {
