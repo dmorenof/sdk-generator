@@ -28,6 +28,9 @@ final class ReadyToUseClientTest extends TestCase
     {
         $files = self::generatedFiles();
         foreach ([
+            'src/Core/ApiClient.php',
+            'src/Core/HttpMiddlewareInterface.php',
+            'src/Core/HttpClient.php',
             'src/Core/DTO.php',
             'src/Core/Request.php',
             'src/Core/Response.php',
@@ -148,6 +151,37 @@ final class ReadyToUseClientTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from getUser: 404');
         $api->getUser(88);
+    }
+
+    public function testCasafariStyleCoreMiddlewareHooksRunOnPSR18WithoutDuplicatingTransport(): void
+    {
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([self::response()]));
+        $stack->push(Middleware::history($history));
+        $http = new Client(['handler' => $stack]);
+        $api = \Example\ReadySdk\Api\ApiClient::connect('https://api.example.test/v1', $http);
+
+        $events = new \ArrayObject();
+        $api->withMiddleware(new class($events) implements \Example\ReadySdk\Core\HttpMiddlewareInterface {
+            public function __construct(private \ArrayObject $events) {}
+
+            public function beforeRequest(RequestInterface $request): RequestInterface
+            {
+                $this->events->append('before');
+                return $request->withHeader('X-Sdk-Core', 'yes');
+            }
+
+            public function afterResponse(ResponseInterface $response): ResponseInterface
+            {
+                $this->events->append('after');
+                return $response->withHeader('X-Sdk-Core-Response', 'processed');
+            }
+        });
+
+        self::assertInstanceOf(\Example\ReadySdk\Core\ApiClient::class, $api);
+        self::assertSame('Ada', $api->getUser(88)->name);
+        self::assertSame(['before', 'after'], $events->getArrayCopy());
+        self::assertSame('yes', $history[0]['request']->getHeaderLine('X-Sdk-Core'));
     }
 
     public function testGeneratedPhpFilesAllPassSyntaxValidation(): void

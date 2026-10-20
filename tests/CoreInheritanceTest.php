@@ -26,6 +26,9 @@ final class CoreInheritanceTest extends TestCase
     {
         $files = self::generated();
         foreach ([
+            'src/Core/ApiClient.php',
+            'src/Core/HttpMiddlewareInterface.php',
+            'src/Core/HttpClient.php',
             'src/Core/DTO.php',
             'src/Core/Request.php',
             'src/Core/Response.php',
