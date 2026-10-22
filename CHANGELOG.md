@@ -6,6 +6,7 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 ### Changed
 
+- Reconstruct schema hierarchy from `__` identifiers, retain numeric variants, and preserve original reference identity instead of replacing single-use components with field-derived names. Reject naming collisions explicitly.
 - Replace the global generated `CasafariSDK` connection and static operations with independent instance clients, inherited construction, and explicit resource sharing through `Client::resource()`.
 - Reuse equivalent collection classes; simplify finite enum `anyOf` unions; give generated ranges and inline HTTP errors readable names.
 - Share type conversion across DTOs, maps, union branches and root responses; fix union items inside DTO collections.

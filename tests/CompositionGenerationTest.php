@@ -136,7 +136,7 @@ final class CompositionGenerationTest extends TestCase
             'src/DTOs/FullInvoice.php',
             'src/DTOs/ScalarContainer.php',
             'src/DTOs/RangeInput.php',
-            'src/DTOs/RangeInput/BathroomsRange.php',
+            'src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php',
             'src/DTOs/SharedRange.php',
             'src/DTOs/SharedRangeInput.php',
         ] as $file) {
@@ -213,24 +213,25 @@ final class CompositionGenerationTest extends TestCase
         $container->validate();
     }
 
-    public function testSingleUseObjectReferenceIsNamedAtItsFieldAndNullableUnionsAreNative(): void
+    public function testSingleUseObjectReferenceKeepsSourceHierarchyAndNullableUnionsAreNative(): void
     {
         $files = self::generated();
 
-        self::assertArrayNotHasKey(        'src/DTOs/MarketAnalyticsApiapi__schema__ranges__IntRangeSchema__3.php', $files);
-        self::assertArrayHasKey('src/DTOs/RangeInput/BathroomsRange.php', $files);
+        self::assertArrayNotHasKey('src/DTOs/MarketAnalyticsApiapi__schema__ranges__IntRangeSchema__3.php', $files);
+        self::assertArrayHasKey('src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php', $files);
+        self::assertArrayNotHasKey('src/DTOs/RangeInput/BathroomsRange.php', $files);
         self::assertStringContainsString(
-            'public ?\\Example\\CompositionSdk\\DTOs\\RangeInput\\BathroomsRange $bathrooms_range;',
+            'public ?\\Example\\CompositionSdk\\DTOs\\MarketAnalyticsApi\\Ranges\\IntRangeSchema3 $bathrooms_range;',
             $files['src/DTOs/RangeInput.php'],
         );
-        self::assertStringContainsString('final class BathroomsRange extends \\Example\\CompositionSdk\\Core\\DTO', $files['src/DTOs/RangeInput/BathroomsRange.php']);
-        self::assertStringContainsString('public ?int $min;', $files['src/DTOs/RangeInput/BathroomsRange.php']);
-        self::assertStringContainsString('public ?int $max;', $files['src/DTOs/RangeInput/BathroomsRange.php']);
+        self::assertStringContainsString('final class IntRangeSchema3 extends \\Example\\CompositionSdk\\Core\\DTO', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
+        self::assertStringContainsString('public ?int $min;', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
+        self::assertStringContainsString('public ?int $max;', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
 
         $input = new \Example\CompositionSdk\DTOs\RangeInput((object) [
             'bathrooms_range' => (object) ['min' => null, 'max' => 4],
         ]);
-        self::assertInstanceOf(\Example\CompositionSdk\DTOs\RangeInput\BathroomsRange::class, $input->bathrooms_range);
+        self::assertInstanceOf(\Example\CompositionSdk\DTOs\MarketAnalyticsApi\Ranges\IntRangeSchema3::class, $input->bathrooms_range);
         self::assertNull($input->bathrooms_range->min);
         self::assertSame(4, $input->bathrooms_range->max);
     }

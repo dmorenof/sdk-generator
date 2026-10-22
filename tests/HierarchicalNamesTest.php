@@ -227,4 +227,55 @@ final class HierarchicalNamesTest extends TestCase
             new ModelDefinition('Vendor..AgencyDto', new SchemaDefinition(SchemaKind::Object)),
         ]);
     }
+
+    public function testDoubleUnderscoreHierarchyPreservesProviderAndVariantIdentity(): void
+    {
+        $schema = new SchemaDefinition(SchemaKind::Object);
+        $names = [
+            'AlertsApisrc__structures__schemas__ranges__IntRangeSchema__1' => 'AlertsApi/Ranges/IntRangeSchema1',
+            'AlertsApisrc__structures__schemas__ranges__IntRangeSchema__2' => 'AlertsApi/Ranges/IntRangeSchema2',
+            'MarketAnalyticsApiapi__schema__ranges__IntRangeSchema__1' => 'MarketAnalyticsApi/Ranges/IntRangeSchema1',
+            'Other__src__structures__schemas__ranges__IntRangeSchema__1' => 'Other/Ranges/IntRangeSchema1',
+            'Vendor__orders__Order' => 'Vendor/Orders/Order',
+        ];
+        $resolver = new PhpModelNameResolver('Example\Sdk', array_map(
+            static fn (string $name) => new ModelDefinition($name, $schema), array_keys($names),
+        ));
+        foreach ($names as $source => $path) {
+            self::assertSame('src/DTOs/' . $path . '.php', $resolver->path($source));
+            self::assertSame('\\Example\\Sdk\\DTOs\\' . str_replace('/', '\\', $path), $resolver->fqcn($source));
+        }
+        $entry = $resolver->derived('Vendor__orders__Order.State', 'Enums');
+        self::assertSame('src/Enums/Vendor/Orders/Order/StateEnum.php', $entry['path']);
+    }
+
+    public function testDecodedHierarchiesRejectCollisionsInsteadOfMergingSchemas(): void
+    {
+        $schema = new SchemaDefinition(SchemaKind::Object);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('schema name collision');
+        new PhpModelNameResolver('Example\Sdk', [
+            new ModelDefinition('Vendor__schemas__Range__1', $schema),
+            new ModelDefinition('Vendor.RANGE1', $schema),
+        ]);
+    }
+
+    public function testMalformedEncodedHierarchyIsRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid PHP schema namespace or class segment');
+        new PhpModelNameResolver('Example\Sdk', [
+            new ModelDefinition('Vendor____Entity', new SchemaDefinition(SchemaKind::Object)),
+        ]);
+    }
+
+    public function testEncodedCompositionPrefixesOnlyTheLeafAndRebuildsItsDerivedFolders(): void
+    {
+        $source = 'Provider__schemas__payments__Payment__1';
+        $resolver = new PhpModelNameResolver('Example\Sdk', [
+            new ModelDefinition($source, new SchemaDefinition(SchemaKind::AnyOf)),
+        ]);
+        self::assertSame('src/DTOs/Provider/Payments/AnyOfPayment1.php', $resolver->path($source));
+        self::assertSame('src/Collections/Provider/Payments/AnyOfPayment1/ItemsCollection.php', $resolver->derived($source . '.Items', 'Collections')['path']);
+    }
 }

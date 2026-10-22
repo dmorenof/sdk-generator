@@ -114,9 +114,27 @@ final class GeneratedSdkUsabilityTest extends TestCase
     public function testGeneratedRangeAndErrorNamesAreReadable(): void
     {
         self::assertArrayHasKey('src/Responses/Errors/V1/Properties/Search/PostStatus401Response.php', self::$files);
+        self::assertArrayHasKey('src/DTOs/AlertsApi/Ranges/IntRangeSchema1.php', self::$files);
         foreach (array_keys(self::$files) as $path) {
-            self::assertStringNotContainsString('__schema__', $path);
+            self::assertStringNotContainsString('__', $path);
         }
+    }
+
+    public function testReconstructedRangeReferencesKeepTypesConstraintsAndJsonFieldNames(): void
+    {
+        $filters = new \UsableSdk\DTOs\AlertsApiAlertFeedFiltersSchema((object) [
+            'business_type' => 'sale',
+            'price_range' => (object) ['min' => 100, 'max' => 500],
+            'bedrooms_range' => (object) ['min' => 1, 'max' => 4],
+        ]);
+        self::assertInstanceOf(\UsableSdk\DTOs\AlertsApi\Ranges\IntRangeSchema1::class, $filters->price_range);
+        self::assertInstanceOf(\UsableSdk\DTOs\AlertsApi\Ranges\IntRangeSchema4::class, $filters->bedrooms_range);
+        $wire = json_decode((string) $filters, true, 512, JSON_THROW_ON_ERROR)['price_range'];
+        self::assertSame(100, $wire['min']);
+        self::assertSame(500, $wire['max']);
+        $filters->bedrooms_range->max = 15001;
+        $this->expectException(\UnexpectedValueException::class);
+        json_encode($filters, JSON_THROW_ON_ERROR);
     }
 
     public function testSharedBodyModelsExcludeReadOnlyFieldsWhenSent(): void

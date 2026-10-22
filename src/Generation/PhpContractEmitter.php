@@ -22,8 +22,6 @@ final class PhpContractEmitter
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
-    /** @var array<string, true> */
-    private array $inlineModelReferences = [];
     /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool}> */
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, string>> */
@@ -75,7 +73,6 @@ final class PhpContractEmitter
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
         }
-        $this->inlineModelReferences = $this->inlineableModelReferences($contract);
         $names = [];
         foreach ($contract->models as $model) {
             $key = strtolower($model->name);
@@ -83,9 +80,6 @@ final class PhpContractEmitter
                 throw new InvalidArgumentException("Duplicate PHP model name: $model->name");
             }
             $names[$key] = true;
-            if (isset($this->inlineModelReferences[$model->name])) {
-                continue;
-            }
             if ($model->schema->kind === SchemaKind::AnyOf || $model->schema->kind === SchemaKind::OneOf) {
                 $path = $this->modelNames->path($model->name);
                 $files[$path] = $this->renderCompositionClass(
@@ -292,18 +286,11 @@ final class PhpContractEmitter
             }
             $nullableBranch = self::nullableCompositionBranch($property->schema);
             $propertySchema = $nullableBranch ?? $property->schema;
-            $inlineReference = $propertySchema->kind === SchemaKind::Reference
-                && $propertySchema->reference !== null
-                && isset($this->inlineModelReferences[$propertySchema->reference]);
-            $preferredTypeName = $inlineReference
-                ? PhpResourceNameResolver::pascal($property->wireName)
-                : null;
             $type = $this->typeFor(
                 $propertySchema,
                 $hint . '.' . ucfirst($propertyName),
                 $files,
-                $inlineReference ? 'DTO' : $baseClass,
-                $preferredTypeName,
+                $baseClass,
             );
             if ($property->schema->nullable || $nullableBranch !== null || $propertySchema->nullable) {
                 $type = '?' . $type;
@@ -399,7 +386,6 @@ final class PhpContractEmitter
         string $hint,
         array &$files,
         string $baseClass = 'DTO',
-        ?string $preferredName = null,
     ): string
     {
         if ($schema->enumValues !== []) {
@@ -416,7 +402,7 @@ final class PhpContractEmitter
             SchemaKind::Number => 'float',
             SchemaKind::Boolean => 'bool',
             SchemaKind::Mixed => 'mixed',
-            SchemaKind::Reference => $this->referenceForType($schema, $hint, $files, $preferredName),
+            SchemaKind::Reference => $this->reference($schema),
             SchemaKind::Array => $this->collectionType($schema, $hint, $files, $baseClass),
             SchemaKind::AnyOf, SchemaKind::OneOf => $this->compositionType($schema, $hint, $files, $baseClass),
             SchemaKind::AllOf => $this->inlineAllOfType($schema, $hint, $files, $baseClass),
@@ -673,129 +659,12 @@ final class PhpContractEmitter
         return new SchemaDefinition(SchemaKind::Object, properties: array_values($properties));
     }
 
-    /** @return array<string,true> */
-    private function inlineableModelReferences(ApiContract $contract): array
-    {
-        // Flatten only generated, single-use object components; authored and shared models keep their names.
-        $counts = [];
-        $protected = [];
-        foreach ($contract->models as $model) {
-            $this->countSchemaReferences($model->schema, $counts);
-        }
-        foreach ($contract->operations as $operation) {
-            foreach ($operation->parameters as $parameter) {
-                $this->countSchemaReferences($parameter->schema, $counts);
-                if ($parameter->schema->kind === SchemaKind::Reference && $parameter->schema->reference !== null) {
-                    $protected[$parameter->schema->reference] = true;
-                }
-            }
-            if ($operation->requestBody !== null) {
-                $schema = $operation->requestBody->schema;
-                $this->countSchemaReferences($schema, $counts);
-                if ($schema->kind === SchemaKind::Reference && $schema->reference !== null) {
-                    $protected[$schema->reference] = true;
-                }
-            }
-            foreach ($operation->responses as $response) {
-                if ($response->schema === null) {
-                    continue;
-                }
-                $this->countSchemaReferences($response->schema, $counts);
-                if ($response->schema->kind === SchemaKind::Reference && $response->schema->reference !== null) {
-                    $protected[$response->schema->reference] = true;
-                }
-            }
-        }
-
-        $inline = [];
-        foreach ($counts as $name => $count) {
-            $schema = $this->modelDefinitions[$name]->schema ?? null;
-            if ($count === 1
-                && !isset($protected[$name])
-                && $schema?->kind === SchemaKind::Object
-                && $schema->title !== null
-                && preg_match('/__schema__/i', $name) === 1
-                && !$this->schemaContainsReference($schema)) {
-                $inline[$name] = true;
-            }
-        }
-        return $inline;
-    }
-
-    /** @param array<string,int> $counts */
-    private function countSchemaReferences(SchemaDefinition $schema, array &$counts): void
-    {
-        if ($schema->kind === SchemaKind::Reference && $schema->reference !== null) {
-            $counts[$schema->reference] = ($counts[$schema->reference] ?? 0) + 1;
-        }
-        if ($schema->items !== null) {
-            $this->countSchemaReferences($schema->items, $counts);
-        }
-        foreach ($schema->properties as $property) {
-            $this->countSchemaReferences($property->schema, $counts);
-        }
-        foreach ($schema->branches as $branch) {
-            $this->countSchemaReferences($branch, $counts);
-        }
-        if ($schema->additionalProperties instanceof SchemaDefinition) {
-            $this->countSchemaReferences($schema->additionalProperties, $counts);
-        }
-    }
-
-    private function schemaContainsReference(SchemaDefinition $schema): bool
-    {
-        if ($schema->kind === SchemaKind::Reference) {
-            return true;
-        }
-        if ($schema->items !== null && $this->schemaContainsReference($schema->items)) {
-            return true;
-        }
-        foreach ($schema->properties as $property) {
-            if ($this->schemaContainsReference($property->schema)) {
-                return true;
-            }
-        }
-        foreach ($schema->branches as $branch) {
-            if ($this->schemaContainsReference($branch)) {
-                return true;
-            }
-        }
-        return $schema->additionalProperties instanceof SchemaDefinition
-            && $this->schemaContainsReference($schema->additionalProperties);
-    }
-
     private function reference(SchemaDefinition $schema): string
     {
         if ($schema->reference === null) {
             throw new InvalidArgumentException('Missing model reference.');
         }
         return $this->modelNames->fqcn($schema->reference);
-    }
-
-    /** @param array<string,string> $files */
-    private function referenceForType(
-        SchemaDefinition $schema,
-        string $hint,
-        array &$files,
-        ?string $preferredName = null,
-    ): string
-    {
-        if ($schema->reference === null) {
-            throw new InvalidArgumentException('Missing model reference.');
-        }
-        if (isset($this->inlineModelReferences[$schema->reference])) {
-            $model = $this->modelDefinitions[$schema->reference];
-            $segments = explode('.', $hint);
-            $name = $preferredName ?? PhpResourceNameResolver::pascal((string) end($segments));
-            return $this->inlineObjectType(
-                $model->schema,
-                $hint,
-                $files,
-                'DTO',
-                $name,
-            );
-        }
-        return $this->reference($schema);
     }
 
     /** @param array<string,string> $files */

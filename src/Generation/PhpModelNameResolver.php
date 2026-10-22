@@ -7,17 +7,17 @@ use Dmorenof\SdkGenerator\Contract\ModelDefinition;
 use InvalidArgumentException;
 
 /**
- * Map schema identifiers to PHP files without modifying their hierarchy.
+ * Map source schema identifiers to stable PHP hierarchies.
  *
  * Casafari.Crm.Api.Dtos.Agency.AgencyDto
- *   -> src/Casafari/Crm/Api/Dtos/Agency/AgencyDto.php
- *   -> \Vendor\Sdk\Casafari\Crm\Api\Dtos\Agency\AgencyDto
+ *   -> src/DTOs/Casafari/Crm/Api/Dtos/Agency/AgencyDto.php
+ *   -> \Vendor\Sdk\DTOs\Casafari\Crm\Api\Dtos\Agency\AgencyDto
  *
  * The namespace of the SDK is a separate concern: it is explicitly configured
  * or derived from OpenAPI/Swagger info.title, NEVER inferred from model paths.
  *
- * Ordinary schema hierarchy is preserved. Compiler-generated __schema__
- * component identifiers use their title and bounds instead of source filenames.
+ * Dots and encoded double underscores describe schema hierarchy. Encoded
+ * technical source folders are omitted; source identifiers still key references.
  */
 final class PhpModelNameResolver
 {
@@ -40,6 +40,8 @@ final class PhpModelNameResolver
     private array $paths;
     /** @var array<string, string> */
     private array $types;
+    /** @var array<string, list<string>> Original schema ID => resolved hierarchy. */
+    private array $segments = [];
     /** @var array<string, string> */
     private array $occupiedPaths = [];
     /** @var array<string, array{path:string,type:string,namespace:string,class:string}> */
@@ -55,11 +57,15 @@ final class PhpModelNameResolver
         $occupied = [];
         foreach ($models as $model) {
             $name = $model->name;
-            $componentName = self::generatedComponentName($model);
+            $sourceSegments = self::schemaSegments($name);
+            foreach ($sourceSegments as $segment) {
+                $this->checkSegment($segment);
+            }
+            $resolvedName = implode('.', $sourceSegments);
             $generatedName = match ($model->schema->kind) {
-                \Dmorenof\SdkGenerator\Contract\SchemaKind::AnyOf => self::prefixLastSegment($name, 'AnyOf'),
-                \Dmorenof\SdkGenerator\Contract\SchemaKind::OneOf => self::prefixLastSegment($name, 'OneOf'),
-                default => $componentName ?? $name,
+                \Dmorenof\SdkGenerator\Contract\SchemaKind::AnyOf => self::prefixLastSegment($resolvedName, 'AnyOf'),
+                \Dmorenof\SdkGenerator\Contract\SchemaKind::OneOf => self::prefixLastSegment($resolvedName, 'OneOf'),
+                default => $resolvedName,
             };
             $category = $model->schema->enumValues !== [] ? 'Enums' : match ($roles[$name] ?? 'DTO') {
                 'Request' => 'Requests',
@@ -67,12 +73,6 @@ final class PhpModelNameResolver
                 default => 'DTOs',
             };
             [$path, $type] = $this->resolve($generatedName, $category);
-            if ($componentName !== null) {
-                $variant = 1;
-                while (isset($occupied[strtolower($path)])) {
-                    [$path, $type] = $this->resolve($generatedName . 'Variant' . ++$variant, $category);
-                }
-            }
             // On case-insensitive filesystems, path collisions must also fail.
             $key = strtolower($path);
             if (isset($occupied[$key])) {
@@ -84,6 +84,7 @@ final class PhpModelNameResolver
             $this->occupiedPaths[$key] = $name;
             $paths[$name] = $path;
             $types[$name] = $type;
+            $this->segments[$name] = explode('.', $generatedName);
         }
         $this->paths = $paths;
         $this->types = $types;
@@ -95,23 +96,38 @@ final class PhpModelNameResolver
             ?? throw new InvalidArgumentException("Unknown model reference: $schemaName.");
     }
 
-    private static function generatedComponentName(ModelDefinition $model): ?string
+    /** @return list<string> */
+    private static function schemaSegments(string $name): array
     {
-        if (!str_contains($model->name, '__schema__') || $model->schema->title === null) {
-            return null;
+        if (!str_contains($name, '__')) {
+            return explode('.', $name);
         }
-        $name = PhpResourceNameResolver::pascal(preg_replace('/Schema$/', '', $model->schema->title));
-        foreach ($model->schema->properties as $property) {
-            if ($property->wireName !== 'min') { continue; }
-            $schema = $property->schema->branches[0] ?? $property->schema;
-            foreach (['minimum' => 'From', 'maximum' => 'To'] as $rule => $label) {
-                if (isset($schema->validation[$rule])) {
-                    $number = str_replace(['-', '.'], ['Minus', 'Point'], (string) $schema->validation[$rule]);
-                    $name .= $label . $number;
-                }
+
+        $segments = preg_split('/__|\./', $name);
+        // A final numeric token identifies a variant, not a PHP namespace.
+        if (count($segments) > 1 && ctype_digit(end($segments))) {
+            $variant = array_pop($segments);
+            $segments[array_key_last($segments)] .= $variant;
+        }
+
+        // Merged contracts may concatenate a provider prefix and a source root,
+        // e.g. ProviderApisrc__structures or ProviderApiapi__schema.
+        $next = strtolower($segments[1] ?? '');
+        if (in_array($next, ['structures', 'schema', 'schemas'], true)
+            && preg_match('/^(.+)(src|api)$/D', $segments[0], $match) === 1) {
+            $segments[0] = $match[1];
+        }
+
+        $class = array_pop($segments);
+        $folders = [];
+        foreach ($segments as $index => $segment) {
+            if (in_array(strtolower($segment), ['src', 'structures', 'schema', 'schemas'], true)
+                || ($index === 0 && $segment === 'api' && in_array($next, ['schema', 'schemas'], true))) {
+                continue;
             }
+            $folders[] = ucfirst($segment);
         }
-        return 'Ranges.' . $name;
+        return [...$folders, ucfirst($class)];
     }
 
     public function fqcn(string $schemaName): string
@@ -250,7 +266,7 @@ final class PhpModelNameResolver
             return $this->resolve($name, $category);
         }
         $modelSegments = explode('.', $modelName);
-        $folders = $modelSegments;
+        $folders = $this->segments[$modelName];
         $segments = explode('.', $hint);
         $propertySegments = array_slice($segments, count($modelSegments), -1);
         $folders = [...$folders, ...$propertySegments];
