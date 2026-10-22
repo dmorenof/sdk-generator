@@ -34,13 +34,13 @@ The generated package depends on typedarray/typedarray and a real Guzzle 7/PSR-1
 ~~~php
 require '/path/to/build/accounts-sdk/vendor/autoload.php';
 
-\Example\AccountsSdk\CasafariSDK::connect('https://api.example.com/v1');
-$user = \Example\AccountsSdk\Api\Users\User::getById(88); // Example contract's GET /users/{id}
+$client = \Example\AccountsSdk\Client::connect('https://api.example.com/v1');
+$user = $client->resource(\Example\AccountsSdk\Api\Users\User::class)->getById(88); // Example contract's GET /users/{id}
 echo $user->name;                 // Native PHP string property
 
 $new = new \Example\AccountsSdk\Requests\NewUser();
 $new->name = 'Grace';
-$created = \Example\AccountsSdk\Api\Users::post($new); // Example contract's POST /users
+$created = $client->resource(\Example\AccountsSdk\Api\Users::class)->post($new); // Example contract's POST /users
 ~~~
 
 This example specification is **synthetic**. Replace the host with a real API compatible with the specification before performing live requests. In offline CI, a mock Guzzle handler is used instead of real HTTP.
@@ -48,7 +48,7 @@ This example specification is **synthetic**. Replace the host with a real API co
 ## 4. Advanced: PSR-18 client and headers
 
 ~~~php
-\Example\AccountsSdk\CasafariSDK::connect(
+$client = \Example\AccountsSdk\Client::connect(
     'https://api.example.com/v1',
     $yourPsr18Client, // e.g. Guzzle with a configured HandlerStack
     [],
@@ -60,11 +60,11 @@ This example specification is **synthetic**. Replace the host with a real API co
 
 The credential keys are security scheme names from the OpenAPI document. API keys use the same string form; HTTP Basic uses `new Core\BasicAuthCredentials($username, $password)`. The generated client applies credentials only to secured operations and honors OpenAPI's AND/OR requirement semantics. A missing complete credential alternative fails before sending the request. Query API keys become part of the URL and should be used with care in logs.
 
-API operations are static methods grouped by route. The connection is configured once through `CasafariSDK::connect()` and shared by every generated API class; DTOs remain ordinary instances.
+API operations are instance methods grouped by route. Every client has independent connection state. `resource(Type::class)` explicitly shares a client's transport, credentials and middleware; DTOs remain ordinary instances.
 
-Route classes are under `Api`, mirror the route hierarchy, and extend `CasafariSDK` to reuse request construction and the shared transport. HTTP errors identify the method and route (for example, `GET /users/{id}`), not an arbitrary OpenAPI `operationId`. Request-only schemas are under `Requests`, response-only schemas under `Responses`, and shared or neutral schemas under `DTOs`. Enums and typed collections are nested in folders derived from their owning schema. Generated `__schema__` object components used by one field are folded into a context-named DTO; shared components keep a named type, and simple unions with `null` map to PHP nullable types.
+Route classes are under `Api`, mirror the route hierarchy, and extend `Client` to reuse request construction and the shared transport. HTTP errors identify the method and route (for example, `GET /users/{id}`), not an arbitrary OpenAPI `operationId`. Request-only schemas are under `Requests`, response-only schemas under `Responses`, and shared or neutral schemas under `DTOs`. Enums and typed collections are nested in folders derived from their owning schema. Generated `__schema__` object components used by one field are folded into a context-named DTO; shared components keep a named type, and simple unions with `null` map to PHP nullable types.
 
-**Limitations:** OAuth2 and OpenID Connect authorization/token flows are not implemented; supply a previously obtained token to an HTTP bearer scheme. Native property type checks are not full pre-send DTO validation; required outbound fields are not yet comprehensively validated. Consult [SUPPORTED_SCOPE.md](SUPPORTED_SCOPE.md).
+**Limitations:** OAuth2 and OpenID Connect authorization/token flows are not implemented; supply a previously obtained token to an HTTP bearer scheme. Required fields and supported constraints are validated before sending, including modified nested DTOs. This is not complete JSON Schema validation. Consult [SUPPORTED_SCOPE.md](SUPPORTED_SCOPE.md).
 
 ## Verify without local PHP
 

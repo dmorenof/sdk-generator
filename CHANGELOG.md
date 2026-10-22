@@ -4,6 +4,13 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 ## Unreleased
 
+### Changed
+
+- Replace the global generated `CasafariSDK` connection and static operations with independent instance clients, inherited construction, and explicit resource sharing through `Client::resource()`.
+- Reuse equivalent collection classes; simplify finite enum `anyOf` unions; give generated ranges and inline HTTP errors readable names.
+- Share type conversion across DTOs, maps, union branches and root responses; fix union items inside DTO collections.
+- Cache reflection types by class/field, serialize after one recursive validation, and emit endpoint configuration as class constants. Add isolation, round-trip, mutation and CPU/memory regression probes.
+
 ### Added
 
 - Bounded `allOf`, `anyOf`, and `oneOf` support: compatible object intersections, generated composition wrappers, and shared runtime matching.

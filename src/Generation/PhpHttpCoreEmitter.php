@@ -96,14 +96,47 @@ abstract class ApiClient
 {
     protected SecurityCredentials $securityCredentials;
 
+    protected TransportInterface $transport;
+
+    /** @param array<string, string> $headers */
     public function __construct(
-        protected TransportInterface $transport,
         protected string $baseUrl,
+        ?\Psr\Http\Client\ClientInterface $httpClient = null,
+        array $headers = [],
         ?SecurityCredentials $securityCredentials = null,
+        ?TransportInterface $transport = null,
     ) {
         $this->securityCredentials = $securityCredentials ?? new SecurityCredentials();
+        $this->transport = $transport ?? new HttpClient(
+            $httpClient ?? new \GuzzleHttp\Client(['http_errors' => false]),
+            $headers,
+        );
     }
 
+    /** @param array<string, string> $headers */
+    public static function connect(
+        string $baseUrl,
+        ?\Psr\Http\Client\ClientInterface $httpClient = null,
+        array $headers = [],
+        ?SecurityCredentials $securityCredentials = null,
+        ?TransportInterface $transport = null,
+    ): static {
+        return new static($baseUrl, $httpClient, $headers, $securityCredentials, $transport);
+    }
+
+    /**
+     * Share this client's transport, credentials and middleware with a typed resource.
+     * @template T of ApiClient
+     * @param class-string<T> $type
+     * @return T
+     */
+    public function resource(string $type): ApiClient
+    {
+        if (!is_a($type, static::class, true)) {
+            throw new \InvalidArgumentException('Resource must belong to this SDK: ' . $type);
+        }
+        return new $type($this->baseUrl, securityCredentials: $this->securityCredentials, transport: $this->transport);
+    }
     /** Attach an SDK-level interceptor when using the default PSR-18 adapter. */
     public function withMiddleware(HttpMiddlewareInterface $middleware): static
     {

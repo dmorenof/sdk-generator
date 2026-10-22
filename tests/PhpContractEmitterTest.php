@@ -36,7 +36,7 @@ final class PhpContractEmitterTest extends TestCase
             'src/Api/OperationCatalog.php',
             'src/Api/Operations.php',
             'src/Api/Requests/GetUserRequest.php',
-            'src/Collections/User/LabelsCollection.php',
+            'src/Collections/StringCollection.php',
             'src/Core/DTO.php',
             'src/Core/Map.php',
             'src/Core/Request.php',
@@ -68,13 +68,13 @@ final class PhpContractEmitterTest extends TestCase
         self::assertStringContainsString('public ?string $nickname;', $user);
         self::assertStringContainsString('public \\Example\\AccountsSdk\\DTOs\\Profile $profile;', $user);
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Enums\\User\\RoleEnum $role;', $user);
-        self::assertStringContainsString('public \\Example\\AccountsSdk\\Collections\\User\\LabelsCollection $labels;', $user);
+        self::assertStringContainsString('public \\Example\\AccountsSdk\\Collections\\StringCollection $labels;', $user);
         self::assertStringContainsString('return self::filterFields(', $files['src/Core/DTO.php']);
-        self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\TypedArray', $files['src/Collections/User/LabelsCollection.php']);
+        self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\TypedArray', $files['src/Collections/StringCollection.php']);
         self::assertStringNotContainsString('= null;', $user);
         self::assertStringContainsString("case Admin = 'admin';", $files['src/Enums/User/RoleEnum.php']);
         self::assertStringContainsString("case Viewer = 'viewer';", $files['src/Enums/User/RoleEnum.php']);
-        self::assertStringContainsString("protected string \$expected_type = 'string';", $files['src/Collections/User/LabelsCollection.php']);
+        self::assertStringContainsString("protected string \$expected_type = 'string';", $files['src/Collections/StringCollection.php']);
     }
 
     public function testGeneratedEndpointContractsExposeTypedArgumentsAndRoutes(): void

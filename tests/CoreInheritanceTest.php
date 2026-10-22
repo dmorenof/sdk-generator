@@ -32,7 +32,7 @@ final class CoreInheritanceTest extends TestCase
             'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
-            'src/Collections/User/LabelsCollection.php',
+            'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
@@ -46,7 +46,7 @@ final class CoreInheritanceTest extends TestCase
             'src/Core/ApiClient.php', 'src/Core/ApiException.php',
             'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
-            'src/CasafariSDK.php',
+            'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
         ] as $file) {
@@ -66,8 +66,8 @@ final class CoreInheritanceTest extends TestCase
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\Profile::class, \Example\InheritanceSdk\Core\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Core\Request::class, \Example\InheritanceSdk\Core\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Core\Response::class, \Example\InheritanceSdk\Core\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\User\LabelsCollection::class, \Example\InheritanceSdk\Core\TypedArray::class));
-        self::assertSame('string', (new \Example\InheritanceSdk\Collections\User\LabelsCollection())->getExpectedType());
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\StringCollection::class, \Example\InheritanceSdk\Core\TypedArray::class));
+        self::assertSame('string', (new \Example\InheritanceSdk\Collections\StringCollection())->getExpectedType());
         $property = (new \ReflectionClass(\Example\InheritanceSdk\Responses\User::class))->getProperty('profile');
         self::assertSame(\Example\InheritanceSdk\DTOs\Profile::class, $property->getType()->getName());
     }
@@ -129,9 +129,9 @@ final class CoreInheritanceTest extends TestCase
                 throw new \LogicException('Should not send invalid DTO');
             }
         };
-        \Example\InheritanceSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\InheritanceSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
-            \Example\InheritanceSdk\Api\Users::post(new \Example\InheritanceSdk\Requests\NewUser());
+            $client->resource(\Example\InheritanceSdk\Api\Users::class)->post(new \Example\InheritanceSdk\Requests\NewUser());
             self::fail('Missing required field was transmitted');
         } catch (\UnexpectedValueException $e) {
             self::assertStringContainsString('Required JSON property', $e->getMessage());

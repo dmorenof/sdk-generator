@@ -16,18 +16,18 @@ composer install
 Se crea un paquete Composer **independiente del generador** con DTOs, enums, colecciones tipadas, métodos de API y Guzzle por defecto.
 
 ~~~php
-use Example\AccountsSdk\CasafariSDK;
+use Example\AccountsSdk\Client;
 use Example\AccountsSdk\Api\Users\User;
 use Example\AccountsSdk\Api\Users;
 use Example\AccountsSdk\Requests\NewUser;
 
-CasafariSDK::connect('https://api.example.com/v1');
-$user = User::getById(88);
+$client = Client::connect('https://api.example.com/v1');
+$user = $client->resource(User::class)->getById(88);
 echo $user->name;
 
 $nuevo = new NewUser();
 $nuevo->name = 'Grace';
-$creado = Users::post($nuevo);
+$creado = $client->resource(Users::class)->post($nuevo);
 ~~~
 
 La especificación de demostración es **sintética**: esa URL es ilustrativa y no se contacta durante las pruebas.
@@ -35,16 +35,16 @@ La especificación de demostración es **sintética**: esa URL es ilustrativa y 
 ### Cliente HTTP opcional
 
 ~~~php
-CasafariSDK::connect(
+$client = Client::connect(
     'https://api.example.com/v1',
     $customPsr18Client,
     ['Authorization' => 'Bearer ' . $token]
 );
 ~~~
 
-Se puede inyectar Guzzle con middlewares o cualquier implementación PSR-18 compatible. Las clases de API contienen métodos estáticos agrupados por ruta y comparten la conexión configurada con `CasafariSDK::connect()`. Las operaciones protegidas aplican los `securitySchemes` de OpenAPI; los flujos para obtener tokens OAuth2/OpenID Connect no están implementados.
+Se puede inyectar Guzzle con middlewares o cualquier implementación PSR-18 compatible. Las operaciones son métodos de instancia: cada cliente conserva su conexión y credenciales. También puedes crear directamente una clase de ruta con `new User($server)` o compartir la configuración de un cliente mediante `$client->resource(User::class)`. Las operaciones protegidas aplican los `securitySchemes` de OpenAPI; los flujos para obtener tokens OAuth2/OpenID Connect no están implementados.
 
-Las clases de rutas se generan bajo `Api`, siguiendo la jerarquía de cada ruta, y extienden `CasafariSDK` para reutilizar la construcción de peticiones y el transporte común. Los errores HTTP identifican el método y la ruta (por ejemplo, `GET /users/{id}`), no el `operationId` arbitrario de OpenAPI. Los esquemas usados solo para enviar datos se generan bajo `Requests`; los de respuesta, bajo `Responses`; los compartidos o neutrales permanecen en `DTOs`. Los enums y colecciones tipadas se organizan en subcarpetas según el esquema que los define. Los componentes objeto generados (`__schema__`) que solo usa un campo se integran en el DTO de ese campo; los compartidos conservan su tipo, y las uniones simples con `null` se expresan como propiedades nullable de PHP.
+Las clases de rutas se generan bajo `Api`, siguiendo la jerarquía de cada ruta, y extienden `Client` para reutilizar la construcción de peticiones y el transporte común. Los errores HTTP identifican el método y la ruta (por ejemplo, `GET /users/{id}`), no el `operationId` arbitrario de OpenAPI. Los esquemas usados solo para enviar datos se generan bajo `Requests`; los de respuesta, bajo `Responses`; los compartidos o neutrales permanecen en `DTOs`. Los enums y colecciones de dominio se organizan según su esquema. Las colecciones equivalentes comparten clase; las de strings y enteros sin restricciones usan `StringCollection` e `IntegerCollection`. Los componentes objeto generados (`__schema__`) que solo usa un campo se integran en el DTO de ese campo; los compartidos conservan su tipo, y las uniones simples con `null` se expresan como propiedades nullable de PHP.
 
 ## Sin instalar PHP
 

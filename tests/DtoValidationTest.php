@@ -61,11 +61,11 @@ final class DtoValidationTest extends TestCase
             'src/Core/DTO.php', 'src/Core/Request.php', 'src/Core/Response.php',
             'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
-            'src/Collections/User/LabelsCollection.php',
+            'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php', 'src/Requests/NewUser.php', 'src/Responses/User.php',
             'src/Transport/HttpResponse.php', 'src/Transport/TransportInterface.php',
             'src/Core/SecurityCredentials.php',
-            'src/Core/ApiClient.php', 'src/CasafariSDK.php', 'src/Api/Users.php',
+            'src/Core/ApiClient.php', 'src/Client.php', 'src/Api/Users.php',
             'src/Api/Users/User.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);
@@ -226,9 +226,9 @@ final class DtoValidationTest extends TestCase
                 throw new \LogicException('Unexpected HTTP');
             }
         };
-        \Example\ConstraintSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\ConstraintSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
-            \Example\ConstraintSdk\Api\Users\User::getById(0);
+            $client->resource(\Example\ConstraintSdk\Api\Users\User::class)->getById(0);
             self::fail('Expected validation error');
         } catch (UnexpectedValueException $e) {
             self::assertStringContainsString('minimum', $e->getMessage());
@@ -246,11 +246,11 @@ final class DtoValidationTest extends TestCase
                 throw new \LogicException('Unexpected HTTP');
             }
         };
-        \Example\ConstraintSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\ConstraintSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         $dto = new \Example\ConstraintSdk\Requests\NewUser();
         $dto->name = 'Li';
         try {
-            \Example\ConstraintSdk\Api\Users::post($dto);
+            $client->resource(\Example\ConstraintSdk\Api\Users::class)->post($dto);
             self::fail('Expected validation error');
         } catch (UnexpectedValueException $e) {
             self::assertStringContainsString('minLength', $e->getMessage());

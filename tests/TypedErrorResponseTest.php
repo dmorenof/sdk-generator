@@ -42,7 +42,7 @@ final class TypedErrorResponseTest extends TestCase
             'src/Core/DTO.php', 'src/Core/Request.php', 'src/Core/Response.php',
             'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
-            'src/Collections/User/LabelsCollection.php',
+            'src/Collections/StringCollection.php',
             'src/Responses/ApiError.php', 'src/DTOs/Profile.php',
             'src/Requests/NewUser.php', 'src/Responses/User.php',
             'src/Transport/HttpResponse.php', 'src/Transport/TransportInterface.php',
@@ -51,14 +51,14 @@ final class TypedErrorResponseTest extends TestCase
             'src/Core/Security.php',
             'src/Core/ApiException.php', 'src/Core/ApiClient.php',
             'src/Transport/Psr18Transport.php', 'src/Support/JsonHydrator.php',
-            'src/CasafariSDK.php', 'src/Api/Users/User.php',
+            'src/Client.php', 'src/Api/Users/User.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);
             eval(substr($files[$path], strlen('<?php')));
         }
     }
 
-    private static function connect(int $status, string $body): void
+    private static function connect(int $status, string $body): \Example\ErrorSdk\Client
     {
         $transport = new class($status, $body) implements \Example\ErrorSdk\Transport\TransportInterface {
             public function __construct(private int $status, private string $body) {}
@@ -71,15 +71,15 @@ final class TypedErrorResponseTest extends TestCase
                 );
             }
         };
-        \Example\ErrorSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
+        return \Example\ErrorSdk\Client::connect('https://api.example.test/v1', transport: $transport);
     }
 
     public function testDeclaredErrorResponseHydratesTypedDTOAndRetainsRawHTTP(): void
     {
         $payload = '{"message":"Missing user","code":4041}';
         try {
-            self::connect(404, $payload);
-            \Example\ErrorSdk\Api\Users\User::getById(42);
+            $client = self::connect(404, $payload);
+            $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
             self::fail('Expected typed HTTP exception');
         } catch (\Example\ErrorSdk\Core\ApiException $e) {
             self::assertInstanceOf(\RuntimeException::class, $e);
@@ -97,8 +97,8 @@ final class TypedErrorResponseTest extends TestCase
     public function testDefaultErrorSchemaAppliesToOtherwiseUnknownStatus(): void
     {
         try {
-            self::connect(503, '{"message":"Service unavailable","code":503}');
-            \Example\ErrorSdk\Api\Users\User::getById(42);
+            $client = self::connect(503, '{"message":"Service unavailable","code":503}');
+            $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
             self::fail('Expected HTTP exception');
         } catch (\Example\ErrorSdk\Core\ApiException $e) {
             self::assertSame(503, $e->response->status);
@@ -110,8 +110,8 @@ final class TypedErrorResponseTest extends TestCase
     public function testInvalidErrorDTOStillPreservesResponseAndOriginalHydrationError(): void
     {
         try {
-            self::connect(404, '{"message":"No"}');
-            \Example\ErrorSdk\Api\Users\User::getById(42);
+            $client = self::connect(404, '{"message":"No"}');
+            $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
             self::fail('Expected HTTP exception');
         } catch (\Example\ErrorSdk\Core\ApiException $e) {
             self::assertSame(404, $e->response->status);
@@ -124,8 +124,8 @@ final class TypedErrorResponseTest extends TestCase
     public function testErrorDecoderDoesNotLoseRawBodyOnInvalidJson(): void
     {
         try {
-            self::connect(404, '{broken');
-            \Example\ErrorSdk\Api\Users\User::getById(42);
+            $client = self::connect(404, '{broken');
+            $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
             self::fail('Expected HTTP exception');
         } catch (\Example\ErrorSdk\Core\ApiException $e) {
             self::assertSame('{broken', $e->response->body);

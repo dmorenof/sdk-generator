@@ -81,7 +81,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         $credentials = new \CasafariRuntimeSdk\Core\SecurityCredentials([
             'HTTPBearer' => 'runtime-test-token',
         ]);
-        \CasafariRuntimeSdk\CasafariSDK::connect(
+        $client = \CasafariRuntimeSdk\Client::connect(
             'https://api.casafari.test',
             $http,
             [],
@@ -89,7 +89,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         );
         $feedsResource = \CasafariRuntimeSdk\Api\V1\ListingAlerts\Feeds::class;
 
-        $feeds = $feedsResource::get(filter: true, only_self: false);
+        $feeds = $client->resource($feedsResource)->get(filter: true, only_self: false);
 
         self::assertInstanceOf(\CasafariRuntimeSdk\Core\TypedArray::class, $feeds);
         self::assertCount(1, $feeds);
@@ -107,7 +107,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         );
         self::assertSame('Bearer runtime-test-token', $sent->getHeaderLine('Authorization'));
 
-        $created = $feedsResource::post(
+        $created = $client->resource($feedsResource)->post(
             new \CasafariRuntimeSdk\DTOs\ApiAlertsFeedV1((object) [
                 'name' => 'Runtime feed',
                 'filter' => (object) ['operation' => 'sale', 'location_ids' => [10]],
@@ -130,7 +130,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         );
 
         try {
-            $feedsResource::get(filter: false);
+            $client->resource($feedsResource)->get(filter: false);
             self::fail('The generated client did not throw for HTTP 401.');
         } catch (\CasafariRuntimeSdk\Core\ApiException $exception) {
             self::assertSame(401, $exception->getCode());
@@ -144,12 +144,12 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         $unauthenticatedHistory = [];
         $unauthenticatedStack = HandlerStack::create(new MockHandler());
         $unauthenticatedStack->push(Middleware::history($unauthenticatedHistory));
-        \CasafariRuntimeSdk\CasafariSDK::connect(
+        $client = \CasafariRuntimeSdk\Client::connect(
             'https://api.casafari.test',
             new Client(['handler' => $unauthenticatedStack]),
         );
         try {
-            $feedsResource::get(filter: true);
+            $client->resource($feedsResource)->get(filter: true);
             self::fail('The generated client sent a secured request without credentials.');
         } catch (\InvalidArgumentException $exception) {
             self::assertStringContainsString('No configured credentials', $exception->getMessage());

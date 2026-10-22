@@ -28,6 +28,8 @@ final class PhpContractEmitter
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, string>> */
     private array $operationErrorTypes = [];
+    /** @var array<string, string> Collection item type and rules => generated FQCN. */
+    private array $collectionTypes = [];
     private const IDENTIFIER = '/^[A-Za-z_][A-Za-z0-9_]*$/D';
     private const PHP_KEYWORDS = [
         'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch',
@@ -69,6 +71,7 @@ final class PhpContractEmitter
         $this->modelDefinitions = [];
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
+        $this->collectionTypes = [];
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
         }
@@ -459,6 +462,10 @@ final class PhpContractEmitter
         if ($schema->properties === [] && $this->hasOpenAdditionalProperties($schema)) {
             return $this->inlineMapType($schema->additionalProperties, $hint, $files, $baseClass);
         }
+        if ($className === null && str_starts_with($hint, 'Errors.')) {
+            $segments = explode('.', $hint);
+            $className = end($segments) . 'Response';
+        }
         $entry = $this->modelNames->derived(
             $hint,
             self::categoryForBaseClass($baseClass),
@@ -551,6 +558,33 @@ final class PhpContractEmitter
         string $baseClass = 'DTO',
     ): string
     {
+        // A union of finite enums with the same backing type is itself a finite
+        // enum. Keep anyOf wrappers only when they add actual model semantics.
+        if ($schema->kind === SchemaKind::AnyOf) {
+            $kind = null;
+            $values = [];
+            foreach ($schema->branches as $branch) {
+                if ($branch->kind === SchemaKind::Reference) {
+                    $branch = $this->modelDefinitions[$branch->reference]->schema;
+                }
+                if ($branch->enumValues === [] || $branch->nullable
+                    || $branch->validation !== [] || $branch->pattern !== null
+                    || !in_array($branch->kind, [SchemaKind::String, SchemaKind::Integer], true)
+                    || ($kind !== null && $kind !== $branch->kind)) {
+                    $values = [];
+                    break;
+                }
+                $kind = $branch->kind;
+                foreach ($branch->enumValues as $value) {
+                    if (!in_array($value, $values, true)) {
+                        $values[] = $value;
+                    }
+                }
+            }
+            if ($values !== []) {
+                return $this->typeFor(new SchemaDefinition($kind, enumValues: $values), $hint, $files, $baseClass);
+            }
+        }
         $prefix = $schema->kind === SchemaKind::AnyOf ? 'AnyOf' : 'OneOf';
         $name = PhpModelNameResolver::prefixLastSegment($hint, $prefix);
         $entry = $this->modelNames->derived($name, self::categoryForBaseClass($baseClass));
@@ -775,9 +809,28 @@ final class PhpContractEmitter
         if ($schema->items === null) {
             throw new InvalidArgumentException("Missing collection items at $hint");
         }
-        $entry = $this->modelNames->derived($hint . 'Array', 'Collections');
-        $name = $entry['class'];
         $itemType = $this->typeFor($schema->items, $hint . 'Item', $files, $baseClass);
+        $itemValidation = $schema->items->validation;
+        if ($schema->items->pattern !== null) {
+            $itemValidation['pattern'] = $schema->items->pattern;
+        }
+        $rules = $itemValidation;
+        ksort($rules);
+        $key = serialize([$itemType, $schema->items->nullable, $rules]);
+        if (isset($this->collectionTypes[$key])) {
+            return $this->collectionTypes[$key];
+        }
+        $sharedName = $itemValidation === [] ? match ($itemType) {
+            'string' => 'StringCollection',
+            'int' => 'IntegerCollection',
+            'float' => 'FloatCollection',
+            'bool' => 'BooleanCollection',
+            default => null,
+        } : null;
+        $entry = $this->modelNames->derived(
+            $sharedName ?? $hint . 'Array', 'Collections', $sharedName,
+        );
+        $name = $entry['class'];
         $expected = match ($itemType) {
             'string' => "'string'",
             'int' => "'integer'",
@@ -790,16 +843,13 @@ final class PhpContractEmitter
             . "final class $name extends \\{$this->namespace}\\Core\\TypedArray\n"
             . "{\n"
             . "    protected string \$expected_type = $expected;\n";
-        $itemValidation = $schema->items->validation;
-        if ($schema->items->pattern !== null) {
-            $itemValidation['pattern'] = $schema->items->pattern;
-        }
         if ($itemValidation !== []) {
             $file .= "    protected const array ITEM_VALIDATION = "
                 . PhpLiteral::export($itemValidation) . ";\n";
         }
         $file .= "}\n";
         $this->addFile($files, $entry['path'], $file);
+        $this->collectionTypes[$key] = $entry['type'];
         return $entry['type'];
     }
 
@@ -995,7 +1045,14 @@ final class PhpContractEmitter
         $statusName = preg_match('/^[A-Za-z]/', $status) === 1
             ? ucfirst(strtolower($status))
             : 'Status' . preg_replace('/[^A-Za-z0-9]/', '', $status);
-        return $name . $statusName . 'ErrorResponse';
+        $segments = [];
+        foreach (explode('/', trim($operation->path, '/')) as $segment) {
+            if ($segment === '' || strtolower($segment) === 'api') { continue; }
+            $segments[] = str_starts_with($segment, '{')
+                ? 'By' . PhpResourceNameResolver::pascal(trim($segment, '{}'))
+                : PhpResourceNameResolver::pascal($segment);
+        }
+        return implode('.', ['Errors', ...$segments, ucfirst(strtolower($operation->method)) . $statusName]);
     }
 
     private function renderCatalog(ApiContract $contract): string

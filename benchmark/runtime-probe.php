@@ -49,7 +49,7 @@ $handler = static function (\Psr\Http\Message\RequestInterface $request, array $
 $http = new \GuzzleHttp\Client(['handler' => \GuzzleHttp\HandlerStack::create($handler)]);
 
 if ($kind === 'ours') {
-    $class = 'Benchmark\\' . ucfirst($api) . 'Sdk\\Api\\ApiClient';
+    $class = 'Benchmark\\' . ucfirst($api) . 'Sdk\\Api\\' . ($api === 'accounts' ? 'Users\\User' : 'Books\\Book');
     $client = $class::connect($url, $http);
 } else {
     $config = \OpenAPI\Client\Configuration::getDefaultConfiguration()->setHost($url);
@@ -68,22 +68,11 @@ $check = static function (object $result) use ($kind, $api, $expectedName, $expe
         throw new RuntimeException('Response DTO semantics differ from fixture.');
     }
 };
-// Instantiate the same reusable typed request outside the measured loop.
-// Official OpenAPI Generator keeps its existing scalar-argument API.
-$request = null;
-if ($kind === 'ours') {
-    $name = 'Benchmark\\' . ucfirst($api) . 'Sdk\\Requests\\'
-        . ($api === 'accounts' ? 'GetUserRequest' : 'FindBookRequest');
-    $values = $api === 'accounts'
-        ? (object)['id' => 88, 'verbose' => false]
-        : (object)['sku' => 'BOOK-09', 'expand' => false];
-    $request = new $name($values);
-}
-$execute = static function () use ($client, $api, $kind, $request): object {
+$execute = static function () use ($client, $api, $kind): object {
     if ($kind === 'ours') {
         return $api === 'accounts'
-            ? $client->getUser($request)
-            : $client->findBook($request);
+            ? $client->getById(88, false)
+            : $client->getBySku('BOOK-09', false);
     }
     return $api === 'accounts'
         ? $client->getUser(88, false)

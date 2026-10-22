@@ -43,7 +43,7 @@ final class SecurityGenerationTest extends TestCase
             'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
-            'src/Collections/User/LabelsCollection.php',
+            'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
@@ -58,7 +58,7 @@ final class SecurityGenerationTest extends TestCase
             'src/Core/Security.php',
             'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
-            'src/CasafariSDK.php',
+            'src/Client.php',
             'src/Api/Users/User.php',
         ] as $path) {
             eval(substr($files[$path], strlen('<?php')));
@@ -70,7 +70,7 @@ final class SecurityGenerationTest extends TestCase
         $history = [];
         $stack = HandlerStack::create(new MockHandler([self::response()]));
         $stack->push(Middleware::history($history));
-        \Example\SecuritySdk\CasafariSDK::connect(
+        $client = \Example\SecuritySdk\Client::connect(
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             ['Authorization' => 'caller-value'],
@@ -80,7 +80,7 @@ final class SecurityGenerationTest extends TestCase
             ]),
         );
 
-        \Example\SecuritySdk\Api\Users\User::getById(88);
+        $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
 
         self::assertCount(1, $history);
         $request = $history[0]['request'];
@@ -93,14 +93,14 @@ final class SecurityGenerationTest extends TestCase
         $history = [];
         $stack = HandlerStack::create(new MockHandler([self::response()]));
         $stack->push(Middleware::history($history));
-        \Example\SecuritySdk\CasafariSDK::connect(
+        $client = \Example\SecuritySdk\Client::connect(
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             [],
             new \Example\SecuritySdk\Core\SecurityCredentials(['QueryKey' => 'query-key']),
         );
 
-        \Example\SecuritySdk\Api\Users\User::getById(88);
+        $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
 
         self::assertSame(
             'https://api.example.test/v1/users/88?api_key=query-key',
@@ -113,7 +113,7 @@ final class SecurityGenerationTest extends TestCase
         $history = [];
         $stack = HandlerStack::create(new MockHandler([self::response()]));
         $stack->push(Middleware::history($history));
-        \Example\SecuritySdk\CasafariSDK::connect(
+        $client = \Example\SecuritySdk\Client::connect(
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             [],
@@ -122,21 +122,21 @@ final class SecurityGenerationTest extends TestCase
             ]),
         );
 
-        \Example\SecuritySdk\Api\Users\User::getById(88);
+        $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
 
         self::assertSame('Basic ' . base64_encode('user:secret'), $history[0]['request']->getHeaderLine('Authorization'));
     }
 
     public function testMissingCredentialsFailBeforeSendingRequest(): void
     {
-        \Example\SecuritySdk\CasafariSDK::connect(
+        $client = \Example\SecuritySdk\Client::connect(
             'https://api.example.test/v1',
             new Client(['handler' => HandlerStack::create(new MockHandler([]))]),
         );
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('No configured credentials satisfy');
-        \Example\SecuritySdk\Api\Users\User::getById(88);
+        $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
     }
 
     private static function response(): Response

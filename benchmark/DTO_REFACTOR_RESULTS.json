@@ -1,0 +1,556 @@
+{
+    "method": "Five fresh PHP processes per version and workload, alternating order; mock-free DTO workloads, same Casafari payload, warmup excluded. PHP heap peaks are not process RSS.",
+    "fixture_sha256": "d6dce87639a6a16b7f2aac2e17ab5845b21e4e7937e68fca20243442be15ba04",
+    "sources": {
+        "before": {
+            "directory": "generated/CasafariBefore",
+            "php_files": 1038,
+            "sha256": "85c0b50ccc507847834269e469e128bc0d7b000c9ff85acd7b3454bcb0ddd2c6"
+        },
+        "after": {
+            "directory": "generated/CasafariSDK",
+            "php_files": 910,
+            "sha256": "b197d0e7bb2c231249af8632799c68370ff4c79b8fababee43eb31368f6921a8"
+        }
+    },
+    "summary": {
+        "hydrate": {
+            "before": {
+                "elapsed_ms": 461.712,
+                "cpu_ms": 461.688,
+                "peak_php_bytes": 12968288,
+                "peak_allocated_bytes": 14680064
+            },
+            "after": {
+                "elapsed_ms": 407.91,
+                "cpu_ms": 407.9,
+                "peak_php_bytes": 12954664,
+                "peak_allocated_bytes": 14680064
+            }
+        },
+        "serialize": {
+            "before": {
+                "elapsed_ms": 118.925,
+                "cpu_ms": 118.927,
+                "peak_php_bytes": 6977392,
+                "peak_allocated_bytes": 10485760
+            },
+            "after": {
+                "elapsed_ms": 97.091,
+                "cpu_ms": 97.094,
+                "peak_php_bytes": 6963264,
+                "peak_allocated_bytes": 10485760
+            }
+        },
+        "roundtrip": {
+            "before": {
+                "elapsed_ms": 572.564,
+                "cpu_ms": 572.518,
+                "peak_php_bytes": 12969056,
+                "peak_allocated_bytes": 14680064
+            },
+            "after": {
+                "elapsed_ms": 501.042,
+                "cpu_ms": 500.993,
+                "peak_php_bytes": 12955432,
+                "peak_allocated_bytes": 14680064
+            }
+        },
+        "deep": {
+            "before": {
+                "elapsed_ms": 203.374,
+                "cpu_ms": 203.209,
+                "peak_php_bytes": 1587256,
+                "peak_allocated_bytes": 4194304
+            },
+            "after": {
+                "elapsed_ms": 39.394,
+                "cpu_ms": 39.346,
+                "peak_php_bytes": 1573864,
+                "peak_allocated_bytes": 4194304
+            }
+        }
+    },
+    "runs": [
+        {
+            "version": "before",
+            "trial": 1,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 489.171,
+            "cpu_ms": 489.137,
+            "peak_php_bytes": 12968288,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 1,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 406.323,
+            "cpu_ms": 406.314,
+            "peak_php_bytes": 12954664,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 2,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 407.91,
+            "cpu_ms": 407.9,
+            "peak_php_bytes": 12954664,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 2,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 460.639,
+            "cpu_ms": 460.592,
+            "peak_php_bytes": 12968288,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 3,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 459.805,
+            "cpu_ms": 459.786,
+            "peak_php_bytes": 12968288,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 3,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 408.544,
+            "cpu_ms": 408.524,
+            "peak_php_bytes": 12954664,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 4,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 403.303,
+            "cpu_ms": 403.287,
+            "peak_php_bytes": 12954664,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 4,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 463.938,
+            "cpu_ms": 463.924,
+            "peak_php_bytes": 12968288,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 5,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 461.712,
+            "cpu_ms": 461.688,
+            "peak_php_bytes": 12968288,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 5,
+            "mode": "hydrate",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 410.716,
+            "cpu_ms": 410.707,
+            "peak_php_bytes": 12954664,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 1,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 118.248,
+            "cpu_ms": 118.251,
+            "peak_php_bytes": 6977392,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 1,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 96.678,
+            "cpu_ms": 96.68,
+            "peak_php_bytes": 6963264,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 2,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 98.375,
+            "cpu_ms": 98.378,
+            "peak_php_bytes": 6963264,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 2,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 118.925,
+            "cpu_ms": 118.927,
+            "peak_php_bytes": 6977392,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 3,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 120.792,
+            "cpu_ms": 120.794,
+            "peak_php_bytes": 6977392,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 3,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 98.865,
+            "cpu_ms": 98.863,
+            "peak_php_bytes": 6963264,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 4,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 97.056,
+            "cpu_ms": 97.058,
+            "peak_php_bytes": 6963264,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 4,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 119.166,
+            "cpu_ms": 119.168,
+            "peak_php_bytes": 6977392,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 5,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 118.849,
+            "cpu_ms": 118.85,
+            "peak_php_bytes": 6977392,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 5,
+            "mode": "serialize",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 97.091,
+            "cpu_ms": 97.094,
+            "peak_php_bytes": 6963264,
+            "peak_allocated_bytes": 10485760,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 1,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 589.515,
+            "cpu_ms": 589.496,
+            "peak_php_bytes": 12969056,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 1,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 503.748,
+            "cpu_ms": 503.706,
+            "peak_php_bytes": 12955432,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 2,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 518.483,
+            "cpu_ms": 516.763,
+            "peak_php_bytes": 12955432,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 2,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 572.564,
+            "cpu_ms": 572.518,
+            "peak_php_bytes": 12969056,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 3,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 572.364,
+            "cpu_ms": 572.348,
+            "peak_php_bytes": 12969056,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 3,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 501.042,
+            "cpu_ms": 500.993,
+            "peak_php_bytes": 12955432,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 4,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 498.877,
+            "cpu_ms": 498.847,
+            "peak_php_bytes": 12955432,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 4,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 569.581,
+            "cpu_ms": 569.509,
+            "peak_php_bytes": 12969056,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 5,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 575.909,
+            "cpu_ms": 574.668,
+            "peak_php_bytes": 12969056,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 5,
+            "mode": "roundtrip",
+            "items": 1000,
+            "iterations": 20,
+            "elapsed_ms": 494.434,
+            "cpu_ms": 494.408,
+            "peak_php_bytes": 12955432,
+            "peak_allocated_bytes": 14680064,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 1,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 204.235,
+            "cpu_ms": 204.173,
+            "peak_php_bytes": 1587256,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 1,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 39.394,
+            "cpu_ms": 39.346,
+            "peak_php_bytes": 1573864,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 2,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 38.932,
+            "cpu_ms": 38.897,
+            "peak_php_bytes": 1573864,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 2,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 202.637,
+            "cpu_ms": 202.599,
+            "peak_php_bytes": 1587256,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 3,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 202.798,
+            "cpu_ms": 202.7,
+            "peak_php_bytes": 1587256,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 3,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 38.863,
+            "cpu_ms": 38.826,
+            "peak_php_bytes": 1573864,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 4,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 39.448,
+            "cpu_ms": 39.383,
+            "peak_php_bytes": 1573864,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 4,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 203.374,
+            "cpu_ms": 203.334,
+            "peak_php_bytes": 1587256,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "before",
+            "trial": 5,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 204.47,
+            "cpu_ms": 203.209,
+            "peak_php_bytes": 1587256,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        },
+        {
+            "version": "after",
+            "trial": 5,
+            "mode": "deep",
+            "items": 24,
+            "iterations": 2000,
+            "elapsed_ms": 39.931,
+            "cpu_ms": 39.893,
+            "peak_php_bytes": 1573864,
+            "peak_allocated_bytes": 4194304,
+            "php": "8.5.11"
+        }
+    ]
+}

@@ -30,7 +30,7 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertArrayHasKey('src/Requests/BookDraft.php', $swagger);
         self::assertArrayHasKey('src/Api/Books/Book.php', $swagger);
         self::assertArrayHasKey('src/Api/Books.php', $swagger);
-        self::assertArrayHasKey('src/Collections/Book/TagsCollection.php', $swagger);
+        self::assertArrayHasKey('src/Collections/StringCollection.php', $swagger);
         self::assertArrayHasKey('src/Enums/Book/GenreEnum.php', $swagger);
     }
 
@@ -55,11 +55,11 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertStringContainsString('public float $price;', $out['src/Responses/Book.php']);
         self::assertStringContainsString('public bool $available;', $out['src/Responses/Book.php']);
         self::assertStringContainsString(
-            'public static function getBySku(string $sku, ?bool $expand = null): \\Preview\\CatalogSdk\\Responses\\Book',
+            'public function getBySku(string $sku, ?bool $expand = null): \\Preview\\CatalogSdk\\Responses\\Book',
             $out['src/Api/Books/Book.php'],
         );
         self::assertStringContainsString(
-            'public static function post(\\Preview\\CatalogSdk\\Requests\\BookDraft $body): \\Preview\\CatalogSdk\\Responses\\Book',
+            'public function post(\\Preview\\CatalogSdk\\Requests\\BookDraft $body): \\Preview\\CatalogSdk\\Responses\\Book',
             $out['src/Api/Books.php'],
         );
         self::assertStringContainsString("'/books/{sku}'", $out['src/Api/Books/Book.php']);

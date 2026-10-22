@@ -8,7 +8,7 @@ use Dmorenof\SdkGenerator\Contract\OperationDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaKind;
 use InvalidArgumentException;
 
-/** Emits a shared API connection and resource classes grouped by route path. */
+/** Emits instance clients with inherited execution and typed resource methods. */
 final readonly class PhpResourceEmitter
 {
     /**
@@ -27,7 +27,7 @@ final readonly class PhpResourceEmitter
     public function emit(ApiContract $contract): array
     {
         $resolved = PhpResourceNameResolver::resolve($contract);
-        $files = ['src/CasafariSDK.php' => $this->renderConnector()];
+        $files = ['src/Client.php' => $this->renderConnector()];
         foreach ($resolved['nodes'] as $node) {
             if (strtolower($node['segments'][0]) === 'api' && count($node['segments']) > 1) {
                 array_shift($node['segments']);
@@ -42,59 +42,30 @@ final readonly class PhpResourceEmitter
 
     private function renderConnector(): string
     {
-        $source = $this->header($this->namespace)
-            . "class CasafariSDK extends \\{$this->namespace}\\Core\\ApiClient\n{\n"
-            . "    private static ?self \$connection = null;\n\n"
-            . "    /**\n"
-            . "     * Ready-to-use SDK, Guzzle by default, PSR-18 injection optional.\n"
-            . "     * @param array<string, string> \$headers\n"
-            . "     */\n"
-            . "    public static function connect(\n"
-            . "        string \$baseUrl,\n"
-            . "        ?\\Psr\\Http\\Client\\ClientInterface \$httpClient = null,\n"
-            . "        array \$headers = [],\n"
-            . "        ?\\{$this->namespace}\\Core\\SecurityCredentials \$securityCredentials = null,\n"
-            . "        ?\\{$this->namespace}\\Transport\\TransportInterface \$transport = null,\n"
-            . "    ): self {\n"
-            . "        \$client = \$httpClient ?? new \\GuzzleHttp\\Client(['http_errors' => false]);\n"
-            . "        \$transport ??= new \\{$this->namespace}\\Transport\\Psr18Transport(\$client, \$headers);\n"
-            . "        return self::\$connection = new self(\$transport, \$baseUrl, \$securityCredentials);\n"
-            . "    }\n\n"
-            . "    public static function connection(): self\n"
-            . "    {\n"
-            . "        return self::\$connection ?? throw new \\LogicException('Call CasafariSDK::connect() before using API operations.');\n"
-            . "    }\n\n";
-        $source .= $this->renderExecuteOperation();
-        $source .= $this->renderSendOperation();
-        return $source . "}\n";
+        return $this->header($this->namespace)
+            . "class Client extends \\{$this->namespace}\\Core\\ApiClient\n{\n"
+            . $this->renderExecuteOperation()
+            . $this->renderSendOperation()
+            . "}\n";
     }
 
     private function renderExecuteOperation(): string
     {
         $source = <<<'PHP'
-    /** @param array<string,mixed> $pathParameters @param array<string,mixed> $queryParameters @param array<string,mixed> $headerParameters @param list<array<string,list<string>>> $securityRequirements @param list<int> $successStatuses @param array<int|string,string> $errorTypes @param array<string,array<string,mixed>> $parameterValidations */
-    protected static function executeOperation(
-        self $connection,
-        string $operation,
-        string $method,
-        string $path,
-        array $pathParameters,
-        array $queryParameters,
-        array $headerParameters,
-        ?\NS\Core\DTO $body,
-        array $securityRequirements,
-        array $successStatuses,
-        array $errorTypes,
-        ?string $responseType,
-        bool $schemaNullable,
-        bool $noContentAllowed,
-        array $parameterValidations,
+    /** @param array<string,mixed> $operation @param array<string,mixed> $pathParameters @param array<string,mixed> $queryParameters @param array<string,mixed> $headerParameters */
+    protected function executeOperation(
+        array $operation,
+        array $pathParameters = [],
+        array $queryParameters = [],
+        array $headerParameters = [],
+        ?\NS\Core\DTO $body = null,
     ): mixed {
+        $path = $operation['path'];
         $parameters = $pathParameters + $queryParameters + $headerParameters;
-        foreach ($parameterValidations as $name => $validation) {
+        foreach ($operation['validation'] as $name => $validation) {
             $value = $parameters[$name] ?? null;
             if ($value !== null) {
-                \NS\Core\DTO::validateMapConstraints($value, $validation, $operation . '.' . $name);
+                \NS\Core\DTO::validateConstraints($value, $validation, $operation['label'] . '.' . $name);
             }
         }
 
@@ -116,22 +87,13 @@ final readonly class PhpResourceEmitter
         $bodyJson = null;
         if ($body !== null) {
             $headers['Content-Type'] = 'application/json';
-            $bodyJson = json_encode($body, JSON_THROW_ON_ERROR);
+            $bodyJson = json_encode($body->jsonSerializeForRequest(), JSON_THROW_ON_ERROR);
         }
 
-        return $connection->sendOperation(
-            $method,
-            $path,
-            $operation,
-            $securityRequirements,
-            $query,
-            $headers,
-            $bodyJson,
-            $successStatuses,
-            $errorTypes,
-            $responseType,
-            $schemaNullable,
-            $noContentAllowed,
+        return $this->sendOperation(
+            $operation['method'], $path, $operation['label'], $operation['security'],
+            $query, $headers, $bodyJson, $operation['success'], $operation['errors'],
+            $operation['responseType'], $operation['schemaNullable'], $operation['noContentAllowed'],
         );
     }
 
@@ -151,8 +113,7 @@ PHP;
         $namespace = $this->namespace . '\\Api'
             . ($parentSegments === [] ? '' : '\\' . implode('\\', $parentSegments));
         $source = $this->header($namespace)
-            . "final class $class extends \\{$this->namespace}\\CasafariSDK\n{\n"
-            . "    private function __construct() {}\n\n";
+            . "final class $class extends \\{$this->namespace}\\Client\n{\n";
         foreach ($node['operations'] as $operation) {
             $method = $operationMethods[$operation->operationId]
                 ?? throw new InvalidArgumentException("Missing resource method for $operation->operationId.");
@@ -247,24 +208,27 @@ PHP;
                 static fn ($response): bool => preg_match('/^2[0-9]{2}$/', $response->status) === 1,
             ),
         ));
-        $call = "self::executeOperation(\n"
-            . "            \\{$this->namespace}\\CasafariSDK::connection(),\n"
-            . '            ' . var_export(strtoupper($operation->method) . ' ' . $operation->path, true) . ",\n"
-            . '            ' . var_export($operation->method, true) . ",\n"
-            . '            ' . var_export($operation->path, true) . ",\n"
-            . "            $pathParameters,\n"
-            . "            $queryParameters,\n"
-            . "            $headerParameters,\n"
-            . "            $body,\n"
-            . '            ' . PhpLiteral::export($operation->securityRequirements) . ",\n"
-            . '            ' . PhpLiteral::export($successStatuses) . ",\n"
-            . '            ' . PhpLiteral::export($this->errorTypes[$operation->operationId] ?? []) . ",\n"
-            . '            ' . var_export($success['type'], true) . ",\n"
-            . '            ' . PhpLiteral::export($success['schemaNullable']) . ",\n"
-            . '            ' . PhpLiteral::export($success['noContentAllowed']) . ",\n"
-            . '            ' . PhpLiteral::export($parameterValidations) . ",\n"
-            . "        )";
-        $source = "    public static function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n";
+        $metadata = [
+            'label' => strtoupper($operation->method) . ' ' . $operation->path,
+            'method' => $operation->method,
+            'path' => $operation->path,
+            'security' => $operation->securityRequirements,
+            'success' => $successStatuses,
+            'errors' => $this->errorTypes[$operation->operationId] ?? [],
+            'responseType' => $success['type'],
+            'schemaNullable' => $success['schemaNullable'],
+            'noContentAllowed' => $success['noContentAllowed'],
+            'validation' => $parameterValidations,
+        ];
+        $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
+        $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
+        $arguments = ['self::' . $constant];
+        if ($pathParameters !== '[]') { $arguments[] = 'pathParameters: ' . $pathParameters; }
+        if ($queryParameters !== '[]') { $arguments[] = 'queryParameters: ' . $queryParameters; }
+        if ($headerParameters !== '[]') { $arguments[] = 'headerParameters: ' . $headerParameters; }
+        if ($body !== 'null') { $arguments[] = 'body: ' . $body; }
+        $call = '$this->executeOperation(' . implode(', ', $arguments) . ')';
+        $source .= "    public function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n";
         $source .= $success['type'] === null
             ? "        $call;\n        return;\n"
             : "        return $call;\n";

@@ -34,7 +34,7 @@ final class ReadyToUseClientTest extends TestCase
             'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
-            'src/Collections/User/LabelsCollection.php',
+            'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
@@ -48,7 +48,7 @@ final class ReadyToUseClientTest extends TestCase
             'src/Core/Security.php',
             'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
-            'src/CasafariSDK.php',
+            'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
         ] as $path) {
@@ -79,10 +79,10 @@ final class ReadyToUseClientTest extends TestCase
 
     public function testDefaultFactoryConstructsGuzzleAutomaticallyWithoutNetwork(): void
     {
-        $connection = \Example\ReadySdk\CasafariSDK::connect('https://api.example.test/v1');
+        $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1');
         self::assertInstanceOf(\Example\ReadySdk\Core\ApiClient::class, $connection);
         $adapter = (new \ReflectionProperty($connection, 'transport'))->getValue($connection);
-        self::assertInstanceOf(\Example\ReadySdk\Transport\Psr18Transport::class, $adapter);
+        self::assertInstanceOf(\Example\ReadySdk\Core\HttpClient::class, $adapter);
         self::assertInstanceOf(Client::class, (new \ReflectionProperty($adapter, 'client'))->getValue($adapter));
     }
 
@@ -100,12 +100,12 @@ final class ReadyToUseClientTest extends TestCase
             return $response;
         }));
         $stack->push(Middleware::history($history));
-        \Example\ReadySdk\CasafariSDK::connect(
+        $client = \Example\ReadySdk\Client::connect(
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             ['Authorization' => 'Bearer demo'],
         );
-        $user = \Example\ReadySdk\Api\Users\User::getById(88, false);
+        $user = $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88, false);
         self::assertInstanceOf(\Example\ReadySdk\Responses\User::class, $user);
         self::assertSame('Madrid', $user->profile->city);
         self::assertSame(\Example\ReadySdk\Enums\User\RoleEnum::Admin, $user->role);
@@ -139,10 +139,10 @@ final class ReadyToUseClientTest extends TestCase
                 return ReadyToUseClientTest::response(201);
             }
         };
-        \Example\ReadySdk\CasafariSDK::connect('https://api.example.test/v1', $http);
+        $client = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
         $request = new \Example\ReadySdk\Requests\NewUser();
         $request->name = 'Grace';
-        $result = \Example\ReadySdk\Api\Users::post($request);
+        $result = $client->resource(\Example\ReadySdk\Api\Users::class)->post($request);
         self::assertInstanceOf(\Example\ReadySdk\Responses\User::class, $result);
         self::assertSame(1, $http->calls);
     }
@@ -152,10 +152,10 @@ final class ReadyToUseClientTest extends TestCase
         $http = new Client(['handler' => HandlerStack::create(new MockHandler([
             new Response(404, [], '{"error":"missing"}'),
         ]))]);
-        \Example\ReadySdk\CasafariSDK::connect('https://api.example.test/v1', $http);
+        $client = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from GET /users/{id}: 404');
-        \Example\ReadySdk\Api\Users\User::getById(88);
+        $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88);
     }
 
     public function testCasafariStyleCoreMiddlewareHooksRunOnPSR18WithoutDuplicatingTransport(): void
@@ -164,7 +164,7 @@ final class ReadyToUseClientTest extends TestCase
         $stack = HandlerStack::create(new MockHandler([self::response()]));
         $stack->push(Middleware::history($history));
         $http = new Client(['handler' => $stack]);
-        $connection = \Example\ReadySdk\CasafariSDK::connect('https://api.example.test/v1', $http);
+        $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
 
         $events = new \ArrayObject();
         $connection->withMiddleware(new class($events) implements \Example\ReadySdk\Core\HttpMiddlewareInterface {
@@ -184,7 +184,7 @@ final class ReadyToUseClientTest extends TestCase
         });
 
         self::assertInstanceOf(\Example\ReadySdk\Core\ApiClient::class, $connection);
-        self::assertSame('Ada', \Example\ReadySdk\Api\Users\User::getById(88)->name);
+        self::assertSame('Ada', $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88)->name);
         self::assertSame(['before', 'after:yes'], $events->getArrayCopy());
         self::assertSame('yes', $history[0]['request']->getHeaderLine('X-Sdk-Core'));
     }
@@ -200,7 +200,7 @@ final class ReadyToUseClientTest extends TestCase
                 throw new \LogicException('Transport must not be called');
             }
         };
-        $connection = \Example\ReadySdk\CasafariSDK::connect('https://api.example.test/v1', $http);
+        $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
         $exception = new \DomainException('SDK middleware stopped request');
         $connection->withMiddleware(new class($exception) implements \Example\ReadySdk\Core\HttpMiddlewareInterface {
             public function __construct(private \DomainException $reason) {}
@@ -214,7 +214,7 @@ final class ReadyToUseClientTest extends TestCase
             }
         });
         try {
-            \Example\ReadySdk\Api\Users\User::getById(88);
+            $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88);
             self::fail('Middleware failed to abort the request');
         } catch (\DomainException $caught) {
             self::assertSame($exception, $caught);

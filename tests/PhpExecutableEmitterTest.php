@@ -33,7 +33,7 @@ final class PhpExecutableEmitterTest extends TestCase
             'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
-            'src/Collections/User/LabelsCollection.php',
+            'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
@@ -47,7 +47,7 @@ final class PhpExecutableEmitterTest extends TestCase
             'src/Core/ApiClient.php', 'src/Core/ApiException.php',
             'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
-            'src/CasafariSDK.php',
+            'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
         ] as $file) {
@@ -69,14 +69,14 @@ final class PhpExecutableEmitterTest extends TestCase
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
         $files = (new PhpExecutableEmitter())->emit($contract);
 
-        self::assertStringContainsString("public static function post(", $files['src/Api/Users.php']);
+        self::assertStringContainsString("public function post(", $files['src/Api/Users.php']);
         self::assertStringContainsString("'POST /users'", $files['src/Api/Users.php']);
         self::assertStringNotContainsString("'operation-with-hyphens'", $files['src/Api/Users.php']);
         self::assertStringContainsString(
-            'extends \\Generated\\Sdk\\CasafariSDK',
+            'extends \\Generated\\Sdk\\Client',
             $files['src/Api/Users.php'],
         );
-        self::assertStringContainsString('self::executeOperation(', $files['src/Api/Users.php']);
+        self::assertStringContainsString('$this->executeOperation(', $files['src/Api/Users.php']);
     }
 
     public function testNullablePrimitiveAnyOfIsSupportedForHttpParameters(): void
@@ -131,7 +131,7 @@ final class PhpExecutableEmitterTest extends TestCase
             'src/Core/DTO.php', 'src/Transport/HttpResponse.php',
             'src/Transport/TransportInterface.php', 'src/Core/SecurityCredentials.php',
             'src/Core/Security.php',
-            'src/Core/ApiClient.php', 'src/CasafariSDK.php', 'src/Api/Users/User.php',
+            'src/Core/ApiClient.php', 'src/Client.php', 'src/Api/Users/User.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -142,18 +142,18 @@ final class PhpExecutableEmitterTest extends TestCase
                     throw new \RuntimeException('Valid enum value reached transport.');
                 }
             };
-            \Example\EnumParameterSdk\CasafariSDK::connect(
+            $client = \Example\EnumParameterSdk\Client::connect(
                 'https://api.example.test',
                 transport: $transport,
             );
-            \Example\EnumParameterSdk\Api\Users\User::getById(1, 'invalid');
+            $client->resource(\Example\EnumParameterSdk\Api\Users\User::class)->getById(1, 'invalid');
             self::fail('An enum value outside the declared set was accepted.');
         } catch (\UnexpectedValueException $exception) {
             self::assertStringContainsString('Validation enum failed', $exception->getMessage());
         }
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Valid enum value reached transport.');
-        \Example\EnumParameterSdk\Api\Users\User::getById(1, 'brief');
+        $client->resource(\Example\EnumParameterSdk\Api\Users\User::class)->getById(1, 'brief');
     }
 
     public function testInlineSuccessAndErrorResponsesGenerateAndHydrateNamedTypes(): void
@@ -195,14 +195,14 @@ final class PhpExecutableEmitterTest extends TestCase
 
         self::assertArrayHasKey('src/Collections/UserCollection.php', $files);
         self::assertArrayHasKey('src/Responses/UserResponse.php', $files);
-        self::assertArrayHasKey('src/Responses/Status404ErrorResponse.php', $files);
+        self::assertArrayHasKey('src/Responses/Errors/Users/ById/GetStatus404Response.php', $files);
         self::assertStringContainsString(
             '): ?\\Example\\InlineResponseSdk\\Collections\\UserCollection',
             $files['src/Api/Users/User.php'],
         );
         self::assertStringContainsString('    204,', $files['src/Api/Users/User.php']);
-        self::assertStringContainsString("if (\$noContentAllowed && \$response->body === '')", $files['src/CasafariSDK.php']);
-        self::assertStringContainsString('Status404ErrorResponse', $files['src/Api/Users/User.php']);
+        self::assertStringContainsString("if (\$noContentAllowed && \$response->body === '')", $files['src/Client.php']);
+        self::assertStringContainsString('GetStatus404Response', $files['src/Api/Users/User.php']);
 
         foreach ([
             'src/Core/DTO.php',
@@ -210,7 +210,7 @@ final class PhpExecutableEmitterTest extends TestCase
             'src/Core/TypedArray.php',
             'src/Responses/UserResponse.php',
             'src/Collections/UserCollection.php',
-            'src/Responses/Status404ErrorResponse.php',
+            'src/Responses/Errors/Users/ById/GetStatus404Response.php',
             'src/Support/JsonHydrator.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
@@ -225,7 +225,7 @@ final class PhpExecutableEmitterTest extends TestCase
             $response->getArrayCopy()[0],
         );
         self::assertSame(7, $response->getArrayCopy()[0]->id);
-        $error = new \Example\InlineResponseSdk\Responses\Status404ErrorResponse(
+        $error = new \Example\InlineResponseSdk\Responses\Errors\Users\ById\GetStatus404Response(
             (object) ['detail' => 'Not found'],
         );
         self::assertInstanceOf(\Example\InlineResponseSdk\Core\Response::class, $error);
@@ -236,7 +236,7 @@ final class PhpExecutableEmitterTest extends TestCase
     {
         self::assertSame($this->files(), $this->files('accounts-openapi30.json'));
         self::assertSame($this->files(), $this->files('accounts-openapi31.json'));
-        self::assertArrayHasKey('src/CasafariSDK.php', $this->files());
+        self::assertArrayHasKey('src/Client.php', $this->files());
         self::assertArrayHasKey('src/Transport/TransportInterface.php', $this->files());
         self::assertArrayHasKey('src/Support/JsonHydrator.php', $this->files());
     }
@@ -284,15 +284,15 @@ final class PhpExecutableEmitterTest extends TestCase
                 );
             }
         };
-        \Example\ExecutableSdk\CasafariSDK::connect('https://api.example.test/v1/', transport: $fake);
-        $user = \Example\ExecutableSdk\Api\Users\User::getById(42, false);
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1/', transport: $fake);
+        $user = $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(42, false);
         self::assertInstanceOf(\Example\ExecutableSdk\Responses\User::class, $user);
         self::assertSame(42, $user->id);
         self::assertSame('Ada', $user->name);
         self::assertSame('Madrid', $user->profile->city);
         self::assertSame(3, $user->profile->visits);
         self::assertSame(\Example\ExecutableSdk\Enums\User\RoleEnum::Admin, $user->role);
-        self::assertInstanceOf(\Example\ExecutableSdk\Collections\User\LabelsCollection::class, $user->labels);
+        self::assertInstanceOf(\Example\ExecutableSdk\Collections\StringCollection::class, $user->labels);
         self::assertSame(['php', 'sdk'], $user->labels->getArrayCopy());
         self::assertFalse(isset($user->nickname));
         self::assertSame('GET', $fake->calls[0]['method']);
@@ -302,7 +302,7 @@ final class PhpExecutableEmitterTest extends TestCase
         $input = new \Example\ExecutableSdk\Requests\NewUser();
         $input->name = 'Grace';
         $input->role = \Example\ExecutableSdk\Enums\NewUser\RoleEnum::Viewer;
-        $result = \Example\ExecutableSdk\Api\Users::post($input);
+        $result = $client->resource(\Example\ExecutableSdk\Api\Users::class)->post($input);
         self::assertInstanceOf(\Example\ExecutableSdk\Responses\User::class, $result);
         self::assertSame('POST', $fake->calls[1]['method']);
         self::assertSame('https://api.example.test/v1/users', $fake->calls[1]['url']);
@@ -317,7 +317,7 @@ final class PhpExecutableEmitterTest extends TestCase
 
     public function testGeneratedClientRejectsUnexpectedHttpStatus(): void
     {
-        if (!class_exists(\Example\ExecutableSdk\CasafariSDK::class, false)) {
+        if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
         $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
@@ -326,15 +326,15 @@ final class PhpExecutableEmitterTest extends TestCase
                 return new \Example\ExecutableSdk\Transport\HttpResponse(404, '{"error":"not found"}');
             }
         };
-        \Example\ExecutableSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from GET /users/{id}: 404');
-        \Example\ExecutableSdk\Api\Users\User::getById(1);
+        $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
     }
 
     public function testUndeclaredHTTPErrorRetainsStatusAndResponseWithoutAssumingErrorDTO(): void
     {
-        if (!class_exists(\Example\ExecutableSdk\CasafariSDK::class, false)) {
+        if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
         $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
@@ -343,9 +343,9 @@ final class PhpExecutableEmitterTest extends TestCase
                 return new \Example\ExecutableSdk\Transport\HttpResponse(429, '{"reason":"throttled"}');
             }
         };
-        \Example\ExecutableSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         try {
-            \Example\ExecutableSdk\Api\Users\User::getById(1);
+            $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
             self::fail('Unexpected status did not throw');
         } catch (\Example\ExecutableSdk\Core\ApiException $e) {
             self::assertSame(429, $e->getCode());
@@ -356,7 +356,7 @@ final class PhpExecutableEmitterTest extends TestCase
 
     public function testHydratorRejectsMissingRequiredJsonFields(): void
     {
-        if (!class_exists(\Example\ExecutableSdk\CasafariSDK::class, false)) {
+        if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
         $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
@@ -365,15 +365,15 @@ final class PhpExecutableEmitterTest extends TestCase
                 return new \Example\ExecutableSdk\Transport\HttpResponse(200, '{"name":"Ada"}');
             }
         };
-        \Example\ExecutableSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Required JSON property');
-        \Example\ExecutableSdk\Api\Users\User::getById(1);
+        $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
     }
 
     public function testHydratorRejectsInvalidScalarTypes(): void
     {
-        if (!class_exists(\Example\ExecutableSdk\CasafariSDK::class, false)) {
+        if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
         $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
@@ -382,9 +382,9 @@ final class PhpExecutableEmitterTest extends TestCase
                 return new \Example\ExecutableSdk\Transport\HttpResponse(200, '{"id":"oops","name":"Ada"}');
             }
         };
-        \Example\ExecutableSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Invalid scalar value');
-        \Example\ExecutableSdk\Api\Users\User::getById(1);
+        $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
     }
 }

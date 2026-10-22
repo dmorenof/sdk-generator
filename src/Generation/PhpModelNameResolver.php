@@ -16,7 +16,8 @@ use InvalidArgumentException;
  * The namespace of the SDK is a separate concern: it is explicitly configured
  * or derived from OpenAPI/Swagger info.title, NEVER inferred from model paths.
  *
- * Undotted schemas retain the historical src/Models/ layout.
+ * Ordinary schema hierarchy is preserved. Compiler-generated __schema__
+ * component identifiers use their title and bounds instead of source filenames.
  */
 final class PhpModelNameResolver
 {
@@ -54,10 +55,11 @@ final class PhpModelNameResolver
         $occupied = [];
         foreach ($models as $model) {
             $name = $model->name;
+            $componentName = self::generatedComponentName($model);
             $generatedName = match ($model->schema->kind) {
                 \Dmorenof\SdkGenerator\Contract\SchemaKind::AnyOf => self::prefixLastSegment($name, 'AnyOf'),
                 \Dmorenof\SdkGenerator\Contract\SchemaKind::OneOf => self::prefixLastSegment($name, 'OneOf'),
-                default => $name,
+                default => $componentName ?? $name,
             };
             $category = $model->schema->enumValues !== [] ? 'Enums' : match ($roles[$name] ?? 'DTO') {
                 'Request' => 'Requests',
@@ -65,6 +67,12 @@ final class PhpModelNameResolver
                 default => 'DTOs',
             };
             [$path, $type] = $this->resolve($generatedName, $category);
+            if ($componentName !== null) {
+                $variant = 1;
+                while (isset($occupied[strtolower($path)])) {
+                    [$path, $type] = $this->resolve($generatedName . 'Variant' . ++$variant, $category);
+                }
+            }
             // On case-insensitive filesystems, path collisions must also fail.
             $key = strtolower($path);
             if (isset($occupied[$key])) {
@@ -85,6 +93,25 @@ final class PhpModelNameResolver
     {
         return $this->paths[$schemaName]
             ?? throw new InvalidArgumentException("Unknown model reference: $schemaName.");
+    }
+
+    private static function generatedComponentName(ModelDefinition $model): ?string
+    {
+        if (!str_contains($model->name, '__schema__') || $model->schema->title === null) {
+            return null;
+        }
+        $name = PhpResourceNameResolver::pascal(preg_replace('/Schema$/', '', $model->schema->title));
+        foreach ($model->schema->properties as $property) {
+            if ($property->wireName !== 'min') { continue; }
+            $schema = $property->schema->branches[0] ?? $property->schema;
+            foreach (['minimum' => 'From', 'maximum' => 'To'] as $rule => $label) {
+                if (isset($schema->validation[$rule])) {
+                    $number = str_replace(['-', '.'], ['Minus', 'Point'], (string) $schema->validation[$rule]);
+                    $name .= $label . $number;
+                }
+            }
+        }
+        return 'Ranges.' . $name;
     }
 
     public function fqcn(string $schemaName): string
@@ -210,6 +237,10 @@ final class PhpModelNameResolver
     private function resolveDerived(string $hint, string $name, string $category): array
     {
         $segments = explode('.', $hint);
+        if (str_starts_with($hint, 'Errors.')) {
+            array_pop($segments);
+            return $this->resolve(implode('.', [...$segments, $name]), $category);
+        }
         if (count($segments) < 2) {
             return $this->resolve($name, $category);
         }

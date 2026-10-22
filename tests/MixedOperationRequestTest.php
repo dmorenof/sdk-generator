@@ -38,7 +38,7 @@ final class MixedOperationRequestTest extends TestCase
             'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
-            'src/Collections/User/LabelsCollection.php',
+            'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
@@ -52,7 +52,7 @@ final class MixedOperationRequestTest extends TestCase
             'src/Core/ApiClient.php', 'src/Core/ApiException.php',
             'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
-            'src/CasafariSDK.php',
+            'src/Client.php',
             'src/Api/Groups/ByGroup/Users.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
@@ -75,10 +75,10 @@ final class MixedOperationRequestTest extends TestCase
             }
         };
 
-        \Example\MixedSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         $body = new \Example\MixedSdk\Requests\NewUser((object) ['name' => 'Ada', 'role' => 'viewer']);
 
-        $result = \Example\MixedSdk\Api\Groups\ByGroup\Users::postByGroup('my group', $body, false);
+        $result = $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup('my group', $body, false);
         self::assertInstanceOf(\Example\MixedSdk\Core\Response::class, $result);
         self::assertSame('Ada', $result->name);
         self::assertCount(1, $transport->calls);
@@ -101,9 +101,9 @@ final class MixedOperationRequestTest extends TestCase
                 throw new \LogicException('Request should have been blocked');
             }
         };
-        \Example\MixedSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
-            \Example\MixedSdk\Api\Groups\ByGroup\Users::postByGroup(
+            $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup(
                 body: new \Example\MixedSdk\Requests\NewUser((object) ['name' => 'Ada']),
             );
             self::fail('Missing group was sent');

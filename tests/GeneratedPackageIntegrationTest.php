@@ -45,7 +45,7 @@ final class GeneratedPackageIntegrationTest extends TestCase
         ]));
         exec($cmd . ' 2>&1', $output, $exit);
         self::assertSame(0, $exit, implode("\n", $output));
-        self::assertFileExists($dest . '/src/CasafariSDK.php');
+        self::assertFileExists($dest . '/src/Client.php');
         self::assertFileExists($dest . '/src/Api/Users.php');
         self::assertFileExists($dest . '/src/Api/Users/User.php');
         self::assertFileExists($dest . '/src/Responses/User.php');
@@ -83,8 +83,8 @@ $fake = new class implements \Acme\PublicSdk\Transport\TransportInterface {
         );
     }
 };
-\Acme\PublicSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $fake);
-$user = \Acme\PublicSdk\Api\Users\User::getById(88, true);
+$client = \Acme\PublicSdk\Client::connect('https://api.example.test/v1', transport: $fake);
+$user = $client->resource(\Acme\PublicSdk\Api\Users\User::class)->getById(88, true);
 if (!$user instanceof \Acme\PublicSdk\Responses\User
     || $user->role !== \Acme\PublicSdk\Enums\User\RoleEnum::Viewer
     || $user->profile->city !== 'Bilbao'
@@ -159,7 +159,7 @@ YAML);
         exec($cmd . ' 2>&1', $lines, $exit);
 
         self::assertSame(0, $exit, implode("\n", $lines));
-        self::assertFileExists($dest . '/src/CasafariSDK.php');
+        self::assertFileExists($dest . '/src/Client.php');
         self::assertFileExists($dest . '/src/Api/Health.php');
         self::assertFileExists($dest . '/composer.json');
     }

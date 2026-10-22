@@ -37,34 +37,34 @@ declare(strict_types=1);
 
 require __DIR__ . '/build/accounts-sdk/vendor/autoload.php';
 
-use Example\AccountsSdk\CasafariSDK;
+use Example\AccountsSdk\Client;
 use Example\AccountsSdk\Api\Users;
 use Example\AccountsSdk\Api\Users\User;
 use Example\AccountsSdk\Requests\NewUser;
 
-CasafariSDK::connect('https://api.example.com/v1');
+$client = Client::connect('https://api.example.com/v1');
 // Demo fixture operations; real requests require a reachable compatible API.
-$user = User::getById(88);
+$user = $client->resource(User::class)->getById(88);
 echo $user->name;
 
 $input = new NewUser();
 $input->name = 'Grace';
-$created = Users::post($input);
+$created = $client->resource(Users::class)->post($input);
 ~~~
 
 These endpoints exist in the example **synthetic Accounts specification**, not in every API; generated endpoint names always come from the input contract.
 
-Generated route classes live under `Api`, follow the route hierarchy, and extend the shared `CasafariSDK` base so request construction and transport handling are implemented once. Request-only schemas are in `Requests`, response-only schemas in `Responses`, and shared or otherwise neutral schemas in `DTOs`; enums and typed collections are nested under folders derived from their owning schema. Generated `__schema__` object components used by only one field are folded into that field's DTO (for example, a nullable integer range becomes a named range DTO with `?int` bounds); shared components retain their own type. HTTP errors identify the failing method and route (for example, `GET /users/{id}`), rather than exposing an arbitrary OpenAPI `operationId`.
+Generated route classes live under `Api`, follow the route hierarchy, and extend the shared `Client` base so request construction and transport handling are implemented once. Request-only schemas are in `Requests`, response-only schemas in `Responses`, and shared or otherwise neutral schemas in `DTOs`; enums and domain collections are nested under their owning schema. Equivalent collections share a type, including `Collections\StringCollection` and `Collections\IntegerCollection` when unconstrained. Generated `__schema__` object components used by only one field are folded into that field's DTO (for example, a nullable integer range becomes a named range DTO with `?int` bounds); shared components retain their own type. HTTP errors identify the failing method and route (for example, `GET /users/{id}`), rather than exposing an arbitrary OpenAPI `operationId`.
 
 ### HTTP and authentication
 
-A default Guzzle client is constructed automatically by `CasafariSDK::connect(server)`. No explicit HTTP handler, transport, middleware, or configuration object is required for ordinary use.
+A default Guzzle client is constructed automatically by `Client::connect(server)`. No explicit HTTP handler, transport, middleware, or configuration object is required for ordinary use.
 
 For advanced HTTP use, pass a **PSR-18 client** and optional headers. A configured Guzzle client can contain its own standard HandlerStack middlewares:
 
 ~~~php
-use Example\AccountsSdk\CasafariSDK;
-use GuzzleHttp\Client;
+use Example\AccountsSdk\Client;
+use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use Psr\Http\Message\RequestInterface;
@@ -74,16 +74,16 @@ $stack->push(Middleware::mapRequest(
     fn (RequestInterface $request): RequestInterface =>
         $request->withHeader('X-Request-Origin', 'example-app')
 ));
-$http = new Client(['handler' => $stack]);
+$http = new GuzzleClient(['handler' => $stack]);
 
-CasafariSDK::connect(
+$client = Client::connect(
     'https://api.example.com/v1',
     $http,
     ['Authorization' => 'Bearer ' . $accessToken],
 );
 ~~~
 
-Generated API methods are static and use the shared connection configured by `CasafariSDK::connect()`. OpenAPI security schemes are applied to secured operations; configure their credentials through `Core\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
+Generated API methods are instance methods. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Core\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
 
 ### Explore without PHP on your computer
 
@@ -100,7 +100,7 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 | Testing | Synthetic independent Accounts and Catalog API contracts across three dialects, Composer installation + mock HTTP |
 | Not included yet | External/general references, composition discriminators and unsupported composition branches, OAuth2/OpenID Connect token flows, cookie/form/multipart payloads, broad media types, all response shapes, full OpenAPI compliance |
 
-The validator **rejects many unsupported constructs explicitly** instead of silently treating them as supported. In the current slice, required fields are checked on **incoming** response DTOs; outbound DTOs have typed properties and typed collections but **do not have complete pre-send required-field or JSON Schema validation**. Unknown response fields may be ignored. These limitations matter for production use.
+The validator **rejects many unsupported constructs explicitly** instead of silently treating them as supported. Generated DTOs validate required fields and supported constraints on construction and before sending, including modified nested values. This is not complete JSON Schema validation. See [the SDK design criteria](docs/SDK_DESIGN.md) and the supported-scope document for the current boundaries.
 
 See [docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md) before generating a production-facing client. [CHANGELOG.md](CHANGELOG.md) lists v0.1.0 changes. [docs/READY_TO_USE_CLIENT.md](docs/READY_TO_USE_CLIENT.md) explains the HTTP factory; [docs/RUN_GENERATED_SDK.md](docs/RUN_GENERATED_SDK.md) covers the example.
 

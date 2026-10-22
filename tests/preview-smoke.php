@@ -28,8 +28,8 @@ if ($api === 'accounts') {
             );
         }
     };
-    \Preview\AccountsSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
-    $user = \Preview\AccountsSdk\Api\Users\User::getById(27, true);
+    $client = \Preview\AccountsSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+    $user = $client->resource(\Preview\AccountsSdk\Api\Users\User::class)->getById(27, true);
     checkPreview($user instanceof \Preview\AccountsSdk\Responses\User, 'Accounts DTO type mismatch');
     checkPreview($user->role === \Preview\AccountsSdk\Enums\User\RoleEnum::Admin, 'Accounts enum mismatch');
     checkPreview($user->profile->visits === 4, 'Accounts nested model mismatch');
@@ -38,7 +38,7 @@ if ($api === 'accounts') {
 
     $body = new \Preview\AccountsSdk\Requests\NewUser();
     $body->name = 'A user';
-    \Preview\AccountsSdk\Api\Users::post($body);
+    $client->resource(\Preview\AccountsSdk\Api\Users::class)->post($body);
     checkPreview($transport->calls[1]['method'] === 'POST', 'Accounts POST mismatch');
     checkPreview(
         json_decode((string)$transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR) === ['name' => 'A user'],
@@ -62,8 +62,8 @@ if ($api === 'accounts') {
             );
         }
     };
-    \Preview\CatalogSdk\CasafariSDK::connect('https://catalog.example.test/api/v2', transport: $transport);
-    $book = \Preview\CatalogSdk\Api\Books\Book::getBySku('BOOK-09', false);
+    $client = \Preview\CatalogSdk\Client::connect('https://catalog.example.test/api/v2', transport: $transport);
+    $book = $client->resource(\Preview\CatalogSdk\Api\Books\Book::class)->getBySku('BOOK-09', false);
     checkPreview($book instanceof \Preview\CatalogSdk\Responses\Book, 'Catalog DTO type mismatch');
     checkPreview($book->price === 19.75, 'Catalog float mismatch');
     checkPreview($book->genre === \Preview\CatalogSdk\Enums\Book\GenreEnum::Fiction, 'Catalog enum mismatch');
@@ -74,7 +74,7 @@ if ($api === 'accounts') {
     $body = new \Preview\CatalogSdk\Requests\BookDraft();
     $body->title = 'A new book';
     $body->price = 12.5;
-    \Preview\CatalogSdk\Api\Books::post($body);
+    $client->resource(\Preview\CatalogSdk\Api\Books::class)->post($body);
     checkPreview($transport->calls[1]['method'] === 'POST', 'Catalog POST mismatch');
     checkPreview(
         count(json_decode((string)$transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR)) === 2
@@ -111,12 +111,12 @@ if ($api === 'accounts') {
         }
     ));
 
-    \Preview\AccountsSdk\CasafariSDK::connect(
+    $client = \Preview\AccountsSdk\Client::connect(
         'https://api.example.test/v1',
         new \GuzzleHttp\Client(['handler' => $stack]),
         ['Authorization' => 'Bearer example'],
     );
-    $result = \Preview\AccountsSdk\Api\Users\User::getById(27);
+    $result = $client->resource(\Preview\AccountsSdk\Api\Users\User::class)->getById(27);
     checkPreview($result->name === 'Standalone', 'Ready-to-use Accounts DTO mismatch');
     checkPreview($events === ['before', 'after'], 'Guzzle middleware chain did not run');
 } else {
@@ -130,11 +130,11 @@ if ($api === 'accounts') {
     $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([
         new \GuzzleHttp\Psr7\Response(200, [], $payload),
     ]));
-    \Preview\CatalogSdk\CasafariSDK::connect(
+    $client = \Preview\CatalogSdk\Client::connect(
         'https://catalog.example.test/api/v2',
         new \GuzzleHttp\Client(['handler' => $stack]),
     );
-    $result = \Preview\CatalogSdk\Api\Books\Book::getBySku('BOOK-09');
+    $result = $client->resource(\Preview\CatalogSdk\Api\Books\Book::class)->getBySku('BOOK-09');
     checkPreview($result->title === 'Ready', 'Ready-to-use Catalog DTO mismatch');
 }
 echo "READY_PSR18_CONSUMER_OK: $api\n";
