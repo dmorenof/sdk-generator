@@ -92,12 +92,17 @@ PHP;
 /**
  * Shared endpoint-client infrastructure; derived API classes only emit typed operations.
  */
-abstract readonly class ApiClient
+abstract class ApiClient
 {
+    protected SecurityCredentials $securityCredentials;
+
     public function __construct(
         protected TransportInterface $transport,
         protected string $baseUrl,
-    ) {}
+        ?SecurityCredentials $securityCredentials = null,
+    ) {
+        $this->securityCredentials = $securityCredentials ?? new SecurityCredentials();
+    }
 
     /** Attach an SDK-level interceptor when using the default PSR-18 adapter. */
     public function withMiddleware(HttpMiddlewareInterface $middleware): static
@@ -158,11 +163,191 @@ class ApiException extends \RuntimeException
 }
 PHP;
 
+        $basicAuthCredentials = $header . <<<'PHP'
+final readonly class BasicAuthCredentials
+{
+    private string $username;
+    private string $password;
+
+    public function __construct(
+        string $username,
+        string $password,
+    ) {
+        if (str_contains($username, ':') || preg_match('/[\r\n]/', $username . $password) === 1) {
+            throw new \InvalidArgumentException('Invalid HTTP Basic credentials.');
+        }
+        $this->username = $username;
+        $this->password = $password;
+    }
+
+    public function username(): string
+    {
+        return $this->username;
+    }
+
+    public function password(): string
+    {
+        return $this->password;
+    }
+
+    /** @return array<string, string> */
+    public function __debugInfo(): array
+    {
+        return ['credentials' => '[redacted]'];
+    }
+}
+PHP;
+
+        $securityCredentials = $header . <<<'PHP'
+final readonly class SecurityCredentials
+{
+    /** @param array<string, string|BasicAuthCredentials> $credentials */
+    public function __construct(private array $credentials = [])
+    {
+        foreach ($credentials as $name => $credential) {
+            if (!is_string($name) || $name === ''
+                || (!is_string($credential) && !($credential instanceof BasicAuthCredentials))
+                || $credential === ''
+                || (is_string($credential) && preg_match('/[\r\n]/', $credential) === 1)) {
+                throw new \InvalidArgumentException('Invalid security credentials map.');
+            }
+        }
+    }
+
+    public function forScheme(string $name): string|BasicAuthCredentials|null
+    {
+        return $this->credentials[$name] ?? null;
+    }
+
+    /** @return array<string, string> */
+    public function __debugInfo(): array
+    {
+        return ['configuredSchemes' => array_keys($this->credentials)];
+    }
+}
+PHP;
+
+        $security = $header . <<<'PHP'
+final class Security
+{
+    /**
+     * @param list<array<string, list<string>>> $requirements Alternatives are OR; schemes within one entry are AND.
+     * @param array<string, array{type:string,scheme:?string,location:?string,parameterName:?string}> $schemes
+     * @param array<string, string> $headers
+     * @param array<string, string> $query
+     */
+    public static function apply(
+        SecurityCredentials $credentials,
+        array $requirements,
+        array $schemes,
+        array &$headers,
+        array &$query,
+    ): void {
+        if ($requirements === []) {
+            return;
+        }
+
+        foreach ($requirements as $requirement) {
+            if ($requirement === []) {
+                return;
+            }
+            $selected = [];
+            $satisfied = true;
+            foreach ($requirement as $name => $_scopes) {
+                $credential = $credentials->forScheme($name);
+                if ($credential === null) {
+                    $satisfied = false;
+                    break;
+                }
+                $scheme = $schemes[$name] ?? null;
+                if ($scheme === null) {
+                    throw new \LogicException("Missing generated security scheme $name.");
+                }
+                $selected[] = [$name, $scheme, $credential];
+            }
+            if (!$satisfied) {
+                continue;
+            }
+
+            $securityHeaders = [];
+            $securityQuery = [];
+            foreach ($selected as [$name, $scheme, $credential]) {
+                if ($scheme['type'] === 'http' && $scheme['scheme'] === 'bearer') {
+                    if (!is_string($credential) || $credential === '') {
+                        throw new \InvalidArgumentException("Bearer credential $name must be a nonempty string.");
+                    }
+                    self::addHeader($securityHeaders, 'Authorization', 'Bearer ' . $credential);
+                } elseif ($scheme['type'] === 'http' && $scheme['scheme'] === 'basic') {
+                    if (!$credential instanceof BasicAuthCredentials) {
+                        throw new \InvalidArgumentException("Basic credential $name must be BasicAuthCredentials.");
+                    }
+                    self::addHeader(
+                        $securityHeaders,
+                        'Authorization',
+                        'Basic ' . base64_encode($credential->username() . ':' . $credential->password()),
+                    );
+                } elseif ($scheme['type'] === 'apiKey') {
+                    if (!is_string($credential) || $credential === '') {
+                        throw new \InvalidArgumentException("API key credential $name must be a nonempty string.");
+                    }
+                    if ($scheme['location'] === 'header') {
+                        self::addHeader($securityHeaders, $scheme['parameterName'], $credential);
+                    } elseif ($scheme['location'] === 'query') {
+                        self::addQuery($securityQuery, $scheme['parameterName'], $credential);
+                    } else {
+                        throw new \LogicException("Unsupported generated API key location for $name.");
+                    }
+                } else {
+                    throw new \LogicException("Unsupported generated security scheme $name.");
+                }
+            }
+            foreach ($securityHeaders as $name => $value) {
+                $headers[$name] = $value;
+            }
+            foreach ($securityQuery as $name => $value) {
+                $query[$name] = $value;
+            }
+            return;
+        }
+
+        throw new \InvalidArgumentException(
+            'No configured credentials satisfy this operation security requirement.',
+        );
+    }
+
+    /** @param array<string, string> $headers */
+    private static function addHeader(array &$headers, string $name, string $value): void
+    {
+        foreach ($headers as $existingName => $existingValue) {
+            if (strcasecmp($existingName, $name) === 0) {
+                if ($existingValue !== $value) {
+                    throw new \InvalidArgumentException("Conflicting security values for header $name.");
+                }
+                return;
+            }
+        }
+        $headers[$name] = $value;
+    }
+
+    /** @param array<string, string> $query */
+    private static function addQuery(array &$query, string $name, string $value): void
+    {
+        if (array_key_exists($name, $query) && $query[$name] !== $value) {
+            throw new \InvalidArgumentException("Conflicting security values for query parameter $name.");
+        }
+        $query[$name] = $value;
+    }
+}
+PHP;
+
         return [
             'src/Core/HttpMiddlewareInterface.php' => $middleware,
             'src/Core/HttpClient.php' => $client,
             'src/Core/ApiClient.php' => $base,
             'src/Core/ApiException.php' => $apiException,
+            'src/Core/BasicAuthCredentials.php' => $basicAuthCredentials,
+            'src/Core/SecurityCredentials.php' => $securityCredentials,
+            'src/Core/Security.php' => $security,
         ];
     }
 }

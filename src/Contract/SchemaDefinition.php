@@ -8,6 +8,7 @@ final readonly class SchemaDefinition
     /**
      * @param list<PropertyDefinition> $properties
      * @param list<string|int|float|bool> $enumValues
+     * @param list<self> $branches
      */
     public function __construct(
         public SchemaKind $kind,
@@ -20,5 +21,13 @@ final readonly class SchemaDefinition
         public bool|self|null $additionalProperties = null,
         /** @var array<string, int|float> OpenAPI primitive/array constraints */
         public array $validation = [],
+        public array $branches = [],
+        public ?string $pattern = null,
+        public bool $readOnly = false,
+        public mixed $default = null,
+        public bool $hasDefault = false,
+        public bool $writeOnly = false,
+        public ?string $title = null,
+        public ?string $description = null,
     ) {}
 }

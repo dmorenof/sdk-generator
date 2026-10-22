@@ -7,6 +7,7 @@ use Dmorenof\SdkGenerator\Contract\ApiContract;
 use Dmorenof\SdkGenerator\Contract\OperationDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaKind;
+use Dmorenof\SdkGenerator\Contract\SecuritySchemeDefinition;
 use InvalidArgumentException;
 
 /**
@@ -20,6 +21,12 @@ use InvalidArgumentException;
 final class PhpExecutableEmitter
 {
     private ?PhpModelNameResolver $modelNames = null;
+    /** @var list<SecuritySchemeDefinition> */
+    private array $securitySchemes = [];
+    /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool}> */
+    private array $operationSuccessTypes = [];
+    /** @var array<string, array<string, string>> */
+    private array $operationErrorTypes = [];
     public function __construct(
         private readonly string $namespace = 'Generated\\Sdk',
         private readonly string $packageName = 'example/generated-sdk',
@@ -28,8 +35,26 @@ final class PhpExecutableEmitter
     /** @return array<string, string> */
     public function emit(ApiContract $contract): array
     {
-        $this->modelNames = new PhpModelNameResolver($this->namespace, $contract->models);
-        $files = (new PhpContractEmitter($this->namespace, $this->packageName))->emit($contract);
+        $this->securitySchemes = $contract->securitySchemes;
+        $contractEmitter = new PhpContractEmitter($this->namespace, $this->packageName);
+        $files = $contractEmitter->emit($contract);
+        $this->modelNames = new PhpModelNameResolver(
+            $this->namespace,
+            $contract->models,
+            PhpContractEmitter::modelRolesFor($contract),
+        );
+        $this->operationSuccessTypes = $contractEmitter->operationSuccessTypes();
+        $this->operationErrorTypes = $contractEmitter->operationErrorTypes();
+        unset(
+            $files['src/Api/Operations.php'],
+            $files['src/Api/OperationCatalog.php'],
+            $files['src/Api/ApiClient.php'],
+        );
+        foreach (array_keys($files) as $path) {
+            if (str_starts_with($path, 'src/Api/')) {
+                unset($files[$path]);
+            }
+        }
         $ns = $this->namespace;
         $files['src/Transport/TransportInterface.php'] = $this->header($ns . '\\Transport')
             . "interface TransportInterface\n{\n"
@@ -47,6 +72,7 @@ final class PhpExecutableEmitter
         $files['src/Transport/Psr18Transport.php'] = $this->renderPsr18Transport();
 
         $manifest = json_decode($files['composer.json'], true, 512, JSON_THROW_ON_ERROR);
+        $manifest['description'] = 'Standalone PHP SDK generated from an API contract, with typed endpoints and HTTP runtime.';
         $manifest['require']['guzzlehttp/guzzle'] = '^7.9';
         $manifest['require']['psr/http-client'] = '^1.0';
         ksort($manifest['require']);
@@ -55,7 +81,16 @@ final class PhpExecutableEmitter
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
         ) . "\n";
         $files['src/Support/JsonHydrator.php'] = $this->renderHydrator();
-        $files['src/Api/ApiClient.php'] = $this->renderClient($contract);
+        $files = array_replace(
+            $files,
+            (new PhpResourceEmitter(
+                $this->namespace,
+                $this->securitySchemes,
+                $this->operationSuccessTypes,
+                $this->operationErrorTypes,
+                $this->modelNames,
+            ))->emit($contract),
+        );
         ksort($files, SORT_STRING);
         return $files;
     }
@@ -82,10 +117,11 @@ final class PhpExecutableEmitter
             . "        string \$baseUrl,\n"
             . "        ?\\Psr\\Http\\Client\\ClientInterface \$httpClient = null,\n"
             . "        array \$headers = [],\n"
+            . "        ?\\" . $ns . "\\Core\\SecurityCredentials \$securityCredentials = null,\n"
             . "    ): self\n"
             . "    {\n"
             . "        \$client = \$httpClient ?? new \\GuzzleHttp\\Client(['http_errors' => false]);\n"
-            . "        return new self(new \\$ns\\Transport\\Psr18Transport(\$client, \$headers), \$baseUrl);\n"
+            . "        return new self(new \\$ns\\Transport\\Psr18Transport(\$client, \$headers), \$baseUrl, \$securityCredentials);\n"
             . "    }\n\n";
 
         foreach ($contract->operations as $operation) {
@@ -100,15 +136,16 @@ final class PhpExecutableEmitter
         $args = [];
         $argumentMetadata = [];
         foreach ($operation->parameters as $p) {
-            if ($p->schema->nullable || $p->schema->enumValues !== []) {
-                throw new InvalidArgumentException("Unsupported parameter type at $operation->operationId.$p->wireName");
-            }
-            $type = $this->primitiveType($p->schema, $operation->operationId);
+            $resolvedType = PhpParameterTypeResolver::resolve(
+                $p->schema,
+                $operation->operationId . '.' . $p->wireName,
+            );
             $argumentMetadata[] = [
                 'name' => $p->wireName,
                 'location' => $p->location,
                 'required' => $p->required,
-                'type' => $type,
+                'type' => $resolvedType['type'],
+                'nullable' => $resolvedType['nullable'],
             ];
         }
         if ($operation->requestBody !== null) {
@@ -121,6 +158,7 @@ final class PhpExecutableEmitter
                 'location' => 'body',
                 'required' => $body->required,
                 'type' => $this->reference($body->schema),
+                'nullable' => false,
             ];
         }
         // Match the exact required-first argument ordering of Operations.
@@ -137,7 +175,8 @@ final class PhpExecutableEmitter
             }
             $seen[strtolower($name)] = true;
             if ($operation->parameters === []) {
-                $args[] = ($p['required'] ? $p['type'] : '?' . $p['type'])
+                $type = (!$p['required'] || $p['nullable']) ? '?' . $p['type'] : $p['type'];
+                $args[] = $type
                     . ' $' . $name . ($p['required'] ? '' : ' = null');
             }
         }
@@ -145,30 +184,26 @@ final class PhpExecutableEmitter
             $operation->responses,
             static fn ($r): bool => preg_match('/^2[0-9]{2}$/', $r->status) === 1,
         ));
-        if (count($success) !== 1) {
-            throw new InvalidArgumentException("Unsupported multiple/no success responses at $operation->operationId");
+        if ($success === []) {
+            throw new InvalidArgumentException("Unsupported operation without a success response at $operation->operationId");
         }
-        $response = $success[0];
-        if ($response->schema !== null && $response->schema->kind !== SchemaKind::Reference) {
-            throw new InvalidArgumentException("Unsupported response schema at $operation->operationId");
-        }
-        $return = $response->schema === null ? 'void' : $this->reference($response->schema);
-        // A non-success response can carry a DTO defined by the API contract.
-        // Do not throw away that structure or hardcode provider-specific errors.
-        $errorTypes = [];
-        foreach ($operation->responses as $other) {
-            if ($other->status === $response->status || $other->schema === null) {
-                continue;
-            }
-            if ($other->schema->kind !== SchemaKind::Reference) {
-                throw new InvalidArgumentException("Unsupported inline error response schema at $operation->operationId.$other->status");
-            }
-            $errorTypes[$other->status] = $this->reference($other->schema);
-        }
+        $responsesWithSchema = array_values(array_filter(
+            $success,
+            static fn ($r): bool => $r->schema !== null,
+        ));
+        $response = $responsesWithSchema[0] ?? $success[0];
+        $successType = $this->operationSuccessTypes[$operation->operationId]
+            ?? throw new InvalidArgumentException("Missing generated response type at $operation->operationId");
+        $responseType = $successType['type'];
+        $return = $responseType === null
+            ? 'void'
+            : ($successType['nullable'] ? '?' : '') . $responseType;
+        $successStatuses = array_map(static fn ($r): int => (int) $r->status, $success);
+        $errorTypes = $this->operationErrorTypes[$operation->operationId] ?? [];
 
         $path = var_export($operation->path, true);
         $method = var_export($operation->method, true);
-        $source = '    public function ' . $operation->operationId
+        $source = '    public function ' . PhpOperationNameResolver::resolve($operation->operationId)
             . '(' . implode(', ', $args) . '): ' . $return . "\n    {\n"
             . '        $path = ' . $path . ";\n"
             . "        \$query = [];\n"
@@ -212,36 +247,57 @@ final class PhpExecutableEmitter
                     . "        }\n";
             }
         }
+        if ($operation->securityRequirements !== []) {
+            $source .= "        \\" . $this->namespace . "\\Core\\Security::apply(\n"
+                . "            \$this->securityCredentials,\n"
+                . '            ' . PhpLiteral::export($operation->securityRequirements) . ",\n"
+                . '            ' . PhpLiteral::export($this->securitySchemeMap()) . ",\n"
+                . "            \$headers,\n"
+                . "            \$query,\n"
+                . "        );\n";
+        }
         $source .= "        \$url = rtrim(\$this->baseUrl, '/') . \$path;\n"
             . "        if (\$query !== []) {\n"
             . "            \$url .= '?' . http_build_query(\$query, '', '&', PHP_QUERY_RFC3986);\n"
             . "        }\n"
             . "        \$response = \$this->transport->send($method, \$url, \$headers, \$bodyJson);\n"
-            . '        if ($response->status !== ' . (int) $response->status . ") {\n"
+            . '        if (!in_array($response->status, ' . PhpLiteral::export($successStatuses) . ", true)) {\n"
             . "            \$errorTypes = " . PhpLiteral::export($errorTypes) . ";\n"
             . "            throw \\{$this->namespace}\\Core\\ApiException::fromResponse(\$response, "
             . var_export($operation->operationId, true)
             . ", \$errorTypes[\$response->status] ?? \$errorTypes['default'] ?? null);\n"
             . "        }\n";
 
-        if ($response->schema === null) {
+        if ($responseType === null) {
             $source .= "        return;\n";
         } else {
+            if ($successType['noContentAllowed']) {
+                $source .= "        if (\$response->body === '') {\n"
+                    . "            return null;\n"
+                    . "        }\n";
+            }
             $source .= "        return JsonHydrator::decode(\$response->body, "
-                . $this->reference($response->schema) . "::class);\n";
+                . var_export($responseType, true) . ', '
+                . ($successType['schemaNullable'] ? 'true' : 'false') . ");\n";
         }
         return $source . "    }\n\n";
     }
 
-    private function primitiveType(SchemaDefinition $schema, string $where): string
+    /**
+     * @return array<string, array{type:string,scheme:?string,location:?string,parameterName:?string}>
+     */
+    private function securitySchemeMap(): array
     {
-        return match ($schema->kind) {
-            SchemaKind::String => 'string',
-            SchemaKind::Integer => 'int',
-            SchemaKind::Number => 'float',
-            SchemaKind::Boolean => 'bool',
-            default => throw new InvalidArgumentException("Unsupported parameter schema at $where"),
-        };
+        $schemes = [];
+        foreach ($this->securitySchemes as $scheme) {
+            $schemes[$scheme->name] = [
+                'type' => $scheme->type,
+                'scheme' => $scheme->scheme,
+                'location' => $scheme->location,
+                'parameterName' => $scheme->parameterName,
+            ];
+        }
+        return $schemes;
     }
 
     private function reference(SchemaDefinition $schema): string
@@ -262,24 +318,85 @@ final class PhpExecutableEmitter
     private function renderHydrator(): string
     {
         $namespace = $this->namespace . '\\Support';
-        return $this->header($namespace) . <<<'PHP'
+        $core = '\\' . $this->namespace . '\\Core\\';
+        return $this->header($namespace)
+            . "use {$core}AnyOf;\n"
+            . "use {$core}DTO;\n"
+            . "use {$core}Map;\n"
+            . "use {$core}TypedArray;\n\n"
+            . <<<'PHP'
 /**
- * Compatibility entry point. All JSON-to-object logic lives in Core\DTO,
- * so direct DTO construction and HTTP response hydration behave identically.
+ * Decode JSON responses into their generated model, enum or collection type.
  */
 final class JsonHydrator
 {
-    /** @template T of \JsonSerializable @param class-string<T> $type @return T */
-    public static function decode(string $body, string $type): object
+    public static function decode(string $body, string $type, bool $nullable = false): mixed
     {
         $data = json_decode($body, false, 512, JSON_THROW_ON_ERROR);
-        if (!is_object($data)) {
-            throw new \UnexpectedValueException("Expected a JSON object for $type.");
+        if ($data === null && $nullable) {
+            return null;
         }
-        if (!is_subclass_of($type, \JsonSerializable::class)) {
-            throw new \InvalidArgumentException("Expected generated DTO class, got $type.");
+
+        return self::hydrate($data, $type);
+    }
+
+    private static function hydrate(mixed $data, string $type): mixed
+    {
+        $type = match ($type) {
+            'integer' => 'int',
+            'double' => 'float',
+            'boolean' => 'bool',
+            default => $type,
+        };
+        if (in_array($type, ['mixed', 'string', 'int', 'float', 'bool'], true)) {
+            $valid = match ($type) {
+                'mixed' => true,
+                'string' => is_string($data),
+                'int' => is_int($data),
+                'float' => is_float($data) || is_int($data),
+                'bool' => is_bool($data),
+            };
+            if (!$valid) {
+                throw new \UnexpectedValueException("Expected JSON $type response.");
+            }
+            return $type === 'float' ? (float) $data : $data;
         }
-        return new $type($data);
+        if (enum_exists($type)) {
+            if (!is_string($data) && !is_int($data)) {
+                throw new \UnexpectedValueException("Expected a scalar enum response for $type.");
+            }
+            return $type::from($data);
+        }
+        if (!class_exists($type)) {
+            throw new \LogicException("Unknown generated response type $type.");
+        }
+        if (is_subclass_of($type, AnyOf::class)) {
+            return $type::fromValue($data);
+        }
+        if (is_subclass_of($type, TypedArray::class)) {
+            if (!is_array($data) || !array_is_list($data)) {
+                throw new \UnexpectedValueException("Expected JSON array response for $type.");
+            }
+            $result = new $type();
+            $itemType = $result->getExpectedType();
+            foreach ($data as $item) {
+                $result->append(self::hydrate($item, $itemType));
+            }
+            return $result;
+        }
+        if (is_subclass_of($type, Map::class)) {
+            if (!is_object($data) && !is_array($data)) {
+                throw new \UnexpectedValueException("Expected JSON object response for $type.");
+            }
+            return new $type($data);
+        }
+        if (is_subclass_of($type, DTO::class)) {
+            if (!is_object($data)) {
+                throw new \UnexpectedValueException("Expected JSON object response for $type.");
+            }
+            return new $type($data);
+        }
+        throw new \LogicException("Unsupported generated response type $type.");
     }
 }
 PHP;

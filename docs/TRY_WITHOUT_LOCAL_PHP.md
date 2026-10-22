@@ -14,10 +14,10 @@ Workflow artifacts expire 14 days after upload; rerun the workflow to get fresh 
 For code running under PHP 8.3+, a generated SDK connects with the simple static factory:
 
 ~~~php
-$api = \Preview\AccountsSdk\Api\ApiClient::connect('https://api.example.com/v1');
-$user = $api->getUser(88);
+\Preview\AccountsSdk\CasafariSDK::connect('https://api.example.com/v1');
+$user = \Preview\AccountsSdk\Api\Users\User::getById(88);
 ~~~
 
 A real Guzzle 7 implementation is selected by default; custom PSR-18 client and default headers are optional.
 
-**Scope:** limited JSON Swagger/OpenAPI subset; security schemes and outbound full required-field validation are not implemented. See [SUPPORTED_SCOPE.md](SUPPORTED_SCOPE.md) and [README.md](../README.md).
+**Scope:** limited JSON/YAML Swagger/OpenAPI subset; security schemes and outbound full required-field validation are not implemented. See [SUPPORTED_SCOPE.md](SUPPORTED_SCOPE.md) and [README.md](../README.md).

@@ -7,6 +7,7 @@ use Dmorenof\SdkGenerator\Contract\SchemaKind;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
 
 final class SpecificationNormalizerTest extends TestCase
 {
@@ -35,6 +36,63 @@ final class SpecificationNormalizerTest extends TestCase
         self::assertCount(2, $swagger2->operations);
         self::assertSame('createUser', $swagger2->operations[0]->operationId);
         self::assertSame('getUser', $swagger2->operations[1]->operationId);
+    }
+
+    public function testYamlAndJsonProduceTheSameTypedContract(): void
+    {
+        foreach ([
+            'accounts-swagger2.json',
+            'accounts-openapi30.json',
+            'accounts-openapi31.json',
+        ] as $fixture) {
+            $json = $this->fixture($fixture);
+            $yaml = Yaml::dump(json_decode($json, true, 512, JSON_THROW_ON_ERROR), 20, 2);
+            self::assertEquals(
+                $this->normalizer->fromJson($json),
+                $this->normalizer->fromYaml($yaml),
+                "YAML and JSON should normalize equally for $fixture",
+            );
+        }
+
+    }
+
+    public function testInvalidYamlFailsWithCause(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid specification YAML');
+        $this->normalizer->fromYaml("openapi: [invalid\n");
+    }
+
+    public function testSchemaMetadataAndTypeLessInputsArePreservedInContract(): void
+    {
+        $raw = json_decode($this->fixture('accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+        $raw['components']['schemas']['User']['properties']['name']['pattern'] = '^[A-Z].+$';
+        $raw['components']['schemas']['User']['properties']['name']['default'] = 'Ada';
+        $raw['components']['schemas']['User']['properties']['id']['readOnly'] = true;
+        $raw['components']['schemas']['User']['properties']['metadata'] = ['title' => 'Any JSON value'];
+        $contract = $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $user = $contract->models[2]->schema;
+        $properties = [];
+        foreach ($user->properties as $property) {
+            $properties[$property->wireName] = $property->schema;
+        }
+
+        self::assertSame('^[A-Z].+$', $properties['name']->pattern);
+        self::assertSame('Ada', $properties['name']->default);
+        self::assertTrue($properties['name']->hasDefault);
+        self::assertTrue($properties['id']->readOnly);
+        self::assertSame(SchemaKind::Mixed, $properties['metadata']->kind);
+    }
+
+    public function testReferenceTitleAnnotationIsPreserved(): void
+    {
+        $raw = json_decode($this->fixture('accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+        $schema = &$raw['paths']['/users/{id}']['get']['responses']['200']['content']['application/json']['schema'];
+        $schema['title'] = 'User response';
+
+        $contract = $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+
+        self::assertSame('User response', $contract->operations[1]->responses[0]->schema->title);
     }
 
     public function testCanonicalContractKeepsWireTypesRequiredAndNullable(): void
@@ -91,21 +149,39 @@ final class SpecificationNormalizerTest extends TestCase
         $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
     }
 
-    public function testUnsupportedComposedSchemaIsNotSilentlyDropped(): void
+    public function testCompositionSiblingsAreRejectedExplicitly(): void
     {
         $raw = json_decode($this->fixture('accounts-openapi30.json'), true, 512, JSON_THROW_ON_ERROR);
         $raw['components']['schemas']['User']['allOf'] = [['type' => 'object']];
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Unsupported schema keyword 'allOf' at models.User");
+        $this->expectExceptionMessage('Composition siblings are not supported at models.User');
         $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
     }
 
-    public function testUnsupportedApiSecurityCannotBeIgnored(): void
+    public function testSecuritySchemesAndEffectiveRequirementsArePreserved(): void
     {
         $raw = json_decode($this->fixture('accounts-openapi30.json'), true, 512, JSON_THROW_ON_ERROR);
-        $raw['security'] = [['bearerAuth' => []]];
+        $raw['components']['securitySchemes'] = [
+            'bearerAuth' => ['type' => 'http', 'scheme' => 'bearer'],
+            'apiKey' => ['type' => 'apiKey', 'in' => 'header', 'name' => 'X-API-Key'],
+        ];
+        $raw['security'] = [['bearerAuth' => [], 'apiKey' => []]];
+        $raw['paths']['/users/{id}']['get']['security'] = [['bearerAuth' => []], ['apiKey' => []]];
+        $raw['paths']['/users']['post']['security'] = [];
+
+        $contract = $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        self::assertCount(2, $contract->securitySchemes);
+        self::assertSame([['bearerAuth' => [], 'apiKey' => []]], $contract->securityRequirements);
+        self::assertSame([['bearerAuth' => []], ['apiKey' => []]], $contract->operations[1]->securityRequirements);
+        self::assertSame([], $contract->operations[0]->securityRequirements);
+    }
+
+    public function testUnknownSecuritySchemesFailExplicitly(): void
+    {
+        $raw = json_decode($this->fixture('accounts-openapi30.json'), true, 512, JSON_THROW_ON_ERROR);
+        $raw['paths']['/users/{id}']['get']['security'] = [['bearerAuth' => []]];
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Unsupported security requirements');
+        $this->expectExceptionMessage('Unknown security scheme bearerAuth');
         $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
     }
 

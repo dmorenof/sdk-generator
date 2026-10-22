@@ -30,22 +30,25 @@ final class CoreInheritanceTest extends TestCase
             'src/Core/Request.php',
             'src/Core/Response.php',
             'src/Core/TypedArray.php',
-            'src/Enums/NewUserRoleEnum.php',
-            'src/Enums/UserRoleEnum.php',
-            'src/Collections/UserLabelsArray.php',
-            'src/Models/Profile.php',
-            'src/Models/NewUser.php',
-            'src/Models/User.php',
-            'src/Requests/GetUserRequest.php',
+            'src/Enums/NewUser/RoleEnum.php',
+            'src/Enums/User/RoleEnum.php',
+            'src/Collections/User/LabelsCollection.php',
+            'src/DTOs/Profile.php',
+            'src/Requests/NewUser.php',
+            'src/Responses/User.php',
             'src/Transport/HttpResponse.php',
             'src/Transport/TransportInterface.php',
             'src/Core/HttpMiddlewareInterface.php',
             'src/Core/HttpClient.php',
+            'src/Core/BasicAuthCredentials.php',
+            'src/Core/SecurityCredentials.php',
+            'src/Core/Security.php',
             'src/Core/ApiClient.php', 'src/Core/ApiException.php',
             'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
-            'src/Api/Operations.php',
-            'src/Api/ApiClient.php',
+            'src/CasafariSDK.php',
+            'src/Api/Users.php',
+            'src/Api/Users/User.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -57,29 +60,29 @@ final class CoreInheritanceTest extends TestCase
         foreach (['DTO', 'Request', 'Response', 'TypedArray'] as $name) {
             self::assertArrayHasKey('src/Core/' . $name . '.php', $files);
         }
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Models\User::class, \Example\InheritanceSdk\Core\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Models\NewUser::class, \Example\InheritanceSdk\Core\Request::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Models\User::class, \Example\InheritanceSdk\Core\Response::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Models\Profile::class, \Example\InheritanceSdk\Core\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Responses\User::class, \Example\InheritanceSdk\Core\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Requests\NewUser::class, \Example\InheritanceSdk\Core\Request::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Responses\User::class, \Example\InheritanceSdk\Core\Response::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\Profile::class, \Example\InheritanceSdk\Core\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Core\Request::class, \Example\InheritanceSdk\Core\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Core\Response::class, \Example\InheritanceSdk\Core\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\UserLabelsArray::class, \Example\InheritanceSdk\Core\TypedArray::class));
-        self::assertSame('string', (new \Example\InheritanceSdk\Collections\UserLabelsArray())->getExpectedType());
-        $property = (new \ReflectionClass(\Example\InheritanceSdk\Models\User::class))->getProperty('profile');
-        self::assertSame(\Example\InheritanceSdk\Models\Profile::class, $property->getType()->getName());
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\User\LabelsCollection::class, \Example\InheritanceSdk\Core\TypedArray::class));
+        self::assertSame('string', (new \Example\InheritanceSdk\Collections\User\LabelsCollection())->getExpectedType());
+        $property = (new \ReflectionClass(\Example\InheritanceSdk\Responses\User::class))->getProperty('profile');
+        self::assertSame(\Example\InheritanceSdk\DTOs\Profile::class, $property->getType()->getName());
     }
 
     public function testConstructorRecursivelyHydratesModelsEnumsAndCollections(): void
     {
-        $user = new \Example\InheritanceSdk\Models\User(json_decode(
+        $user = new \Example\InheritanceSdk\Responses\User(json_decode(
             '{"id":27,"name":"Ada","profile":{"city":"Madrid","visits":3},"role":"admin","labels":["php","sdk"]}',
             false,
             512,
             JSON_THROW_ON_ERROR,
         ));
         self::assertSame(27, $user->id);
-        self::assertSame(\Example\InheritanceSdk\Enums\UserRoleEnum::Admin, $user->role);
-        self::assertInstanceOf(\Example\InheritanceSdk\Models\Profile::class, $user->profile);
+        self::assertSame(\Example\InheritanceSdk\Enums\User\RoleEnum::Admin, $user->role);
+        self::assertInstanceOf(\Example\InheritanceSdk\DTOs\Profile::class, $user->profile);
         self::assertSame('Madrid', $user->profile->city);
         self::assertSame(['php', 'sdk'], $user->labels->getArrayCopy());
         self::assertSame('["php","sdk"]', (string) $user->labels);
@@ -94,14 +97,14 @@ final class CoreInheritanceTest extends TestCase
     {
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Invalid scalar value');
-        new \Example\InheritanceSdk\Models\User((object) ['id' => 'not-an-integer', 'name' => 'Ada']);
+        new \Example\InheritanceSdk\Responses\User((object) ['id' => 'not-an-integer', 'name' => 'Ada']);
     }
 
     public function testConstructorRejectsUnknownFields(): void
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Unknown JSON property');
-        new \Example\InheritanceSdk\Models\Profile((object) ['city' => 'Madrid', 'surprise' => 'hidden']);
+        new \Example\InheritanceSdk\DTOs\Profile((object) ['city' => 'Madrid', 'surprise' => 'hidden']);
     }
 
     public function testRequestAndResponseInheritJsonBehavior(): void
@@ -126,9 +129,9 @@ final class CoreInheritanceTest extends TestCase
                 throw new \LogicException('Should not send invalid DTO');
             }
         };
-        $api = new \Example\InheritanceSdk\Api\ApiClient($transport, 'https://api.example.test/v1');
+        \Example\InheritanceSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
         try {
-            $api->createUser(new \Example\InheritanceSdk\Models\NewUser());
+            \Example\InheritanceSdk\Api\Users::post(new \Example\InheritanceSdk\Requests\NewUser());
             self::fail('Missing required field was transmitted');
         } catch (\UnexpectedValueException $e) {
             self::assertStringContainsString('Required JSON property', $e->getMessage());
@@ -144,17 +147,17 @@ final class CoreInheritanceTest extends TestCase
         $files = (new PhpExecutableEmitter('Example\\NestedSdk', 'example/nested-sdk'))->emit($contract);
         foreach ([
             'src/Core/DTO.php', 'src/Core/TypedArray.php',
-            'src/Enums/BundleRolesItemEnum.php',
-            'src/Collections/BundleEntriesArray.php',
-            'src/Collections/BundleRolesArray.php',
-            'src/Models/Entry.php', 'src/Models/Bundle.php',
+            'src/Enums/Bundle/RolesEnum.php',
+            'src/Collections/Bundle/EntriesCollection.php',
+            'src/Collections/Bundle/RolesCollection.php',
+            'src/DTOs/Entry.php', 'src/DTOs/Bundle.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
 
-        $entry = new \Example\NestedSdk\Models\Entry((object) ['name' => 'Ada']);
-        $role = \Example\NestedSdk\Enums\BundleRolesItemEnum::Admin;
-        $bundle = new \Example\NestedSdk\Models\Bundle((object) [
+        $entry = new \Example\NestedSdk\DTOs\Entry((object) ['name' => 'Ada']);
+        $role = \Example\NestedSdk\Enums\Bundle\RolesEnum::Admin;
+        $bundle = new \Example\NestedSdk\DTOs\Bundle((object) [
             'entries' => [$entry], 'roles' => [$role],
         ]);
         self::assertSame($entry, $bundle->entries[0]);
@@ -164,31 +167,30 @@ final class CoreInheritanceTest extends TestCase
             json_decode((string) $bundle, true, 512, JSON_THROW_ON_ERROR),
         );
 
-        $fromJson = new \Example\NestedSdk\Models\Bundle(
+        $fromJson = new \Example\NestedSdk\DTOs\Bundle(
             json_decode('{"entries":[{"name":"Grace"}],"roles":["viewer"]}', false, 512, JSON_THROW_ON_ERROR),
         );
         self::assertSame('Grace', $fromJson->entries[0]->name);
-        self::assertSame(\Example\NestedSdk\Enums\BundleRolesItemEnum::Viewer, $fromJson->roles[0]);
+        self::assertSame(\Example\NestedSdk\Enums\Bundle\RolesEnum::Viewer, $fromJson->roles[0]);
     }
 
     public function testOperationRequestRetainsRequiredPathAndOptionalQueryTypes(): void
     {
-        $request = new \Example\InheritanceSdk\Requests\GetUserRequest(
-            (object) ['id' => 88, 'verbose' => false],
-        );
-        self::assertInstanceOf(\Example\InheritanceSdk\Core\Request::class, $request);
-        self::assertSame(88, $request->id);
-        self::assertFalse($request->verbose);
-        self::assertSame(['id' => 88, 'verbose' => false], json_decode((string) $request, true, 512, JSON_THROW_ON_ERROR));
-        $empty = new \Example\InheritanceSdk\Requests\GetUserRequest();
-        $this->expectException(\UnexpectedValueException::class);
-        $this->expectExceptionMessage('Required JSON property');
-        json_encode($empty, JSON_THROW_ON_ERROR);
+        $method = new \ReflectionMethod(\Example\InheritanceSdk\Api\Users\User::class, 'getById');
+        $parameters = $method->getParameters();
+        self::assertSame(['id', 'verbose'], array_map(
+            static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+            $parameters,
+        ));
+        self::assertSame('int', $parameters[0]->getType()->getName());
+        self::assertSame('bool', $parameters[1]->getType()->getName());
+        self::assertTrue($parameters[1]->allowsNull());
+        self::assertSame(null, $parameters[1]->getDefaultValue());
     }
 
     public function testTypedFieldRejectsUnrelatedClass(): void
     {
-        $user = new \Example\InheritanceSdk\Models\User();
+        $user = new \Example\InheritanceSdk\Responses\User();
         $this->expectException(\TypeError::class);
         $user->profile = new \stdClass();
     }

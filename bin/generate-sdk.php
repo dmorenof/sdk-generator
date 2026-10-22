@@ -9,7 +9,7 @@ use Dmorenof\SdkGenerator\Generation\PhpApiNameResolver;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 
 if (!in_array($argc, [4, 5], true)) {
-    fwrite(STDERR, "Usage: php bin/generate-sdk.php <swagger-or-openapi.json> <output-directory> [Php\\Namespace] <vendor/package>\n");
+    fwrite(STDERR, "Usage: php bin/generate-sdk.php <swagger-or-openapi.json|yaml|yml> <output-directory> [Php\\Namespace] <vendor/package>\n");
     exit(2);
 }
 
@@ -39,7 +39,11 @@ try {
     }
 
     // Build and validate all files before writing anything to disk.
-    $contract = (new SpecificationNormalizer())->fromJson($source);
+    $normalizer = new SpecificationNormalizer();
+    $extension = strtolower(pathinfo($input, PATHINFO_EXTENSION));
+    $contract = in_array($extension, ['yaml', 'yml'], true)
+        ? $normalizer->fromYaml($source)
+        : $normalizer->fromJson($source);
     $namespace ??= PhpApiNameResolver::fromTitle($contract->title);
     $files = (new PhpExecutableEmitter($namespace, $packageName))->emit($contract);
 

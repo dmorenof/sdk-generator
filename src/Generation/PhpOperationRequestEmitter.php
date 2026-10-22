@@ -28,7 +28,7 @@ final readonly class PhpOperationRequestEmitter
                 continue;
             }
             $name = self::name($operation);
-            $path = "src/Requests/$name.php";
+            $path = "src/Api/Requests/$name.php";
             if (isset($files[$path])) {
                 throw new InvalidArgumentException("Duplicate generated Request class: $name");
             }
@@ -43,19 +43,18 @@ final readonly class PhpOperationRequestEmitter
                     throw new InvalidArgumentException("Duplicate Request parameter $field for $name");
                 }
                 $seen[strtolower($field)] = true;
-                $type = match ($parameter->schema->kind) {
-                    SchemaKind::String => 'string',
-                    SchemaKind::Integer => 'int',
-                    SchemaKind::Number => 'float',
-                    SchemaKind::Boolean => 'bool',
-                    default => throw new InvalidArgumentException("Unsupported Request parameter $field in $name"),
-                };
-                if ($parameter->schema->nullable || $parameter->schema->enumValues !== []) {
-                    throw new InvalidArgumentException("Unsupported nullable/enum Request parameter $field in $name");
+                $resolvedType = PhpParameterTypeResolver::resolve(
+                    $parameter->schema,
+                    "$name.$field",
+                );
+                $nullable = !$parameter->required || $resolvedType['nullable'];
+                $fields[] = '    public ' . ($nullable ? '?' : '') . $resolvedType['type'] . ' $' . $field . ';';
+                $parameterValidation = $parameter->schema->validation;
+                if ($resolvedType['enumValues'] !== []) {
+                    $parameterValidation['enum'] = $resolvedType['enumValues'];
                 }
-                $fields[] = '    public ' . ($parameter->required ? $type : '?' . $type) . ' $' . $field . ';';
-                if ($parameter->schema->validation !== []) {
-                    $validation[$field] = $parameter->schema->validation;
+                if ($parameterValidation !== []) {
+                    $validation[$field] = $parameterValidation;
                 }
                 if ($parameter->required) {
                     $required[] = $field;
@@ -80,7 +79,7 @@ final readonly class PhpOperationRequestEmitter
             }
             $header = "<?php\n"
                 . "declare(strict_types=1);\n\n"
-                . "namespace {$this->namespace}\\Requests;\n\n";
+                . "namespace {$this->namespace}\\Api\\Requests;\n\n";
             $source = $header . 'final class ' . $name . ' extends \\' . $this->namespace
                 . "\\Core\\Request\n{\n"
                 . '    public const array REQUIRED_FIELDS = ' . PhpLiteral::export($required) . ";\n\n"
@@ -95,15 +94,12 @@ final readonly class PhpOperationRequestEmitter
 
     public static function name(OperationDefinition $operation): string
     {
-        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $operation->operationId) !== 1) {
-            throw new InvalidArgumentException("Invalid operation identifier: $operation->operationId");
-        }
-        return ucfirst($operation->operationId) . 'Request';
+        return ucfirst(PhpOperationNameResolver::resolve($operation->operationId)) . 'Request';
     }
 
     public function fqcn(OperationDefinition $operation): string
     {
-        return '\\' . $this->namespace . '\\Requests\\' . self::name($operation);
+        return '\\' . $this->namespace . '\\Api\\Requests\\' . self::name($operation);
     }
 
     private function checkName(string $name): void

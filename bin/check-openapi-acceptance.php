@@ -7,12 +7,12 @@ require __DIR__ . '/../vendor/autoload.php';
 use Dmorenof\SdkGenerator\Acceptance\OpenApiAcceptanceAnalyzer;
 
 if (!in_array($argc, [2, 4], true) || ($argc === 4 && $argv[2] !== '--sha256')) {
-    fwrite(STDERR, "Usage: php bin/check-openapi-acceptance.php spec.json [--sha256 expected-hash]\n");
+    fwrite(STDERR, "Usage: php bin/check-openapi-acceptance.php <spec.json|spec.yaml|spec.yml> [--sha256 expected-hash]\n");
     exit(2);
 }
 $source = @file_get_contents($argv[1]);
 if ($source === false) {
-    fwrite(STDERR, "Cannot read OpenAPI JSON: {$argv[1]}\n");
+    fwrite(STDERR, "Cannot read OpenAPI specification: {$argv[1]}\n");
     exit(2);
 }
 $actualHash = hash('sha256', $source);
@@ -21,7 +21,10 @@ if ($argc === 4 && !hash_equals(strtolower($argv[3]), $actualHash)) {
     exit(3);
 }
 try {
-    $report = (new OpenApiAcceptanceAnalyzer())->analyze($source);
+    $format = in_array(strtolower(pathinfo($argv[1], PATHINFO_EXTENSION)), ['yaml', 'yml'], true)
+        ? 'yaml'
+        : 'json';
+    $report = (new OpenApiAcceptanceAnalyzer())->analyze($source, $format);
     echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), "\n";
     // Short diagnostic summary to CI logs; full per-operation data stays in artifact.
     fwrite(STDERR, "Casafari acceptance: " . $report['summary']['generated'] . '/'

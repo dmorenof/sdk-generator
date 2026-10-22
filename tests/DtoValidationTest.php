@@ -21,7 +21,21 @@ final class DtoValidationTest extends TestCase
         $models = &$raw['components']['schemas'];
         $models['NewUser']['properties']['name']['minLength'] = 3;
         $models['NewUser']['properties']['name']['maxLength'] = 12;
+        $models['NewUser']['properties']['name']['pattern'] = '^\p{Lu}.+$';
+        $models['NewUser']['properties']['generatedId'] = [
+            'type' => 'integer',
+            'readOnly' => true,
+        ];
+        $models['NewUser']['required'][] = 'generatedId';
         $models['Profile']['properties']['city']['minLength'] = 3;
+        $models['Profile']['properties']['serverLabel'] = [
+            'type' => 'string',
+            'readOnly' => true,
+        ];
+        $models['Profile']['properties']['privateLabel'] = [
+            'type' => 'string',
+            'writeOnly' => true,
+        ];
         $models['Profile']['properties']['visits']['minimum'] = 0;
         $models['User']['properties']['id']['minimum'] = 1;
         $models['User']['properties']['id']['maximum'] = 999;
@@ -46,14 +60,13 @@ final class DtoValidationTest extends TestCase
         foreach ([
             'src/Core/DTO.php', 'src/Core/Request.php', 'src/Core/Response.php',
             'src/Core/TypedArray.php',
-            'src/Enums/NewUserRoleEnum.php', 'src/Enums/UserRoleEnum.php',
-            'src/Collections/UserLabelsArray.php',
-            'src/Models/Profile.php', 'src/Models/NewUser.php', 'src/Models/User.php',
-            'src/Requests/GetUserRequest.php',
+            'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
+            'src/Collections/User/LabelsCollection.php',
+            'src/DTOs/Profile.php', 'src/Requests/NewUser.php', 'src/Responses/User.php',
             'src/Transport/HttpResponse.php', 'src/Transport/TransportInterface.php',
-            'src/Core/HttpMiddlewareInterface.php', 'src/Core/HttpClient.php',
-            'src/Core/ApiClient.php', 'src/Core/ApiException.php', 'src/Transport/Psr18Transport.php',
-            'src/Support/JsonHydrator.php', 'src/Api/Operations.php', 'src/Api/ApiClient.php',
+            'src/Core/SecurityCredentials.php',
+            'src/Core/ApiClient.php', 'src/CasafariSDK.php', 'src/Api/Users.php',
+            'src/Api/Users/User.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);
             eval(substr($files[$path], strlen('<?php')));
@@ -63,11 +76,11 @@ final class DtoValidationTest extends TestCase
     public function testConstraintsAreDeclarationsWithOneInheritedImplementation(): void
     {
         $files = self::generated();
-        self::assertStringContainsString("'minLength' => 3", $files['src/Models/NewUser.php']);
-        self::assertStringContainsString("'maxLength' => 12", $files['src/Models/NewUser.php']);
-        self::assertStringContainsString("'maxItems' => 2", $files['src/Models/User.php']);
-        self::assertStringContainsString("'minimum' => 1", $files['src/Requests/GetUserRequest.php']);
-        self::assertStringNotContainsString('function validate(', $files['src/Models/NewUser.php']);
+        self::assertStringContainsString("'minLength' => 3", $files['src/Requests/NewUser.php']);
+        self::assertStringContainsString("'maxLength' => 12", $files['src/Requests/NewUser.php']);
+        self::assertStringContainsString("'maxItems' => 2", $files['src/Responses/User.php']);
+        self::assertStringContainsString("'minimum' => 1", $files['src/Api/Users/User.php']);
+        self::assertStringNotContainsString('function validate(', $files['src/Requests/NewUser.php']);
         self::assertStringContainsString('function validate(): void', $files['src/Core/DTO.php']);
         foreach ($files as $path => $content) {
             if (str_ends_with($path, '.php')) {
@@ -78,16 +91,16 @@ final class DtoValidationTest extends TestCase
 
     public function testUnicodeOptionalNullAndNestedValidDTO(): void
     {
-        $new = new \Example\ConstraintSdk\Models\NewUser((object)['name' => 'Été']);
+        $new = new \Example\ConstraintSdk\Requests\NewUser((object)['name' => 'Été']);
         self::assertSame('Été', $new->name);
-        $user = new \Example\ConstraintSdk\Models\User((object)[
+        $user = new \Example\ConstraintSdk\Responses\User((object)[
             'id' => 7, 'name' => 'Ada', 'nickname' => null,
             'labels' => ['php'], 'profile' => (object)['city' => 'Madrid', 'visits' => 0],
         ]);
         $user->validate();
         self::assertSame('Madrid', $user->profile->city);
         self::assertNull($user->nickname);
-        $withoutOptionals = new \Example\ConstraintSdk\Models\User((object)['id' => 7, 'name' => 'Ada']);
+        $withoutOptionals = new \Example\ConstraintSdk\Responses\User((object)['id' => 7, 'name' => 'Ada']);
         self::assertArrayNotHasKey(
             'labels',
             json_decode((string)$withoutOptionals, true, 512, JSON_THROW_ON_ERROR),
@@ -98,12 +111,64 @@ final class DtoValidationTest extends TestCase
     {
         $this->expectException(UnexpectedValueException::class);
         $this->expectExceptionMessage('minLength');
-        new \Example\ConstraintSdk\Models\NewUser((object)['name' => 'Li']);
+        new \Example\ConstraintSdk\Requests\NewUser((object)['name' => 'Li']);
+    }
+
+    public function testPatternConstraintValidatesStringValues(): void
+    {
+        $this->expectException(UnexpectedValueException::class);
+        $this->expectExceptionMessage('pattern');
+        new \Example\ConstraintSdk\Requests\NewUser((object)['name' => 'lowercase']);
+    }
+
+    public function testReadOnlyRequiredFieldIsOmittedFromRequestSerialization(): void
+    {
+        $request = new \Example\ConstraintSdk\Requests\NewUser((object) [
+            'name' => 'Grace',
+        ]);
+        self::assertArrayNotHasKey(
+            'generatedId',
+            json_decode(json_encode($request, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testReadOnlyFieldsRemainAndWriteOnlyFieldsAreOmittedInResponseSerialization(): void
+    {
+        $user = new \Example\ConstraintSdk\Responses\User((object) [
+            'id' => 1,
+            'name' => 'Ada',
+            'profile' => (object) [
+                'city' => 'Madrid',
+                'serverLabel' => 'trusted',
+                'privateLabel' => 'secret',
+            ],
+        ]);
+        $profile = json_decode((string) $user, true, 512, JSON_THROW_ON_ERROR)['profile'];
+        self::assertSame(
+            'trusted',
+            $profile['serverLabel'],
+        );
+        self::assertArrayNotHasKey('privateLabel', $profile);
+    }
+
+    public function testReadOnlyFieldsAreFilteredRecursivelyFromRequestPayloads(): void
+    {
+        $request = new class((object) ['profile' => (object) [
+            'city' => 'Madrid',
+            'serverLabel' => 'trusted',
+            'privateLabel' => 'secret',
+        ]]) extends \Example\ConstraintSdk\Core\Request {
+            public \Example\ConstraintSdk\DTOs\Profile $profile;
+        };
+        self::assertSame(
+            ['profile' => ['city' => 'Madrid', 'privateLabel' => 'secret']],
+            json_decode(json_encode($request, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR),
+        );
     }
 
     public function testOutboundMaxLengthRevalidatesAfterMutation(): void
     {
-        $dto = new \Example\ConstraintSdk\Models\NewUser((object)['name' => 'Grace']);
+        $dto = new \Example\ConstraintSdk\Requests\NewUser((object)['name' => 'Grace']);
         $dto->name = 'An excessively long name';
         $this->expectException(UnexpectedValueException::class);
         $this->expectExceptionMessage('maxLength');
@@ -112,7 +177,7 @@ final class DtoValidationTest extends TestCase
 
     public function testNumberBoundsAndNestedDTOValidation(): void
     {
-        $dto = new \Example\ConstraintSdk\Models\User((object)[
+        $dto = new \Example\ConstraintSdk\Responses\User((object)[
             'id' => 7, 'name' => 'Ada', 'profile' => (object)['city' => 'Madrid'],
         ]);
         $dto->id = 1000;
@@ -131,7 +196,7 @@ final class DtoValidationTest extends TestCase
 
     public function testTypedCollectionCountsAreRevalidated(): void
     {
-        $dto = new \Example\ConstraintSdk\Models\User((object)[
+        $dto = new \Example\ConstraintSdk\Responses\User((object)[
             'id' => 7, 'name' => 'Ada', 'labels' => ['php'],
         ]);
         $dto->labels->append('sdk');
@@ -146,7 +211,7 @@ final class DtoValidationTest extends TestCase
     {
         $this->expectException(UnexpectedValueException::class);
         $this->expectExceptionMessage('minItems');
-        new \Example\ConstraintSdk\Models\User((object)[
+        new \Example\ConstraintSdk\Responses\User((object)[
             'id' => 7, 'name' => 'Ada', 'labels' => [],
         ]);
     }
@@ -161,11 +226,9 @@ final class DtoValidationTest extends TestCase
                 throw new \LogicException('Unexpected HTTP');
             }
         };
-        $api = new \Example\ConstraintSdk\Api\ApiClient($transport, 'https://api.example.test/v1');
-        $request = new \Example\ConstraintSdk\Requests\GetUserRequest();
-        $request->id = 0;
+        \Example\ConstraintSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
         try {
-            $api->getUser($request);
+            \Example\ConstraintSdk\Api\Users\User::getById(0);
             self::fail('Expected validation error');
         } catch (UnexpectedValueException $e) {
             self::assertStringContainsString('minimum', $e->getMessage());
@@ -183,11 +246,11 @@ final class DtoValidationTest extends TestCase
                 throw new \LogicException('Unexpected HTTP');
             }
         };
-        $api = new \Example\ConstraintSdk\Api\ApiClient($transport, 'https://api.example.test/v1');
-        $dto = new \Example\ConstraintSdk\Models\NewUser();
+        \Example\ConstraintSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
+        $dto = new \Example\ConstraintSdk\Requests\NewUser();
         $dto->name = 'Li';
         try {
-            $api->createUser($dto);
+            \Example\ConstraintSdk\Api\Users::post($dto);
             self::fail('Expected validation error');
         } catch (UnexpectedValueException $e) {
             self::assertStringContainsString('minLength', $e->getMessage());
@@ -204,14 +267,17 @@ final class DtoValidationTest extends TestCase
         (new SpecificationNormalizer())->fromJson(json_encode($spec, JSON_THROW_ON_ERROR));
     }
 
-    public function testUnsupportedArrayItemConstraintFailsExplicitly(): void
+    public function testArrayItemConstraintIsEmittedOnCollectionType(): void
     {
         $spec = self::spec();
         $spec['components']['schemas']['User']['properties']['labels']['items']['minLength'] = 2;
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($spec, JSON_THROW_ON_ERROR));
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Constraints on individual array items');
-        (new PhpExecutableEmitter('Example\\UnsupportedSdk', 'example/unsupported-sdk'))->emit($contract);
+        $files = (new PhpExecutableEmitter('Example\\UnsupportedSdk', 'example/unsupported-sdk'))->emit($contract);
+        self::assertStringContainsString(
+            'protected const array ITEM_VALIDATION',
+            $files['src/Collections/User/LabelsCollection.php'],
+        );
+        self::assertStringContainsString("'minLength' => 2", $files['src/Collections/User/LabelsCollection.php']);
     }
 
     public function testPhpLiteralUsesSquareBracketsForNestedArrays(): void

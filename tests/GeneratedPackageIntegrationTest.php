@@ -45,8 +45,10 @@ final class GeneratedPackageIntegrationTest extends TestCase
         ]));
         exec($cmd . ' 2>&1', $output, $exit);
         self::assertSame(0, $exit, implode("\n", $output));
-        self::assertFileExists($dest . '/src/Api/ApiClient.php');
-        self::assertFileExists($dest . '/src/Models/User.php');
+        self::assertFileExists($dest . '/src/CasafariSDK.php');
+        self::assertFileExists($dest . '/src/Api/Users.php');
+        self::assertFileExists($dest . '/src/Api/Users/User.php');
+        self::assertFileExists($dest . '/src/Responses/User.php');
         self::assertFileExists($dest . '/composer.json');
 
         $composer = json_decode(file_get_contents($dest . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
@@ -81,10 +83,10 @@ $fake = new class implements \Acme\PublicSdk\Transport\TransportInterface {
         );
     }
 };
-$client = new \Acme\PublicSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
-$user = $client->getUser(new \Acme\PublicSdk\Requests\GetUserRequest((object)['id' => 88, 'verbose' => true]));
-if (!$user instanceof \Acme\PublicSdk\Models\User
-    || $user->role !== \Acme\PublicSdk\Enums\UserRoleEnum::Viewer
+\Acme\PublicSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $fake);
+$user = \Acme\PublicSdk\Api\Users\User::getById(88, true);
+if (!$user instanceof \Acme\PublicSdk\Responses\User
+    || $user->role !== \Acme\PublicSdk\Enums\User\RoleEnum::Viewer
     || $user->profile->city !== 'Bilbao'
     || $user->labels[0] !== 'php') {
     throw new RuntimeException('Generated DTO hydration failed.');
@@ -125,8 +127,41 @@ PHP;
         );
         // "Example Accounts" comes from the OpenAPI info.title, not a model name.
         self::assertSame('src/', $manifest['autoload']['psr-4']['ExampleAccounts\\']);
-        self::assertFileExists($dest . '/src/Models/User.php');
-        self::assertFileExists($dest . '/src/Requests/GetUserRequest.php');
+        self::assertFileExists($dest . '/src/Responses/User.php');
+        self::assertFileExists($dest . '/src/Api/Users.php');
+    }
+
+    public function testCliGeneratesSdkFromYamlInput(): void
+    {
+        $generator = dirname(__DIR__) . '/bin/generate-sdk.php';
+        $fixture = $this->directory . '/input.yml';
+        file_put_contents($fixture, <<<'YAML'
+openapi: 3.1.0
+info:
+  title: YAML API
+  version: '1.0'
+servers:
+  - url: https://api.example.test
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        '204':
+          description: Healthy
+YAML);
+        $dest = $this->directory . '/yaml-client';
+        $cmd = implode(' ', array_map('escapeshellarg', [
+            PHP_BINARY, $generator, $fixture, $dest, 'Acme\\YamlSdk', 'acme/yaml-sdk',
+        ]));
+        $lines = [];
+        $exit = 0;
+        exec($cmd . ' 2>&1', $lines, $exit);
+
+        self::assertSame(0, $exit, implode("\n", $lines));
+        self::assertFileExists($dest . '/src/CasafariSDK.php');
+        self::assertFileExists($dest . '/src/Api/Health.php');
+        self::assertFileExists($dest . '/composer.json');
     }
 
     public function testCliRefusesToOverwriteNonemptyOutputDirectory(): void

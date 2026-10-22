@@ -7,6 +7,8 @@ use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use InvalidArgumentException;
 use JsonException;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 use Throwable;
 
 /**
@@ -19,15 +21,11 @@ final class OpenApiAcceptanceAnalyzer
     private const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace'];
 
     /** @return array<string, mixed> */
-    public function analyze(string $source): array
+    public function analyze(string $source, string $format = 'json'): array
     {
-        try {
-            $document = json_decode($source, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new InvalidArgumentException('Invalid JSON in acceptance input.', 0, $exception);
-        }
+        $document = $this->decodeDocument($source, $format);
         if (!is_array($document) || array_is_list($document) || !is_array($document['paths'] ?? null)) {
-            throw new InvalidArgumentException('The acceptance input must be an OpenAPI/Swagger JSON object with paths.');
+            throw new InvalidArgumentException('The acceptance input must be an OpenAPI/Swagger object with paths.');
         }
 
         $operations = [];
@@ -58,7 +56,7 @@ final class OpenApiAcceptanceAnalyzer
             }
         }
 
-        $full = $this->attempt($source);
+        $full = $this->attempt($source, $format);
         $counts = [
             'generated' => 0,
             'normalization_failed' => 0,
@@ -83,11 +81,34 @@ final class OpenApiAcceptanceAnalyzer
         ];
     }
 
+    private function decodeDocument(string $source, string $format): mixed
+    {
+        if ($format === 'json') {
+            try {
+                return json_decode($source, true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException $exception) {
+                throw new InvalidArgumentException('Invalid JSON in acceptance input.', 0, $exception);
+            }
+        }
+        if ($format === 'yaml') {
+            try {
+                return Yaml::parse($source, Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+            } catch (ParseException $exception) {
+                throw new InvalidArgumentException('Invalid YAML in acceptance input.', 0, $exception);
+            }
+        }
+
+        throw new InvalidArgumentException("Unsupported acceptance input format: $format.");
+    }
+
     /** @return array{status:string,error:?array<string,string>} */
-    private function attempt(string $source): array
+    private function attempt(string $source, string $format = 'json'): array
     {
         try {
-            $contract = (new SpecificationNormalizer())->fromJson($source);
+            $normalizer = new SpecificationNormalizer();
+            $contract = $format === 'yaml'
+                ? $normalizer->fromYaml($source)
+                : $normalizer->fromJson($source);
         } catch (Throwable $exception) {
             return $this->failure('normalization_failed', $exception);
         }

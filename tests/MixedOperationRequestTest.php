@@ -36,23 +36,24 @@ final class MixedOperationRequestTest extends TestCase
             'src/Core/Request.php',
             'src/Core/Response.php',
             'src/Core/TypedArray.php',
-            'src/Enums/NewUserRoleEnum.php',
-            'src/Enums/UserRoleEnum.php',
-            'src/Collections/UserLabelsArray.php',
-            'src/Models/Profile.php',
-            'src/Models/NewUser.php',
-            'src/Models/User.php',
-            'src/Requests/GetUserRequest.php',
-            'src/Requests/CreateUserRequest.php',
+            'src/Enums/NewUser/RoleEnum.php',
+            'src/Enums/User/RoleEnum.php',
+            'src/Collections/User/LabelsCollection.php',
+            'src/DTOs/Profile.php',
+            'src/Requests/NewUser.php',
+            'src/Responses/User.php',
             'src/Transport/HttpResponse.php',
             'src/Transport/TransportInterface.php',
             'src/Core/HttpMiddlewareInterface.php',
             'src/Core/HttpClient.php',
+            'src/Core/BasicAuthCredentials.php',
+            'src/Core/SecurityCredentials.php',
+            'src/Core/Security.php',
             'src/Core/ApiClient.php', 'src/Core/ApiException.php',
             'src/Transport/Psr18Transport.php',
             'src/Support/JsonHydrator.php',
-            'src/Api/Operations.php',
-            'src/Api/ApiClient.php',
+            'src/CasafariSDK.php',
+            'src/Api/Groups/ByGroup/Users.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -74,17 +75,10 @@ final class MixedOperationRequestTest extends TestCase
             }
         };
 
-        $api = new \Example\MixedSdk\Api\ApiClient($transport, 'https://api.example.test/v1');
-        $request = new \Example\MixedSdk\Requests\CreateUserRequest((object)[
-            'group' => 'my group',
-            'trace' => false,
-            'body' => (object) ['name' => 'Ada', 'role' => 'viewer'],
-        ]);
-        self::assertInstanceOf(\Example\MixedSdk\Core\Request::class, $request);
-        self::assertInstanceOf(\Example\MixedSdk\Models\NewUser::class, $request->body);
-        self::assertInstanceOf(\Example\MixedSdk\Core\Request::class, $request->body);
+        \Example\MixedSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
+        $body = new \Example\MixedSdk\Requests\NewUser((object) ['name' => 'Ada', 'role' => 'viewer']);
 
-        $result = $api->createUser($request);
+        $result = \Example\MixedSdk\Api\Groups\ByGroup\Users::postByGroup('my group', $body, false);
         self::assertInstanceOf(\Example\MixedSdk\Core\Response::class, $result);
         self::assertSame('Ada', $result->name);
         self::assertCount(1, $transport->calls);
@@ -107,14 +101,14 @@ final class MixedOperationRequestTest extends TestCase
                 throw new \LogicException('Request should have been blocked');
             }
         };
-        $api = new \Example\MixedSdk\Api\ApiClient($transport, 'https://api.example.test/v1');
-        $request = new \Example\MixedSdk\Requests\CreateUserRequest();
-        $request->body = new \Example\MixedSdk\Models\NewUser((object)['name' => 'Ada']);
+        \Example\MixedSdk\CasafariSDK::connect('https://api.example.test/v1', transport: $transport);
         try {
-            $api->createUser($request);
+            \Example\MixedSdk\Api\Groups\ByGroup\Users::postByGroup(
+                body: new \Example\MixedSdk\Requests\NewUser((object) ['name' => 'Ada']),
+            );
             self::fail('Missing group was sent');
-        } catch (\UnexpectedValueException $e) {
-            self::assertStringContainsString('Required JSON property', $e->getMessage());
+        } catch (\ArgumentCountError) {
+            self::assertSame(0, $transport->sent);
         }
         self::assertSame(0, $transport->sent);
     }

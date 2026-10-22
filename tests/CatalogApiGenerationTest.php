@@ -25,12 +25,13 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertSame($swagger, $this->generated('catalog-openapi30.json'));
         self::assertSame($swagger, $this->generated('catalog-openapi31.json'));
         self::assertSame($swagger, $this->generated('catalog-swagger2.json'));
-        self::assertArrayHasKey('src/Models/Book.php', $swagger);
-        self::assertArrayHasKey('src/Models/Warehouse.php', $swagger);
-        self::assertArrayHasKey('src/Models/BookDraft.php', $swagger);
-        self::assertArrayHasKey('src/Requests/FindBookRequest.php', $swagger);
-        self::assertArrayHasKey('src/Collections/BookTagsArray.php', $swagger);
-        self::assertArrayHasKey('src/Enums/BookGenreEnum.php', $swagger);
+        self::assertArrayHasKey('src/Responses/Book.php', $swagger);
+        self::assertArrayHasKey('src/DTOs/Warehouse.php', $swagger);
+        self::assertArrayHasKey('src/Requests/BookDraft.php', $swagger);
+        self::assertArrayHasKey('src/Api/Books/Book.php', $swagger);
+        self::assertArrayHasKey('src/Api/Books.php', $swagger);
+        self::assertArrayHasKey('src/Collections/Book/TagsCollection.php', $swagger);
+        self::assertArrayHasKey('src/Enums/Book/GenreEnum.php', $swagger);
     }
 
     public function testCatalogContractsPreserveFormatsAndTypedEndpointSignatures(): void
@@ -51,17 +52,17 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertSame(SchemaKind::Array, $props['tags']->schema->kind);
         self::assertSame(SchemaKind::Reference, $props['warehouse']->schema->kind);
         $out = $this->generated('catalog-openapi31.json');
-        self::assertStringContainsString('public float $price;', $out['src/Models/Book.php']);
-        self::assertStringContainsString('public bool $available;', $out['src/Models/Book.php']);
+        self::assertStringContainsString('public float $price;', $out['src/Responses/Book.php']);
+        self::assertStringContainsString('public bool $available;', $out['src/Responses/Book.php']);
         self::assertStringContainsString(
-            'public function findBook(\\Preview\\CatalogSdk\\Requests\\FindBookRequest $request): \\Preview\\CatalogSdk\\Models\\Book;',
-            $out['src/Api/Operations.php'],
+            'public static function getBySku(string $sku, ?bool $expand = null): \\Preview\\CatalogSdk\\Responses\\Book',
+            $out['src/Api/Books/Book.php'],
         );
         self::assertStringContainsString(
-            'public function addBook(\\Preview\\CatalogSdk\\Models\\BookDraft $body): \\Preview\\CatalogSdk\\Models\\Book;',
-            $out['src/Api/Operations.php'],
+            'public static function post(\\Preview\\CatalogSdk\\Requests\\BookDraft $body): \\Preview\\CatalogSdk\\Responses\\Book',
+            $out['src/Api/Books.php'],
         );
-        self::assertStringContainsString("'path' => '/books/{sku}'", $out['src/Api/OperationCatalog.php']);
+        self::assertStringContainsString("'/books/{sku}'", $out['src/Api/Books/Book.php']);
     }
 
     public function testEveryCatalogPhpClassLintsSuccessfully(): void
