@@ -25,9 +25,8 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../sdk-runtime",
-            "options": {"symlink": false}
+            "type": "vcs",
+            "url": "https://github.com/dmorenof/sdk-runtime"
         }
     ],
     "keywords": [
@@ -49,7 +48,7 @@
         "source": "https://github.com/dmorenof/sdk-generator"
     },
     "require-dev": {
-        "dmorenof/sdk-runtime": "@dev",
+        "dmorenof/sdk-runtime": "^0.2",
         "phpunit/phpunit": "^11.5",
         "guzzlehttp/guzzle": "^7.9",
         "psr/http-client": "^1.0"
