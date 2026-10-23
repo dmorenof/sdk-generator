@@ -4,13 +4,13 @@ declare(strict_types=1);
 namespace Dmorenof\SdkGenerator\Tests;
 
 use Dmorenof\SdkGenerator\Generation\PhpResourceEmitter;
-use Dmorenof\SdkRuntime\ApiClient;
+use Dmorenof\SdkRuntime\Operation;
 use PHPUnit\Framework\TestCase;
 
 final class RuntimeContractTest extends TestCase
 {
     public function testEmitterOmitsExactlyTheDefaultsTheRuntimeInherits(): void
     {
-        self::assertSame(ApiClient::OPERATION_DEFAULTS, PhpResourceEmitter::OPERATION_DEFAULTS);
+        self::assertSame(Operation::DEFAULTS, PhpResourceEmitter::OPERATION_DEFAULTS);
     }
 }

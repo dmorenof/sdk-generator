@@ -56,6 +56,8 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Lint PHP, validate autoloading and run real tests if source exists
         run: bash ci/run-tests.sh --coverage
+      - name: Generate the fixture SDKs, install them and analyse them at PHPStan max
+        run: bash ci/analyse-generated.sh
       - name: Preserve code coverage, when available
         if: always()
         uses: actions/upload-artifact@v7

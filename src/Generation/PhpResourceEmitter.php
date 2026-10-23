@@ -11,7 +11,7 @@ use InvalidArgumentException;
 /** Emits instance clients with inherited execution and typed resource methods. */
 final readonly class PhpResourceEmitter
 {
-    /** Must equal the runtime's ApiClient::OPERATION_DEFAULTS; a test enforces it. */
+    /** Must equal the runtime's Operation::DEFAULTS; a test enforces it. */
     public const OPERATION_DEFAULTS = [
         'security' => [],
         'success' => [200],
@@ -202,7 +202,7 @@ final readonly class PhpResourceEmitter
         $source .= "    public function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n";
         $source .= $success['type'] === null
             ? "        $call;\n        return;\n"
-            : "        return $call;\n";
+            : "        /** @var $returnType \$result */\n        \$result = $call;\n        return \$result;\n";
         return $source . "    }\n\n";
     }
 

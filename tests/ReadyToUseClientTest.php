@@ -58,7 +58,7 @@ final class ReadyToUseClientTest extends TestCase
             self::assertDoesNotMatchRegularExpression('#^src/(Core|Transport|Support)/#', $path);
         }
         $meta = json_decode($files['composer.json'], true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame('^0.2', $meta['require']['dmorenof/sdk-runtime']);
+        self::assertSame('^0.3', $meta['require']['dmorenof/sdk-runtime']);
         self::assertSame(['dmorenof/sdk-runtime', 'php'], array_keys($meta['require']));
     }
 
