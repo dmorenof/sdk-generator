@@ -12,13 +12,13 @@ function checkPreview(bool $actual, string $message): void
 
 $api = $argv[1] ?? '';
 if ($api === 'accounts') {
-    $transport = new class implements \Preview\AccountsSdk\Transport\TransportInterface {
+    $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
         public array $calls = [];
 
-        public function send(string $method, string $url, array $headers, ?string $body): \Preview\AccountsSdk\Transport\HttpResponse
+        public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
         {
             $this->calls[] = compact('method', 'url', 'headers', 'body');
-            return new \Preview\AccountsSdk\Transport\HttpResponse(
+            return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                 $method === 'GET' ? 200 : 201,
                 json_encode([
                     'id' => 27, 'name' => 'Example user', 'role' => 'admin',
@@ -45,13 +45,13 @@ if ($api === 'accounts') {
         'Accounts POST JSON mismatch',
     );
 } elseif ($api === 'catalog') {
-    $transport = new class implements \Preview\CatalogSdk\Transport\TransportInterface {
+    $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
         public array $calls = [];
 
-        public function send(string $method, string $url, array $headers, ?string $body): \Preview\CatalogSdk\Transport\HttpResponse
+        public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
         {
             $this->calls[] = compact('method', 'url', 'headers', 'body');
-            return new \Preview\CatalogSdk\Transport\HttpResponse(
+            return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                 $method === 'GET' ? 200 : 201,
                 json_encode([
                     'sku' => 'BOOK-09', 'title' => 'Example book', 'price' => 19.75,

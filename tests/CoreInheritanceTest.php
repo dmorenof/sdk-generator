@@ -26,26 +26,12 @@ final class CoreInheritanceTest extends TestCase
     {
         $files = self::generated();
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Request.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
-            'src/Transport/HttpResponse.php',
-            'src/Transport/TransportInterface.php',
-            'src/Core/HttpMiddlewareInterface.php',
-            'src/Core/HttpClient.php',
-            'src/Core/BasicAuthCredentials.php',
-            'src/Core/SecurityCredentials.php',
-            'src/Core/Security.php',
-            'src/Core/ApiClient.php', 'src/Core/ApiException.php',
-            'src/Transport/Psr18Transport.php',
-            'src/Support/JsonHydrator.php',
             'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
@@ -57,16 +43,14 @@ final class CoreInheritanceTest extends TestCase
     public function testModelAndCollectionInheritReusableCoreAndExposeNativeTypes(): void
     {
         $files = self::generated();
-        foreach (['DTO', 'Request', 'Response', 'TypedArray'] as $name) {
-            self::assertArrayHasKey('src/Core/' . $name . '.php', $files);
-        }
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Responses\User::class, \Example\InheritanceSdk\Core\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Requests\NewUser::class, \Example\InheritanceSdk\Core\Request::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Responses\User::class, \Example\InheritanceSdk\Core\Response::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\Profile::class, \Example\InheritanceSdk\Core\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Core\Request::class, \Example\InheritanceSdk\Core\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Core\Response::class, \Example\InheritanceSdk\Core\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\StringCollection::class, \Example\InheritanceSdk\Core\TypedArray::class));
+        self::assertArrayNotHasKey('src/Core/DTO.php', $files);
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Responses\User::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Requests\NewUser::class, \Dmorenof\SdkRuntime\Request::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Responses\User::class, \Dmorenof\SdkRuntime\Response::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\Profile::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Dmorenof\SdkRuntime\Request::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Dmorenof\SdkRuntime\Response::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\StringCollection::class, \Dmorenof\SdkRuntime\TypedArray::class));
         self::assertSame('string', (new \Example\InheritanceSdk\Collections\StringCollection())->getExpectedType());
         $property = (new \ReflectionClass(\Example\InheritanceSdk\Responses\User::class))->getProperty('profile');
         self::assertSame(\Example\InheritanceSdk\DTOs\Profile::class, $property->getType()->getName());
@@ -109,10 +93,10 @@ final class CoreInheritanceTest extends TestCase
 
     public function testRequestAndResponseInheritJsonBehavior(): void
     {
-        $request = new class((object) ['name' => 'example']) extends \Example\InheritanceSdk\Core\Request {
+        $request = new class((object) ['name' => 'example']) extends \Dmorenof\SdkRuntime\Request {
             public string $name;
         };
-        $response = new class((object) ['result' => 'accepted']) extends \Example\InheritanceSdk\Core\Response {
+        $response = new class((object) ['result' => 'accepted']) extends \Dmorenof\SdkRuntime\Response {
             public string $result;
         };
         self::assertSame('{"name":"example"}', (string) $request);
@@ -121,9 +105,9 @@ final class CoreInheritanceTest extends TestCase
 
     public function testMissingRequiredOutgoingFieldStopsBeforeHttp(): void
     {
-        $transport = new class implements \Example\InheritanceSdk\Transport\TransportInterface {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public int $calls = 0;
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\InheritanceSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 $this->calls++;
                 throw new \LogicException('Should not send invalid DTO');
@@ -146,7 +130,6 @@ final class CoreInheritanceTest extends TestCase
         $contract = (new SpecificationNormalizer())->fromJson($source);
         $files = (new PhpExecutableEmitter('Example\\NestedSdk', 'example/nested-sdk'))->emit($contract);
         foreach ([
-            'src/Core/DTO.php', 'src/Core/TypedArray.php',
             'src/Enums/Bundle/RolesEnum.php',
             'src/Collections/Bundle/EntriesCollection.php',
             'src/Collections/Bundle/RolesCollection.php',

@@ -62,9 +62,6 @@ final class MapGenerationTest extends TestCase
     {
         $files = self::generated();
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Map.php',
-            'src/Core/TypedArray.php',
             'src/Collections/Envelope/WordsCollection.php',
             'src/DTOs/StringMap.php',
             'src/DTOs/Envelope/LabelsMap.php',

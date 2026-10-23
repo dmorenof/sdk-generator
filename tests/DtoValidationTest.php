@@ -58,14 +58,10 @@ final class DtoValidationTest extends TestCase
     {
         $files = self::generated();
         foreach ([
-            'src/Core/DTO.php', 'src/Core/Request.php', 'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php', 'src/Requests/NewUser.php', 'src/Responses/User.php',
-            'src/Transport/HttpResponse.php', 'src/Transport/TransportInterface.php',
-            'src/Core/SecurityCredentials.php',
-            'src/Core/ApiClient.php', 'src/Client.php', 'src/Api/Users.php',
+            'src/Client.php', 'src/Api/Users.php',
             'src/Api/Users/User.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);
@@ -81,7 +77,6 @@ final class DtoValidationTest extends TestCase
         self::assertStringContainsString("'maxItems' => 2", $files['src/Responses/User.php']);
         self::assertStringContainsString("'minimum' => 1", $files['src/Api/Users/User.php']);
         self::assertStringNotContainsString('function validate(', $files['src/Requests/NewUser.php']);
-        self::assertStringContainsString('function validate(): void', $files['src/Core/DTO.php']);
         foreach ($files as $path => $content) {
             if (str_ends_with($path, '.php')) {
                 self::assertDoesNotMatchRegularExpression('/\barray\s*\(/i', $content, $path);
@@ -157,7 +152,7 @@ final class DtoValidationTest extends TestCase
             'city' => 'Madrid',
             'serverLabel' => 'trusted',
             'privateLabel' => 'secret',
-        ]]) extends \Example\ConstraintSdk\Core\Request {
+        ]]) extends \Dmorenof\SdkRuntime\Request {
             public \Example\ConstraintSdk\DTOs\Profile $profile;
         };
         self::assertSame(
@@ -218,9 +213,9 @@ final class DtoValidationTest extends TestCase
 
     public function testInvalidPathDTOCannotReachHTTP(): void
     {
-        $transport = new class implements \Example\ConstraintSdk\Transport\TransportInterface {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public int $calls = 0;
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ConstraintSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 ++$this->calls;
                 throw new \LogicException('Unexpected HTTP');
@@ -238,9 +233,9 @@ final class DtoValidationTest extends TestCase
 
     public function testInvalidBodyDTOCannotReachHTTP(): void
     {
-        $transport = new class implements \Example\ConstraintSdk\Transport\TransportInterface {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public int $calls = 0;
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ConstraintSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 ++$this->calls;
                 throw new \LogicException('Unexpected HTTP');

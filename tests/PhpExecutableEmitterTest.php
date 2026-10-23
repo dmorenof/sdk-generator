@@ -27,26 +27,12 @@ final class PhpExecutableEmitterTest extends TestCase
         }
         $files = $this->files();
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Request.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
-            'src/Transport/HttpResponse.php',
-            'src/Transport/TransportInterface.php',
-            'src/Core/HttpMiddlewareInterface.php',
-            'src/Core/HttpClient.php',
-            'src/Core/BasicAuthCredentials.php',
-            'src/Core/SecurityCredentials.php',
-            'src/Core/Security.php',
-            'src/Core/ApiClient.php', 'src/Core/ApiException.php',
-            'src/Transport/Psr18Transport.php',
-            'src/Support/JsonHydrator.php',
             'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
@@ -128,16 +114,13 @@ final class PhpExecutableEmitterTest extends TestCase
         self::assertStringContainsString("'full'", $files['src/Api/Users/User.php']);
 
         foreach ([
-            'src/Core/DTO.php', 'src/Transport/HttpResponse.php',
-            'src/Transport/TransportInterface.php', 'src/Core/SecurityCredentials.php',
-            'src/Core/Security.php',
-            'src/Core/ApiClient.php', 'src/Client.php', 'src/Api/Users/User.php',
+            'src/Client.php', 'src/Api/Users/User.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
         try {
-            $transport = new class implements \Example\EnumParameterSdk\Transport\TransportInterface {
-                public function send(string $method, string $url, array $headers, ?string $body): \Example\EnumParameterSdk\Transport\HttpResponse
+            $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+                public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
                 {
                     throw new \RuntimeException('Valid enum value reached transport.');
                 }
@@ -201,21 +184,17 @@ final class PhpExecutableEmitterTest extends TestCase
             $files['src/Api/Users/User.php'],
         );
         self::assertStringContainsString('    204,', $files['src/Api/Users/User.php']);
-        self::assertStringContainsString("if (\$noContentAllowed && \$response->body === '')", $files['src/Client.php']);
+        self::assertStringContainsString("'noContentAllowed' => true", $files['src/Api/Users/User.php']);
         self::assertStringContainsString('GetStatus404Response', $files['src/Api/Users/User.php']);
 
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Responses/UserResponse.php',
             'src/Collections/UserCollection.php',
             'src/Responses/Errors/Users/ById/GetStatus404Response.php',
-            'src/Support/JsonHydrator.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
-        $response = \Example\InlineResponseSdk\Support\JsonHydrator::decode(
+        $response = \Dmorenof\SdkRuntime\JsonHydrator::decode(
             '[{"id":7,"name":"Ada"}]',
             \Example\InlineResponseSdk\Collections\UserCollection::class,
         );
@@ -228,7 +207,7 @@ final class PhpExecutableEmitterTest extends TestCase
         $error = new \Example\InlineResponseSdk\Responses\Errors\Users\ById\GetStatus404Response(
             (object) ['detail' => 'Not found'],
         );
-        self::assertInstanceOf(\Example\InlineResponseSdk\Core\Response::class, $error);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $error);
         self::assertSame('Not found', $error->detail);
     }
 
@@ -237,8 +216,8 @@ final class PhpExecutableEmitterTest extends TestCase
         self::assertSame($this->files(), $this->files('accounts-openapi30.json'));
         self::assertSame($this->files(), $this->files('accounts-openapi31.json'));
         self::assertArrayHasKey('src/Client.php', $this->files());
-        self::assertArrayHasKey('src/Transport/TransportInterface.php', $this->files());
-        self::assertArrayHasKey('src/Support/JsonHydrator.php', $this->files());
+        self::assertArrayNotHasKey('src/Core/DTO.php', $this->files());
+        self::assertArrayNotHasKey('src/Transport/Psr18Transport.php', $this->files());
     }
 
     public function testEveryGeneratedPhpFileIsSyntacticallyValid(): void
@@ -265,10 +244,10 @@ final class PhpExecutableEmitterTest extends TestCase
     {
         $this->loadGeneratedClasses();
 
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public array $calls = [];
 
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 $this->calls[] = compact('method', 'url', 'headers', 'body');
                 $payload = json_encode([
@@ -278,7 +257,7 @@ final class PhpExecutableEmitterTest extends TestCase
                     'profile' => ['city' => 'Madrid', 'visits' => 3],
                     'labels' => ['php', 'sdk'],
                 ], JSON_THROW_ON_ERROR);
-                return new \Example\ExecutableSdk\Transport\HttpResponse(
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                     $method === 'GET' ? 200 : 201,
                     $payload,
                 );
@@ -320,10 +299,10 @@ final class PhpExecutableEmitterTest extends TestCase
         if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
-                return new \Example\ExecutableSdk\Transport\HttpResponse(404, '{"error":"not found"}');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(404, '{"error":"not found"}');
             }
         };
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
@@ -337,17 +316,17 @@ final class PhpExecutableEmitterTest extends TestCase
         if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
-                return new \Example\ExecutableSdk\Transport\HttpResponse(429, '{"reason":"throttled"}');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(429, '{"reason":"throttled"}');
             }
         };
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         try {
             $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
             self::fail('Unexpected status did not throw');
-        } catch (\Example\ExecutableSdk\Core\ApiException $e) {
+        } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame(429, $e->getCode());
             self::assertNull($e->error);
             self::assertSame('{"reason":"throttled"}', $e->response->body);
@@ -359,10 +338,10 @@ final class PhpExecutableEmitterTest extends TestCase
         if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
-                return new \Example\ExecutableSdk\Transport\HttpResponse(200, '{"name":"Ada"}');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '{"name":"Ada"}');
             }
         };
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
@@ -376,10 +355,10 @@ final class PhpExecutableEmitterTest extends TestCase
         if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
-                return new \Example\ExecutableSdk\Transport\HttpResponse(200, '{"id":"oops","name":"Ada"}');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '{"id":"oops","name":"Ada"}');
             }
         };
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);

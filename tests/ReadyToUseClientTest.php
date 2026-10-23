@@ -28,26 +28,12 @@ final class ReadyToUseClientTest extends TestCase
     {
         $files = self::generatedFiles();
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Request.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
-            'src/Transport/HttpResponse.php',
-            'src/Transport/TransportInterface.php',
-            'src/Core/HttpMiddlewareInterface.php',
-            'src/Core/HttpClient.php',
-            'src/Core/ApiClient.php', 'src/Core/ApiException.php',
-            'src/Core/BasicAuthCredentials.php',
-            'src/Core/SecurityCredentials.php',
-            'src/Core/Security.php',
-            'src/Transport/Psr18Transport.php',
-            'src/Support/JsonHydrator.php',
             'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
@@ -68,21 +54,20 @@ final class ReadyToUseClientTest extends TestCase
     public function testGeneratedPackageDeclaresRuntimeRequirements(): void
     {
         $files = self::generatedFiles();
-        self::assertArrayHasKey('src/Transport/Psr18Transport.php', $files);
+        foreach (array_keys($files) as $path) {
+            self::assertDoesNotMatchRegularExpression('#^src/(Core|Transport|Support)/#', $path);
+        }
         $meta = json_decode($files['composer.json'], true, 512, JSON_THROW_ON_ERROR);
-        self::assertStringContainsString('HTTP runtime', $meta['description']);
-        self::assertSame('^7.9', $meta['require']['guzzlehttp/guzzle']);
-        self::assertSame('^1.0', $meta['require']['psr/http-client']);
-        self::assertSame('^1.0', $meta['require']['typedarray/typedarray']);
-        self::assertArrayNotHasKey('dmorenof/sdk-generator', $meta['require']);
+        self::assertSame('^0.1', $meta['require']['dmorenof/sdk-runtime']);
+        self::assertSame(['dmorenof/sdk-runtime', 'php'], array_keys($meta['require']));
     }
 
     public function testDefaultFactoryConstructsGuzzleAutomaticallyWithoutNetwork(): void
     {
         $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1');
-        self::assertInstanceOf(\Example\ReadySdk\Core\ApiClient::class, $connection);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\ApiClient::class, $connection);
         $adapter = (new \ReflectionProperty($connection, 'transport'))->getValue($connection);
-        self::assertInstanceOf(\Example\ReadySdk\Core\HttpClient::class, $adapter);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\Transport\Psr18Transport::class, $adapter);
         self::assertInstanceOf(Client::class, (new \ReflectionProperty($adapter, 'client'))->getValue($adapter));
     }
 
@@ -167,7 +152,7 @@ final class ReadyToUseClientTest extends TestCase
         $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
 
         $events = new \ArrayObject();
-        $connection->withMiddleware(new class($events) implements \Example\ReadySdk\Core\HttpMiddlewareInterface {
+        $connection->withMiddleware(new class($events) implements \Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface {
             public function __construct(private \ArrayObject $events) {}
 
             public function beforeRequest(RequestInterface $request): RequestInterface
@@ -183,7 +168,7 @@ final class ReadyToUseClientTest extends TestCase
             }
         });
 
-        self::assertInstanceOf(\Example\ReadySdk\Core\ApiClient::class, $connection);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\ApiClient::class, $connection);
         self::assertSame('Ada', $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88)->name);
         self::assertSame(['before', 'after:yes'], $events->getArrayCopy());
         self::assertSame('yes', $history[0]['request']->getHeaderLine('X-Sdk-Core'));
@@ -202,7 +187,7 @@ final class ReadyToUseClientTest extends TestCase
         };
         $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
         $exception = new \DomainException('SDK middleware stopped request');
-        $connection->withMiddleware(new class($exception) implements \Example\ReadySdk\Core\HttpMiddlewareInterface {
+        $connection->withMiddleware(new class($exception) implements \Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface {
             public function __construct(private \DomainException $reason) {}
             public function beforeRequest(RequestInterface $request): RequestInterface
             {

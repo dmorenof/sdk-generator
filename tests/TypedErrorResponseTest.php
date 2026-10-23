@@ -39,18 +39,10 @@ final class TypedErrorResponseTest extends TestCase
     {
         $files = self::files();
         foreach ([
-            'src/Core/DTO.php', 'src/Core/Request.php', 'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/Responses/ApiError.php', 'src/DTOs/Profile.php',
             'src/Requests/NewUser.php', 'src/Responses/User.php',
-            'src/Transport/HttpResponse.php', 'src/Transport/TransportInterface.php',
-            'src/Core/HttpMiddlewareInterface.php', 'src/Core/HttpClient.php',
-            'src/Core/BasicAuthCredentials.php', 'src/Core/SecurityCredentials.php',
-            'src/Core/Security.php',
-            'src/Core/ApiException.php', 'src/Core/ApiClient.php',
-            'src/Transport/Psr18Transport.php', 'src/Support/JsonHydrator.php',
             'src/Client.php', 'src/Api/Users/User.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);
@@ -60,11 +52,11 @@ final class TypedErrorResponseTest extends TestCase
 
     private static function connect(int $status, string $body): \Example\ErrorSdk\Client
     {
-        $transport = new class($status, $body) implements \Example\ErrorSdk\Transport\TransportInterface {
+        $transport = new class($status, $body) implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public function __construct(private int $status, private string $body) {}
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ErrorSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
-                return new \Example\ErrorSdk\Transport\HttpResponse(
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                     $this->status,
                     $this->body,
                     ['X-Correlation-ID' => 'test-123'],
@@ -81,7 +73,7 @@ final class TypedErrorResponseTest extends TestCase
             $client = self::connect(404, $payload);
             $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
             self::fail('Expected typed HTTP exception');
-        } catch (\Example\ErrorSdk\Core\ApiException $e) {
+        } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertInstanceOf(\RuntimeException::class, $e);
             self::assertSame(404, $e->getCode());
             self::assertSame(404, $e->response->status);
@@ -100,7 +92,7 @@ final class TypedErrorResponseTest extends TestCase
             $client = self::connect(503, '{"message":"Service unavailable","code":503}');
             $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
             self::fail('Expected HTTP exception');
-        } catch (\Example\ErrorSdk\Core\ApiException $e) {
+        } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame(503, $e->response->status);
             self::assertInstanceOf(\Example\ErrorSdk\Responses\ApiError::class, $e->error);
             self::assertSame(503, $e->error->code);
@@ -113,7 +105,7 @@ final class TypedErrorResponseTest extends TestCase
             $client = self::connect(404, '{"message":"No"}');
             $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
             self::fail('Expected HTTP exception');
-        } catch (\Example\ErrorSdk\Core\ApiException $e) {
+        } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame(404, $e->response->status);
             self::assertSame('{"message":"No"}', $e->response->body);
             self::assertNull($e->error);
@@ -127,7 +119,7 @@ final class TypedErrorResponseTest extends TestCase
             $client = self::connect(404, '{broken');
             $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
             self::fail('Expected HTTP exception');
-        } catch (\Example\ErrorSdk\Core\ApiException $e) {
+        } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame('{broken', $e->response->body);
             self::assertNull($e->error);
             self::assertInstanceOf(\JsonException::class, $e->getPrevious());

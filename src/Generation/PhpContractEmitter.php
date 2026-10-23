@@ -19,6 +19,10 @@ use InvalidArgumentException;
  */
 final class PhpContractEmitter
 {
+    /** Namespace of the shared runtime that generated SDKs build on. */
+    public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
+    public const RUNTIME_CONSTRAINT = '^0.1';
+
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
@@ -60,10 +64,7 @@ final class PhpContractEmitter
     /** @return array<string, string> Stable generated relative paths => UTF-8 contents. */
     public function emit(ApiContract $contract): array
     {
-        $files = (new PhpCoreEmitter($this->namespace))->emit();
-        if (!$this->contractUsesUnion($contract)) {
-            unset($files['src/Core/AnyOf.php'], $files['src/Core/OneOf.php']);
-        }
+        $files = [];
         $roles = self::modelRolesFor($contract);
         $this->modelNames = new PhpModelNameResolver($this->namespace, $contract->models, $roles);
         $this->modelDefinitions = [];
@@ -105,7 +106,7 @@ final class PhpContractEmitter
             }
             $path = $this->modelNames->path($model->name);
             if (isset($files[$path])) {
-                throw new InvalidArgumentException("Generated class path collides with SDK Core: $path");
+                throw new InvalidArgumentException("Generated class path collides with another generated class: $path");
             }
             if ($model->schema->properties === [] && $this->hasOpenAdditionalProperties($model->schema)) {
                 $files[$path] = $this->renderMapClass(
@@ -124,9 +125,9 @@ final class PhpContractEmitter
         $files['src/Api/OperationCatalog.php'] = $this->renderCatalog($contract);
         $manifest = [
             'name' => $this->packageName,
-            'description' => 'Contract-generated PHP SDK (type declarations; HTTP runtime not yet provided).',
+            'description' => 'Contract-generated PHP SDK built on the shared dmorenof/sdk-runtime.',
             'type' => 'library',
-            'require' => ['php' => '^8.3', 'typedarray/typedarray' => '^1.0'],
+            'require' => ['dmorenof/sdk-runtime' => self::RUNTIME_CONSTRAINT, 'php' => '^8.3'],
             'autoload' => ['psr-4' => [$this->namespace . '\\' => 'src/']],
         ];
         $files['composer.json'] = json_encode(
@@ -148,53 +149,6 @@ final class PhpContractEmitter
     public function operationErrorTypes(): array
     {
         return $this->operationErrorTypes;
-    }
-
-    private function contractUsesUnion(ApiContract $contract): bool
-    {
-        foreach ($contract->models as $model) {
-            if ($this->schemaUsesUnion($model->schema)) {
-                return true;
-            }
-        }
-        foreach ($contract->operations as $operation) {
-            foreach ($operation->parameters as $parameter) {
-                if ($this->schemaUsesUnion($parameter->schema)) {
-                    return true;
-                }
-            }
-            if ($operation->requestBody !== null && $this->schemaUsesUnion($operation->requestBody->schema)) {
-                return true;
-            }
-            foreach ($operation->responses as $response) {
-                if ($response->schema !== null && $this->schemaUsesUnion($response->schema)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private function schemaUsesUnion(SchemaDefinition $schema): bool
-    {
-        if (in_array($schema->kind, [SchemaKind::AnyOf, SchemaKind::OneOf], true)) {
-            return true;
-        }
-        if ($schema->items !== null && $this->schemaUsesUnion($schema->items)) {
-            return true;
-        }
-        foreach ($schema->properties as $property) {
-            if ($this->schemaUsesUnion($property->schema)) {
-                return true;
-            }
-        }
-        foreach ($schema->branches as $branch) {
-            if ($this->schemaUsesUnion($branch)) {
-                return true;
-            }
-        }
-        return $schema->additionalProperties instanceof SchemaDefinition
-            && $this->schemaUsesUnion($schema->additionalProperties);
     }
 
     /**
@@ -347,7 +301,7 @@ final class PhpContractEmitter
         $class = substr($fqcn, strrpos($fqcn, '\\') + 1);
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
         $source = $this->header($namespace)
-            . 'final class ' . $class . ' extends \\' . $this->namespace . '\\Core\\' . $baseClass . "\n{\n"
+            . 'final class ' . $class . ' extends \\' . self::RUNTIME_NAMESPACE . '\\' . $baseClass . "\n{\n"
             . "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n";
         if ($propertyMap !== []) {
             $source .= "    protected const array PROPERTY_MAP = " . PhpLiteral::export($propertyMap) . ";\n"
@@ -504,7 +458,7 @@ final class PhpContractEmitter
         $class = substr($fqcn, strrpos($fqcn, '\\') + 1);
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
         $source = $this->header($namespace)
-            . "final class $class extends \\" . $this->namespace . "\\Core\\Map\n{\n"
+            . "final class $class extends \\" . self::RUNTIME_NAMESPACE . "\\Map\n{\n"
             . "    protected const string VALUE_TYPE = " . PhpLiteral::export($valueType) . ";\n"
             . "    protected const bool VALUE_NULLABLE = " . PhpLiteral::export($nullable) . ";\n";
         if ($validation !== []) {
@@ -605,7 +559,7 @@ final class PhpContractEmitter
         }
         $core = $schema->kind === SchemaKind::AnyOf ? 'AnyOf' : 'OneOf';
         return $this->header($namespace)
-            . "final class $class extends \\" . $this->namespace . "\\Core\\$core\n{\n"
+            . "final class $class extends \\" . self::RUNTIME_NAMESPACE . "\\$core\n{\n"
             . '    protected const array TYPES = [' . implode(', ', $types) . "];\n"
             . "}\n";
     }
@@ -709,7 +663,7 @@ final class PhpContractEmitter
         };
         $file = $this->header(ltrim($entry['namespace'], '\\'))
             . "/** @extends \\TypedArray\\TypedArray<" . $itemType . "> */\n"
-            . "final class $name extends \\{$this->namespace}\\Core\\TypedArray\n"
+            . "final class $name extends \\" . self::RUNTIME_NAMESPACE . "\\TypedArray\n"
             . "{\n"
             . "    protected string \$expected_type = $expected;\n";
         if ($itemValidation !== []) {

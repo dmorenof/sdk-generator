@@ -37,11 +37,6 @@ final class PhpContractEmitterTest extends TestCase
             'src/Api/Operations.php',
             'src/Api/Requests/GetUserRequest.php',
             'src/Collections/StringCollection.php',
-            'src/Core/DTO.php',
-            'src/Core/Map.php',
-            'src/Core/Request.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/DTOs/Profile.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
@@ -54,13 +49,13 @@ final class PhpContractEmitterTest extends TestCase
     {
         $files = $this->generated();
         $user = $files['src/Responses/User.php'];
-        self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\Response', $user);
+        self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\Response', $user);
         self::assertStringContainsString(
-            'extends \\Example\\AccountsSdk\\Core\\Request',
+            'extends \\Dmorenof\\SdkRuntime\\Request',
             $files['src/Requests/NewUser.php'],
         );
         self::assertStringContainsString(
-            'extends \\Example\\AccountsSdk\\Core\\DTO',
+            'extends \\Dmorenof\\SdkRuntime\\DTO',
             $files['src/DTOs/Profile.php'],
         );
         self::assertStringContainsString('public int $id;', $user);
@@ -69,8 +64,7 @@ final class PhpContractEmitterTest extends TestCase
         self::assertStringContainsString('public \\Example\\AccountsSdk\\DTOs\\Profile $profile;', $user);
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Enums\\User\\RoleEnum $role;', $user);
         self::assertStringContainsString('public \\Example\\AccountsSdk\\Collections\\StringCollection $labels;', $user);
-        self::assertStringContainsString('return self::filterFields(', $files['src/Core/DTO.php']);
-        self::assertStringContainsString('extends \\Example\\AccountsSdk\\Core\\TypedArray', $files['src/Collections/StringCollection.php']);
+        self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\TypedArray', $files['src/Collections/StringCollection.php']);
         self::assertStringNotContainsString('= null;', $user);
         self::assertStringContainsString("case Admin = 'admin';", $files['src/Enums/User/RoleEnum.php']);
         self::assertStringContainsString("case Viewer = 'viewer';", $files['src/Enums/User/RoleEnum.php']);
@@ -101,7 +95,7 @@ final class PhpContractEmitterTest extends TestCase
         $data = json_decode($this->generated()['composer.json'], true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('example/accounts-sdk', $data['name']);
         self::assertSame('^8.3', $data['require']['php']);
-        self::assertSame('^1.0', $data['require']['typedarray/typedarray']);
+        self::assertSame('^0.1', $data['require']['dmorenof/sdk-runtime']);
         self::assertSame('src/', $data['autoload']['psr-4']['Example\\AccountsSdk\\']);
         self::assertArrayNotHasKey('version', $data);
     }
@@ -131,10 +125,6 @@ final class PhpContractEmitterTest extends TestCase
         $files = $this->generated();
         // Load only the PHP classes this smoke test needs (no HTTP runtime).
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Request.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/User/RoleEnum.php',
             'src/DTOs/Profile.php',
             'src/Responses/User.php',
@@ -183,11 +173,11 @@ final class PhpContractEmitterTest extends TestCase
         $modified = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
         $files = (new PhpContractEmitter('Example\\BothRoles', 'example/both-roles'))->emit($modified);
         self::assertStringContainsString(
-            'final class User extends \\Example\\BothRoles\\Core\\DTO',
+            'final class User extends \\Dmorenof\\SdkRuntime\\DTO',
             $files['src/DTOs/User.php'],
         );
         self::assertStringNotContainsString(
-            'extends \\Example\\BothRoles\\Core\\Response',
+            'extends \\Dmorenof\\SdkRuntime\\Response',
             $files['src/DTOs/User.php'],
         );
     }

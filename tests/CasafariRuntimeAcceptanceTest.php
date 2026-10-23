@@ -78,7 +78,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         $stack = HandlerStack::create($responses);
         $stack->push(Middleware::history($history));
         $http = new Client(['handler' => $stack]);
-        $credentials = new \CasafariRuntimeSdk\Core\SecurityCredentials([
+        $credentials = new \Dmorenof\SdkRuntime\Security\SecurityCredentials([
             'HTTPBearer' => 'runtime-test-token',
         ]);
         $client = \CasafariRuntimeSdk\Client::connect(
@@ -91,7 +91,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
 
         $feeds = $client->resource($feedsResource)->get(filter: true, only_self: false);
 
-        self::assertInstanceOf(\CasafariRuntimeSdk\Core\TypedArray::class, $feeds);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\TypedArray::class, $feeds);
         self::assertCount(1, $feeds);
         self::assertInstanceOf(\CasafariRuntimeSdk\DTOs\ApiAlertsFeedV1::class, $feeds[0]);
         self::assertSame(43, $feeds[0]->id);
@@ -132,9 +132,9 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         try {
             $client->resource($feedsResource)->get(filter: false);
             self::fail('The generated client did not throw for HTTP 401.');
-        } catch (\CasafariRuntimeSdk\Core\ApiException $exception) {
+        } catch (\Dmorenof\SdkRuntime\ApiException $exception) {
             self::assertSame(401, $exception->getCode());
-            self::assertInstanceOf(\CasafariRuntimeSdk\Core\Response::class, $exception->error);
+            self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $exception->error);
             self::assertSame('Authentication required', $exception->error->detail);
             self::assertSame('{"detail":"Authentication required"}', $exception->response->body);
         }

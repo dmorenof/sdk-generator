@@ -142,24 +142,10 @@ final class HierarchicalNamesTest extends TestCase
     {
         $files = $this->generate();
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Request.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/Casafari/Crm/Api/Dtos/Agency/AgencyDto/StatusEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Casafari/Crm/Api/Dtos/User/UserDto.php',
             'src/DTOs/Casafari/Crm/Api/Dtos/Agency/AgencyDto.php',
-            'src/Transport/HttpResponse.php',
-            'src/Transport/TransportInterface.php',
-            'src/Core/HttpMiddlewareInterface.php',
-            'src/Core/HttpClient.php',
-            'src/Core/BasicAuthCredentials.php',
-            'src/Core/SecurityCredentials.php',
-            'src/Core/Security.php',
-            'src/Core/ApiClient.php', 'src/Core/ApiException.php',
-            'src/Transport/Psr18Transport.php',
-            'src/Support/JsonHydrator.php',
             'src/Client.php',
             'src/Api/Agencies/Agency.php',
         ] as $path) {
@@ -178,12 +164,12 @@ final class HierarchicalNamesTest extends TestCase
         );
         self::assertSame(['commercial', 'residential'], $agency->labels->getArrayCopy());
 
-        $transport = new class implements \CasafariCrmApi\Transport\TransportInterface {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public array $calls = [];
-            public function send(string $method, string $url, array $headers, ?string $body): \CasafariCrmApi\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 $this->calls[] = compact('method', 'url', 'headers', 'body');
-                return new \CasafariCrmApi\Transport\HttpResponse(
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                     200,
                     '{"name":"An agency","owner":{"email":"agency@example.test"}}',
                 );

@@ -37,27 +37,12 @@ final class SecurityGenerationTest extends TestCase
     {
         $files = self::generatedFiles();
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Request.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
-            'src/Transport/HttpResponse.php',
-            'src/Transport/TransportInterface.php',
-            'src/Core/HttpMiddlewareInterface.php',
-            'src/Core/HttpClient.php',
-            'src/Core/ApiClient.php',
-            'src/Core/ApiException.php',
-            'src/Core/BasicAuthCredentials.php',
-            'src/Core/SecurityCredentials.php',
-            'src/Core/Security.php',
-            'src/Transport/Psr18Transport.php',
-            'src/Support/JsonHydrator.php',
             'src/Client.php',
             'src/Api/Users/User.php',
         ] as $path) {
@@ -74,7 +59,7 @@ final class SecurityGenerationTest extends TestCase
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             ['Authorization' => 'caller-value'],
-            new \Example\SecuritySdk\Core\SecurityCredentials([
+            new \Dmorenof\SdkRuntime\Security\SecurityCredentials([
                 'Bearer' => 'test-token',
                 'HeaderKey' => 'test-key',
             ]),
@@ -97,7 +82,7 @@ final class SecurityGenerationTest extends TestCase
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             [],
-            new \Example\SecuritySdk\Core\SecurityCredentials(['QueryKey' => 'query-key']),
+            new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['QueryKey' => 'query-key']),
         );
 
         $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
@@ -117,8 +102,8 @@ final class SecurityGenerationTest extends TestCase
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             [],
-            new \Example\SecuritySdk\Core\SecurityCredentials([
-                'Basic' => new \Example\SecuritySdk\Core\BasicAuthCredentials('user', 'secret'),
+            new \Dmorenof\SdkRuntime\Security\SecurityCredentials([
+                'Basic' => new \Dmorenof\SdkRuntime\Security\BasicAuthCredentials('user', 'secret'),
             ]),
         );
 

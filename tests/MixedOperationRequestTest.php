@@ -32,26 +32,12 @@ final class MixedOperationRequestTest extends TestCase
     {
         $files = self::files();
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/Request.php',
-            'src/Core/Response.php',
-            'src/Core/TypedArray.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/Requests/NewUser.php',
             'src/Responses/User.php',
-            'src/Transport/HttpResponse.php',
-            'src/Transport/TransportInterface.php',
-            'src/Core/HttpMiddlewareInterface.php',
-            'src/Core/HttpClient.php',
-            'src/Core/BasicAuthCredentials.php',
-            'src/Core/SecurityCredentials.php',
-            'src/Core/Security.php',
-            'src/Core/ApiClient.php', 'src/Core/ApiException.php',
-            'src/Transport/Psr18Transport.php',
-            'src/Support/JsonHydrator.php',
             'src/Client.php',
             'src/Api/Groups/ByGroup/Users.php',
         ] as $file) {
@@ -61,14 +47,14 @@ final class MixedOperationRequestTest extends TestCase
 
     public function testPathQueryAndBodyUseOneTypedRequestWithoutDoubleJsonEncoding(): void
     {
-        $transport = new class implements \Example\MixedSdk\Transport\TransportInterface {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             /** @var list<array<string, mixed>> */
             public array $calls = [];
 
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\MixedSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 $this->calls[] = compact('method', 'url', 'headers', 'body');
-                return new \Example\MixedSdk\Transport\HttpResponse(
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                     201,
                     '{"id":88,"name":"Ada"}',
                 );
@@ -79,7 +65,7 @@ final class MixedOperationRequestTest extends TestCase
         $body = new \Example\MixedSdk\Requests\NewUser((object) ['name' => 'Ada', 'role' => 'viewer']);
 
         $result = $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup('my group', $body, false);
-        self::assertInstanceOf(\Example\MixedSdk\Core\Response::class, $result);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $result);
         self::assertSame('Ada', $result->name);
         self::assertCount(1, $transport->calls);
         self::assertSame('POST', $transport->calls[0]['method']);
@@ -93,9 +79,9 @@ final class MixedOperationRequestTest extends TestCase
 
     public function testMissingRequiredOperationPathFieldFailsBeforeTransport(): void
     {
-        $transport = new class implements \Example\MixedSdk\Transport\TransportInterface {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public int $sent = 0;
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\MixedSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 $this->sent++;
                 throw new \LogicException('Request should have been blocked');

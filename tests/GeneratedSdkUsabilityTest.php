@@ -49,19 +49,19 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testInstanceClientsKeepAccountsAndCredentialsIsolated(): void
     {
-        $transport = new class implements \UsableSdk\Transport\TransportInterface {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public array $calls = [];
-            public function send(string $method, string $url, array $headers, ?string $body): \UsableSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 $this->calls[] = [$url, $headers['Authorization']];
-                return new \UsableSdk\Transport\HttpResponse(200, '[]');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '[]');
             }
         };
         $a = new \UsableSdk\Api\V1\ListingAlerts\Feeds(
-            'https://account-a.test', securityCredentials: new \UsableSdk\Core\SecurityCredentials(['HTTPBearer' => 'a']), transport: $transport,
+            'https://account-a.test', securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['HTTPBearer' => 'a']), transport: $transport,
         );
         $b = \UsableSdk\Api\V1\ListingAlerts\Feeds::connect(
-            'https://account-b.test', securityCredentials: new \UsableSdk\Core\SecurityCredentials(['HTTPBearer' => 'b']), transport: $transport,
+            'https://account-b.test', securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['HTTPBearer' => 'b']), transport: $transport,
         );
         $a->get();
         $b->get();
@@ -72,8 +72,8 @@ final class GeneratedSdkUsabilityTest extends TestCase
             ['https://account-a.test/api/v1/listing-alerts/feeds', 'Bearer a'],
         ], $transport->calls);
         self::assertFalse((new \ReflectionMethod($a, 'get'))->isStatic());
-        self::assertSame(\UsableSdk\Client::class, (new \ReflectionMethod($a, 'executeOperation'))->getDeclaringClass()->getName());
-        self::assertSame(\UsableSdk\Core\ApiClient::class, (new \ReflectionClass($a))->getConstructor()->getDeclaringClass()->getName());
+        self::assertSame(\Dmorenof\SdkRuntime\ApiClient::class, (new \ReflectionMethod($a, 'executeOperation'))->getDeclaringClass()->getName());
+        self::assertSame(\Dmorenof\SdkRuntime\ApiClient::class, (new \ReflectionClass($a))->getConstructor()->getDeclaringClass()->getName());
         self::assertArrayNotHasKey('src/CasafariSDK.php', self::$files);
     }
 
@@ -93,12 +93,12 @@ final class GeneratedSdkUsabilityTest extends TestCase
     public function testGeneralUnionCollectionUsesTheSameConversionAsRootResponses(): void
     {
         $batch = new \UsableSdk\DTOs\UnionBatch((object) ['values' => [4, 'four']]);
-        self::assertInstanceOf(\UsableSdk\Core\AnyOf::class, $batch->values[0]);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\AnyOf::class, $batch->values[0]);
         self::assertSame([4], $batch->values[0]->matchedVariants());
         self::assertSame(['four'], $batch->values[1]->matchedVariants());
         self::assertSame(['values' => [4, 'four']], json_decode((string) $batch, true, 512, JSON_THROW_ON_ERROR));
         $type = $batch->values::class;
-        $response = \UsableSdk\Support\JsonHydrator::decode('[4,"four"]', $type);
+        $response = \Dmorenof\SdkRuntime\JsonHydrator::decode('[4,"four"]', $type);
         self::assertSame([4], $response[0]->matchedVariants());
     }
 
@@ -139,16 +139,16 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testSharedBodyModelsExcludeReadOnlyFieldsWhenSent(): void
     {
-        $transport = new class implements \UsableSdk\Transport\TransportInterface {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public ?string $body = null;
-            public function send(string $method, string $url, array $headers, ?string $body): \UsableSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 $this->body = $body;
-                return new \UsableSdk\Transport\HttpResponse(201, '{"name":"Feed","filter":{"operation":"sale"},"id":9,"user":"owner"}');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(201, '{"name":"Feed","filter":{"operation":"sale"},"id":9,"user":"owner"}');
             }
         };
         $client = new \UsableSdk\Api\V1\ListingAlerts\Feeds('https://api.test',
-            securityCredentials: new \UsableSdk\Core\SecurityCredentials(['HTTPBearer' => 'token']), transport: $transport,
+            securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['HTTPBearer' => 'token']), transport: $transport,
         );
         $body = new \UsableSdk\DTOs\ApiAlertsFeedV1((object) ['name' => 'Feed', 'filter' => (object) ['operation' => 'sale'], 'id' => 9, 'user' => 'owner']);
         $client->post($body);
@@ -157,7 +157,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testSerializationValidatesEachNodeOnceAndStillRejectsMutations(): void
     {
-        $leaf = new class extends \UsableSdk\Core\DTO {
+        $leaf = new class extends \Dmorenof\SdkRuntime\DTO {
             public static int $visits = 0;
             public const array REQUIRED_FIELDS = ['name'];
             protected const array VALIDATION = ['name' => ['minLength' => 2]];
@@ -166,7 +166,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
         };
         $node = $leaf;
         for ($i = 0; $i < 8; $i++) {
-            $parent = new class extends \UsableSdk\Core\DTO { public \UsableSdk\Core\DTO $child; };
+            $parent = new class extends \Dmorenof\SdkRuntime\DTO { public \Dmorenof\SdkRuntime\DTO $child; };
             $parent->child = $node;
             $node = $parent;
         }
@@ -179,11 +179,11 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testDtoInsideMixedArrayCannotBypassValidationWhenSerializing(): void
     {
-        $value = new class extends \UsableSdk\Core\DTO {
+        $value = new class extends \Dmorenof\SdkRuntime\DTO {
             public const array REQUIRED_FIELDS = ['name'];
             public string $name;
         };
-        $parent = new class extends \UsableSdk\Core\DTO { public mixed $extra; };
+        $parent = new class extends \Dmorenof\SdkRuntime\DTO { public mixed $extra; };
         $parent->extra = ['nested' => [$value]];
         $this->expectException(\UnexpectedValueException::class);
         json_encode($parent, JSON_THROW_ON_ERROR);

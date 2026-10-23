@@ -42,63 +42,19 @@ final readonly class PhpResourceEmitter
 
     private function renderConnector(): string
     {
+        $schemes = [];
+        foreach ($this->securitySchemes as $scheme) {
+            $schemes[$scheme->name] = [
+                'type' => $scheme->type,
+                'scheme' => $scheme->scheme,
+                'location' => $scheme->location,
+                'parameterName' => $scheme->parameterName,
+            ];
+        }
         return $this->header($this->namespace)
-            . "class Client extends \\{$this->namespace}\\Core\\ApiClient\n{\n"
-            . $this->renderExecuteOperation()
-            . $this->renderSendOperation()
+            . 'class Client extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE . "\\ApiClient\n{\n"
+            . '    protected const array SECURITY_SCHEMES = ' . PhpLiteral::export($schemes) . ";\n"
             . "}\n";
-    }
-
-    private function renderExecuteOperation(): string
-    {
-        $source = <<<'PHP'
-    /** @param array<string,mixed> $operation @param array<string,mixed> $pathParameters @param array<string,mixed> $queryParameters @param array<string,mixed> $headerParameters */
-    protected function executeOperation(
-        array $operation,
-        array $pathParameters = [],
-        array $queryParameters = [],
-        array $headerParameters = [],
-        ?\NS\Core\DTO $body = null,
-    ): mixed {
-        $path = $operation['path'];
-        $parameters = $pathParameters + $queryParameters + $headerParameters;
-        foreach ($operation['validation'] as $name => $validation) {
-            $value = $parameters[$name] ?? null;
-            if ($value !== null) {
-                \NS\Core\DTO::validateConstraints($value, $validation, $operation['label'] . '.' . $name);
-            }
-        }
-
-        foreach ($pathParameters as $name => $value) {
-            $path = str_replace('{' . $name . '}', rawurlencode((string) $value), $path);
-        }
-        $query = [];
-        foreach ($queryParameters as $name => $value) {
-            if ($value !== null) {
-                $query[$name] = is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
-            }
-        }
-        $headers = ['Accept' => 'application/json'];
-        foreach ($headerParameters as $name => $value) {
-            if ($value !== null) {
-                $headers[$name] = is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
-            }
-        }
-        $bodyJson = null;
-        if ($body !== null) {
-            $headers['Content-Type'] = 'application/json';
-            $bodyJson = json_encode($body->jsonSerializeForRequest(), JSON_THROW_ON_ERROR);
-        }
-
-        return $this->sendOperation(
-            $operation['method'], $path, $operation['label'], $operation['security'],
-            $query, $headers, $bodyJson, $operation['success'], $operation['errors'],
-            $operation['responseType'], $operation['schemaNullable'], $operation['noContentAllowed'],
-        );
-    }
-
-PHP;
-        return str_replace('\\NS\\', '\\' . $this->namespace . '\\', $source);
     }
 
     /**
@@ -243,65 +199,6 @@ PHP;
             $entries[] = var_export($wireName, true) . ' => ' . $variable;
         }
         return '[' . implode(', ', $entries) . ']';
-    }
-
-    private function renderSendOperation(): string
-    {
-        $schemes = [];
-        foreach ($this->securitySchemes as $scheme) {
-            $schemes[$scheme->name] = [
-                'type' => $scheme->type,
-                'scheme' => $scheme->scheme,
-                'location' => $scheme->location,
-                'parameterName' => $scheme->parameterName,
-            ];
-        }
-        return "    /** @param list<array<string,list<string>>> \$securityRequirements */\n"
-            . "    public function sendOperation(\n"
-            . "        string \$method,\n"
-            . "        string \$path,\n"
-            . "        string \$operation,\n"
-            . "        array \$securityRequirements,\n"
-            . "        array \$query,\n"
-            . "        array \$headers,\n"
-            . "        ?string \$body,\n"
-            . "        array \$successStatuses,\n"
-            . "        array \$errorTypes,\n"
-            . "        ?string \$responseType,\n"
-            . "        bool \$schemaNullable,\n"
-            . "        bool \$noContentAllowed,\n"
-            . "    ): mixed {\n"
-            . "        \\{$this->namespace}\\Core\\Security::apply(\n"
-            . "            \$this->securityCredentials,\n"
-            . "            \$securityRequirements,\n"
-            . '            ' . PhpLiteral::export($schemes) . ",\n"
-            . "            \$headers,\n"
-            . "            \$query,\n"
-            . "        );\n"
-            . "        \$url = rtrim(\$this->baseUrl, '/') . \$path;\n"
-            . "        if (\$query !== []) {\n"
-            . "            \$url .= '?' . http_build_query(\$query, '', '&', PHP_QUERY_RFC3986);\n"
-            . "        }\n"
-            . "        \$response = \$this->transport->send(\$method, \$url, \$headers, \$body);\n"
-            . "        if (!in_array(\$response->status, \$successStatuses, true)) {\n"
-            . "            throw \\{$this->namespace}\\Core\\ApiException::fromResponse(\n"
-            . "                \$response,\n"
-            . "                \$operation,\n"
-            . "                \$errorTypes[\$response->status] ?? \$errorTypes['default'] ?? null,\n"
-            . "            );\n"
-            . "        }\n"
-            . "        if (\$responseType === null) {\n"
-            . "            return null;\n"
-            . "        }\n"
-            . "        if (\$noContentAllowed && \$response->body === '') {\n"
-            . "            return null;\n"
-            . "        }\n"
-            . "        return \\{$this->namespace}\\Support\\JsonHydrator::decode(\n"
-            . "            \$response->body,\n"
-            . "            \$responseType,\n"
-            . "            \$schemaNullable,\n"
-            . "        );\n"
-            . "    }\n\n";
     }
 
     private function header(string $namespace): string

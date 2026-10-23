@@ -80,8 +80,8 @@ final readonly class PhpOperationRequestEmitter
             $header = "<?php\n"
                 . "declare(strict_types=1);\n\n"
                 . "namespace {$this->namespace}\\Api\\Requests;\n\n";
-            $source = $header . 'final class ' . $name . ' extends \\' . $this->namespace
-                . "\\Core\\Request\n{\n"
+            $source = $header . 'final class ' . $name . ' extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE
+                . "\\Request\n{\n"
                 . '    public const array REQUIRED_FIELDS = ' . PhpLiteral::export($required) . ";\n\n"
                 . ($validation !== [] ? '    protected const array VALIDATION = '
                     . PhpLiteral::export($validation) . ";\n\n" : '')

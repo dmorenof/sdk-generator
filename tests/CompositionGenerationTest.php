@@ -116,10 +116,6 @@ final class CompositionGenerationTest extends TestCase
     {
         $files = self::generated();
         foreach ([
-            'src/Core/DTO.php',
-            'src/Core/TypedArray.php',
-            'src/Core/AnyOf.php',
-            'src/Core/OneOf.php',
             'src/DTOs/CardPayment.php',
             'src/DTOs/BankPayment.php',
             'src/DTOs/DuplicateCardPayment.php',
@@ -147,10 +143,9 @@ final class CompositionGenerationTest extends TestCase
     public function testCompositionSchemasNormalizeAndEmitDedicatedWrappers(): void
     {
         $files = self::generated();
-        self::assertArrayHasKey('src/Core/AnyOf.php', $files);
-        self::assertArrayHasKey('src/Core/OneOf.php', $files);
-        self::assertStringContainsString('extends \\Example\\CompositionSdk\\Core\\AnyOf', $files['src/DTOs/AnyOfPayment.php']);
-        self::assertStringContainsString('extends \\Example\\CompositionSdk\\Core\\OneOf', $files['src/DTOs/OneOfUniquePayment.php']);
+        self::assertArrayNotHasKey('src/Core/AnyOf.php', $files);
+        self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\AnyOf', $files['src/DTOs/AnyOfPayment.php']);
+        self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\OneOf', $files['src/DTOs/OneOfUniquePayment.php']);
         self::assertStringContainsString('\\Example\\CompositionSdk\\DTOs\\AnyOfPayment $payment', $files['src/DTOs/Invoice.php']);
         self::assertStringContainsString('public ?int $limit;', $files['src/DTOs/ScalarContainer.php']);
         self::assertStringContainsString("'limit' =>", $files['src/DTOs/ScalarContainer.php']);
@@ -224,7 +219,7 @@ final class CompositionGenerationTest extends TestCase
             'public ?\\Example\\CompositionSdk\\DTOs\\MarketAnalyticsApi\\Ranges\\IntRangeSchema3 $bathrooms_range;',
             $files['src/DTOs/RangeInput.php'],
         );
-        self::assertStringContainsString('final class IntRangeSchema3 extends \\Example\\CompositionSdk\\Core\\DTO', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
+        self::assertStringContainsString('final class IntRangeSchema3 extends \\Dmorenof\\SdkRuntime\\DTO', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
         self::assertStringContainsString('public ?int $min;', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
         self::assertStringContainsString('public ?int $max;', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
 

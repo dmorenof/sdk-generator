@@ -5,7 +5,7 @@
 
 **v0.1.0: early, usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
-The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections using [typedarray/typedarray](https://packagist.org/packages/typedarray/typedarray), executable operation methods, a default Guzzle 7 HTTP client with PSR-18 injection, and JSON response hydration. The generator is a **build-time tool**, not a dependency of the generated SDK.
+The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK.
 
 ## Quick start: generate Accounts SDK
 
@@ -83,7 +83,7 @@ $client = Client::connect(
 );
 ~~~
 
-Generated API methods are instance methods. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Core\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
+Generated API methods are instance methods. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
 
 ### Explore without PHP on your computer
 

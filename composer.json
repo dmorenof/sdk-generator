@@ -23,6 +23,13 @@
     "scripts": {
         "validate": "@composer validate --strict --no-check-lock"
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../sdk-runtime",
+            "options": {"symlink": false}
+        }
+    ],
     "keywords": [
         "sdk",
         "generator",
@@ -42,8 +49,8 @@
         "source": "https://github.com/dmorenof/sdk-generator"
     },
     "require-dev": {
+        "dmorenof/sdk-runtime": "@dev",
         "phpunit/phpunit": "^11.5",
-        "typedarray/typedarray": "^1.0",
         "guzzlehttp/guzzle": "^7.9",
         "psr/http-client": "^1.0"
     },

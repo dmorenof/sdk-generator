@@ -71,13 +71,13 @@ spl_autoload_register(static function (string $class) use ($argv): void {
     }
 });
 
-$fake = new class implements \Acme\PublicSdk\Transport\TransportInterface {
-    public function send(string $method, string $url, array $headers, ?string $body): \Acme\PublicSdk\Transport\HttpResponse
+$fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+    public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
     {
         if ($method !== 'GET' || $url !== 'https://api.example.test/v1/users/88?verbose=true') {
             throw new RuntimeException('Unexpected wire request: ' . $method . ' ' . $url);
         }
-        return new \Acme\PublicSdk\Transport\HttpResponse(
+        return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
             200,
             '{"id":88,"name":"Demo","role":"viewer","profile":{"city":"Bilbao","visits":2},"labels":["php"]}',
         );
