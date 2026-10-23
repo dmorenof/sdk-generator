@@ -17,6 +17,8 @@ Son medianas de tiempo de CPU (`getrusage`, usuario + sistema). El JSON también
 
 La salida pasa de 1.038 a 910 archivos PHP, y de 335 a 207 colecciones. Los totales incluyendo `composer.json` son 1.039 y 911. La reducción de archivos mide mantenimiento y volumen de código, no ahorro automático de memoria en una petición.
 
+> **Histórico.** Estas cifras corresponden a SDK que llevaban su propio `Core`. Desde que el runtime es el paquete compartido `dmorenof/sdk-runtime`, `compare-dto.php` compara versiones del runtime sobre un mismo SDK; el procedimiento vigente y las cifras actuales están en [RUNTIME_SPLIT.md](RUNTIME_SPLIT.md). El comando de abajo ya no es válido con esa firma.
+
 Para repetir la comparación con dos paquetes generados que utilicen el namespace `CasafariSDK`:
 
 ```sh
