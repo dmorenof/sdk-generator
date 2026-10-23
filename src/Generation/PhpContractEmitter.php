@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.1';
+    public const RUNTIME_CONSTRAINT = '^0.2';
 
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */

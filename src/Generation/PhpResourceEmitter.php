@@ -11,6 +11,17 @@ use InvalidArgumentException;
 /** Emits instance clients with inherited execution and typed resource methods. */
 final readonly class PhpResourceEmitter
 {
+    /** Must equal the runtime's ApiClient::OPERATION_DEFAULTS; a test enforces it. */
+    public const OPERATION_DEFAULTS = [
+        'security' => [],
+        'success' => [200],
+        'errors' => [],
+        'responseType' => null,
+        'schemaNullable' => false,
+        'noContentAllowed' => false,
+        'validation' => [],
+    ];
+
     /**
      * @param array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool}> $successTypes
      * @param array<string,array<string,string>> $errorTypes
@@ -165,8 +176,7 @@ final readonly class PhpResourceEmitter
             ),
         ));
         $metadata = [
-            'label' => strtoupper($operation->method) . ' ' . $operation->path,
-            'method' => $operation->method,
+            'method' => strtoupper($operation->method),
             'path' => $operation->path,
             'security' => $operation->securityRequirements,
             'success' => $successStatuses,
@@ -176,6 +186,11 @@ final readonly class PhpResourceEmitter
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $parameterValidations,
         ];
+        foreach (self::OPERATION_DEFAULTS as $key => $default) {
+            if ($metadata[$key] === $default) {
+                unset($metadata[$key]);
+            }
+        }
         $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
         $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
         $arguments = ['self::' . $constant];

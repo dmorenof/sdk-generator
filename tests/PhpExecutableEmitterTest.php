@@ -56,7 +56,8 @@ final class PhpExecutableEmitterTest extends TestCase
         $files = (new PhpExecutableEmitter())->emit($contract);
 
         self::assertStringContainsString("public function post(", $files['src/Api/Users.php']);
-        self::assertStringContainsString("'POST /users'", $files['src/Api/Users.php']);
+        self::assertStringContainsString("'method' => 'POST'", $files['src/Api/Users.php']);
+        self::assertStringContainsString("'path' => '/users'", $files['src/Api/Users.php']);
         self::assertStringNotContainsString("'operation-with-hyphens'", $files['src/Api/Users.php']);
         self::assertStringContainsString(
             'extends \\Generated\\Sdk\\Client',
