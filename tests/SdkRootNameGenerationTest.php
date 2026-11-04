@@ -54,6 +54,59 @@ final class SdkRootNameGenerationTest extends TestCase
         self::assertStringContainsString('self::client()->resource(', $files['src/RevenueApi.php']);
     }
 
+    public function testGeneratedApiClassAndNestedApiNamespaceCanCoexistAtRuntime(): void
+    {
+        $raw = json_decode((string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json'),
+            true, 512, JSON_THROW_ON_ERROR);
+        $raw['info']['title'] = 'Facturas Guays';
+        $post = $raw['paths']['/users']['post'];
+        $get = $raw['paths']['/users/{id}']['get'];
+        unset($get['parameters']);
+        $raw['paths'] = [
+            '/api/facturas' => ['post' => $post],
+            '/revenue/' => ['get' => $get],
+        ];
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpExecutableEmitter('Example\\FacturasRuntime', 'example/facturas-runtime'))->emit($contract);
+        $loader = static function (string $class) use ($files): void {
+            $prefix = 'Example\\FacturasRuntime\\';
+            if (!str_starts_with($class, $prefix)) {
+                return;
+            }
+            $path = 'src/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
+            if (isset($files[$path])) {
+                eval(substr($files[$path], strlen('<?php')));
+            }
+        };
+        spl_autoload_register($loader);
+        try {
+            $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+                public array $calls = [];
+                public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+                {
+                    $this->calls[] = [$method, $url, $body];
+                    return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
+                        $method === 'POST' ? 201 : 200,
+                        '{"id":88,"name":"Grace","role":"viewer","profile":{"city":"Madrid","visits":1},"labels":[]}',
+                    );
+                }
+            };
+            $config = new \Example\FacturasRuntime\Configuration();
+            $config->baseUrl = 'https://facturas.test';
+            $config->transport = $transport;
+            \Example\FacturasRuntime\FacturasGuaysSDK::configure($config);
+            $input = new \Example\FacturasRuntime\Requests\NewUser((object) ['name' => 'Grace']);
+            self::assertSame('Grace', \Example\FacturasRuntime\Api::postFacturas($input)->name);
+            self::assertSame('Grace', \Example\FacturasRuntime\RevenueApi::get()->name);
+            self::assertSame([
+                ['POST', 'https://facturas.test/api/facturas', '{"name":"Grace"}'],
+                ['GET', 'https://facturas.test/revenue/', null],
+            ], $transport->calls);
+        } finally {
+            spl_autoload_unregister($loader);
+        }
+    }
+
     public function testTransliterationOfQueryParametersKeepsWireNames(): void
     {
         $raw = json_decode((string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json'),
