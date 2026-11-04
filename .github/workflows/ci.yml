@@ -2,7 +2,7 @@ name: PHP package CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, 'release/0.2.0']
   push:
     branches: [main, 'release/**', 'feature/unified-dto-psr12-public-api']
     tags: ['v*']
