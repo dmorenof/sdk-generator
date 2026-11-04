@@ -56,6 +56,14 @@ These endpoints exist in the example **synthetic Accounts specification**, not i
 
 Generated route classes live under `Api`, follow the route hierarchy, and extend the shared `Client` base so request construction and transport handling are implemented once. Request-only schemas are in `Requests`, response-only schemas in `Responses`, and shared or otherwise neutral schemas in `DTOs`; enums and domain collections are nested under their owning schema. Equivalent collections share a type, including `Collections\StringCollection` and `Collections\IntegerCollection` when unconstrained. Schema names flattened with `__` become folders, retaining the provider and numbered variants; technical source folders are omitted by the documented [naming policy](docs/SDK_DESIGN.md). Referenced schemas keep their identity even when used by one field. HTTP errors identify the failing method and route (for example, `GET /users/{id}`), rather than exposing an arbitrary OpenAPI `operationId`.
 
+### Grouped API (new 0.2.0 development surface)
+
+The new preferred entry point groups operations by **literal URL route
+prefix**: `ApiV1`, `ApiV2`, `UsersApi`, etc. Methods are statically
+typed and named from the remaining verb and path, preserving wire parameter
+names (for example `UsersApi::getById(88)`). See [grouping design](docs/PUBLIC_API.md).
+The previous single `Api` facade below remains as a migration alias.
+
 ### Single static API (0.2.0 development)
 
 The new, simpler public interface uses one generated `Api`, with typed methods named from OpenAPI `operationId`, and a replaceable `Client::configure(Configuration)` connection:

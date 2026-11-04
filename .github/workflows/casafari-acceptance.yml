@@ -55,7 +55,32 @@ jobs:
             'Casafari\GeneratedSdk' \
             preview/casafari-generated-sdk
           find casafari-sdk/src -type f -name '*.php' -print0 | xargs -0 -r -P 8 -n1 php -l > /dev/null
-          grep -E '^[[:space:]]*public static function ' casafari-sdk/src/Api.php > casafari-sdk/API-METHODS.txt
+          {
+            for source in casafari-sdk/src/*Api*.php; do
+              [ -f "$source" ] || continue
+              case "$source" in */StaticClient.php|*/Api.php) continue ;; esac
+              echo "== $(basename "$source" .php) =="
+              grep -E '^[[:space:]]*public static function ' "$source" || true
+              echo
+            done
+          } > casafari-sdk/API-GROUPED-METHODS.txt
+          test "$(grep -c 'public static function ' casafari-sdk/API-GROUPED-METHODS.txt)" -eq 46
+          php -r '
+            require "vendor/autoload.php";
+            $src = "tests/fixtures/casafari-openapi31.json";
+            $contract = (new \Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer())->fromJson(file_get_contents($src));
+            $groups = \Dmorenof\SdkGenerator\Generation\PhpApiGroupingResolver::resolve($contract);
+            $lines = ["# Grouped Casafari operations", ""];
+            foreach ($groups as $class => $entries) {
+                $lines[] = "## " . $class . " (" . count($entries) . ")";
+                foreach ($entries as $entry) {
+                    $o = $entry["operation"];
+                    $lines[] = "- " . $class . "::" . $entry["method"] . "() — " . $o->method . " " . $o->path . " — " . $o->operationId;
+                }
+                $lines[] = "";
+            }
+            file_put_contents("casafari-sdk/API-GROUPS.md", implode("\n", $lines));
+          '
           cat > casafari-sdk/READ-FIRST.md <<'EOF'
           # Casafari generated SDK — 0.2.0 evaluation preview
 
@@ -70,7 +95,7 @@ jobs:
           (PHP 8.3+). Then import:
 
           ```php
-          use Casafari\GeneratedSdk\Api;
+          use Casafari\GeneratedSdk\ApiV1;
           use Casafari\GeneratedSdk\Client;
           use Casafari\GeneratedSdk\Configuration;
           use Dmorenof\SdkRuntime\Security\SecurityCredentials;
@@ -82,7 +107,8 @@ jobs:
           ]);
           Client::configure($configuration);
 
-          // All methods are on Api; see API-METHODS.txt for exact signatures.
+          // Example: ApiV1::getReferencesTypes();
+          // API-GROUPS.md lists every group and method.
           ```
 
           The contract declares both HTTPBearer and PlatformApiKey as
@@ -91,12 +117,14 @@ jobs:
 
           ## Evaluation points
 
-          - Open `src/Api.php` to see every public static operation.
-          - Open `API-METHODS.txt` for a searchable method signature index.
+          - Open `API-GROUPS.md` for the route-to-class-to-method mapping.
+          - Open `API-GROUPED-METHODS.txt` for typed signatures (46 operations).
+          - Open `src/ApiV1.php`, `src/ApiV2.php`, and other root *Api.php files.
+          - `src/Api.php` is a temporary legacy all-operations facade.
           - Inspect `src/DTOs`, `src/Requests`, and `src/Responses`;
             these models are not unified in this development snapshot.
-          - `operationId` is used verbatim when a legal PHP identifier;
-            names with double underscores remain awkward.
+          - Grouped API methods follow route suffixes, not operationId naming.
+          - Their docblocks retain the original operationId and HTTP route.
           - For simultaneous clients/concurrent long-lived workers,
             use independent instance clients rather than the static facade.
 
@@ -108,7 +136,7 @@ jobs:
       - name: Upload complete Casafari SDK preview (ZIP)
         uses: actions/upload-artifact@v7
         with:
-          name: casafari-sdk-020-evaluation
+          name: casafari-sdk-020-grouped-evaluation
           path: casafari-sdk/
           if-no-files-found: error
           retention-days: 30

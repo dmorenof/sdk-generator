@@ -26,6 +26,8 @@ final class PhpExecutableEmitter
     public function __construct(
         private readonly string $namespace = 'Generated\Sdk',
         private readonly string $packageName = 'example/generated-sdk',
+        /** @var array<string,string> Route prefix => generated class. */
+        private readonly array $apiGroups = [],
     ) {}
 
     /** @return array<string, string> */
@@ -58,6 +60,7 @@ final class PhpExecutableEmitter
                 $this->operationSuccessTypes,
                 $this->operationErrorTypes,
                 $this->modelNames,
+                $this->apiGroups,
             ))->emit($contract),
         );
         ksort($files, SORT_STRING);

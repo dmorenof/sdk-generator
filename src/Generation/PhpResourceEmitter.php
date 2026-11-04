@@ -32,6 +32,8 @@ final readonly class PhpResourceEmitter
         private array $successTypes,
         private array $errorTypes,
         private PhpModelNameResolver $modelNames,
+        /** @var array<string,string> */
+        private array $groupOverrides = [],
     ) {}
 
     /** @return array<string,string> */
@@ -44,6 +46,13 @@ final readonly class PhpResourceEmitter
             'src/Api.php' => $this->renderApi($contract, $resolved),
             'src/StaticClient.php' => $this->renderStaticConnector(),
         ];
+        foreach (PhpApiGroupingResolver::resolve($contract, $this->groupOverrides) as $class => $entries) {
+            $path = "src/$class.php";
+            if (isset($files[$path])) {
+                throw new InvalidArgumentException("Generated grouped API conflicts with $path.");
+            }
+            $files[$path] = $this->renderGroupedApi($class, $entries, $resolved);
+        }
         foreach ($resolved['nodes'] as $node) {
             if (strtolower($node['segments'][0]) === 'api' && count($node['segments']) > 1) {
                 array_shift($node['segments']);
@@ -169,6 +178,30 @@ PHP;
             $resourceClass = '\\' . $this->namespace . '\\Api\\' . implode('\\', $segments);
             $resourceMethod = $resolved['operationMethods'][$operation->operationId];
             $source .= $this->renderOperation($operation, $method, $resourceClass, $resourceMethod);
+        }
+        return $source . "}\n";
+    }
+
+    /**
+     * @param list<array{operation:OperationDefinition,method:string,prefix:string}> $entries
+     * @param array<string,mixed> $resolved
+     */
+    private function renderGroupedApi(string $class, array $entries, array $resolved): string
+    {
+        $source = $this->header($this->namespace) . "final class $class\n{\n";
+        foreach ($entries as $entry) {
+            $operation = $entry['operation'];
+            $nodeKey = $resolved['operationNodes'][$operation->operationId];
+            $segments = $resolved['nodes'][$nodeKey]['segments'];
+            if (strtolower($segments[0]) === 'api' && count($segments) > 1) {
+                array_shift($segments);
+            }
+            $resourceClass = '\\' . $this->namespace . '\\Api\\' . implode('\\', $segments);
+            $resourceMethod = $resolved['operationMethods'][$operation->operationId];
+            $label = str_replace(["\r", "\n", '*/'], [' ', ' ', '* /'],
+                $operation->method . ' ' . $operation->path . ' [operationId: ' . $operation->operationId . ']');
+            $source .= "    /** $label */\n";
+            $source .= $this->renderOperation($operation, $entry['method'], $resourceClass, $resourceMethod);
         }
         return $source . "}\n";
     }
