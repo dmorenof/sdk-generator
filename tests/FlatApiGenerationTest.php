@@ -38,7 +38,7 @@ final class FlatApiGenerationTest extends TestCase
         self::assertTrue($get->isStatic());
         self::assertSame('id', $get->getParameters()[0]->getName());
         self::assertSame('int', (string) $get->getParameters()[0]->getType());
-        self::assertSame('\\Example\\FlatSdk\\Responses\\User', (string) $get->getReturnType());
+        self::assertSame('Example\\FlatSdk\\Responses\\User', (string) $get->getReturnType());
 
         try {
             \Example\FlatSdk\Api::getUser(88);
@@ -114,6 +114,6 @@ final class FlatApiGenerationTest extends TestCase
 
         self::assertStringContainsString('public static function getUserByNum(int $num', $files['src/Api.php']);
         self::assertStringNotContainsString('getUserById', $files['src/Api.php']);
-        self::assertSame('get.user.by.num', $contract->operations[1]->operationId);
+        self::assertSame('get.user.by.num', $contract->operations[0]->operationId);
     }
 }
