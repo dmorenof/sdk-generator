@@ -7,6 +7,7 @@ on:
       - '.github/workflows/live-openapi-smoke.yml'
       - 'tests/live/**'
       - 'src/Generation/**'
+      - 'src/Parsing/**'
       - 'bin/generate-sdk.php'
   workflow_dispatch:
 

@@ -191,4 +191,25 @@ final class SpecificationNormalizerTest extends TestCase
         $this->expectExceptionMessage('Invalid specification JSON');
         $this->normalizer->fromJson('{"invalid":');
     }
+    public function testPrefersIdenticalJsonVariantOverOtherMediaTypes(): void
+    {
+        $raw = json_decode($this->fixture('accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+        $schema = $raw['paths']['/users/{id}']['get']['responses']['200']['content']['application/json']['schema'];
+        $raw['paths']['/users/{id}']['get']['responses']['200']['content'] = [
+            'text/plain; v=1.0' => ['schema' => $schema],
+            'application/json; v=1.0' => ['schema' => $schema],
+            'application/xml' => ['schema' => $schema],
+        ];
+        $contract = $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        self::assertSame('application/json; v=1.0', $contract->operations[1]->responses[0]->mediaType);
+        self::assertSame('User', $contract->operations[1]->responses[0]->schema->reference);
+
+        $raw['paths']['/users/{id}']['get']['responses']['200']['content']['application/json'] = [
+            'schema' => ['$ref' => '#/components/schemas/Profile'],
+        ];
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Conflicting JSON schemas across media types');
+        $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+    }
+
 }
