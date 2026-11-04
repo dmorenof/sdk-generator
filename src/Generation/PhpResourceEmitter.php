@@ -41,35 +41,32 @@ final readonly class PhpResourceEmitter
     /** @return array<string,string> */
     public function emit(ApiContract $contract): array
     {
-        $resolved = PhpResourceNameResolver::resolve($contract);
+        if ($this->groupOverrides !== []) {
+            throw new InvalidArgumentException(
+                'Grouped API overrides are obsolete: SDK namespaces now follow route segments.'
+            );
+        }
+        $resolved = PhpRouteNameResolver::resolve($contract);
+        $root = PhpApiNameResolver::sdkClassFromTitle($contract->title);
         $files = [
             'src/Client.php' => $this->renderConnector(),
             'src/Configuration.php' => $this->renderConfiguration($contract),
-            'src/' . PhpApiNameResolver::sdkClassFromTitle($contract->title) . '.php'
-                => $this->renderSdkRoot($contract),
-            'src/StaticClient.php' => $this->renderStaticConnector(),
+            "src/$root.php" => $this->renderSdkRoot($contract),
         ];
-        foreach (PhpApiGroupingResolver::resolve($contract, $this->groupOverrides) as $class => $entries) {
-            $path = "src/$class.php";
-            if (isset($files[$path]) || in_array(strtolower($class), ['client', 'configuration', 'staticclient'], true)
-                || strtolower($class) === strtolower(PhpApiNameResolver::sdkClassFromTitle($contract->title))) {
-                throw new InvalidArgumentException("Generated grouped API conflicts with $path.");
-            }
-            $files[$path] = $this->renderGroupedApi($class, $entries, $resolved, PhpApiNameResolver::sdkClassFromTitle($contract->title));
-        }
+        $paths = [];
         foreach ($resolved['nodes'] as $node) {
-            if (strtolower($node['segments'][0]) === 'api' && count($node['segments']) > 1) {
-                array_shift($node['segments']);
+            $segments = $node['segments'];
+            $resourcePath = 'src/Resources/' . implode('/', $segments) . '.php';
+            $facadePath = 'src/' . implode('/', $segments) . '.php';
+            $facadeKey = strtolower($facadePath);
+            if (isset($files[$facadePath]) || isset($paths[$facadeKey])) {
+                throw new InvalidArgumentException("API route conflicts with reserved class: $facadePath.");
             }
-            $path = 'src/Api/' . implode('/', array_slice($node['segments'], 0, -1))
-                . (count($node['segments']) > 1 ? '/' : '')
-                . end($node['segments']) . '.php';
-            $files[$path] = $this->renderResource($node, $resolved['operationMethods']);
-            $staticPath = 'src/StaticApi/' . implode('/', array_slice($node['segments'], 0, -1))
-                . (count($node['segments']) > 1 ? '/' : '')
-                . end($node['segments']) . '.php';
-            $files[$staticPath] = $this->renderStaticResource($node, $resolved['operationMethods']);
+            $paths[$facadeKey] = true;
+            $files[$resourcePath] = $this->renderResource($node, $resolved['operationMethods']);
+            $files[$facadePath] = $this->renderRouteFacade($node, $resolved['operationMethods'], $root);
         }
+        ksort($files, SORT_STRING);
         return $files;
     }
 
@@ -232,101 +229,48 @@ PHP;
     }
 
     /**
-     * @param list<array{operation:OperationDefinition,method:string,prefix:string}> $entries
-     * @param array<string,mixed> $resolved
-     */
-    private function renderGroupedApi(string $class, array $entries, array $resolved, string $root): string
-    {
-        $source = $this->header($this->namespace) . "final class $class extends $root\n{\n";
-        foreach ($entries as $entry) {
-            $operation = $entry['operation'];
-            $nodeKey = $resolved['operationNodes'][$operation->operationId];
-            $segments = $resolved['nodes'][$nodeKey]['segments'];
-            if (strtolower($segments[0]) === 'api' && count($segments) > 1) {
-                array_shift($segments);
-            }
-            $resourceClass = '\\' . $this->namespace . '\\Api\\' . implode('\\', $segments);
-            $resourceMethod = $resolved['operationMethods'][$operation->operationId];
-            $label = str_replace(["\r", "\n", '*/'], [' ', ' ', '* /'],
-                $operation->method . ' ' . $operation->path . ' [operationId: ' . $operation->operationId . ']');
-            $source .= "    /** $label */\n";
-            $source .= $this->renderOperation($operation, $entry['method'], $resourceClass, $resourceMethod, true);
-        }
-        return $source . "}\n";
-    }
-
-    /** The optional static facade shares one current connection per PHP execution scope. */
-    private function renderStaticConnector(): string
-    {
-        $body = <<<'PHP'
-final class StaticClient
-{
-    private static ?Client $connection = null;
-
-    /** @param array<string, string> $headers */
-    public static function connect(
-        string $baseUrl,
-        ?\Psr\Http\Client\ClientInterface $httpClient = null,
-        array $headers = [],
-        ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null,
-        ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null,
-    ): void {
-        self::configure(Client::connect($baseUrl, $httpClient, $headers, $securityCredentials, $transport));
-    }
-
-    public static function configure(Client $client): void
-    {
-        self::$connection = $client;
-    }
-
-    public static function client(): Client
-    {
-        return self::$connection ?? throw new \LogicException(
-            'Configure the SDK with StaticClient::connect() or StaticClient::configure() first.',
-        );
-    }
-}
-PHP;
-        return $this->header($this->namespace) . $body . "\n";
-    }
-
-    /**
-     * @param array{segments:list<string>,path:string,operations:list<OperationDefinition>} $node
+     * A route has exactly one public static facade that mirrors the URL.
+     * All HTTP behavior stays in the reusable instance resource / runtime.
+     *
+     * @param array{segments:list<string>,operations:list<OperationDefinition>} $node
      * @param array<string,string> $operationMethods
      */
-    private function renderStaticResource(array $node, array $operationMethods): string
+    private function renderRouteFacade(array $node, array $operationMethods, string $root): string
     {
         $segments = $node['segments'];
         $class = end($segments);
-        $parentSegments = array_slice($segments, 0, -1);
-        $namespace = $this->namespace . '\\StaticApi'
-            . ($parentSegments === [] ? '' : '\\' . implode('\\', $parentSegments));
-        $resourceClass = '\\' . $this->namespace . '\\Api\\' . implode('\\', $segments);
-        $source = $this->header($namespace) . "final class $class\n{\n";
+        $parent = array_slice($segments, 0, -1);
+        $namespace = $this->namespace . ($parent === [] ? '' : '\\' . implode('\\', $parent));
+        $resourceClass = '\\' . $this->namespace . '\\Resources\\' . implode('\\', $segments);
+        $source = $this->header($namespace) . "final class $class extends \\{$this->namespace}\\$root\n{\n";
         foreach ($node['operations'] as $operation) {
             $method = $operationMethods[$operation->operationId]
-                ?? throw new InvalidArgumentException("Missing resource method for $operation->operationId.");
-            $source .= $this->renderOperation($operation, $method, $resourceClass);
+                ?? throw new InvalidArgumentException("Missing route method: $operation->operationId");
+            $label = str_replace(["\r", "\n", '*/'], [' ', ' ', '* /'],
+                strtoupper($operation->method) . ' ' . $operation->path
+                    . ' [operationId: ' . $operation->operationId . ']');
+            $source .= "    /** $label */\n";
+            $source .= $this->renderOperation($operation, $method, $resourceClass, $method, true);
         }
         return $source . "}\n";
     }
 
     /**
-     * @param array{segments:list<string>,path:string,operations:list<OperationDefinition>} $node
+     * @param array{segments:list<string>,operations:list<OperationDefinition>} $node
      * @param array<string,string> $operationMethods
      */
     private function renderResource(array $node, array $operationMethods): string
     {
         $segments = $node['segments'];
         $class = end($segments);
-        $parentSegments = array_slice($segments, 0, -1);
-        $namespace = $this->namespace . '\\Api'
-            . ($parentSegments === [] ? '' : '\\' . implode('\\', $parentSegments));
+        $parent = array_slice($segments, 0, -1);
+        $namespace = $this->namespace . '\\Resources'
+            . ($parent === [] ? '' : '\\' . implode('\\', $parent));
         $source = $this->header($namespace)
             . "final class $class extends \\{$this->namespace}\\Client\n{\n";
         foreach ($node['operations'] as $operation) {
             $method = $operationMethods[$operation->operationId]
-                ?? throw new InvalidArgumentException("Missing resource method for $operation->operationId.");
+                ?? throw new InvalidArgumentException("Missing route method: $operation->operationId");
             $source .= $this->renderOperation($operation, $method);
         }
         return $source . "}\n";
@@ -345,9 +289,196 @@ PHP;
             $forward[] = '$' . $identifier['name'];
         }
         if ($payload !== null) {
-            $arguments[] = ($payload['required'] ? '' : '?') . $payload['type'] . ' $payload'
+            $parameterName = $payload['kind'] === 'dto' ? 'params' : 'payload';
+            $arguments[] = ($payload['required'] ? '' : '?') . $payload['type'] . ' 
+        $success = $this->successTypes[$operation->operationId]
+            ?? throw new InvalidArgumentException("Missing success response metadata at $operation->operationId");
+        $returnType = $success['type'] ?? 'void';
+        if ($success['nullable'] && $success['type'] !== null) {
+            $returnType = '?' . $returnType;
+        }
+        if ($resourceClass !== null) {
+            $connector = $grouped ? 'self::client()'
+                : ($resourceMethod === null ? 'StaticClient::client()' : 'Client::current()');
+            $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
+                . $resourceClass . '::class)->' . ($resourceMethod ?? $method)
+                . '(' . implode(', ', $forward) . ')';
+            return "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n"
+                . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
+                . "    }\n\n";
+        }
+
+        $validation = [];
+        foreach ($operation->parameters as $parameter) {
+            if ($parameter->location !== 'path') {
+                continue;
+            }
+            $resolved = PhpParameterTypeResolver::resolve(
+                $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
+            );
+            $rules = $parameter->schema->validation;
+            if ($resolved['enumValues'] !== []) {
+                $rules['enum'] = $resolved['enumValues'];
+            }
+            if ($rules !== []) {
+                $validation[$parameter->wireName] = $rules;
+            }
+        }
+        $successStatuses = array_values(array_map(
+            static fn ($response): int => (int) $response->status,
+            array_filter($operation->responses, static fn ($response): bool =>
+                preg_match('/^2[0-9]{2}$/', $response->status) === 1),
+        ));
+        $metadata = [
+            'method' => strtoupper($operation->method),
+            'path' => $operation->path,
+            'security' => $operation->securityRequirements,
+            'success' => $successStatuses,
+            'errors' => $this->errorTypes[$operation->operationId] ?? [],
+            'responseType' => $success['type'],
+            'schemaNullable' => $success['schemaNullable'],
+            'noContentAllowed' => $success['noContentAllowed'],
+            'validation' => $validation,
+        ];
+        foreach (self::OPERATION_DEFAULTS as $key => $default) {
+            if ($metadata[$key] === $default) {
+                unset($metadata[$key]);
+            }
+        }
+        $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
+        $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
+        if ($identifier === null && $payload === null) {
+            $call = '$this->executeOperation(self::' . $constant . ')';
+        } elseif ($identifier === null && $payload['kind'] === 'body') {
+            $call = '$this->executeOperation(self::' . $constant . ', body: $payload)';
+        } else {
+            $parts = ['self::' . $constant];
+            if ($identifier !== null) {
+                $parts[] = 'identifier: $' . $identifier['name'];
+                if ($identifier['kind'] === 'scalar') {
+                    $parts[] = 'identifierName: ' . var_export($identifier['wireName'], true);
+                }
+            }
+            if ($payload !== null) {
+                $parts[] = $payload['kind'] === 'body' ? 'body: $payload' : 'payload: $params';
+            }
+            $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
+        }
+        $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
+        $source .= $success['type'] === null
+            ? "        $call;\n        return;\n"
+            : "        /** @var $returnType \$result */\n        \$result = $call;\n        return \$result;\n";
+        return $source . "    }\n\n";
+    }
+
+    private function header(string $namespace): string
+    {
+        return "<?php\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace $namespace;\n\n";
+    }
+
+    private static function variableName(string $wireName): string
+    {
+        return PhpNameTransliterator::property($wireName);
+    }
+}
+ . $parameterName
                 . ($payload['required'] ? '' : ' = null');
-            $forward[] = '$payload';
+            $forward[] = '
+        $success = $this->successTypes[$operation->operationId]
+            ?? throw new InvalidArgumentException("Missing success response metadata at $operation->operationId");
+        $returnType = $success['type'] ?? 'void';
+        if ($success['nullable'] && $success['type'] !== null) {
+            $returnType = '?' . $returnType;
+        }
+        if ($resourceClass !== null) {
+            $connector = $grouped ? 'self::client()'
+                : ($resourceMethod === null ? 'StaticClient::client()' : 'Client::current()');
+            $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
+                . $resourceClass . '::class)->' . ($resourceMethod ?? $method)
+                . '(' . implode(', ', $forward) . ')';
+            return "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n"
+                . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
+                . "    }\n\n";
+        }
+
+        $validation = [];
+        foreach ($operation->parameters as $parameter) {
+            if ($parameter->location !== 'path') {
+                continue;
+            }
+            $resolved = PhpParameterTypeResolver::resolve(
+                $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
+            );
+            $rules = $parameter->schema->validation;
+            if ($resolved['enumValues'] !== []) {
+                $rules['enum'] = $resolved['enumValues'];
+            }
+            if ($rules !== []) {
+                $validation[$parameter->wireName] = $rules;
+            }
+        }
+        $successStatuses = array_values(array_map(
+            static fn ($response): int => (int) $response->status,
+            array_filter($operation->responses, static fn ($response): bool =>
+                preg_match('/^2[0-9]{2}$/', $response->status) === 1),
+        ));
+        $metadata = [
+            'method' => strtoupper($operation->method),
+            'path' => $operation->path,
+            'security' => $operation->securityRequirements,
+            'success' => $successStatuses,
+            'errors' => $this->errorTypes[$operation->operationId] ?? [],
+            'responseType' => $success['type'],
+            'schemaNullable' => $success['schemaNullable'],
+            'noContentAllowed' => $success['noContentAllowed'],
+            'validation' => $validation,
+        ];
+        foreach (self::OPERATION_DEFAULTS as $key => $default) {
+            if ($metadata[$key] === $default) {
+                unset($metadata[$key]);
+            }
+        }
+        $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
+        $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
+        if ($identifier === null && $payload === null) {
+            $call = '$this->executeOperation(self::' . $constant . ')';
+        } elseif ($identifier === null && $payload['kind'] === 'body') {
+            $call = '$this->executeOperation(self::' . $constant . ', body: $payload)';
+        } else {
+            $parts = ['self::' . $constant];
+            if ($identifier !== null) {
+                $parts[] = 'identifier: $' . $identifier['name'];
+                if ($identifier['kind'] === 'scalar') {
+                    $parts[] = 'identifierName: ' . var_export($identifier['wireName'], true);
+                }
+            }
+            if ($payload !== null) {
+                $parts[] = ($payload['kind'] === 'body' ? 'body: ' : 'payload: ') . '$payload';
+            }
+            $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
+        }
+        $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
+        $source .= $success['type'] === null
+            ? "        $call;\n        return;\n"
+            : "        /** @var $returnType \$result */\n        \$result = $call;\n        return \$result;\n";
+        return $source . "    }\n\n";
+    }
+
+    private function header(string $namespace): string
+    {
+        return "<?php\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace $namespace;\n\n";
+    }
+
+    private static function variableName(string $wireName): string
+    {
+        return PhpNameTransliterator::property($wireName);
+    }
+}
+ . $parameterName;
         }
         $success = $this->successTypes[$operation->operationId]
             ?? throw new InvalidArgumentException("Missing success response metadata at $operation->operationId");
