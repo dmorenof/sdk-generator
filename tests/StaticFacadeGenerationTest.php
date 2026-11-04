@@ -25,7 +25,7 @@ final class StaticFacadeGenerationTest extends TestCase
         foreach ([
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php', 'src/DTOs/Profile.php',
-            'src/Requests/NewUser.php', 'src/Responses/User.php',
+            'src/DTOs/NewUser.php', 'src/DTOs/User.php',
             'src/Client.php', 'src/Api/Users.php', 'src/Api/Users/User.php',
             'src/StaticClient.php', 'src/StaticApi/Users.php', 'src/StaticApi/Users/User.php',
         ] as $path) {
@@ -77,10 +77,10 @@ final class StaticFacadeGenerationTest extends TestCase
         \Example\StaticFacadeSdk\StaticClient::configure($client);
 
         $user = \Example\StaticFacadeSdk\StaticApi\Users\User::getById(88, false);
-        self::assertInstanceOf(\Example\StaticFacadeSdk\Responses\User::class, $user);
+        self::assertInstanceOf(\Example\StaticFacadeSdk\DTOs\User::class, $user);
         self::assertSame('Ada', $user->name);
         self::assertSame('Madrid', $user->profile->city);
-        $input = new \Example\StaticFacadeSdk\Requests\NewUser();
+        $input = new \Example\StaticFacadeSdk\DTOs\NewUser();
         $input->name = 'Grace';
         $created = \Example\StaticFacadeSdk\StaticApi\Users::post($input);
         self::assertSame('Ada', $created->name);

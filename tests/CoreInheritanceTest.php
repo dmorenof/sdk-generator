@@ -30,8 +30,8 @@ final class CoreInheritanceTest extends TestCase
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
-            'src/Requests/NewUser.php',
-            'src/Responses/User.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/User.php',
             'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
@@ -44,21 +44,21 @@ final class CoreInheritanceTest extends TestCase
     {
         $files = self::generated();
         self::assertArrayNotHasKey('src/Core/DTO.php', $files);
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Responses\User::class, \Dmorenof\SdkRuntime\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Requests\NewUser::class, \Dmorenof\SdkRuntime\Request::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Responses\User::class, \Dmorenof\SdkRuntime\Response::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\User::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\NewUser::class, \Dmorenof\SdkRuntime\Request::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\User::class, \Dmorenof\SdkRuntime\Response::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\Profile::class, \Dmorenof\SdkRuntime\DTO::class));
         self::assertTrue(is_subclass_of(\Dmorenof\SdkRuntime\Request::class, \Dmorenof\SdkRuntime\DTO::class));
         self::assertTrue(is_subclass_of(\Dmorenof\SdkRuntime\Response::class, \Dmorenof\SdkRuntime\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\StringCollection::class, \Dmorenof\SdkRuntime\TypedArray::class));
         self::assertSame('string', (new \Example\InheritanceSdk\Collections\StringCollection())->getExpectedType());
-        $property = (new \ReflectionClass(\Example\InheritanceSdk\Responses\User::class))->getProperty('profile');
+        $property = (new \ReflectionClass(\Example\InheritanceSdk\DTOs\User::class))->getProperty('profile');
         self::assertSame(\Example\InheritanceSdk\DTOs\Profile::class, $property->getType()->getName());
     }
 
     public function testConstructorRecursivelyHydratesModelsEnumsAndCollections(): void
     {
-        $user = new \Example\InheritanceSdk\Responses\User(json_decode(
+        $user = new \Example\InheritanceSdk\DTOs\User(json_decode(
             '{"id":27,"name":"Ada","profile":{"city":"Madrid","visits":3},"role":"admin","labels":["php","sdk"]}',
             false,
             512,
@@ -81,7 +81,7 @@ final class CoreInheritanceTest extends TestCase
     {
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Invalid scalar value');
-        new \Example\InheritanceSdk\Responses\User((object) ['id' => 'not-an-integer', 'name' => 'Ada']);
+        new \Example\InheritanceSdk\DTOs\User((object) ['id' => 'not-an-integer', 'name' => 'Ada']);
     }
 
     public function testConstructorRejectsUnknownFields(): void
@@ -115,7 +115,7 @@ final class CoreInheritanceTest extends TestCase
         };
         $client = \Example\InheritanceSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
-            $client->resource(\Example\InheritanceSdk\Api\Users::class)->post(new \Example\InheritanceSdk\Requests\NewUser());
+            $client->resource(\Example\InheritanceSdk\Api\Users::class)->post(new \Example\InheritanceSdk\DTOs\NewUser());
             self::fail('Missing required field was transmitted');
         } catch (\UnexpectedValueException $e) {
             self::assertStringContainsString('Required JSON property', $e->getMessage());
@@ -173,7 +173,7 @@ final class CoreInheritanceTest extends TestCase
 
     public function testTypedFieldRejectsUnrelatedClass(): void
     {
-        $user = new \Example\InheritanceSdk\Responses\User();
+        $user = new \Example\InheritanceSdk\DTOs\User();
         $this->expectException(\TypeError::class);
         $user->profile = new \stdClass();
     }

@@ -36,8 +36,8 @@ final class MixedOperationRequestTest extends TestCase
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
-            'src/Requests/NewUser.php',
-            'src/Responses/User.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/User.php',
             'src/Client.php',
             'src/Api/Groups/ByGroup/Users.php',
         ] as $file) {
@@ -62,7 +62,7 @@ final class MixedOperationRequestTest extends TestCase
         };
 
         $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
-        $body = new \Example\MixedSdk\Requests\NewUser((object) ['name' => 'Ada', 'role' => 'viewer']);
+        $body = new \Example\MixedSdk\DTOs\NewUser((object) ['name' => 'Ada', 'role' => 'viewer']);
 
         $result = $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup('my group', $body, false);
         self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $result);
@@ -90,7 +90,7 @@ final class MixedOperationRequestTest extends TestCase
         $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
             $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup(
-                body: new \Example\MixedSdk\Requests\NewUser((object) ['name' => 'Ada']),
+                body: new \Example\MixedSdk\DTOs\NewUser((object) ['name' => 'Ada']),
             );
             self::fail('Missing group was sent');
         } catch (\ArgumentCountError) {

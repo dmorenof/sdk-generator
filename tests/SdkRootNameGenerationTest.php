@@ -95,7 +95,7 @@ final class SdkRootNameGenerationTest extends TestCase
             $config->baseUrl = 'https://facturas.test';
             $config->transport = $transport;
             \Example\FacturasRuntime\FacturasGuaysSDK::configure($config);
-            $input = new \Example\FacturasRuntime\Requests\NewUser((object) ['name' => 'Grace']);
+            $input = new \Example\FacturasRuntime\DTOs\NewUser((object) ['name' => 'Grace']);
             self::assertSame('Grace', \Example\FacturasRuntime\Api::postFacturas($input)->name);
             self::assertSame('Grace', \Example\FacturasRuntime\RevenueApi::get()->name);
             self::assertSame([

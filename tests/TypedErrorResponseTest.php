@@ -41,8 +41,8 @@ final class TypedErrorResponseTest extends TestCase
         foreach ([
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
-            'src/Responses/ApiError.php', 'src/DTOs/Profile.php',
-            'src/Requests/NewUser.php', 'src/Responses/User.php',
+            'src/DTOs/ApiError.php', 'src/DTOs/Profile.php',
+            'src/DTOs/NewUser.php', 'src/DTOs/User.php',
             'src/Client.php', 'src/Api/Users/User.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);
@@ -79,7 +79,7 @@ final class TypedErrorResponseTest extends TestCase
             self::assertSame(404, $e->response->status);
             self::assertSame($payload, $e->response->body);
             self::assertSame('test-123', $e->response->headers['X-Correlation-ID']);
-            self::assertInstanceOf(\Example\ErrorSdk\Responses\ApiError::class, $e->error);
+            self::assertInstanceOf(\Example\ErrorSdk\DTOs\ApiError::class, $e->error);
             self::assertSame('Missing user', $e->error->message);
             self::assertSame(4041, $e->error->code);
             self::assertNull($e->getPrevious());
@@ -94,7 +94,7 @@ final class TypedErrorResponseTest extends TestCase
             self::fail('Expected HTTP exception');
         } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame(503, $e->response->status);
-            self::assertInstanceOf(\Example\ErrorSdk\Responses\ApiError::class, $e->error);
+            self::assertInstanceOf(\Example\ErrorSdk\DTOs\ApiError::class, $e->error);
             self::assertSame(503, $e->error->code);
         }
     }
