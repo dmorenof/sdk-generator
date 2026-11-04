@@ -67,6 +67,23 @@ try {
         }
     }
 
+    // Formatting is a build-time concern. Generated packages stay tiny and
+    // do not depend on PHP-CS-Fixer. Use the same PSR-12 rules as the project.
+    $fixerClass = new ReflectionClass(\PhpCsFixer\Config::class);
+    $fixerRoot = dirname((string) $fixerClass->getFileName(), 2);
+    $fixerBinary = $fixerRoot . '/php-cs-fixer';
+    if (!is_file($fixerBinary)) {
+        throw new RuntimeException('PHP-CS-Fixer executable is missing from the generator dependencies.');
+    }
+    $command = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($fixerBinary)
+        . ' fix ' . escapeshellarg(rtrim($output, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'src')
+        . ' --rules=' . escapeshellarg('@PSR12')
+        . ' --using-cache=no --show-progress=none --quiet 2>&1';
+    exec($command, $formatterOutput, $formatterCode);
+    if ($formatterCode !== 0) {
+        throw new RuntimeException("PSR-12 formatter failed:\n" . implode("\n", $formatterOutput));
+    }
+
     fwrite(STDOUT, "Generated " . count($files) . " files in $output\n");
     fwrite(STDOUT, "Source: " . $input . "\n");
     fwrite(STDOUT, "Generated SDK uses Guzzle 7 by default (PSR-18); a custom client or transport can be injected.\n");

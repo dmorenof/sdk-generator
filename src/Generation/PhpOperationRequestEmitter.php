@@ -243,7 +243,7 @@ final readonly class PhpOperationRequestEmitter
         $source = "<?php\n"
             . "declare(strict_types=1);\n\n"
             . "namespace $namespace;\n\n"
-            . "final class $class extends \\Dmorenof\\SdkRuntime\\Request\n{\n"
+            . "final class $class extends \\Dmorenof\\SdkRuntime\\DTO\n{\n"
             . '    public const array REQUIRED_FIELDS = ' . PhpLiteral::export($required) . ";\n"
             . '    public const array OPERATION_FIELDS = ' . PhpLiteral::export($locations) . ";\n\n";
         if ($propertyMap !== []) {

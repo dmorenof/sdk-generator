@@ -161,50 +161,16 @@ final class PhpContractEmitter
     }
 
     /**
-     * Infer roles from references reachable in operation request/response schemas.
-     * Models used both for input and output retain a neutral DTO type.
-     * Unreferenced nested models retain neutral DTO semantics.
+     * Schema identities must remain reusable independent of input/output
+     * position. Request and response modes belong to the runtime operation.
      *
-     * @return array<string, 'DTO'|'Request'|'Response'>
+     * @return array<string, 'DTO'>
      */
     public static function modelRolesFor(ApiContract $contract): array
     {
-        $uses = [];
-        $collectReferences = function (SchemaDefinition $schema, string $role) use (&$collectReferences, &$uses): void {
-            if ($schema->kind === SchemaKind::Reference && $schema->reference !== null) {
-                $uses[$schema->reference][$role] = true;
-            }
-            if ($schema->items !== null) {
-                $collectReferences($schema->items, $role);
-            }
-            foreach ($schema->properties as $property) {
-                $collectReferences($property->schema, $role);
-            }
-            if ($schema->additionalProperties instanceof SchemaDefinition) {
-                $collectReferences($schema->additionalProperties, $role);
-            }
-            foreach ($schema->branches as $branch) {
-                $collectReferences($branch, $role);
-            }
-        };
-        foreach ($contract->operations as $operation) {
-            $request = $operation->requestBody?->schema;
-            if ($request !== null) {
-                $collectReferences($request, 'request');
-            }
-            foreach ($operation->responses as $response) {
-                $schema = $response->schema;
-                if ($schema !== null) {
-                    $collectReferences($schema, 'response');
-                }
-            }
-        }
         $roles = [];
         foreach ($contract->models as $model) {
-            $request = $uses[$model->name]['request'] ?? false;
-            $response = $uses[$model->name]['response'] ?? false;
-            $roles[$model->name] = $request && !$response ? 'Request'
-                : ($response && !$request ? 'Response' : 'DTO');
+            $roles[$model->name] = 'DTO';
         }
         return $roles;
     }
@@ -310,7 +276,7 @@ final class PhpContractEmitter
         $class = substr($fqcn, strrpos($fqcn, '\\') + 1);
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
         $source = $this->header($namespace)
-            . 'final class ' . $class . ' extends \\' . self::RUNTIME_NAMESPACE . '\\' . $baseClass . "\n{\n"
+            . 'final class ' . $class . ' extends \\' . self::RUNTIME_NAMESPACE . "\\DTO\n{\n"
             . "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n";
         if ($propertyMap !== []) {
             $source .= "    protected const array PROPERTY_MAP = " . PhpLiteral::export($propertyMap) . ";\n"
@@ -392,7 +358,13 @@ final class PhpContractEmitter
 
     private static function categoryForBaseClass(string $baseClass): string
     {
-        return 'DTOs';
+        // Inline operation envelopes have their own identity. Reusable named
+        // schemas always remain in DTOs irrespective of request/response usage.
+        return match ($baseClass) {
+            'Request' => 'Requests',
+            'Response' => 'Responses',
+            default => 'DTOs',
+        };
     }
 
     private static function nameCategoryForBaseClass(string $baseClass): string

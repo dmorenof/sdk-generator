@@ -5,6 +5,7 @@
     "license": "MIT",
     "require": {
         "ext-intl": "*",
+        "friendsofphp/php-cs-fixer": "^3.95",
         "php": "^8.3",
         "symfony/yaml": "^7.2"
     },
