@@ -101,3 +101,32 @@ is conservative; if a stable family prefix cannot be established, the
 original normalized name remains the leaf class. Distinct schema identities
 are never merged, and normalized path collisions fail explicitly.
 
+
+## Argument conventions (0.2.0)
+
+Public operations have **at most two arguments**: an identifier derived from
+path placeholders and an optional/required \`$payload\` DTO for everything else.
+
+| Input shape | Generated signature |
+| --- | --- |
+| No inputs | \`get()\` |
+| Only body schema | \`post(MySchema $payload)\` |
+| One path placeholder | \`getById(int $id)\` |
+| One placeholder and query | \`getById(int $id, ?GetPayload $payload = null)\` |
+| Placeholder and body | \`putById(int $id, MySchema $payload)\` |
+| Query/header without placeholder | \`get(?GetPayload $payload = null)\` |
+| Multiple path placeholders | \`get(GetIdentifier $identifier, ?GetPayload $payload = null)\` |
+
+- The path identifier is always typed according to the OpenAPI parameter.
+  Multiple placeholders are grouped into a small identifier DTO, so the
+  signature never grows past two arguments.
+- A body-only request reuses its original referenced schema type and hierarchy.
+  A new payload DTO is generated only when query/header filters coexist with
+  a body or when query/header data needs representing.
+- Payload DTO properties keep the wire names in explicit metadata; optional
+  uninitialized properties are omitted. Required fields and validation rules
+  are enforced by the shared \`sdk-runtime\` DTO implementation.
+- The generated \`Client\` maps a public identifier and DTO payload into
+  \`executeOperation\`. The HTTP pipeline, security, transport, exceptions
+  and response hydration remain in the separate \`sdk-runtime\` package.
+
