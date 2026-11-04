@@ -37,11 +37,11 @@ final class PhpContractEmitterTest extends TestCase
             'src/Api/Operations.php',
             'src/Api/Requests/GetUserRequest.php',
             'src/Collections/StringCollection.php',
+            'src/DTOs/NewUser.php',
             'src/DTOs/Profile.php',
+            'src/DTOs/User.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
-            'src/DTOs/NewUser.php',
-            'src/DTOs/User.php',
         ], array_keys($swagger));
     }
 
