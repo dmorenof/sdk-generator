@@ -75,7 +75,7 @@ final readonly class PhpResourceEmitter
             . "}\n";
     }
 
-    /** One configured client per isolated execution context, never per tenant in workers. */
+    /** The optional static facade is only safe in a single-account execution context. */
     private function renderStaticConnector(): string
     {
         $body = <<<'PHP'
@@ -213,94 +213,7 @@ PHP;
         }
         if ($resourceClass !== null) {
             $forwardArgs = implode(', ', array_map(
-                static fn (array $parameter): string => '        $pathParameters = [];
-        $queryParameters = [];
-        $headerParameters = [];
-        $parameterValidations = [];
-        $body = 'null';
-        foreach ($parameters as $parameter) {
-            $name = '$' . $parameter['name'];
-            if ($parameter['validation'] !== []) {
-                $parameterValidations[$parameter['wireName']] = $parameter['validation'];
-            }
-            if ($parameter['location'] === 'path') {
-                $pathParameters[$parameter['wireName']] = $name;
-            } elseif ($parameter['location'] === 'query') {
-                $queryParameters[$parameter['wireName']] = $name;
-            } elseif ($parameter['location'] === 'header') {
-                $headerParameters[$parameter['wireName']] = $name;
-            } elseif ($parameter['location'] === 'body') {
-                $body = $name;
-            }
-        }
-        $pathParameters = self::formatParameterMap($pathParameters);
-        $queryParameters = self::formatParameterMap($queryParameters);
-        $headerParameters = self::formatParameterMap($headerParameters);
-        $successStatuses = array_values(array_map(
-            static fn ($response): int => (int) $response->status,
-            array_filter(
-                $operation->responses,
-                static fn ($response): bool => preg_match('/^2[0-9]{2}$/', $response->status) === 1,
-            ),
-        ));
-        $metadata = [
-            'method' => strtoupper($operation->method),
-            'path' => $operation->path,
-            'security' => $operation->securityRequirements,
-            'success' => $successStatuses,
-            'errors' => $this->errorTypes[$operation->operationId] ?? [],
-            'responseType' => $success['type'],
-            'schemaNullable' => $success['schemaNullable'],
-            'noContentAllowed' => $success['noContentAllowed'],
-            'validation' => $parameterValidations,
-        ];
-        foreach (self::OPERATION_DEFAULTS as $key => $default) {
-            if ($metadata[$key] === $default) {
-                unset($metadata[$key]);
-            }
-        }
-        $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
-        $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
-        $arguments = ['self::' . $constant];
-        if ($pathParameters !== '[]') { $arguments[] = 'pathParameters: ' . $pathParameters; }
-        if ($queryParameters !== '[]') { $arguments[] = 'queryParameters: ' . $queryParameters; }
-        if ($headerParameters !== '[]') { $arguments[] = 'headerParameters: ' . $headerParameters; }
-        if ($body !== 'null') { $arguments[] = 'body: ' . $body; }
-        $call = '$this->executeOperation(' . implode(', ', $arguments) . ')';
-        $source .= "    public function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n";
-        $source .= $success['type'] === null
-            ? "        $call;\n        return;\n"
-            : "        /** @var $returnType \$result */\n        \$result = $call;\n        return \$result;\n";
-        return $source . "    }\n\n";
-    }
-
-    /** @param array<string,string> $parameters */
-    private static function formatParameterMap(array $parameters): string
-    {
-        $entries = [];
-        foreach ($parameters as $wireName => $variable) {
-            $entries[] = var_export($wireName, true) . ' => ' . $variable;
-        }
-        return '[' . implode(', ', $entries) . ']';
-    }
-
-    private function header(string $namespace): string
-    {
-        return "<?php\n"
-            . "declare(strict_types=1);\n\n"
-            . "namespace $namespace;\n\n";
-    }
-
-    private static function variableName(string $wireName): string
-    {
-        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $wireName) === 1) {
-            return $wireName;
-        }
-        $name = lcfirst(PhpResourceNameResolver::pascal($wireName));
-        return $name;
-    }
-}
- . $parameter['name'],
+                static fn (array $parameter): string => '$' . $parameter['name'],
                 $parameters,
             ));
             $call = '\\' . $this->namespace . '\\StaticClient::client()->resource('
