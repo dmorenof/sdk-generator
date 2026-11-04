@@ -68,7 +68,7 @@ final class SdkRootNameGenerationTest extends TestCase
         $files = (new PhpExecutableEmitter('Example\\UnicodeQuery', 'example/unicode-query'))->emit($contract);
         self::assertStringContainsString('?string $codigo = null', $files['src/UsersApi.php']);
         self::assertStringContainsString("'código' => 'codigo'", $files['src/Api/Requests/GetUserRequest.php']);
-        self::assertStringContainsString("'código' => $codigo", $files['src/Api/Users/User.php']);
+        self::assertStringContainsString("'código' => \$codigo", $files['src/Api/Users/User.php']);
     }
 
     public function testTransliterationOfSchemaPropertiesAndRoutesKeepsWireNames(): void
