@@ -29,7 +29,10 @@ final class PhpNameTransliterator
         $latin = self::latin($source);
         $words = preg_split('/[^A-Za-z0-9]+/', $latin, -1, PREG_SPLIT_NO_EMPTY);
         if ($words === false || $words === []) {
-            throw new InvalidArgumentException("Cannot derive PHP $context from: $source");
+            $message = $context === 'schema segment'
+                ? "Invalid PHP schema namespace or class segment: $source"
+                : "Cannot derive PHP $context from: $source";
+            throw new InvalidArgumentException($message);
         }
         $name = implode('', array_map('ucfirst', $words));
         if (preg_match('/^[A-Za-z_]/', $name) !== 1) {
