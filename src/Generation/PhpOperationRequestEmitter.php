@@ -19,6 +19,8 @@ final readonly class PhpOperationRequestEmitter
     public function __construct(
         private string $namespace,
         private ?PhpModelNameResolver $modelNames = null,
+        /** @var array<string,string> */
+        private array $bodyTypes = [],
     ) {}
 
     /** @return array<string,string> */
@@ -123,15 +125,12 @@ final readonly class PhpOperationRequestEmitter
                 ];
             } elseif ($operation->requestBody !== null) {
                 $body = $operation->requestBody;
-                if ($body->schema->kind !== SchemaKind::Reference
-                    || $body->schema->nullable || $body->schema->reference === null) {
-                    throw new InvalidArgumentException(
-                        "Unsupported request body at $operation->operationId"
-                    );
-                }
                 $payload = [
                     'kind' => 'body',
-                    'type' => $names->fqcn($body->schema->reference),
+                    'type' => $this->bodyTypes[$operation->operationId]
+                        ?? throw new InvalidArgumentException(
+                            "Request body has no generated type at $operation->operationId"
+                        ),
                     'required' => $body->required,
                 ];
             }
@@ -229,12 +228,11 @@ final readonly class PhpOperationRequestEmitter
         }
         if ($includeBody && $operation->requestBody !== null) {
             $body = $operation->requestBody;
-            if ($body->schema->kind !== SchemaKind::Reference
-                || $body->schema->nullable || $body->schema->reference === null) {
-                throw new InvalidArgumentException("Unsupported operation Request body at $operation->operationId");
-            }
-            $type = ($this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models))
-                ->fqcn($body->schema->reference);
+            $type = $this->bodyTypes[$operation->operationId]
+                ?? ($body->schema->kind === SchemaKind::Reference && $body->schema->reference !== null
+                    ? ($this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models))
+                        ->fqcn($body->schema->reference)
+                    : throw new InvalidArgumentException("Missing inline request body type at $operation->operationId"));
             $fields[] = '    public ' . ($body->required ? '' : '?') . $type . ' $body;';
             if ($body->required) {
                 $required[] = 'body';

@@ -43,8 +43,9 @@ final class PhpExecutableEmitter
         );
         $this->operationSuccessTypes = $contractEmitter->operationSuccessTypes();
         $this->operationErrorTypes = $contractEmitter->operationErrorTypes();
-        $requests = (new PhpOperationRequestEmitter($this->namespace, $this->modelNames))
-            ->emitExecutable($contract);
+        $requests = (new PhpOperationRequestEmitter(
+            $this->namespace, $this->modelNames, $contractEmitter->operationBodyTypes(),
+        ))->emitExecutable($contract);
         foreach ($requests['files'] as $path => $_source) {
             if (isset($files[$path])) {
                 throw new \InvalidArgumentException("Operation Request conflicts with schema DTO: $path");

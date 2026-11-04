@@ -35,6 +35,8 @@ final class PhpContractEmitter
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, string>> */
     private array $operationErrorTypes = [];
+    /** @var array<string,string> Operation ID => fully-qualified request body DTO. */
+    private array $operationBodyTypes = [];
     /** @var array<string, string> Collection item type and rules => generated FQCN. */
     private array $collectionTypes = [];
     private const IDENTIFIER = '/^[A-Za-z_][A-Za-z0-9_]*$/D';
@@ -75,6 +77,7 @@ final class PhpContractEmitter
         $this->modelDefinitions = [];
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
+        $this->operationBodyTypes = [];
         $this->collectionTypes = [];
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
@@ -125,8 +128,9 @@ final class PhpContractEmitter
             }
         }
 
-        $files = array_replace($files, (new PhpOperationRequestEmitter($this->namespace, $this->modelNames))->emit($contract));
         $files['src/Api/Operations.php'] = $this->renderOperations($contract, $files);
+        $files = array_replace($files,
+            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes))->emit($contract));
         $files['src/Api/OperationCatalog.php'] = $this->renderCatalog($contract);
         $manifest = [
             'name' => $this->packageName,
@@ -159,6 +163,12 @@ final class PhpContractEmitter
     {
         return $this->operationErrorTypes;
     }
+    /** @return array<string,string> */
+    public function operationBodyTypes(): array
+    {
+        return $this->operationBodyTypes;
+    }
+
 
     /**
      * Schema identities must remain reusable independent of input/output
@@ -699,6 +709,9 @@ final class PhpContractEmitter
         $methods = [];
         $seen = [];
         foreach ($contract->operations as $operation) {
+            if ($operation->requestBody !== null) {
+                $this->operationBodyTypes[$operation->operationId] = $this->requestBodyType($operation, $files);
+            }
             $methodName = PhpOperationNameResolver::resolve($operation->operationId);
             if (isset($seen[strtolower($methodName)])) {
                 throw new InvalidArgumentException("Duplicate PHP operation name: $operation->operationId");
@@ -717,7 +730,7 @@ final class PhpContractEmitter
                 // A body-only model already extends Core\Request.
                 $methodArgs[] = [
                     'body',
-                    $this->bodyType($operation->requestBody->schema, $operation->operationId),
+                    $this->operationBodyTypes[$operation->operationId],
                     $operation->requestBody->required,
                 ];
             }
@@ -773,6 +786,37 @@ final class PhpContractEmitter
             SchemaKind::Boolean => 'bool',
             default => throw new InvalidArgumentException("Unsupported complex parameter schema at $where"),
         };
+    }
+
+    /** @param array<string,string> $files */
+    private function requestBodyType(OperationDefinition $operation, array &$files): string
+    {
+        $body = $operation->requestBody;
+        if ($body === null) {
+            throw new InvalidArgumentException("Request body is absent at $operation->operationId");
+        }
+        if ($body->schema->kind === SchemaKind::Reference) {
+            return $this->bodyType($body->schema, $operation->operationId);
+        }
+        if ($body->schema->kind !== SchemaKind::Object) {
+            throw new InvalidArgumentException(
+                "Unsupported inline request body at $operation->operationId: expected JSON object."
+            );
+        }
+        $segments = [];
+        foreach (explode('/', trim($operation->path, '/')) as $part) {
+            $segments[] = preg_match('/^\{([^{}]+)\}$/D', $part, $match) === 1
+                ? 'By' . PhpResourceNameResolver::pascal($match[1])
+                : PhpResourceNameResolver::pascal($part);
+        }
+        $verb = ucfirst(strtolower($operation->method));
+        return $this->inlineObjectType(
+            $body->schema,
+            implode('.', [...$segments, $verb]),
+            $files,
+            'Request',
+            $verb,
+        );
     }
 
     private function bodyType(SchemaDefinition $schema, string $where): string
@@ -837,6 +881,20 @@ final class PhpContractEmitter
             return $this->reference($schema);
         }
         if ($schema->kind === SchemaKind::Object) {
+            // A response is an operation-owned envelope, not a reusable schema.
+            // /api/v1/user POST -> Responses\Api\V1\User\Post.
+            $segments = explode('.', $hint);
+            if (count($segments) >= 2 && end($segments) === 'Response') {
+                array_pop($segments);
+                $verb = (string) end($segments);
+                return $this->inlineObjectType(
+                    $schema,
+                    implode('.', $segments),
+                    $files,
+                    'Response',
+                    $verb,
+                );
+            }
             return $this->inlineObjectType($schema, $hint, $files, 'Response');
         }
         if ($schema->kind === SchemaKind::AllOf) {
