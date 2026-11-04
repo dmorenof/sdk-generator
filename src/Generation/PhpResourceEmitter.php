@@ -40,6 +40,8 @@ final readonly class PhpResourceEmitter
         $resolved = PhpResourceNameResolver::resolve($contract);
         $files = [
             'src/Client.php' => $this->renderConnector(),
+            'src/Configuration.php' => $this->renderConfiguration($contract),
+            'src/Api.php' => $this->renderApi($contract, $resolved),
             'src/StaticClient.php' => $this->renderStaticConnector(),
         ];
         foreach ($resolved['nodes'] as $node) {
@@ -69,10 +71,120 @@ final readonly class PhpResourceEmitter
                 'parameterName' => $scheme->parameterName,
             ];
         }
+        $methods = <<<'PHP'
+
+    private static ?self $currentConnection = null;
+
+    /** Replace the current connection using a snapshot of the configuration. */
+    public static function configure(Configuration $configuration): void
+    {
+        if ($configuration->baseUrl === '') {
+            throw new \InvalidArgumentException('Configuration::baseUrl must not be empty.');
+        }
+
+        $client = self::connect(
+            $configuration->baseUrl,
+            $configuration->httpClient,
+            $configuration->headers,
+            $configuration->securityCredentials,
+            $configuration->transport,
+        );
+        foreach ($configuration->middleware as $middleware) {
+            $client->withMiddleware($middleware);
+        }
+        self::$currentConnection = $client;
+    }
+
+    public static function current(): self
+    {
+        return self::$currentConnection ?? throw new \LogicException(
+            'Configure the SDK with Client::configure(Configuration) first.',
+        );
+    }
+PHP;
+
         return $this->header($this->namespace)
             . 'class Client extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE . "\\ApiClient\n{\n"
             . '    protected const array SECURITY_SCHEMES = ' . PhpLiteral::export($schemes) . ";\n"
-            . "}\n";
+            . $methods . "\n}\n";
+    }
+
+    private function renderConfiguration(ApiContract $contract): string
+    {
+        $baseUrl = PhpLiteral::export($contract->servers[0] ?? '');
+        $body = <<<'PHP'
+    public ?\Psr\Http\Client\ClientInterface $httpClient = null;
+
+    /** @var array<string, string> */
+    public array $headers = [];
+
+    public ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null;
+    public ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null;
+
+    /** @var list<\Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface> */
+    public array $middleware = [];
+PHP;
+
+        return $this->header($this->namespace)
+            . "final class Configuration\n{\n"
+            . "    public string \$baseUrl = $baseUrl;\n\n"
+            . $body . "\n}\n";
+    }
+
+    /**
+     * One public static facade for all operations. Prefer operationId, then
+     * deterministic route-derived names when PHP identifiers collide.
+     *
+     * @param array{
+     *   nodes:array<string,array{segments:list<string>,path:string,operations:list<OperationDefinition>}>,
+     *   operationNodes:array<string,string>,
+     *   operationMethods:array<string,string>
+     * } $resolved
+     */
+    private function renderApi(ApiContract $contract, array $resolved): string
+    {
+        $source = $this->header($this->namespace) . "final class Api\n{\n";
+        $occupied = [];
+        foreach ($contract->operations as $operation) {
+            $method = PhpOperationNameResolver::resolve($operation->operationId);
+            $key = strtolower($method);
+            if (isset($occupied[$key])) {
+                $method = PhpOperationNameResolver::resolve(self::routeOperationName($operation));
+                $key = strtolower($method);
+            }
+            if (isset($occupied[$key])) {
+                $method .= ucfirst(substr(hash('sha256', $operation->method . ' ' . $operation->path), 0, 8));
+                $key = strtolower($method);
+            }
+            if (isset($occupied[$key])) {
+                throw new InvalidArgumentException("Duplicate static API method $method.");
+            }
+            $occupied[$key] = true;
+
+            $nodeKey = $resolved['operationNodes'][$operation->operationId];
+            $segments = $resolved['nodes'][$nodeKey]['segments'];
+            if (strtolower($segments[0]) === 'api' && count($segments) > 1) {
+                array_shift($segments);
+            }
+            $resourceClass = '\\' . $this->namespace . '\\Api\\' . implode('\\', $segments);
+            $resourceMethod = $resolved['operationMethods'][$operation->operationId];
+            $source .= $this->renderOperation($operation, $method, $resourceClass, $resourceMethod);
+        }
+        return $source . "}\n";
+    }
+
+    private static function routeOperationName(OperationDefinition $operation): string
+    {
+        $segments = [];
+        foreach (explode('/', trim($operation->path, '/')) as $segment) {
+            if (preg_match('/^\{([^{}]+)\}$/D', $segment, $match) === 1) {
+                $segments[] = 'by';
+                $segments[] = $match[1];
+            } elseif ($segment !== '') {
+                $segments[] = $segment;
+            }
+        }
+        return implode('.', [strtolower($operation->method), ...($segments === [] ? ['root'] : $segments)]);
     }
 
     /** The optional static facade shares one current connection per PHP execution scope. */
@@ -152,7 +264,7 @@ PHP;
         return $source . "}\n";
     }
 
-    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null): string
+    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null): string
     {
         $parameters = [];
         foreach ($operation->parameters as $parameter) {
@@ -213,8 +325,9 @@ PHP;
                 static fn (array $parameter): string => '$' . $parameter['name'],
                 $parameters,
             ));
-            $call = '\\' . $this->namespace . '\\StaticClient::client()->resource('
-                . $resourceClass . '::class)->' . $method . '(' . $forwardArgs . ')';
+            $connector = $resourceMethod === null ? 'StaticClient::client()' : 'Client::current()';
+            $call = '\\' . $this->namespace . '\\' . $connector . '->resource('
+                . $resourceClass . '::class)->' . ($resourceMethod ?? $method) . '(' . $forwardArgs . ')';
             return "    public static function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n"
                 . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";

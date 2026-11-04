@@ -110,9 +110,9 @@ final class SpecificationNormalizer
                 if (!is_array($raw)) {
                     throw new InvalidArgumentException("Invalid operation: $method $path.");
                 }
-                $id = $raw['operationId'] ?? null;
+                $id = $raw['operationId'] ?? self::fallbackOperationId($method, $path);
                 if (!is_string($id) || $id === '' || isset($seen[$id])) {
-                    throw new InvalidArgumentException("Missing or duplicate operationId at $method $path.");
+                    throw new InvalidArgumentException("Invalid or duplicate operationId at $method $path.");
                 }
                 $seen[$id] = true;
                 $security = array_key_exists('security', $raw)
@@ -164,6 +164,24 @@ final class SpecificationNormalizer
         }
 
         return $contract;
+    }
+
+    /** Generate a deterministic operation name without inventing route semantics. */
+    private static function fallbackOperationId(string $method, string $path): string
+    {
+        $parts = [];
+        foreach (explode('/', trim($path, '/')) as $part) {
+            if ($part === '') {
+                continue;
+            }
+            if (preg_match('/^\{([^{}]+)\}$/D', $part, $match) === 1) {
+                $parts[] = 'by';
+                $parts[] = $match[1];
+            } else {
+                $parts[] = $part;
+            }
+        }
+        return implode('.', [strtolower($method), ...($parts === [] ? ['root'] : $parts)]);
     }
 
     private function dialect(array $document): string
