@@ -34,6 +34,8 @@ final readonly class PhpResourceEmitter
         private PhpModelNameResolver $modelNames,
         /** @var array<string,string> */
         private array $groupOverrides = [],
+        /** @var array<string,array{type:string,required:bool}> operationId => request DTO */
+        private array $requestTypes = [],
     ) {}
 
     /** @return array<string,string> */
@@ -122,6 +124,31 @@ final readonly class PhpResourceEmitter
     {
         return self::$currentConnection ?? throw new \LogicException(
             'Configure the SDK with Client::configure(Configuration) first.',
+        );
+    }
+
+    /**
+     * Transfer a typed operation DTO to the shared transport executor.
+     * Only initialized fields are transmitted; JSON uses the existing body DTO.
+     */
+    protected function executeDtoOperation(array $operation, \Dmorenof\SdkRuntime\Request $request): mixed
+    {
+        $request->validateForRequest();
+        $values = get_object_vars($request);
+        $groups = ['path' => [], 'query' => [], 'header' => []];
+        foreach ($request::OPERATION_FIELDS as $location => $fields) {
+            foreach ($fields as $wireName => $property) {
+                if (array_key_exists($property, $values)) {
+                    $groups[$location][$wireName] = $values[$property];
+                }
+            }
+        }
+        return $this->executeOperation(
+            $operation,
+            pathParameters: $groups['path'],
+            queryParameters: $groups['query'],
+            headerParameters: $groups['header'],
+            body: $values['body'] ?? null,
         );
     }
 PHP;
@@ -257,52 +284,30 @@ PHP;
 
     private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false): string
     {
-        $parameters = [];
-        foreach ($operation->parameters as $parameter) {
-            $resolved = PhpParameterTypeResolver::resolve(
-                $parameter->schema,
-                $operation->operationId . '.' . $parameter->wireName,
-            );
-            $name = self::variableName($parameter->wireName);
-            $parameters[] = [
-                'wireName' => $parameter->wireName,
-                'name' => $name,
-                'location' => $parameter->location,
-                'type' => $resolved['type'],
-                'nullable' => !$parameter->required || $resolved['nullable'],
-                'required' => $parameter->required,
-                'validation' => $parameter->schema->validation
-                    + ($resolved['enumValues'] !== [] ? ['enum' => $resolved['enumValues']] : []),
-            ];
-        }
-        if ($operation->requestBody !== null) {
+        $request = $this->requestTypes[$operation->operationId] ?? null;
+        $args = [];
+        $forward = '';
+        $executionArgs = [];
+        if ($request !== null) {
+            $requestType = $request['type'];
+            $required = $request['required'];
+            $args[] = ($required ? '' : '?') . $requestType . ' $request'
+                . ($required ? '' : ' = null');
+            $forward = '$request';
+            $executionArgs[] = '$request' . ($required ? '' : ' ?? new ' . $requestType . '()');
+        } elseif ($operation->parameters !== []) {
+            throw new InvalidArgumentException("Missing generated Request DTO for $operation->operationId");
+        } elseif ($operation->requestBody !== null) {
             $body = $operation->requestBody;
-            if ($body->schema->kind !== SchemaKind::Reference || $body->schema->nullable) {
+            if ($body->schema->kind !== SchemaKind::Reference || $body->schema->nullable
+                || $body->schema->reference === null) {
                 throw new InvalidArgumentException("Unsupported request body at $operation->operationId");
             }
-            $parameters[] = [
-                'wireName' => 'body',
-                'name' => 'body',
-                'location' => 'body',
-                'type' => $this->modelNames->fqcn($body->schema->reference
-                    ?? throw new InvalidArgumentException("Missing request body reference at $operation->operationId")),
-                'nullable' => !$body->required,
-                'required' => $body->required,
-                'validation' => [],
-            ];
-        }
-        usort($parameters, static fn (array $a, array $b): int => (int) $b['required'] <=> (int) $a['required']);
-
-        $argumentList = [];
-        $seenArguments = [];
-        foreach ($parameters as $parameter) {
-            $name = $parameter['name'];
-            if (isset($seenArguments[strtolower($name)])) {
-                throw new InvalidArgumentException("Duplicate parameter $name at $operation->operationId");
-            }
-            $seenArguments[strtolower($name)] = true;
-            $argumentList[] = ($parameter['nullable'] ? '?' : '') . $parameter['type'] . ' $' . $name
-                . ($parameter['required'] ? '' : ' = null');
+            $type = $this->modelNames->fqcn($body->schema->reference);
+            $args[] = ($body->required ? '' : '?') . $type . ' $body'
+                . ($body->required ? '' : ' = null');
+            $forward = '$body';
+            $executionArgs[] = '$body';
         }
 
         $success = $this->successTypes[$operation->operationId]
@@ -311,42 +316,18 @@ PHP;
         if ($success['nullable'] && $success['type'] !== null) {
             $returnType = '?' . $returnType;
         }
+
         if ($resourceClass !== null) {
-            $forwardArgs = implode(', ', array_map(
-                static fn (array $parameter): string => '$' . $parameter['name'],
-                $parameters,
-            ));
-            $connector = $grouped ? 'self::client()' :
-                ($resourceMethod === null ? 'StaticClient::client()' : 'Client::current()');
+            $connector = $grouped ? 'self::client()'
+                : ($resourceMethod === null ? 'StaticClient::client()' : 'Client::current()');
             $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
-                . $resourceClass . '::class)->' . ($resourceMethod ?? $method) . '(' . $forwardArgs . ')';
-            return "    public static function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n"
+                . $resourceClass . '::class)->' . ($resourceMethod ?? $method)
+                . '(' . $forward . ')';
+            return "    public static function $method(" . implode(', ', $args) . "): $returnType\n    {\n"
                 . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";
         }
-        $pathParameters = [];
-        $queryParameters = [];
-        $headerParameters = [];
-        $parameterValidations = [];
-        $body = 'null';
-        foreach ($parameters as $parameter) {
-            $name = '$' . $parameter['name'];
-            if ($parameter['validation'] !== []) {
-                $parameterValidations[$parameter['wireName']] = $parameter['validation'];
-            }
-            if ($parameter['location'] === 'path') {
-                $pathParameters[$parameter['wireName']] = $name;
-            } elseif ($parameter['location'] === 'query') {
-                $queryParameters[$parameter['wireName']] = $name;
-            } elseif ($parameter['location'] === 'header') {
-                $headerParameters[$parameter['wireName']] = $name;
-            } elseif ($parameter['location'] === 'body') {
-                $body = $name;
-            }
-        }
-        $pathParameters = self::formatParameterMap($pathParameters);
-        $queryParameters = self::formatParameterMap($queryParameters);
-        $headerParameters = self::formatParameterMap($headerParameters);
+
         $successStatuses = array_values(array_map(
             static fn ($response): int => (int) $response->status,
             array_filter(
@@ -363,7 +344,7 @@ PHP;
             'responseType' => $success['type'],
             'schemaNullable' => $success['schemaNullable'],
             'noContentAllowed' => $success['noContentAllowed'],
-            'validation' => $parameterValidations,
+            'validation' => [],
         ];
         foreach (self::OPERATION_DEFAULTS as $key => $default) {
             if ($metadata[$key] === $default) {
@@ -372,27 +353,15 @@ PHP;
         }
         $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
         $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
-        $arguments = ['self::' . $constant];
-        if ($pathParameters !== '[]') { $arguments[] = 'pathParameters: ' . $pathParameters; }
-        if ($queryParameters !== '[]') { $arguments[] = 'queryParameters: ' . $queryParameters; }
-        if ($headerParameters !== '[]') { $arguments[] = 'headerParameters: ' . $headerParameters; }
-        if ($body !== 'null') { $arguments[] = 'body: ' . $body; }
-        $call = '$this->executeOperation(' . implode(', ', $arguments) . ')';
-        $source .= "    public function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n";
+        $call = $request !== null
+            ? '$this->executeDtoOperation(self::' . $constant . ', ' . $executionArgs[0] . ')'
+            : '$this->executeOperation(self::' . $constant
+                . ($executionArgs !== [] ? ', body: ' . $executionArgs[0] : '') . ')';
+        $source .= "    public function $method(" . implode(', ', $args) . "): $returnType\n    {\n";
         $source .= $success['type'] === null
             ? "        $call;\n        return;\n"
             : "        /** @var $returnType \$result */\n        \$result = $call;\n        return \$result;\n";
         return $source . "    }\n\n";
-    }
-
-    /** @param array<string,string> $parameters */
-    private static function formatParameterMap(array $parameters): string
-    {
-        $entries = [];
-        foreach ($parameters as $wireName => $variable) {
-            $entries[] = var_export($wireName, true) . ' => ' . $variable;
-        }
-        return '[' . implode(', ', $entries) . ']';
     }
 
     private function header(string $namespace): string

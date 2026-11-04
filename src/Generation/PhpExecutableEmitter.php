@@ -43,6 +43,13 @@ final class PhpExecutableEmitter
         );
         $this->operationSuccessTypes = $contractEmitter->operationSuccessTypes();
         $this->operationErrorTypes = $contractEmitter->operationErrorTypes();
+        $requests = (new PhpOperationRequestEmitter($this->namespace, $this->modelNames))
+            ->emitExecutable($contract, $this->apiGroups);
+        foreach ($requests['files'] as $path => $_source) {
+            if (isset($files[$path])) {
+                throw new \InvalidArgumentException("Operation Request conflicts with schema DTO: $path");
+            }
+        }
         unset(
             $files['src/Api/Operations.php'],
             $files['src/Api/OperationCatalog.php'],
@@ -54,6 +61,7 @@ final class PhpExecutableEmitter
         }
         $files = array_replace(
             $files,
+            $requests['files'],
             (new PhpResourceEmitter(
                 $this->namespace,
                 $this->securitySchemes,
@@ -61,6 +69,7 @@ final class PhpExecutableEmitter
                 $this->operationErrorTypes,
                 $this->modelNames,
                 $this->apiGroups,
+                $requests['types'],
             ))->emit($contract),
         );
         ksort($files, SORT_STRING);
