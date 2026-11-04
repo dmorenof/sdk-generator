@@ -74,6 +74,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
         self::assertFalse((new \ReflectionMethod($a, 'get'))->isStatic());
         self::assertSame(\Dmorenof\SdkRuntime\ApiClient::class, (new \ReflectionMethod($a, 'executeOperation'))->getDeclaringClass()->getName());
         self::assertSame(\Dmorenof\SdkRuntime\ApiClient::class, (new \ReflectionClass($a))->getConstructor()->getDeclaringClass()->getName());
+        self::assertArrayHasKey('src/CasafariAPISDK.php', self::$files);
         self::assertArrayNotHasKey('src/CasafariSDK.php', self::$files);
     }
 

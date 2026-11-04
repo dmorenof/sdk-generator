@@ -96,6 +96,7 @@ jobs:
 
           ```php
           use Casafari\GeneratedSdk\ApiV1;
+          use Casafari\GeneratedSdk\CasafariAPISDK;
           use Casafari\GeneratedSdk\Client;
           use Casafari\GeneratedSdk\Configuration;
           use Dmorenof\SdkRuntime\Security\SecurityCredentials;
@@ -105,7 +106,7 @@ jobs:
           $configuration->securityCredentials = new SecurityCredentials([
               'HTTPBearer' => $token,
           ]);
-          Client::configure($configuration);
+          CasafariAPISDK::configure($configuration);
 
           // Example: ApiV1::getReferencesTypes();
           // API-GROUPS.md lists every group and method.
@@ -120,7 +121,8 @@ jobs:
           - Open `API-GROUPS.md` for the route-to-class-to-method mapping.
           - Open `API-GROUPED-METHODS.txt` for typed signatures (46 operations).
           - Open `src/ApiV1.php`, `src/ApiV2.php`, and other root *Api.php files.
-          - `src/Api.php` is a temporary legacy all-operations facade.
+          - `src/CasafariAPISDK.php` is the abstract root for all groups.
+          - There is no flat all-operations `Api` facade; `Api` is reserved for unversioned /api routes.
           - Inspect `src/DTOs`, `src/Requests`, and `src/Responses`;
             these models are not unified in this development snapshot.
           - Grouped API methods follow route suffixes, not operationId naming.
@@ -136,7 +138,7 @@ jobs:
       - name: Upload complete Casafari SDK preview (ZIP)
         uses: actions/upload-artifact@v7
         with:
-          name: casafari-sdk-020-grouped-evaluation
+          name: casafari-sdk-020-root-transliterated
           path: casafari-sdk/
           if-no-files-found: error
           retention-days: 30

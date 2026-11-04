@@ -19,9 +19,10 @@ final class GroupedApiGenerationTest extends TestCase
             'AlertsApi' => 6,
             'ApiV1' => 22,
             'ApiV2' => 3,
+            'LoginApi' => 1,
             'MarketAnalyticsApi' => 6,
             'PropertySourcingApiV1' => 5,
-            'RootApi' => 2,
+            'RefreshTokenApi' => 1,
             'SellerLeadsApiV1' => 2,
         ];
         $groups = PhpApiGroupingResolver::resolve($contract);
@@ -36,7 +37,9 @@ final class GroupedApiGenerationTest extends TestCase
         self::assertStringContainsString('public static function deleteListingAlertsFeedsById(string $id)', $files['src/ApiV1.php']);
         self::assertStringContainsString('public static function getByLeadId(', $files['src/SellerLeadsApiV1.php']);
         self::assertStringContainsString('operationId: api__get__v1__references__types', $files['src/ApiV1.php']);
-        self::assertArrayHasKey('src/Api.php', $files); // migration alias
+        self::assertArrayNotHasKey('src/Api.php', $files); // No flat facade.
+        self::assertArrayHasKey('src/CasafariAPISDK.php', $files);
+        self::assertStringContainsString('extends CasafariAPISDK', $files['src/ApiV1.php']);
     }
 
     public function testUserNumPlaceholderIsKeptWithoutGuessingItsMeaning(): void

@@ -25,7 +25,7 @@ final class FlatApiGenerationTest extends TestCase
             'src/Collections/StringCollection.php', 'src/DTOs/Profile.php',
             'src/Requests/NewUser.php', 'src/Responses/User.php',
             'src/Client.php', 'src/Configuration.php', 'src/Api/Users.php',
-            'src/Api/Users/User.php', 'src/Api.php',
+            'src/Api/Users/User.php', 'src/ExampleAccountsSDK.php', 'src/UsersApi.php',
         ] as $file) {
             self::assertArrayHasKey($file, $files);
             eval(substr($files[$file], strlen('<?php')));
@@ -34,14 +34,15 @@ final class FlatApiGenerationTest extends TestCase
 
     public function testOneApiPreservesOperationIdsTypesAndConnectionReplacement(): void
     {
-        $get = new \ReflectionMethod(\Example\FlatSdk\Api::class, 'getUser');
+        $get = new \ReflectionMethod(\Example\FlatSdk\UsersApi::class, 'getById');
+        self::assertTrue(is_subclass_of(\Example\FlatSdk\UsersApi::class, \Example\FlatSdk\ExampleAccountsSDK::class));
         self::assertTrue($get->isStatic());
         self::assertSame('id', $get->getParameters()[0]->getName());
         self::assertSame('int', (string) $get->getParameters()[0]->getType());
         self::assertSame('Example\\FlatSdk\\Responses\\User', (string) $get->getReturnType());
 
         try {
-            \Example\FlatSdk\Api::getUser(88);
+            \Example\FlatSdk\UsersApi::getById(88);
             self::fail('Calling before configure must fail');
         } catch (\LogicException $e) {
             self::assertStringContainsString('Client::configure', $e->getMessage());
@@ -66,18 +67,18 @@ final class FlatApiGenerationTest extends TestCase
         \Example\FlatSdk\Client::configure($config);
         $current = \Example\FlatSdk\Client::current();
 
-        $user = \Example\FlatSdk\Api::getUser(88, false);
+        $user = \Example\FlatSdk\UsersApi::getById(88, false);
         self::assertSame('Grace', $user->name);
         self::assertSame('https://first.test/v1/users/88?verbose=false', $transport->calls[0]['url']);
 
         $body = new \Example\FlatSdk\Requests\NewUser();
         $body->name = 'Grace';
-        self::assertSame('Grace', \Example\FlatSdk\Api::createUser($body)->name);
+        self::assertSame('Grace', \Example\FlatSdk\UsersApi::post($body)->name);
         self::assertSame(['name' => 'Grace'], json_decode($transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR));
 
         $config->baseUrl = 'https://mutated.test';
         $config->headers = ['X-Account' => 'mutated'];
-        \Example\FlatSdk\Api::getUser(88);
+        \Example\FlatSdk\UsersApi::getById(88);
         self::assertSame('https://first.test/v1/users/88', $transport->calls[2]['url']);
 
         $nextTransport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
@@ -95,7 +96,7 @@ final class FlatApiGenerationTest extends TestCase
         $next->transport = $nextTransport;
         \Example\FlatSdk\Client::configure($next);
         self::assertNotSame($current, \Example\FlatSdk\Client::current());
-        self::assertSame('Second', \Example\FlatSdk\Api::getUser(88)->name);
+        self::assertSame('Second', \Example\FlatSdk\UsersApi::getById(88)->name);
         self::assertSame(['https://second.test/users/88'], $nextTransport->calls);
         self::assertCount(3, $transport->calls);
     }
@@ -111,8 +112,8 @@ final class FlatApiGenerationTest extends TestCase
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($spec, JSON_THROW_ON_ERROR));
         $files = (new PhpExecutableEmitter('Example\\NoIdSdk', 'example/no-id-sdk'))->emit($contract);
 
-        self::assertStringContainsString('public static function getUserByNum(int $num', $files['src/Api.php']);
-        self::assertStringNotContainsString('getUserById', $files['src/Api.php']);
+        self::assertStringContainsString('public static function getByNum(int $num', $files['src/UserApi.php']);
+        self::assertStringNotContainsString('getById', $files['src/UserApi.php']);
         self::assertSame('get.user.by.num', $contract->operations[0]->operationId);
     }
 }

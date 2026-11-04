@@ -56,39 +56,40 @@ These endpoints exist in the example **synthetic Accounts specification**, not i
 
 Generated route classes live under `Api`, follow the route hierarchy, and extend the shared `Client` base so request construction and transport handling are implemented once. Request-only schemas are in `Requests`, response-only schemas in `Responses`, and shared or otherwise neutral schemas in `DTOs`; enums and domain collections are nested under their owning schema. Equivalent collections share a type, including `Collections\StringCollection` and `Collections\IntegerCollection` when unconstrained. Schema names flattened with `__` become folders, retaining the provider and numbered variants; technical source folders are omitted by the documented [naming policy](docs/SDK_DESIGN.md). Referenced schemas keep their identity even when used by one field. HTTP errors identify the failing method and route (for example, `GET /users/{id}`), rather than exposing an arbitrary OpenAPI `operationId`.
 
-### Grouped API (new 0.2.0 development surface)
+### Named SDK root and grouped APIs (0.2.0 development)
 
-The new preferred entry point groups operations by **literal URL route
-prefix**: `ApiV1`, `ApiV2`, `UsersApi`, etc. Methods are statically
-typed and named from the remaining verb and path, preserving wire parameter
-names (for example `UsersApi::getById(88)`). See [grouping design](docs/PUBLIC_API.md).
-The previous single `Api` facade below remains as a migration alias.
-
-### Single static API (0.2.0 development)
-
-The new, simpler public interface uses one generated `Api`, with typed methods named from OpenAPI `operationId`, and a replaceable `Client::configure(Configuration)` connection:
+The generated **abstract SDK root** uses the exact OpenAPI title: e.g.
+`Casafari API` produces `CasafariAPISDK` (no dropped word).
+All route groups extend that root. PHP identifiers are transliterated to
+Latin ASCII using ICU; original path, parameter and JSON field names are
+retained on the wire. The generator needs `ext-intl`, but generated
+SDKs do not. See [SDK root and grouping policy](docs/PUBLIC_API.md).
 
 ~~~php
-use Example\AccountsSdk\Api;
-use Example\AccountsSdk\Client;
+use Example\AccountsSdk\ExampleAccountsSDK;
+use Example\AccountsSdk\UsersApi;
 use Example\AccountsSdk\Configuration;
 use Example\AccountsSdk\Requests\NewUser;
 
 $config = new Configuration();
 $config->baseUrl = 'https://api.example.com/v1';
-$config->headers = ['Authorization' => 'Bearer ...'];
-Client::configure($config);
+ExampleAccountsSDK::configure($config);
 
 $input = new NewUser();
 $input->name = 'Grace';
-$created = Api::createUser($input);
-$user = Api::getUser(88);
+$created = UsersApi::post($input);
+$user = UsersApi::getById(88);
 
-Client::configure($anotherConfiguration);
-$user = Api::getUser(88);
+ExampleAccountsSDK::configure($anotherConfiguration);
+$user = UsersApi::getById(88);
 ~~~
 
-This is **in-development 0.2.0 functionality**. Model classes are still categorized as `Requests`, `Responses` or `DTOs` in this intermediate implementation; the planned simplification is one shared DTO category for all schema models. Instance clients and the older `StaticClient`/`StaticApi` experimental facade remain available during migration. See [the new public API design](docs/PUBLIC_API.md) and [the original static facade](docs/STATIC_FACADE.md).
+The flat, all-operations `Api` class is no longer generated: the name
+`Api` belongs to unversioned `/api/...` routes. During the staged
+migration, instance resource classes, legacy StaticApi and separate model
+categories still exist. Upcoming work will unify schema DTOs, improve
+authentication/error ergonomics, and reuse TypedArray primitives.
+
 
 ### HTTP and authentication
 

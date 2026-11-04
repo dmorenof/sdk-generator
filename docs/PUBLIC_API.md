@@ -1,37 +1,53 @@
-# Grouped static API — 0.2.0 development
+# SDK root and route-grouped APIs — 0.2.0 development
 
-The preferred public API groups operations by **literal structural route
-prefixes**, independently of provider tags or operationId quality:
+Each generated SDK has an abstract class named from **the exact OpenAPI
+\`info.title\`**, transliterated to Latin ASCII and converted to PascalCase.
+No semantic words are discarded. Append \`SDK\` unless already present.
 
+| OpenAPI info.title | Generated root |
+| --- | --- |
+| Facturas Guays | FacturasGuaysSDK |
+| Casafari API | CasafariAPISDK |
+| Stripe API | StripeAPISDK |
+| Example Service | ExampleServiceSDK |
+
+Every operation group extends that root:
 ~~~php
+use Casafari\GeneratedSdk\CasafariAPISDK;
 use Casafari\GeneratedSdk\ApiV1;
 use Casafari\GeneratedSdk\AlertsApi;
-use Casafari\GeneratedSdk\Client;
 use Casafari\GeneratedSdk\Configuration;
 
 $config = new Configuration();
 $config->baseUrl = 'https://api.casafari.com';
-// Supply credentials for the security schemes the relevant operation requires.
-Client::configure($config);
+// Assign typed security credentials for the OpenAPI schemes in use.
+CasafariAPISDK::configure($config);
 
-// The generated method names follow the route: GET /api/v1/references/types
 $types = ApiV1::getReferencesTypes();
 ~~~
 
-Casafari's 46 endpoints are grouped into \`ApiV1\`, \`ApiV2\`,
-\`AlertsApi\`, \`MarketAnalyticsApi\`, \`PropertySourcingApiV1\`,
-\`SellerLeadsApiV1\` and \`RootApi\` (for isolated top-level routes).
+The abstract root delegates configuration and connection lookup to the
+generated \`Client\`; it never duplicates HTTP, hydration or transport code.
+\`Client::configure($config)\` remains supported. The connection belongs to
+the generated Client, so all groups in a SDK share one connection.
+Independent instance clients are still available for concurrent workloads.
 
-Naming rules:
-- \`/api/v1/...\` => \`ApiV1\`, \`/api/v2/...\` => \`ApiV2\`.
-- \`/v1/seller-leads/...\` => \`SellerLeadsApiV1\`.
-- \`/user/{num}\` => \`UserApi::getByNum(int $num)\`; never invent \`id\`.
-- Isolated one-segment endpoints => \`RootApi::postLogin()\`, etc.
-- Every method has a comment with its original method/path and operationId.
-- Colliding method names are deterministically disambiguated with route hashes.
-- Case-insensitive identifier collisions are checked.
+## Route-group naming
 
-To customize group boundaries without editing the OpenAPI:
+- \`/api/facturas\` => \`Api::getFacturas()\` (or postFacturas).
+- \`/revenue/\` => \`RevenueApi::get()\`.
+- \`/api/v1/references/types\` => \`ApiV1::getReferencesTypes()\`.
+- \`/user/{num}\` => \`UserApi::getByNum(int $num)\`; no invented \`id\`.
+- \`/v1/seller-leads/{lead_id}\` => \`SellerLeadsApiV1::getByLeadId(...)\`.
+- Isolated top-level routes are their own groups, e.g. \`LoginApi\`,
+  \`RefreshTokenApi\`. Root path \`/\` uses \`RootApi\`.
+- Every operation records original HTTP method, route and operationId in its
+  source comment; wire names are untouched.
+- Collisions are checked case-insensitively. Distinct route group prefixes
+  that normalize to the same class are rejected; colliding method names
+  are deterministically disambiguated with a route hash.
+
+Group boundaries can be overridden without changing the contract:
 ~~~php
 $files = (new PhpExecutableEmitter(
     'Casafari\\GeneratedSdk',
@@ -39,19 +55,28 @@ $files = (new PhpExecutableEmitter(
     ['/api/v1/references' => 'ReferencesApi'],
 ))->emit($contract);
 ~~~
-The longest configured literal prefix wins. The routing and HTTP paths remain
-unchanged. The default is deterministic and does not infer service domains.
 
-\`Client::configure(Configuration)\` still owns the active connection, and
-independent instance clients remain supported for concurrent workloads.
-The previous single \`Api\`, \`StaticApi\` and instance resource facades remain
-during the 0.2.0 migration; they are not the new recommended entry point.
+## Unicode and wire compatibility
 
-**Planned simplification:** unify Requests/Responses/DTOs and remove legacy
-duplicate facades once migration coverage is complete. For primitive typed
-collections, prefer existing \`typedarray/typedarray\` classes; if functionality
-is missing, evaluate a separately tested/versioned improvement to
-\`dmorenof/TypedArray\` before generating equivalent helper code.
+The generator depends on PHP \`ext-intl\` and ICU's
+\`Any-Latin; Latin-ASCII\` transliteration. The common naming policy applies
+to generated PHP class, API method, model, property, enum and parameter names.
+Transliteration is not translation. The original OpenAPI names always remain
+the keys used for requests/responses and path substitution.
+Unsupported Unicode characters that cannot be transliterated to Latin ASCII
+cause explicit errors rather than silently disappearing.
 
-**Lifecycle:** Static state is per PHP-FPM request; it is not isolated across
-concurrent fibers/coroutines in persistent workers. Use instance clients there.
+ICU data/version can affect spelling; pin the build environment for fully
+reproducible SDK builds. The generated SDK has no \`ext-intl\` dependency.
+
+## Transitional state
+
+The old **flat all-operations** \`Api\` facade is no longer generated. \`Api\`
+now represents only the structural group for unversioned \`/api/...\` paths.
+Instance resources and \`StaticApi\` are temporarily retained for migration;
+unifying schema-model categories, error and security ergonomics, typed filters
+and TypedArray reuse are separate follow-up stages.
+
+The static connection is shared within one PHP execution scope; it is not
+fiber-/coroutine-local in persistent servers. Use instance clients for
+concurrent independent connections.
