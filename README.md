@@ -56,19 +56,31 @@ These endpoints exist in the example **synthetic Accounts specification**, not i
 
 Generated route classes live under `Api`, follow the route hierarchy, and extend the shared `Client` base so request construction and transport handling are implemented once. Request-only schemas are in `Requests`, response-only schemas in `Responses`, and shared or otherwise neutral schemas in `DTOs`; enums and domain collections are nested under their owning schema. Equivalent collections share a type, including `Collections\StringCollection` and `Collections\IntegerCollection` when unconstrained. Schema names flattened with `__` become folders, retaining the provider and numbered variants; technical source folders are omitted by the documented [naming policy](docs/SDK_DESIGN.md). Referenced schemas keep their identity even when used by one field. HTTP errors identify the failing method and route (for example, `GET /users/{id}`), rather than exposing an arbitrary OpenAPI `operationId`.
 
-### Optional static facade (0.2.0 development)
+### Single static API (0.2.0 development)
 
-Generated SDKs also expose typed static routes. Set up one connection and then call the route directly:
+The new, simpler public interface uses one generated `Api`, with typed methods named from OpenAPI `operationId`, and a replaceable `Client::configure(Configuration)` connection:
 
 ~~~php
-use Example\AccountsSdk\StaticClient;
-use Example\AccountsSdk\StaticApi\Users\User;
+use Example\AccountsSdk\Api;
+use Example\AccountsSdk\Client;
+use Example\AccountsSdk\Configuration;
+use Example\AccountsSdk\Requests\NewUser;
 
-StaticClient::connect('https://api.example.com/v1');
-$user = User::getById(88);
+$config = new Configuration();
+$config->baseUrl = 'https://api.example.com/v1';
+$config->headers = ['Authorization' => 'Bearer ...'];
+Client::configure($config);
+
+$input = new NewUser();
+$input->name = 'Grace';
+$created = Api::createUser($input);
+$user = Api::getUser(88);
+
+Client::configure($anotherConfiguration);
+$user = Api::getUser(88);
 ~~~
 
-To attach HTTP middleware and credentials, configure a regular client first and pass it to `StaticClient::configure($client)`. The static facade reuses its current connection until explicitly replaced with `StaticClient::connect(...)` or `StaticClient::configure($client)`. Instance clients remain available for concurrent accounts and long-lived PHP workers. See [static facade documentation](docs/STATIC_FACADE.md).
+This is **in-development 0.2.0 functionality**. Model classes are still categorized as `Requests`, `Responses` or `DTOs` in this intermediate implementation; the planned simplification is one shared DTO category for all schema models. Instance clients and the older `StaticClient`/`StaticApi` experimental facade remain available during migration. See [the new public API design](docs/PUBLIC_API.md) and [the original static facade](docs/STATIC_FACADE.md).
 
 ### HTTP and authentication
 
@@ -97,7 +109,7 @@ $client = Client::connect(
 );
 ~~~
 
-Generated API methods are instance methods. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
+Generated resource methods are instance methods, while root `Api` methods are static. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
 
 ### Explore without PHP on your computer
 
