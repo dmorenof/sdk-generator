@@ -5,7 +5,7 @@
 
 **v0.1.0: early, usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
-The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK.
+The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
 ## Quick start: generate Accounts SDK
 
@@ -63,8 +63,7 @@ For flattened names, shared structural prefixes and common
 namespaces. For example, `UserManagementJWTRefreshTokenResponseSchema`
 becomes `DTOs\\UserManagement\\JWTRefreshToken\\ResponseSchema`.
 Original schema identifiers and `$ref` links remain unchanged.
-The runtime's `Request` and `Response` base classes continue to enforce
-direction-sensitive validation. Enums and typed collections retain their
+All generated data classes inherit a single runtime `DTO` base. The HTTP operation applies request/response direction-specific validation at the boundary. Enums and typed collections retain their
 own namespace trees. See [naming policy](docs/SDK_DESIGN.md).
 
 ### Named SDK root and predictable route classes (0.2.0)
@@ -75,6 +74,9 @@ directly mirror the URL structure, while methods correspond to HTTP verbs.
 A terminal path identifier adds ById or By{Placeholder} to the method.
 GET query/header parameters use GetParams; equivalent POST parameters
 use PostParams. Named body schema objects are reused from DTOs.
+Inline operation-specific request objects live under `Requests`, and inline
+response envelopes under `Responses`, each separated by route and HTTP verb.
+These classes also extend `DTO` and can contain references to shared models.
 
 ~~~php
 use Example\AccountsSdk\ExampleAccountsSDK;
