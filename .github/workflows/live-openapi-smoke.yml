@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/live-openapi-smoke.yml'
       - 'tests/live/**'
+      - 'composer.json'
       - 'src/Generation/**'
       - 'src/Parsing/**'
       - 'bin/generate-sdk.php'
@@ -36,17 +37,19 @@ jobs:
             -o live-results/original-openapi.json
           python3 -m json.tool live-results/original-openapi.json >/dev/null
           sha256sum live-results/original-openapi.json | tee live-results/original-spec.sha256
-      - name: Attempt the complete, unaltered OpenAPI contract
+      - name: Generate from the full unmodified original OpenAPI (required)
         run: |
-          set +e
           php bin/generate-sdk.php live-results/original-openapi.json \
-            live-results/full-sdk 'Example\FakeRestComplete' example/fakerest-complete \
-            >live-results/full-generation.log 2>&1
-          code=$?
-          echo "$code" > live-results/full-generation.exit
-          cat live-results/full-generation.log
-          echo "Full-spec generation status = $code; continuing with independently auditable read-only slice"
-          exit 0
+            live-results/full-sdk 'Example\FakeRestComplete' example/fakerest-complete
+          test -f live-results/full-sdk/src/Api/V1/Activities.php
+          test -f live-results/full-sdk/src/DTOs/Activity.php
+      - name: Install and validate the full generated SDK independently
+        run: |
+          vendor/bin/php-cs-fixer fix live-results/full-sdk/src \
+            --rules=@PSR12 --using-cache=no --dry-run --diff --show-progress=none
+          composer install --working-dir=live-results/full-sdk --no-interaction --prefer-dist --no-progress
+      - name: Test the original full OpenAPI SDK against the real API
+        run: php tests/live/fakerestapi_full_smoke.php
       - name: Extract supported read-only slice, preserving original schemas
         run: python3 tests/live/extract_fakerestapi.py live-results/original-openapi.json live-results/read-only-openapi.json
       - name: Generate SDK from original OpenAPI subset
@@ -72,8 +75,9 @@ jobs:
             live-results/original-openapi.json
             live-results/original-spec.sha256
             live-results/read-only-openapi.json
-            live-results/full-generation.log
-            live-results/full-generation.exit
+            live-results/full-sdk/composer.json
+            live-results/full-sdk/src/**
+            live-results/full-response.json
             live-results/live-response.json
             live-results/fakerest-sdk/composer.json
             live-results/fakerest-sdk/src/**
