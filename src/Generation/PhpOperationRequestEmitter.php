@@ -44,106 +44,104 @@ final readonly class PhpOperationRequestEmitter
     }
 
     /**
-     * Generate DTOs only for composite identifiers and request payloads.
-     * Direct body-only requests reuse the schema's original DTO.
+     * Executable SDK arguments follow the URL tree, not operation IDs or
+     * inferred API groups. GET /v1/facturas => GetParams\V1\Facturas;
+     * GET /v1/facturas/{id} => GetParams\V1\Facturas\ById.
      *
-     * @param array<string,string> $overrides
+     * A body-only operation uses the original referenced schema DTO;
+     * if query/header parameters exist, the verb-specific Params DTO holds
+     * those parameters and optionally the typed body.
+     *
      * @return array{files:array<string,string>,types:array<string,array{identifier:?array,payload:?array}>}
      */
-    public function emitExecutable(ApiContract $contract, array $overrides = []): array
+    public function emitExecutable(ApiContract $contract): array
     {
         $files = [];
         $types = [];
-        $occupied = [];
-        foreach (PhpApiGroupingResolver::resolve($contract, $overrides) as $group => $entries) {
-            foreach ($entries as $entry) {
-                $operation = $entry['operation'];
-                $pathParameters = array_values(array_filter($operation->parameters,
-                    static fn ($parameter): bool => $parameter->location === 'path'));
-                $otherParameters = array_values(array_filter($operation->parameters,
-                    static fn ($parameter): bool => $parameter->location !== 'path'));
-                $segments = self::segments($operation->path);
-                $relative = array_slice($segments, count(self::segments($entry['prefix'])));
-                $folders = [];
-                foreach ($relative as $part) {
-                    if (preg_match('/^\{[^{}]+\}$/D', $part) !== 1) {
-                        $folders[] = PhpResourceNameResolver::pascal($part);
-                    }
-                }
-                $directory = implode('/', [$group, ...$folders]);
-                $namespace = $this->namespace . '\\DTOs\\' . str_replace('/', '\\', $directory);
+        $routes = PhpRouteNameResolver::resolve($contract);
+        $names = $this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models);
+        foreach ($contract->operations as $operation) {
+            $pathParameters = array_values(array_filter($operation->parameters,
+                static fn ($parameter): bool => $parameter->location === 'path'));
+            $otherParameters = array_values(array_filter($operation->parameters,
+                static fn ($parameter): bool => $parameter->location !== 'path'));
 
-                $identifier = null;
-                if (count($pathParameters) === 1) {
-                    $parameter = $pathParameters[0];
-                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema,
-                        $operation->operationId . '.' . $parameter->wireName);
-                    $identifier = [
-                        'kind' => 'scalar',
-                        'type' => $resolved['type'],
-                        'name' => PhpNameTransliterator::property($parameter->wireName) === 'payload'
-                            ? 'identifier' : PhpNameTransliterator::property($parameter->wireName),
-                        'wireName' => $parameter->wireName,
-                    ];
-                } elseif (count($pathParameters) > 1) {
-                    $class = self::reserve($occupied, $directory, $operation, 'Identifier');
-                    $files["src/DTOs/$directory/$class.php"] = $this->render(
-                        $operation, $class, $namespace, $contract, $pathParameters, false,
+            $segments = $routes['parameterSegments'][$operation->operationId];
+            $path = implode('/', $segments);
+            $namespace = implode('\\', $segments);
+            $identifier = null;
+            if (count($pathParameters) === 1) {
+                $parameter = $pathParameters[0];
+                $resolved = PhpParameterTypeResolver::resolve(
+                    $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
+                );
+                $variable = PhpNameTransliterator::property($parameter->wireName);
+                $identifier = [
+                    'kind' => 'scalar',
+                    'type' => $resolved['type'],
+                    'name' => $variable === 'payload' || $variable === 'params'
+                        ? 'identifier' : $variable,
+                    'wireName' => $parameter->wireName,
+                ];
+            } elseif (count($pathParameters) > 1) {
+                $type = '\\' . $this->namespace . '\\PathParams\\' . $namespace;
+                $filePath = "src/PathParams/$path.php";
+                $source = $this->render(
+                    $operation, end($segments), $this->namespace . '\\PathParams'
+                        . (count($segments) > 1 ? '\\' . implode('\\', array_slice($segments, 0, -1)) : ''),
+                    $contract, $pathParameters, false,
+                );
+                if (isset($files[$filePath]) && $files[$filePath] !== $source) {
+                    throw new InvalidArgumentException(
+                        "Conflicting path parameter definitions for $filePath."
                     );
-                    $identifier = [
-                        'kind' => 'dto',
-                        'type' => '\\' . $namespace . '\\' . $class,
-                        'name' => 'identifier',
-                        'wireName' => null,
-                    ];
                 }
-
-                $payload = null;
-                if ($otherParameters !== []) {
-                    $class = self::reserve($occupied, $directory, $operation, 'Payload');
-                    $files["src/DTOs/$directory/$class.php"] = $this->render(
-                        $operation, $class, $namespace, $contract, $otherParameters, true,
-                    );
-                    $hasRequired = count(array_filter($otherParameters, static fn ($p): bool => $p->required)) > 0;
-                    $payload = [
-                        'kind' => 'dto',
-                        'type' => '\\' . $namespace . '\\' . $class,
-                        'required' => $hasRequired || ($operation->requestBody?->required ?? false),
-                    ];
-                } elseif ($operation->requestBody !== null) {
-                    $body = $operation->requestBody;
-                    if ($body->schema->kind !== SchemaKind::Reference
-                        || $body->schema->nullable || $body->schema->reference === null) {
-                        throw new InvalidArgumentException("Unsupported request body at $operation->operationId");
-                    }
-                    $payload = [
-                        'kind' => 'body',
-                        'type' => ($this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models))
-                            ->fqcn($body->schema->reference),
-                        'required' => $body->required,
-                    ];
-                }
-                $types[$operation->operationId] = ['identifier' => $identifier, 'payload' => $payload];
+                $files[$filePath] = $source;
+                $identifier = ['kind' => 'dto', 'type' => $type,
+                    'name' => 'identifier', 'wireName' => null];
             }
+
+            $payload = null;
+            if ($otherParameters !== []) {
+                $verb = ucfirst(strtolower($operation->method));
+                $root = $verb . 'Params';
+                $fullType = '\\' . $this->namespace . '\\' . $root . '\\' . $namespace;
+                $filePath = "src/$root/$path.php";
+                $ns = $this->namespace . '\\' . $root
+                    . (count($segments) > 1 ? '\\' . implode('\\', array_slice($segments, 0, -1)) : '');
+                if (isset($files[$filePath])) {
+                    throw new InvalidArgumentException("Duplicate operation parameters: $filePath");
+                }
+                $files[$filePath] = $this->render(
+                    $operation, end($segments), $ns, $contract, $otherParameters, true,
+                );
+                $hasRequired = count(array_filter($otherParameters,
+                    static fn ($p): bool => $p->required)) > 0;
+                $payload = [
+                    'kind' => 'dto', 'type' => $fullType,
+                    'required' => $hasRequired || ($operation->requestBody?->required ?? false),
+                ];
+            } elseif ($operation->requestBody !== null) {
+                $body = $operation->requestBody;
+                if ($body->schema->kind !== SchemaKind::Reference
+                    || $body->schema->nullable || $body->schema->reference === null) {
+                    throw new InvalidArgumentException(
+                        "Unsupported request body at $operation->operationId"
+                    );
+                }
+                $payload = [
+                    'kind' => 'body',
+                    'type' => $names->fqcn($body->schema->reference),
+                    'required' => $body->required,
+                ];
+            }
+            $types[$operation->operationId] = [
+                'identifier' => $identifier,
+                'payload' => $payload,
+            ];
         }
         ksort($files, SORT_STRING);
         return ['files' => $files, 'types' => $types];
-    }
-
-    /** @param array<string,bool> $occupied */
-    private static function reserve(array &$occupied, string $directory, OperationDefinition $operation, string $suffix): string
-    {
-        $class = ucfirst(strtolower($operation->method)) . $suffix;
-        $path = strtolower("src/DTOs/$directory/$class.php");
-        if (isset($occupied[$path])) {
-            $class .= ucfirst(substr(hash('sha256', $operation->method . ' ' . $operation->path), 0, 10));
-            $path = strtolower("src/DTOs/$directory/$class.php");
-        }
-        if (isset($occupied[$path])) {
-            throw new InvalidArgumentException("Ambiguous operation DTO for $operation->path");
-        }
-        $occupied[$path] = true;
-        return $class;
     }
 
     public static function name(OperationDefinition $operation): string
