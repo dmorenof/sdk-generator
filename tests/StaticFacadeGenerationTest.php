@@ -25,7 +25,7 @@ final class StaticFacadeGenerationTest extends TestCase
         foreach ([
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php', 'src/DTOs/Profile.php',
-            'src/DTOs/NewUser.php', 'src/DTOs/User.php',
+            'src/DTOs/NewUser.php', 'src/DTOs/User.php', 'src/DTOs/UsersApi/GetPayload.php',
             'src/Client.php', 'src/Api/Users.php', 'src/Api/Users/User.php',
             'src/StaticClient.php', 'src/StaticApi/Users.php', 'src/StaticApi/Users/User.php',
         ] as $path) {

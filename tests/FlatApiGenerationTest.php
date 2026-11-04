@@ -23,7 +23,7 @@ final class FlatApiGenerationTest extends TestCase
         foreach ([
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php', 'src/DTOs/Profile.php',
-            'src/DTOs/NewUser.php', 'src/DTOs/User.php',
+            'src/DTOs/NewUser.php', 'src/DTOs/User.php', 'src/DTOs/UsersApi/GetPayload.php',
             'src/Client.php', 'src/Configuration.php', 'src/Api/Users.php',
             'src/Api/Users/User.php', 'src/ExampleAccountsSDK.php', 'src/UsersApi.php',
         ] as $file) {
@@ -39,6 +39,8 @@ final class FlatApiGenerationTest extends TestCase
         self::assertTrue($get->isStatic());
         self::assertSame('id', $get->getParameters()[0]->getName());
         self::assertSame('int', (string) $get->getParameters()[0]->getType());
+        self::assertSame('payload', $get->getParameters()[1]->getName());
+        self::assertSame('Example\\FlatSdk\\DTOs\\UsersApi\\GetPayload', (string) $get->getParameters()[1]->getType()->getName());
         self::assertSame('Example\\FlatSdk\\DTOs\\User', (string) $get->getReturnType());
 
         try {
@@ -67,7 +69,7 @@ final class FlatApiGenerationTest extends TestCase
         \Example\FlatSdk\Client::configure($config);
         $current = \Example\FlatSdk\Client::current();
 
-        $user = \Example\FlatSdk\UsersApi::getById(88, false);
+        $user = \Example\FlatSdk\UsersApi::getById(88, new \Example\FlatSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
         self::assertSame('Grace', $user->name);
         self::assertSame('https://first.test/v1/users/88?verbose=false', $transport->calls[0]['url']);
 

@@ -127,7 +127,7 @@ final class HierarchicalNamesTest extends TestCase
             $files,
         );
         self::assertStringContainsString(
-            '\CasafariCrmApi\DTOs\Casafari\Crm\Api\Dtos\Agency\AgencyDto $body',
+            '\CasafariCrmApi\DTOs\Casafari\Crm\Api\Dtos\Agency\AgencyDto $payload',
             $files['src/Api/Agencies/Agency.php'],
         );
         self::assertStringContainsString(

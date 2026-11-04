@@ -119,10 +119,10 @@ final class SdkRootNameGenerationTest extends TestCase
         ];
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
         $files = (new PhpExecutableEmitter('Example\\UnicodeQuery', 'example/unicode-query'))->emit($contract);
-        self::assertStringContainsString('?string $codigo = null', $files['src/UsersApi.php']);
+        self::assertStringContainsString('public ?string $codigo;', $files['src/DTOs/UsersApi/GetPayload.php']);
         // Executable SDKs inline parameter handling into the resource method;
         // they do not emit the contract-only Api/Requests operation wrapper.
-        self::assertStringContainsString("'código' => \$codigo", $files['src/Api/Users/User.php']);
+        self::assertStringContainsString("'código' => 'codigo'", $files['src/DTOs/UsersApi/GetPayload.php']);
     }
 
     public function testTransliterationOfSchemaPropertiesAndRoutesKeepsWireNames(): void

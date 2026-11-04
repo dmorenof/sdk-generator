@@ -84,7 +84,7 @@ $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
     }
 };
 $client = \Acme\PublicSdk\Client::connect('https://api.example.test/v1', transport: $fake);
-$user = $client->resource(\Acme\PublicSdk\Api\Users\User::class)->getById(88, true);
+$user = $client->resource(\Acme\PublicSdk\Api\Users\User::class)->getById(88, new \Acme\PublicSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => true]));
 if (!$user instanceof \Acme\PublicSdk\DTOs\User
     || $user->role !== \Acme\PublicSdk\Enums\User\RoleEnum::Viewer
     || $user->profile->city !== 'Bilbao'

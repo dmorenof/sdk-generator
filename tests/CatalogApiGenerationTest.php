@@ -55,11 +55,11 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertStringContainsString('public float $price;', $out['src/DTOs/Book.php']);
         self::assertStringContainsString('public bool $available;', $out['src/DTOs/Book.php']);
         self::assertStringContainsString(
-            'public function getBySku(string $sku, ?bool $expand = null): \\Preview\\CatalogSdk\\DTOs\\Book',
+            'public function getBySku(string $sku, ?\\Preview\\CatalogSdk\\DTOs\\BooksApi\\GetPayload $payload = null): \\Preview\\CatalogSdk\\DTOs\\Book',
             $out['src/Api/Books/Book.php'],
         );
         self::assertStringContainsString(
-            'public function post(\\Preview\\CatalogSdk\\DTOs\\BookDraft $body): \\Preview\\CatalogSdk\\DTOs\\Book',
+            'public function post(\\Preview\\CatalogSdk\\DTOs\\BookDraft $payload): \\Preview\\CatalogSdk\\DTOs\\Book',
             $out['src/Api/Books.php'],
         );
         self::assertStringContainsString("'/books/{sku}'", $out['src/Api/Books/Book.php']);

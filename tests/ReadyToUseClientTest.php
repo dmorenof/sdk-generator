@@ -31,7 +31,7 @@ final class ReadyToUseClientTest extends TestCase
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
-            'src/DTOs/Profile.php',
+            'src/DTOs/Profile.php', 'src/DTOs/UsersApi/GetPayload.php',
             'src/DTOs/NewUser.php',
             'src/DTOs/User.php',
             'src/Client.php',
@@ -90,7 +90,7 @@ final class ReadyToUseClientTest extends TestCase
             new Client(['handler' => $stack]),
             ['Authorization' => 'Bearer demo'],
         );
-        $user = $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88, false);
+        $user = $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88, new \Example\ReadySdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
         self::assertInstanceOf(\Example\ReadySdk\DTOs\User::class, $user);
         self::assertSame('Madrid', $user->profile->city);
         self::assertSame(\Example\ReadySdk\Enums\User\RoleEnum::Admin, $user->role);

@@ -104,7 +104,7 @@ final class GroupedApiGenerationTest extends TestCase
             $config->baseUrl = 'https://group.example.test';
             $config->transport = $transport;
             \Example\GroupSdk\Client::configure($config);
-            $user = \Example\GroupSdk\UsersApi::getById(88, false);
+            $user = \Example\GroupSdk\UsersApi::getById(88, new \Example\GroupSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
             self::assertSame('Grace', $user->name);
             self::assertSame('https://group.example.test/users/88?verbose=false', $transport->calls[0]['url']);
             $body = new \Example\GroupSdk\DTOs\NewUser((object) ['name' => 'Grace']);

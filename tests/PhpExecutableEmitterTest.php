@@ -33,6 +33,7 @@ final class PhpExecutableEmitterTest extends TestCase
             'src/DTOs/Profile.php',
             'src/DTOs/NewUser.php',
             'src/DTOs/User.php',
+            'src/DTOs/UsersApi/GetPayload.php',
             'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
@@ -84,8 +85,8 @@ final class PhpExecutableEmitterTest extends TestCase
         $files = (new PhpExecutableEmitter())->emit($contract);
 
         self::assertStringContainsString(
-            '?string $verbose = null',
-            $files['src/Api/Users/User.php'],
+            'public ?string $verbose;',
+            $files['src/DTOs/UsersApi/GetPayload.php'],
         );
     }
 
@@ -109,13 +110,13 @@ final class PhpExecutableEmitterTest extends TestCase
 
         self::assertStringContainsString(
             "'enum' => [",
-            $files['src/Api/Users/User.php'],
+            $files['src/DTOs/UsersApi/GetPayload.php'],
         );
-        self::assertStringContainsString("'brief'", $files['src/Api/Users/User.php']);
-        self::assertStringContainsString("'full'", $files['src/Api/Users/User.php']);
+        self::assertStringContainsString("'brief'", $files['src/DTOs/UsersApi/GetPayload.php']);
+        self::assertStringContainsString("'full'", $files['src/DTOs/UsersApi/GetPayload.php']);
 
         foreach ([
-            'src/Client.php', 'src/Api/Users/User.php',
+            'src/Client.php', 'src/Api/Users/User.php', 'src/DTOs/UsersApi/GetPayload.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -130,14 +131,14 @@ final class PhpExecutableEmitterTest extends TestCase
                 'https://api.example.test',
                 transport: $transport,
             );
-            $client->resource(\Example\EnumParameterSdk\Api\Users\User::class)->getById(1, 'invalid');
+            $client->resource(\Example\EnumParameterSdk\Api\Users\User::class)->getById(1, new \Example\EnumParameterSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => 'invalid']));
             self::fail('An enum value outside the declared set was accepted.');
         } catch (\UnexpectedValueException $exception) {
             self::assertStringContainsString('Validation enum failed', $exception->getMessage());
         }
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Valid enum value reached transport.');
-        $client->resource(\Example\EnumParameterSdk\Api\Users\User::class)->getById(1, 'brief');
+        $client->resource(\Example\EnumParameterSdk\Api\Users\User::class)->getById(1, new \Example\EnumParameterSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => 'brief']));
     }
 
     public function testInlineSuccessAndErrorResponsesGenerateAndHydrateNamedTypes(): void
@@ -265,7 +266,7 @@ final class PhpExecutableEmitterTest extends TestCase
             }
         };
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1/', transport: $fake);
-        $user = $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(42, false);
+        $user = $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(42, new \Example\ExecutableSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
         self::assertInstanceOf(\Example\ExecutableSdk\DTOs\User::class, $user);
         self::assertSame(42, $user->id);
         self::assertSame('Ada', $user->name);

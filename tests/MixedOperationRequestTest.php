@@ -36,7 +36,7 @@ final class MixedOperationRequestTest extends TestCase
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
-            'src/DTOs/NewUser.php',
+            'src/DTOs/NewUser.php', 'src/DTOs/GroupsApi/Users/PostPayload.php',
             'src/DTOs/User.php',
             'src/Client.php',
             'src/Api/Groups/ByGroup/Users.php',
@@ -64,7 +64,10 @@ final class MixedOperationRequestTest extends TestCase
         $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         $body = new \Example\MixedSdk\DTOs\NewUser((object) ['name' => 'Ada', 'role' => 'viewer']);
 
-        $result = $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup('my group', $body, false);
+        $payload = new \Example\MixedSdk\DTOs\GroupsApi\Users\PostPayload();
+        $payload->trace = false;
+        $payload->body = $body;
+        $result = $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup('my group', $payload);
         self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $result);
         self::assertSame('Ada', $result->name);
         self::assertCount(1, $transport->calls);
@@ -90,7 +93,9 @@ final class MixedOperationRequestTest extends TestCase
         $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
             $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup(
-                body: new \Example\MixedSdk\DTOs\NewUser((object) ['name' => 'Ada']),
+                payload: new \Example\MixedSdk\DTOs\GroupsApi\Users\PostPayload((object) [
+                    'body' => (object) ['name' => 'Ada'],
+                ]),
             );
             self::fail('Missing group was sent');
         } catch (\ArgumentCountError) {

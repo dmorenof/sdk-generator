@@ -31,7 +31,7 @@ final class CoreInheritanceTest extends TestCase
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/DTOs/NewUser.php',
-            'src/DTOs/User.php',
+            'src/DTOs/User.php', 'src/DTOs/UsersApi/GetPayload.php',
             'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
@@ -161,12 +161,14 @@ final class CoreInheritanceTest extends TestCase
     {
         $method = new \ReflectionMethod(\Example\InheritanceSdk\Api\Users\User::class, 'getById');
         $parameters = $method->getParameters();
-        self::assertSame(['id', 'verbose'], array_map(
+        self::assertSame(['id', 'payload'], array_map(
             static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
             $parameters,
         ));
         self::assertSame('int', $parameters[0]->getType()->getName());
-        self::assertSame('bool', $parameters[1]->getType()->getName());
+        self::assertSame(\Example\InheritanceSdk\DTOs\UsersApi\GetPayload::class, $parameters[1]->getType()->getName());
+        $verbose = (new \ReflectionClass(\Example\InheritanceSdk\DTOs\UsersApi\GetPayload::class))->getProperty('verbose');
+        self::assertSame('bool', $verbose->getType()->getName());
         self::assertTrue($parameters[1]->allowsNull());
         self::assertSame(null, $parameters[1]->getDefaultValue());
     }
