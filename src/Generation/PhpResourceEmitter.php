@@ -34,7 +34,7 @@ final readonly class PhpResourceEmitter
         private PhpModelNameResolver $modelNames,
         /** @var array<string,string> */
         private array $groupOverrides = [],
-        /** @var array<string,array{type:string,required:bool}> operationId => request DTO */
+        /** @var array<string,array{identifier:?array,payload:?array}> operationId => public arguments */
         private array $requestTypes = [],
     ) {}
 
@@ -128,27 +128,54 @@ final readonly class PhpResourceEmitter
     }
 
     /**
-     * Transfer a typed operation DTO to the shared transport executor.
-     * Only initialized fields are transmitted; JSON uses the existing body DTO.
+     * Transfer only initialized properties, preserving OpenAPI wire names.
+     * Shared runtime DTO validation also checks required fields and nested bodies.
+     *
+     * @return array{path:array,query:array,header:array,body:?\Dmorenof\SdkRuntime\DTO}
      */
-    protected function executeDtoOperation(array $operation, \Dmorenof\SdkRuntime\Request $request): mixed
+    private static function operationFields(\Dmorenof\SdkRuntime\Request $dto): array
     {
-        $request->validateForRequest();
-        $values = get_object_vars($request);
-        $groups = ['path' => [], 'query' => [], 'header' => []];
-        foreach ($request::OPERATION_FIELDS as $location => $fields) {
+        $dto->validateForRequest();
+        $values = get_object_vars($dto);
+        $result = ['path' => [], 'query' => [], 'header' => [], 'body' => $values['body'] ?? null];
+        foreach ($dto::OPERATION_FIELDS as $location => $fields) {
             foreach ($fields as $wireName => $property) {
                 if (array_key_exists($property, $values)) {
-                    $groups[$location][$wireName] = $values[$property];
+                    $result[$location][$wireName] = $values[$property];
                 }
             }
         }
+        return $result;
+    }
+
+    /** Map identifier + payload to the shared sdk-runtime executor. */
+    protected function executeArguments(
+        array $operation,
+        string|int|float|bool|\Dmorenof\SdkRuntime\Request|null $identifier = null,
+        ?string $identifierName = null,
+        ?\Dmorenof\SdkRuntime\Request $payload = null,
+        ?\Dmorenof\SdkRuntime\DTO $body = null,
+    ): mixed {
+        $path = [];
+        if ($identifier instanceof \Dmorenof\SdkRuntime\Request) {
+            $path = self::operationFields($identifier)['path'];
+        } elseif ($identifierName !== null) {
+            $path[$identifierName] = $identifier;
+        }
+        $query = [];
+        $headers = [];
+        if ($payload !== null) {
+            $fields = self::operationFields($payload);
+            $query = $fields['query'];
+            $headers = $fields['header'];
+            $body = $fields['body'];
+        }
         return $this->executeOperation(
             $operation,
-            pathParameters: $groups['path'],
-            queryParameters: $groups['query'],
-            headerParameters: $groups['header'],
-            body: $values['body'] ?? null,
+            pathParameters: $path,
+            queryParameters: $query,
+            headerParameters: $headers,
+            body: $body,
         );
     }
 PHP;
@@ -284,56 +311,58 @@ PHP;
 
     private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false): string
     {
-        $request = $this->requestTypes[$operation->operationId] ?? null;
-        $args = [];
-        $forward = '';
-        $executionArgs = [];
-        if ($request !== null) {
-            $requestType = $request['type'];
-            $required = $request['required'];
-            $args[] = ($required ? '' : '?') . $requestType . ' $request'
-                . ($required ? '' : ' = null');
-            $forward = '$request';
-            $executionArgs[] = '$request' . ($required ? '' : ' ?? new ' . $requestType . '()');
-        } elseif ($operation->parameters !== []) {
-            throw new InvalidArgumentException("Missing generated Request DTO for $operation->operationId");
-        } elseif ($operation->requestBody !== null) {
-            $body = $operation->requestBody;
-            if ($body->schema->kind !== SchemaKind::Reference || $body->schema->nullable
-                || $body->schema->reference === null) {
-                throw new InvalidArgumentException("Unsupported request body at $operation->operationId");
-            }
-            $type = $this->modelNames->fqcn($body->schema->reference);
-            $args[] = ($body->required ? '' : '?') . $type . ' $body'
-                . ($body->required ? '' : ' = null');
-            $forward = '$body';
-            $executionArgs[] = '$body';
+        $signature = $this->requestTypes[$operation->operationId]
+            ?? throw new InvalidArgumentException("Missing operation signature: $operation->operationId");
+        $identifier = $signature['identifier'];
+        $payload = $signature['payload'];
+        $arguments = [];
+        $forward = [];
+        if ($identifier !== null) {
+            $arguments[] = $identifier['type'] . ' $' . $identifier['name'];
+            $forward[] = '$' . $identifier['name'];
         }
-
+        if ($payload !== null) {
+            $arguments[] = ($payload['required'] ? '' : '?') . $payload['type'] . ' $payload'
+                . ($payload['required'] ? '' : ' = null');
+            $forward[] = '$payload';
+        }
         $success = $this->successTypes[$operation->operationId]
             ?? throw new InvalidArgumentException("Missing success response metadata at $operation->operationId");
         $returnType = $success['type'] ?? 'void';
         if ($success['nullable'] && $success['type'] !== null) {
             $returnType = '?' . $returnType;
         }
-
         if ($resourceClass !== null) {
             $connector = $grouped ? 'self::client()'
                 : ($resourceMethod === null ? 'StaticClient::client()' : 'Client::current()');
             $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
                 . $resourceClass . '::class)->' . ($resourceMethod ?? $method)
-                . '(' . $forward . ')';
-            return "    public static function $method(" . implode(', ', $args) . "): $returnType\n    {\n"
+                . '(' . implode(', ', $forward) . ')';
+            return "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n"
                 . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";
         }
 
+        $validation = [];
+        foreach ($operation->parameters as $parameter) {
+            if ($parameter->location !== 'path') {
+                continue;
+            }
+            $resolved = PhpParameterTypeResolver::resolve(
+                $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
+            );
+            $rules = $parameter->schema->validation;
+            if ($resolved['enumValues'] !== []) {
+                $rules['enum'] = $resolved['enumValues'];
+            }
+            if ($rules !== []) {
+                $validation[$parameter->wireName] = $rules;
+            }
+        }
         $successStatuses = array_values(array_map(
             static fn ($response): int => (int) $response->status,
-            array_filter(
-                $operation->responses,
-                static fn ($response): bool => preg_match('/^2[0-9]{2}$/', $response->status) === 1,
-            ),
+            array_filter($operation->responses, static fn ($response): bool =>
+                preg_match('/^2[0-9]{2}$/', $response->status) === 1),
         ));
         $metadata = [
             'method' => strtoupper($operation->method),
@@ -344,7 +373,7 @@ PHP;
             'responseType' => $success['type'],
             'schemaNullable' => $success['schemaNullable'],
             'noContentAllowed' => $success['noContentAllowed'],
-            'validation' => [],
+            'validation' => $validation,
         ];
         foreach (self::OPERATION_DEFAULTS as $key => $default) {
             if ($metadata[$key] === $default) {
@@ -353,11 +382,24 @@ PHP;
         }
         $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
         $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
-        $call = $request !== null
-            ? '$this->executeDtoOperation(self::' . $constant . ', ' . $executionArgs[0] . ')'
-            : '$this->executeOperation(self::' . $constant
-                . ($executionArgs !== [] ? ', body: ' . $executionArgs[0] : '') . ')';
-        $source .= "    public function $method(" . implode(', ', $args) . "): $returnType\n    {\n";
+        if ($identifier === null && $payload === null) {
+            $call = '$this->executeOperation(self::' . $constant . ')';
+        } elseif ($identifier === null && $payload['kind'] === 'body') {
+            $call = '$this->executeOperation(self::' . $constant . ', body: $payload)';
+        } else {
+            $parts = ['self::' . $constant];
+            if ($identifier !== null) {
+                $parts[] = 'identifier: $' . $identifier['name'];
+                if ($identifier['kind'] === 'scalar') {
+                    $parts[] = 'identifierName: ' . var_export($identifier['wireName'], true);
+                }
+            }
+            if ($payload !== null) {
+                $parts[] = ($payload['kind'] === 'body' ? 'body: ' : 'payload: ') . '$payload';
+            }
+            $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
+        }
+        $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
         $source .= $success['type'] === null
             ? "        $call;\n        return;\n"
             : "        /** @var $returnType \$result */\n        \$result = $call;\n        return \$result;\n";
