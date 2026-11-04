@@ -265,8 +265,9 @@ final class PhpModelNameResolver
         [$path, $type] = $this->resolveDerived($hint, $name, $category);
         $pathKey = strtolower($path);
         if (isset($this->occupiedPaths[$pathKey])) {
-            $name .= ucfirst(substr(hash('sha256', $hint), 0, 7));
-            [$path, $type] = $this->resolveDerived($hint, $name, $category);
+            // Distinguish nested items/variants using the original source
+            // property/operation path as another namespace segment, never a hash.
+            [$path, $type] = $this->resolveDerived($hint . '.Nested', $name, $category);
             $pathKey = strtolower($path);
         }
         if (isset($this->occupiedPaths[$pathKey])) {
@@ -372,7 +373,13 @@ final class PhpModelNameResolver
 
         $modelName = $this->matchingModelName($hint);
         if ($modelName === null) {
-            return $this->resolve($name, $category);
+            // Operation hints contain their exact route + verb hierarchy:
+            // Api.V1.Properties.Search.Post.Response
+            //   -> Collections/Api/V1/Properties/Search/Post/...
+            return $this->resolve(
+                implode('.', [...array_slice($segments, 0, -1), $name]),
+                $category,
+            );
         }
         $modelSegments = explode('.', $modelName);
         $folders = $this->segments[$modelName];

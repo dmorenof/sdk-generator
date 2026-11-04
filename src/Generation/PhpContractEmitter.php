@@ -873,23 +873,30 @@ final class PhpContractEmitter
         return $this->typeFor($schema, $hint, $files, 'Response');
     }
 
+    /**
+     * Derive response types from their structural URL hierarchy.
+     * The HTTP verb is a namespace segment, avoiding GET/DELETE or v1/v2
+     * collisions without opaque suffixes.
+     */
     private function operationResponseHint(OperationDefinition $operation, ?string $status = null): string
     {
-        $name = ucfirst(PhpOperationNameResolver::resolve($operation->operationId));
+        $segments = [];
+        foreach (explode('/', trim($operation->path, '/')) as $part) {
+            if ($part === '') {
+                continue;
+            }
+            $segments[] = preg_match('/^\{([^{}]+)\}$/D', $part, $match) === 1
+                ? 'By' . PhpResourceNameResolver::pascal($match[1])
+                : PhpResourceNameResolver::pascal($part);
+        }
+        $verb = ucfirst(strtolower($operation->method));
         if ($status === null) {
-            return $name . 'Response';
+            return implode('.', [...$segments, $verb, 'Response']);
         }
         $statusName = preg_match('/^[A-Za-z]/', $status) === 1
             ? ucfirst(strtolower($status))
             : 'Status' . preg_replace('/[^A-Za-z0-9]/', '', $status);
-        $segments = [];
-        foreach (explode('/', trim($operation->path, '/')) as $segment) {
-            if ($segment === '' || strtolower($segment) === 'api') { continue; }
-            $segments[] = str_starts_with($segment, '{')
-                ? 'By' . PhpResourceNameResolver::pascal(trim($segment, '{}'))
-                : PhpResourceNameResolver::pascal($segment);
-        }
-        return implode('.', ['Errors', ...$segments, ucfirst(strtolower($operation->method)) . $statusName]);
+        return implode('.', ['Errors', ...$segments, $verb . $statusName]);
     }
 
     private function renderCatalog(ApiContract $contract): string
