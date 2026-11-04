@@ -151,7 +151,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
         $client = new \UsableSdk\Api\V1\ListingAlerts\Feeds('https://api.test',
             securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['HTTPBearer' => 'token']), transport: $transport,
         );
-        $body = new \UsableSdk\DTOs\ApiAlertsFeedV1((object) ['name' => 'Feed', 'filter' => (object) ['operation' => 'sale'], 'id' => 9, 'user' => 'owner']);
+        $body = new \UsableSdk\DTOs\Api\AlertsFeedV1((object) ['name' => 'Feed', 'filter' => (object) ['operation' => 'sale'], 'id' => 9, 'user' => 'owner']);
         $client->post($body);
         self::assertSame(['filter' => ['operation' => 'sale'], 'name' => 'Feed'], json_decode($transport->body, true, 512, JSON_THROW_ON_ERROR));
     }

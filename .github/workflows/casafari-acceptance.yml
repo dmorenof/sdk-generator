@@ -123,8 +123,9 @@ jobs:
           - Open `src/ApiV1.php`, `src/ApiV2.php`, and other root *Api.php files.
           - `src/CasafariAPISDK.php` is the abstract root for all groups.
           - There is no flat all-operations `Api` facade; `Api` is reserved for unversioned /api routes.
-          - Inspect `src/DTOs`, `src/Requests`, and `src/Responses`;
-            these models are not unified in this development snapshot.
+          - Inspect `src/DTOs` for hierarchical schema models
+            such as `UserManagement/JWTRefreshToken/ResponseSchema.php`.
+          - Operation-specific parameter wrappers, when generated, are separate.
           - Grouped API methods follow route suffixes, not operationId naming.
           - Their docblocks retain the original operationId and HTTP route.
           - For simultaneous clients/concurrent long-lived workers,
@@ -138,7 +139,7 @@ jobs:
       - name: Upload complete Casafari SDK preview (ZIP)
         uses: actions/upload-artifact@v7
         with:
-          name: casafari-sdk-020-root-transliterated
+          name: casafari-sdk-020-hierarchical-dtos
           path: casafari-sdk/
           if-no-files-found: error
           retention-days: 30

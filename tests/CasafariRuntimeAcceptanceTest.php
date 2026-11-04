@@ -93,7 +93,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
 
         self::assertInstanceOf(\Dmorenof\SdkRuntime\TypedArray::class, $feeds);
         self::assertCount(1, $feeds);
-        self::assertInstanceOf(\CasafariRuntimeSdk\DTOs\ApiAlertsFeedV1::class, $feeds[0]);
+        self::assertInstanceOf(\CasafariRuntimeSdk\DTOs\Api\AlertsFeedV1::class, $feeds[0]);
         self::assertSame(43, $feeds[0]->id);
         self::assertSame('Lisbon homes', $feeds[0]->name);
         self::assertSame('sale', $feeds[0]->filter->operation->value);
@@ -108,7 +108,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         self::assertSame('Bearer runtime-test-token', $sent->getHeaderLine('Authorization'));
 
         $created = $client->resource($feedsResource)->post(
-            new \CasafariRuntimeSdk\DTOs\ApiAlertsFeedV1((object) [
+            new \CasafariRuntimeSdk\DTOs\Api\AlertsFeedV1((object) [
                 'name' => 'Runtime feed',
                 'filter' => (object) ['operation' => 'sale', 'location_ids' => [10]],
             ]),

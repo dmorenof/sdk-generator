@@ -80,3 +80,24 @@ and TypedArray reuse are separate follow-up stages.
 The static connection is shared within one PHP execution scope; it is not
 fiber-/coroutine-local in persistent servers. Use instance clients for
 concurrent independent connections.
+
+## DTO hierarchy
+
+All named schema objects and inline models are emitted into the single
+`DTOs` tree. Explicit schema hierarchy takes precedence; for flattened
+PascalCase identifiers, the generator infers shared family prefixes from the
+entire OpenAPI specification and separates common request/response suffixes.
+For example:
+
+| Original schema ID | Generated PHP type |
+| --- | --- |
+| `UserManagementJWTRefreshTokenResponseSchema` | `DTOs\\UserManagement\\JWTRefreshToken\\ResponseSchema` |
+| `UserManagementJWTTokenResponseSchema` | `DTOs\\UserManagement\\JWTToken\\ResponseSchema` |
+| `UserManagementLoginRequestSchema` | `DTOs\\UserManagement\\Login\\RequestSchema` |
+| `AlertsApiAlertFeedFiltersSchema` | `DTOs\\AlertsApi\\AlertFeedFiltersSchema` |
+
+Original `$ref` keys are preserved in the contract. Flat-name inference
+is conservative; if a stable family prefix cannot be established, the
+original normalized name remains the leaf class. Distinct schema identities
+are never merged, and normalized path collisions fail explicitly.
+

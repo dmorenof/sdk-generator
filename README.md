@@ -54,7 +54,17 @@ $created = $client->resource(Users::class)->post($input);
 
 These endpoints exist in the example **synthetic Accounts specification**, not in every API; generated endpoint names always come from the input contract.
 
-Generated route classes live under `Api`, follow the route hierarchy, and extend the shared `Client` base so request construction and transport handling are implemented once. Request-only schemas are in `Requests`, response-only schemas in `Responses`, and shared or otherwise neutral schemas in `DTOs`; enums and domain collections are nested under their owning schema. Equivalent collections share a type, including `Collections\StringCollection` and `Collections\IntegerCollection` when unconstrained. Schema names flattened with `__` become folders, retaining the provider and numbered variants; technical source folders are omitted by the documented [naming policy](docs/SDK_DESIGN.md). Referenced schemas keep their identity even when used by one field. HTTP errors identify the failing method and route (for example, `GET /users/{id}`), rather than exposing an arbitrary OpenAPI `operationId`.
+Generated route classes live under `Api` and inherit from `Client`.
+Reusable schema models are grouped in a **single hierarchical `DTOs` tree**.
+Explicit hierarchy from dotted or `__` schema identifiers is preserved.
+For flattened names, shared structural prefixes and common
+`RequestSchema`/`ResponseSchema` suffixes are reconstructed into
+namespaces. For example, `UserManagementJWTRefreshTokenResponseSchema`
+becomes `DTOs\\UserManagement\\JWTRefreshToken\\ResponseSchema`.
+Original schema identifiers and `$ref` links remain unchanged.
+The runtime's `Request` and `Response` base classes continue to enforce
+direction-sensitive validation. Enums and typed collections retain their
+own namespace trees. See [naming policy](docs/SDK_DESIGN.md).
 
 ### Named SDK root and grouped APIs (0.2.0 development)
 
