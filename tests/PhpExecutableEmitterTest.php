@@ -178,8 +178,8 @@ final class PhpExecutableEmitterTest extends TestCase
             'example/inline-response-sdk',
         ))->emit($contract);
 
-        self::assertArrayHasKey('src/Collections/Users/ById/Get/ByIdGetCollection.php', $files);
-        self::assertArrayHasKey('src/DTOs/Users/ById/Get/ByIdGetResponse.php', $files);
+        self::assertArrayHasKey('src/Collections/Users/ById/Get/UsersByIdCollection.php', $files);
+        self::assertArrayHasKey('src/DTOs/Users/ById/Get/UsersByIdResponse.php', $files);
         self::assertArrayHasKey('src/DTOs/Errors/Users/ById/GetStatus404Response.php', $files);
         self::assertStringContainsString(
             '): ?\\Example\\InlineResponseSdk\\Collections\\UserCollection',
@@ -190,19 +190,19 @@ final class PhpExecutableEmitterTest extends TestCase
         self::assertStringContainsString('GetStatus404Response', $files['src/Resources/Users.php']);
 
         foreach ([
-            'src/DTOs/Users/ById/Get/ByIdGetResponse.php',
-            'src/Collections/Users/ById/Get/ByIdGetCollection.php',
+            'src/DTOs/Users/ById/Get/UsersByIdResponse.php',
+            'src/Collections/Users/ById/Get/UsersByIdCollection.php',
             'src/DTOs/Errors/Users/ById/GetStatus404Response.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
         $response = \Dmorenof\SdkRuntime\JsonHydrator::decode(
             '[{"id":7,"name":"Ada"}]',
-            \Example\InlineResponseSdk\Collections\Users\ById\Get\ByIdGetCollection::class,
+            \Example\InlineResponseSdk\Collections\Users\ById\Get\UsersByIdCollection::class,
         );
-        self::assertInstanceOf(\Example\InlineResponseSdk\Collections\Users\ById\Get\ByIdGetCollection::class, $response);
+        self::assertInstanceOf(\Example\InlineResponseSdk\Collections\Users\ById\Get\UsersByIdCollection::class, $response);
         self::assertInstanceOf(
-            \Example\InlineResponseSdk\DTOs\Users\ById\Get\ByIdGetResponse::class,
+            \Example\InlineResponseSdk\DTOs\Users\ById\Get\UsersByIdResponse::class,
             $response->getArrayCopy()[0],
         );
         self::assertSame(7, $response->getArrayCopy()[0]->id);
