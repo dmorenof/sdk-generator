@@ -1,26 +1,54 @@
-# Configuring a generated PHP SDK
+# Configuring a generated PHP SDK (0.2.0 development)
 
-Create a resource instance. Its inherited constructor supplies Guzzle automatically:
+The generator emits instantiable typed DTOs, typed inputs and responses, and two ways of calling HTTP operations. Both use the same shared transport, serialization, validation, security and middleware implementation from `dmorenof/sdk-runtime ^0.3`.
 
-    $users = new \Example\ReadySdk\Api\Users\User('https://api.example.com/v1');
-    $user = $users->getById(88);
+## Static operations — one current connection per PHP execution context
 
-The generated package uses Guzzle 7 by default. Advanced users can supply a configured PSR-18 client and default headers:
+~~~php
+use Example\ReadySdk\StaticClient;
+use Example\ReadySdk\StaticApi\Users\User;
+use Example\ReadySdk\StaticApi\Users;
+use Example\ReadySdk\Requests\NewUser;
 
-    $client = \Example\ReadySdk\Client::connect(
-        'https://api.example.com',
-        $customPsr18Client,
-        ['Authorization' => 'Bearer ' . $token],
-    );
+StaticClient::connect('https://api.example.com/v1');
+$input = new NewUser();
+$input->name = 'Grace';
 
-Each client owns its configuration. `connect()` is a factory returning an independent instance, with no global state. For multiple resources, `$client->resource(\Example\ReadySdk\Api\Users\User::class)` explicitly shares that client's transport, credentials and middleware. Resources also inherit the constructor and `connect()` factory.
+$created = Users::post($input); // typed response
+$user = User::getById(88);    // typed response
+~~~
 
-Guzzle HandlerStack middleware works through PSR-18 injection. SDK middleware registered with `withMiddleware()` is shared by resources using that client's transport.
+The static route classes have generated PHP signatures, so IDE completion and PHPStan can see input and output types without dynamic dispatch. The connection is set once and reused across every static route. Explicitly calling `StaticClient::connect(...)` or `StaticClient::configure($client)` again replaces the current connection.
 
-The generated `Client` parent implements request construction, authentication, status handling and hydration once. Resource methods contain typed arguments and a call to the inherited executor with constant operation metadata. DTOs, requests and responses inherit conversion, validation and serialization from `Core\DTO`.
+Use `StaticClient::configure(Client::connect(...))` when attaching middleware, credentials, a configured PSR-18 client or an alternative transport before registering the SDK connection. See [STATIC_FACADE.md](STATIC_FACADE.md) for examples.
 
-This development API replaces the prerelease `CasafariSDK::connect()` global connection and static route operations. Keep the returned instance and replace `User::getById(88)` with `$users->getById(88)`. The published 0.1.0 tag is unchanged. See [SDK_DESIGN.md](SDK_DESIGN.md) for design and acceptance criteria.
+In ordinary PHP-FPM requests, static state has request lifetime. In long-lived worker servers, static properties remain alive between jobs and are shared within the process; concurrent multi-account use should instead use separate instance clients.
 
-OpenAPI security schemes are applied to secured operations. Supply credentials through the generated `Core\SecurityCredentials` type; OAuth2 and OpenID Connect token acquisition are not implemented.
+## Independent clients — explicit connection ownership
 
-All tests run in GitHub Actions with mock PSR-18 responses; no real HTTP credentials or remote calls.
+The generated package uses Guzzle 7 by default, with optional PSR-18 dependency injection:
+
+~~~php
+use Example\ReadySdk\Client;
+use Example\ReadySdk\Api\Users\User;
+
+$client = Client::connect(
+    'https://api.example.com',
+    $customPsr18Client,
+    ['Authorization' => 'Bearer ' . $token],
+);
+
+$user = $client->resource(User::class)->getById(88);
+~~~
+
+Resources can also be instantiated directly. Every independent `Client::connect()` object owns its base URL and credentials; `resource(Type::class)` shares only that client's transport, credentials and middleware. Switching the static connection does not mutate existing instance clients.
+
+## HTTP middleware and DTO behavior
+
+Attach custom PSR-18/Guzzle HandlerStack middlewares, or register SDK middleware with `$client->withMiddleware($middleware)`. SDK middleware offers `beforeRequest(RequestInterface $request)` and `afterResponse(RequestInterface $request, ResponseInterface $response)` hooks; middleware is reused by the resource classes sharing that client. Logs should not record authorization secrets or sensitive payloads by default.
+
+Resource methods contain generated typed argument and return declarations; HTTP execution lives in `Dmorenof\SdkRuntime\ApiClient`. DTOs, requests and responses inherit hydration, validation and JSON serialization from the shared `Dmorenof\SdkRuntime\DTO` hierarchy. The generator is required only at build time; generated packages depend on the separate versioned runtime package.
+
+OpenAPI security schemes are applied to secured operations. Supply already-issued credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`; OAuth2 and OpenID Connect token acquisition are not included.
+
+Automated tests simulate HTTP without real API credentials. The published 0.1.0 tag remains unchanged.

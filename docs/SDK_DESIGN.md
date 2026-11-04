@@ -4,10 +4,10 @@ El objetivo es automatizar la forma de construir integraciones PHP del autor: cl
 
 ## Responsabilidades
 
-- `Core\ApiClient` construye clientes independientes y comparte explícitamente transporte, credenciales y middleware entre sus recursos.
-- `Client` implementa la ejecución HTTP común. Las clases de `Api` declaran metadatos constantes y métodos de instancia con firmas tipadas.
-- `Core\DTO` contiene la conversión de tipos, validación y serialización. `Request` y `Response` seleccionan la dirección apropiada. La decodificación de respuestas, los mapas y las uniones usan esa misma conversión.
-- Las clases de modelo declaran campos y restricciones. Las colecciones heredan el comportamiento de `Core\TypedArray`, que sigue utilizando la biblioteca TypedArray.
+- `Dmorenof\SdkRuntime\ApiClient` mantiene clientes independientes que comparten explícitamente transporte, credenciales y middleware entre sus recursos.
+- `Client` hereda la ejecución HTTP del runtime. Las clases generadas de `Api` declaran metadatos constantes y métodos de instancia tipados; las de `StaticApi` ofrecen la misma operación como método estático tipado y delegan en el cliente configurado mediante `StaticClient`.
+- `Dmorenof\SdkRuntime\DTO` implementa conversión, validación y serialización reutilizables. `Request` y `Response` distinguen la dirección. La hidratación de respuestas, mapas y uniones reutiliza esa conversión.
+- Las clases generadas de modelo declaran campos y restricciones. Las colecciones heredan de `Dmorenof\SdkRuntime\TypedArray`, apoyado en la biblioteca TypedArray.
 
 La colección se reutiliza cuando coincide el tipo PHP de elemento, su nullabilidad y sus restricciones. Las colecciones de primitivas sin restricciones tienen nombres comunes como `StringCollection`. No se fusionan enums de dominios distintos solo porque coincidan sus valores. Una unión `anyOf` de enums finitos con el mismo tipo base se representa como un enum con la unión de valores; `oneOf` conserva su comprobación de coincidencia única.
 
@@ -16,6 +16,8 @@ Los identificadores con puntos mantienen su jerarquía. En identificadores aplan
 Para esta convención codificada se omiten los segmentos técnicos `src`, `structures`, `schema` y `schemas`. Si la primera carpeta concatena un prefijo de proveedor con `src` o `api`, se separa esa raíz únicamente cuando el siguiente segmento es `structures`, `schema` o `schemas`; una raíz `api` aislada se omite solo antes de `schema`/`schemas`. Las demás carpetas se conservan y empiezan con mayúscula. Estas reglas no eliminan segmentos de los identificadores ordinarios con puntos. Los nombres inválidos y las colisiones de rutas, incluidas las diferencias solo de mayúsculas, producen errores explícitos.
 
 Los modelos referenciados conservan su identidad y jerarquía incluso cuando solo los usa un campo; no se sustituyen por nombres inferidos de ese campo. Los enums y colecciones derivados siguen la misma jerarquía del modelo propietario. Los errores inline se ubican bajo `Responses\Errors`, siguiendo ruta, método y estado.
+
+El uso estático mantiene una conexión activa por contexto de ejecución PHP y permite sustituirla explícitamente; la conexión se resuelve en cada llamada. Bajo PHP-FPM, el estado estático es por petición. En servidores persistentes y ejecuciones concurrentes se deben utilizar clientes de instancia para aislar usuarios y credenciales. La fachada no duplica validación, hidratación ni lógica HTTP.
 
 ## Criterios de aceptación
 
