@@ -187,6 +187,53 @@ final class HierarchicalNamesTest extends TestCase
         self::assertSame('https://api.example.test/agencies/27', $transport->calls[0]['url']);
     }
 
+    public function testFlattenedCasafariModelsBecomeNestedDTOsWithoutLosingRefs(): void
+    {
+        $models = [
+            'UserManagementJWTRefreshTokenResponseSchema',
+            'UserManagementJWTTokenResponseSchema',
+            'UserManagementLoginRequestSchema',
+            'UserManagementAccessRequest',
+            'UserManagementAccessResponse',
+            'UserManagementDetailsResponse',
+            'UserManagementValidationError',
+            'AlertsApiAlertFeedFiltersSchema',
+            'AlertsApiFeedDetailResponseSchema',
+            'AlertsApiFeedListResponseSchema',
+            'AlertsApiCoordinatesDto',
+        ];
+        $objects = array_map(static fn (string $name): ModelDefinition =>
+            new ModelDefinition($name, new SchemaDefinition(SchemaKind::Object)), $models);
+        $resolver = new PhpModelNameResolver('Example\\Sdk', $objects, [
+            'UserManagementJWTRefreshTokenResponseSchema' => 'Response',
+            'UserManagementLoginRequestSchema' => 'Request',
+        ]);
+        self::assertSame(
+            'src/DTOs/UserManagement/JWTRefreshToken/ResponseSchema.php',
+            $resolver->path('UserManagementJWTRefreshTokenResponseSchema'),
+        );
+        self::assertSame(
+            '\\Example\\Sdk\\DTOs\\UserManagement\\JWTRefreshToken\\ResponseSchema',
+            $resolver->fqcn('UserManagementJWTRefreshTokenResponseSchema'),
+        );
+        self::assertSame(
+            'src/DTOs/UserManagement/JWTToken/ResponseSchema.php',
+            $resolver->path('UserManagementJWTTokenResponseSchema'),
+        );
+        self::assertSame(
+            'src/DTOs/UserManagement/Login/RequestSchema.php',
+            $resolver->path('UserManagementLoginRequestSchema'),
+        );
+        self::assertSame(
+            'src/DTOs/AlertsApi/AlertFeedFiltersSchema.php',
+            $resolver->path('AlertsApiAlertFeedFiltersSchema'),
+        );
+        self::assertSame(
+            'src/DTOs/AlertsApi/FeedDetail/ResponseSchema.php',
+            $resolver->path('AlertsApiFeedDetailResponseSchema'),
+        );
+    }
+
     public function testDifferentVendorsAreNotCollapsedAndCaseInsensitiveCollisionsFail(): void
     {
         $schema = new SchemaDefinition(SchemaKind::Object);
