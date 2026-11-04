@@ -395,6 +395,15 @@ final class PhpContractEmitter
         return 'DTOs';
     }
 
+    private static function nameCategoryForBaseClass(string $baseClass): string
+    {
+        return match ($baseClass) {
+            'Request' => 'Requests',
+            'Response' => 'Responses',
+            default => 'DTOs',
+        };
+    }
+
     /** @param array<string,string> $files */
     private function inlineObjectType(
         SchemaDefinition $schema,
@@ -415,6 +424,7 @@ final class PhpContractEmitter
             $hint,
             self::categoryForBaseClass($baseClass),
             $className,
+            self::nameCategoryForBaseClass($baseClass),
         );
         $this->addFile(
             $files,
@@ -432,7 +442,7 @@ final class PhpContractEmitter
         string $baseClass = 'DTO',
     ): string
     {
-        $entry = $this->modelNames->derived($hint . 'Map', self::categoryForBaseClass($baseClass));
+        $entry = $this->modelNames->derived($hint . 'Map', self::categoryForBaseClass($baseClass), null, self::nameCategoryForBaseClass($baseClass));
         $this->addFile(
             $files,
             $entry['path'],
@@ -532,7 +542,7 @@ final class PhpContractEmitter
         }
         $prefix = $schema->kind === SchemaKind::AnyOf ? 'AnyOf' : 'OneOf';
         $name = PhpModelNameResolver::prefixLastSegment($hint, $prefix);
-        $entry = $this->modelNames->derived($name, self::categoryForBaseClass($baseClass));
+        $entry = $this->modelNames->derived($name, self::categoryForBaseClass($baseClass), null, self::nameCategoryForBaseClass($baseClass));
         $this->addFile(
             $files,
             $entry['path'],

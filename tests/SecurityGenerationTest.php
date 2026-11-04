@@ -41,8 +41,8 @@ final class SecurityGenerationTest extends TestCase
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
-            'src/Requests/NewUser.php',
-            'src/Responses/User.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/User.php',
             'src/Client.php',
             'src/Api/Users/User.php',
         ] as $path) {

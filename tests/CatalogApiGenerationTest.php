@@ -25,9 +25,9 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertSame($swagger, $this->generated('catalog-openapi30.json'));
         self::assertSame($swagger, $this->generated('catalog-openapi31.json'));
         self::assertSame($swagger, $this->generated('catalog-swagger2.json'));
-        self::assertArrayHasKey('src/Responses/Book.php', $swagger);
+        self::assertArrayHasKey('src/DTOs/Book.php', $swagger);
         self::assertArrayHasKey('src/DTOs/Warehouse.php', $swagger);
-        self::assertArrayHasKey('src/Requests/BookDraft.php', $swagger);
+        self::assertArrayHasKey('src/DTOs/BookDraft.php', $swagger);
         self::assertArrayHasKey('src/Api/Books/Book.php', $swagger);
         self::assertArrayHasKey('src/Api/Books.php', $swagger);
         self::assertArrayHasKey('src/Collections/StringCollection.php', $swagger);
@@ -52,14 +52,14 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertSame(SchemaKind::Array, $props['tags']->schema->kind);
         self::assertSame(SchemaKind::Reference, $props['warehouse']->schema->kind);
         $out = $this->generated('catalog-openapi31.json');
-        self::assertStringContainsString('public float $price;', $out['src/Responses/Book.php']);
-        self::assertStringContainsString('public bool $available;', $out['src/Responses/Book.php']);
+        self::assertStringContainsString('public float $price;', $out['src/DTOs/Book.php']);
+        self::assertStringContainsString('public bool $available;', $out['src/DTOs/Book.php']);
         self::assertStringContainsString(
-            'public function getBySku(string $sku, ?bool $expand = null): \\Preview\\CatalogSdk\\Responses\\Book',
+            'public function getBySku(string $sku, ?bool $expand = null): \\Preview\\CatalogSdk\\DTOs\\Book',
             $out['src/Api/Books/Book.php'],
         );
         self::assertStringContainsString(
-            'public function post(\\Preview\\CatalogSdk\\Requests\\BookDraft $body): \\Preview\\CatalogSdk\\Responses\\Book',
+            'public function post(\\Preview\\CatalogSdk\\DTOs\\BookDraft $body): \\Preview\\CatalogSdk\\DTOs\\Book',
             $out['src/Api/Books.php'],
         );
         self::assertStringContainsString("'/books/{sku}'", $out['src/Api/Books/Book.php']);

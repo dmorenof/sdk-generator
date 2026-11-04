@@ -246,12 +246,12 @@ final class PhpModelNameResolver
      *
      * @return array{path:string,type:string,namespace:string,class:string}
      */
-    public function derived(string $hint, string $category, ?string $className = null): array
+    public function derived(string $hint, string $category, ?string $className = null, ?string $nameCategory = null): array
     {
         if (!in_array($category, ['Enums', 'Collections', 'DTOs', 'Requests', 'Responses'], true)) {
             throw new InvalidArgumentException("Unsupported derived type category: $category");
         }
-        $key = $category . ':' . $hint . ':' . ($className ?? '');
+        $key = $category . ':' . $hint . ':' . ($className ?? '') . ':' . ($nameCategory ?? '');
         if (isset($this->derivedEntries[$key])) {
             return $this->derivedEntries[$key];
         }
@@ -259,7 +259,7 @@ final class PhpModelNameResolver
         $hintSegments = explode('.', $hint);
         $baseName = $className ?? self::compactTypeName(
             $modelName === null ? $hint : (string) end($hintSegments),
-            $category,
+            $nameCategory ?? $category,
         );
         $name = $baseName;
         [$path, $type] = $this->resolveDerived($hint, $name, $category);
