@@ -81,7 +81,8 @@ final readonly class PhpOperationRequestEmitter
                     $identifier = [
                         'kind' => 'scalar',
                         'type' => $resolved['type'],
-                        'name' => PhpNameTransliterator::property($parameter->wireName),
+                        'name' => PhpNameTransliterator::property($parameter->wireName) === 'payload'
+                            ? 'identifier' : PhpNameTransliterator::property($parameter->wireName),
                         'wireName' => $parameter->wireName,
                     ];
                 } elseif (count($pathParameters) > 1) {

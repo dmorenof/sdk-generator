@@ -142,10 +142,9 @@ final readonly class PhpResourceEmitter
     {
         $dto->validateForRequest();
         $values = get_object_vars($dto);
-        $body = $values['body'] ?? null;
-        if ($body !== null && !$body instanceof \Dmorenof\SdkRuntime\DTO) {
-            throw new \LogicException('The operation body must be a DTO.');
-        }
+        $bodyValue = $values['body'] ?? null;
+        // An OpenAPI path parameter can itself be named "body".
+        $body = $bodyValue instanceof \Dmorenof\SdkRuntime\DTO ? $bodyValue : null;
         /** @var array{path:array<string,bool|float|int|string|null>,query:array<string,bool|float|int|string|null>,header:array<string,bool|float|int|string|null>,body:?\Dmorenof\SdkRuntime\DTO} $result */
         $result = ['path' => [], 'query' => [], 'header' => [], 'body' => $body];
         /** @var array{path:array<string,string>,query:array<string,string>,header:array<string,string>} $locations */
