@@ -129,26 +129,46 @@ final readonly class PhpResourceEmitter
 
     /**
      * Transfer only initialized properties, preserving OpenAPI wire names.
-     * Shared runtime DTO validation also checks required fields and nested bodies.
+     * Shared runtime DTO validation checks required and nested fields.
      *
-     * @return array{path:array,query:array,header:array,body:?\Dmorenof\SdkRuntime\DTO}
+     * @return array{
+     *   path:array<string,bool|float|int|string|null>,
+     *   query:array<string,bool|float|int|string|null>,
+     *   header:array<string,bool|float|int|string|null>,
+     *   body:?\Dmorenof\SdkRuntime\DTO
+     * }
      */
     private static function operationFields(\Dmorenof\SdkRuntime\Request $dto): array
     {
         $dto->validateForRequest();
         $values = get_object_vars($dto);
-        $result = ['path' => [], 'query' => [], 'header' => [], 'body' => $values['body'] ?? null];
-        foreach ($dto::OPERATION_FIELDS as $location => $fields) {
+        $body = $values['body'] ?? null;
+        if ($body !== null && !$body instanceof \Dmorenof\SdkRuntime\DTO) {
+            throw new \LogicException('The operation body must be a DTO.');
+        }
+        /** @var array{path:array<string,bool|float|int|string|null>,query:array<string,bool|float|int|string|null>,header:array<string,bool|float|int|string|null>,body:?\Dmorenof\SdkRuntime\DTO} $result */
+        $result = ['path' => [], 'query' => [], 'header' => [], 'body' => $body];
+        /** @var array{path:array<string,string>,query:array<string,string>,header:array<string,string>} $locations */
+        $locations = constant($dto::class . '::OPERATION_FIELDS');
+        foreach ($locations as $location => $fields) {
             foreach ($fields as $wireName => $property) {
-                if (array_key_exists($property, $values)) {
-                    $result[$location][$wireName] = $values[$property];
+                if (!array_key_exists($property, $values)) {
+                    continue;
                 }
+                $value = $values[$property];
+                if ($value !== null && !is_scalar($value)) {
+                    throw new \UnexpectedValueException("Non-scalar operation parameter: $wireName");
+                }
+                $result[$location][$wireName] = $value;
             }
         }
         return $result;
     }
 
-    /** Map identifier + payload to the shared sdk-runtime executor. */
+    /**
+     * Map identifier + payload to the shared sdk-runtime executor.
+     * @param OperationSpec $operation
+     */
     protected function executeArguments(
         array $operation,
         string|int|float|bool|\Dmorenof\SdkRuntime\Request|null $identifier = null,
@@ -156,13 +176,16 @@ final readonly class PhpResourceEmitter
         ?\Dmorenof\SdkRuntime\Request $payload = null,
         ?\Dmorenof\SdkRuntime\DTO $body = null,
     ): mixed {
+        /** @var array<string,bool|float|int|string|null> $path */
         $path = [];
         if ($identifier instanceof \Dmorenof\SdkRuntime\Request) {
             $path = self::operationFields($identifier)['path'];
         } elseif ($identifierName !== null) {
             $path[$identifierName] = $identifier;
         }
+        /** @var array<string,bool|float|int|string|null> $query */
         $query = [];
+        /** @var array<string,bool|float|int|string|null> $headers */
         $headers = [];
         if ($payload !== null) {
             $fields = self::operationFields($payload);
@@ -181,6 +204,7 @@ final readonly class PhpResourceEmitter
 PHP;
 
         return $this->header($this->namespace)
+            . '/** @phpstan-import-type OperationSpec from \\Dmorenof\\SdkRuntime\\Operation */' . "\n"
             . 'class Client extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE . "\\ApiClient\n{\n"
             . '    protected const array SECURITY_SCHEMES = ' . PhpLiteral::export($schemes) . ";\n"
             . $methods . "\n}\n";
