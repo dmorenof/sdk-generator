@@ -57,7 +57,10 @@ final class PhpModelNameResolver
         $occupied = [];
         foreach ($models as $model) {
             $name = $model->name;
-            $sourceSegments = self::schemaSegments($name);
+            $sourceSegments = array_map(
+                static fn (string $segment): string => PhpNameTransliterator::pascal($segment, 'schema segment'),
+                self::schemaSegments($name),
+            );
             foreach ($sourceSegments as $segment) {
                 $this->checkSegment($segment);
             }
@@ -190,6 +193,7 @@ final class PhpModelNameResolver
     private function resolve(string $name, string $category): array
     {
         if (!str_contains($name, '.')) {
+            $name = PhpNameTransliterator::pascal($name, 'schema name');
             $this->checkSegment($name);
             return [
                 'src/' . $category . '/' . $name . '.php',
@@ -197,7 +201,10 @@ final class PhpModelNameResolver
             ];
         }
 
-        $segments = explode('.', $name);
+        $segments = array_map(
+            static fn (string $segment): string => PhpNameTransliterator::pascal($segment, 'schema segment'),
+            explode('.', $name),
+        );
         foreach ($segments as $segment) {
             $this->checkSegment($segment);
         }
@@ -211,7 +218,7 @@ final class PhpModelNameResolver
 
     private static function compactTypeName(string $hint, string $category): string
     {
-        $sections = explode('.', str_replace(['_', '-'], ' ', $hint));
+        $sections = explode('.', str_replace(['_', '-'], ' ', PhpNameTransliterator::latin($hint)));
         $words = [];
         foreach ($sections as $index => $section) {
             if ($index < count($sections) - 1) {
@@ -273,6 +280,11 @@ final class PhpModelNameResolver
         foreach ([...$folders, $name] as $segment) {
             $this->checkSegment($segment);
         }
+        $folders = array_map(
+            static fn (string $segment): string => PhpNameTransliterator::pascal($segment, 'schema segment'),
+            $folders,
+        );
+        $name = PhpNameTransliterator::pascal($name, 'schema name');
         $relative = implode('/', [...$folders, $name]);
         $qualified = implode('\\', [...$folders, $name]);
         return [

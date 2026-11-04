@@ -29,7 +29,7 @@ final class PhpOperationNameResolver
             return $operationId;
         }
 
-        $words = preg_split('/[^A-Za-z0-9]+/', $operationId, -1, PREG_SPLIT_NO_EMPTY);
+        $words = preg_split('/[^A-Za-z0-9]+/', PhpNameTransliterator::latin($operationId), -1, PREG_SPLIT_NO_EMPTY);
         if ($words === false || $words === []) {
             throw new InvalidArgumentException("Cannot derive a PHP method name from operationId: $operationId");
         }

@@ -154,7 +154,8 @@ final class PhpResourceNameResolver
 
     public static function pascal(string $value): string
     {
-        $words = preg_split('/[^A-Za-z0-9]+/', $value, -1, PREG_SPLIT_NO_EMPTY);
+        $latin = PhpNameTransliterator::latin($value);
+        $words = preg_split('/[^A-Za-z0-9]+/', $latin, -1, PREG_SPLIT_NO_EMPTY);
         if ($words === false || $words === []) {
             throw new InvalidArgumentException("Cannot derive a PHP resource name from: $value");
         }

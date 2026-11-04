@@ -4,6 +4,7 @@
     "type": "library",
     "license": "MIT",
     "require": {
+        "ext-intl": "*",
         "php": "^8.3",
         "symfony/yaml": "^7.2"
     },

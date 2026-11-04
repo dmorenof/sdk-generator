@@ -10,23 +10,17 @@ final class PhpApiNameResolver
 {
     public static function fromTitle(string $title): string
     {
-        $words = preg_split('/[^A-Za-z0-9]+/', trim($title), -1, PREG_SPLIT_NO_EMPTY);
-        if ($words === false || $words === []) {
-            throw new InvalidArgumentException('Cannot derive PHP SDK name from OpenAPI info.title; supply an explicit namespace.');
-        }
-        $name = implode('', array_map(static fn(string $word): string => ucfirst(strtolower($word)), $words));
-        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $name) !== 1) {
-            throw new InvalidArgumentException(
-                "Cannot derive valid PHP SDK name from OpenAPI info.title '$title'; supply an explicit namespace.",
-            );
-        }
-        $reserved = ['class','interface','trait','enum','namespace','abstract','final','readonly',
-            'string','int','float','bool','void','object','mixed','never','null','false','true'];
-        if (in_array(strtolower($name), $reserved, true)) {
-            throw new InvalidArgumentException(
-                "Reserved PHP SDK name derived from OpenAPI info.title '$title'; supply an explicit namespace.",
-            );
+        $name = PhpNameTransliterator::pascal($title, 'SDK namespace');
+        if (in_array(strtolower($name), ['class','interface','trait','enum','namespace','abstract','final',
+            'readonly','string','int','float','bool','void','object','mixed','never','null','false','true'], true)) {
+            throw new InvalidArgumentException("Reserved PHP SDK namespace from title: $title");
         }
         return $name;
+    }
+
+    public static function sdkClassFromTitle(string $title): string
+    {
+        $name = self::fromTitle($title);
+        return str_ends_with(strtoupper($name), 'SDK') ? $name : $name . 'SDK';
     }
 }

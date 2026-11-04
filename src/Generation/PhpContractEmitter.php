@@ -695,7 +695,7 @@ final class PhpContractEmitter
                 throw new InvalidArgumentException("Invalid $backing enum backing value in $name");
             }
             $case = is_string($value)
-                ? preg_replace('/[^A-Za-z0-9]+/', '', ucwords($value, '-_ '))
+                ? preg_replace('/[^A-Za-z0-9]+/', '', ucwords(PhpNameTransliterator::latin($value), '-_ '))
                 : 'Value' . ($value < 0 ? 'Neg' . abs($value) : $value);
             if ($case === '' || preg_match(self::IDENTIFIER, $case) !== 1) {
                 throw new InvalidArgumentException("Cannot safely name enum case in $name");
@@ -934,7 +934,7 @@ final class PhpContractEmitter
         $candidate = preg_replace_callback(
             '/[^A-Za-z0-9_]+([A-Za-z0-9_]?)/',
             static fn (array $match): string => strtoupper($match[1] ?? ''),
-            $wireName,
+            PhpNameTransliterator::latin($wireName),
         );
         if (!is_string($candidate) || $candidate === '') {
             $candidate = 'property';

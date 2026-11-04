@@ -25,9 +25,17 @@ final class PhpApiGroupingResolver
             }
         }
         $groups = [];
+        $owners = [];
         foreach ($contract->operations as $operation) {
             $segments = self::segments($operation->path);
             [$prefix, $class] = self::groupFor($segments, $hasChildren, $rules);
+            $groupKey = strtolower($class);
+            $wirePrefix = implode('/', array_map('strtolower', $prefix));
+            if (isset($owners[$groupKey]) && $owners[$groupKey]['prefix'] !== $wirePrefix) {
+                throw new InvalidArgumentException("Distinct API route prefixes '{$owners[$groupKey]['prefix']}' and '$wirePrefix' map to PHP class $class.");
+            }
+            $owners[$groupKey] = ['prefix' => $wirePrefix, 'class' => $class];
+            $class = $owners[$groupKey]['class'];
             $groups[$class][] = [
                 'operation' => $operation,
                 'method' => self::methodName($operation, array_slice($segments, count($prefix))),
@@ -95,8 +103,8 @@ final class PhpApiGroupingResolver
         if ($version($first)) {
             return [[$first], 'Api' . self::pascal($first)];
         }
-        if (count($segments) === 1 && !isset($hasChildren[strtolower($first)])) {
-            return [[], 'RootApi'];
+        if (strtolower($first) === 'api') {
+            return [[$first], 'Api'];
         }
         if (str_starts_with($first, '{')) {
             return [[], 'RootApi'];

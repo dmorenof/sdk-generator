@@ -43,15 +43,17 @@ final readonly class PhpResourceEmitter
         $files = [
             'src/Client.php' => $this->renderConnector(),
             'src/Configuration.php' => $this->renderConfiguration($contract),
-            'src/Api.php' => $this->renderApi($contract, $resolved),
+            'src/' . PhpApiNameResolver::sdkClassFromTitle($contract->title) . '.php'
+                => $this->renderSdkRoot($contract),
             'src/StaticClient.php' => $this->renderStaticConnector(),
         ];
         foreach (PhpApiGroupingResolver::resolve($contract, $this->groupOverrides) as $class => $entries) {
             $path = "src/$class.php";
-            if (isset($files[$path])) {
+            if (isset($files[$path]) || in_array(strtolower($class), ['client', 'configuration', 'staticclient'], true)
+                || strtolower($class) === strtolower(PhpApiNameResolver::sdkClassFromTitle($contract->title))) {
                 throw new InvalidArgumentException("Generated grouped API conflicts with $path.");
             }
-            $files[$path] = $this->renderGroupedApi($class, $entries, $resolved);
+            $files[$path] = $this->renderGroupedApi($class, $entries, $resolved, PhpApiNameResolver::sdkClassFromTitle($contract->title));
         }
         foreach ($resolved['nodes'] as $node) {
             if (strtolower($node['segments'][0]) === 'api' && count($node['segments']) > 1) {
@@ -67,6 +69,18 @@ final readonly class PhpResourceEmitter
             $files[$staticPath] = $this->renderStaticResource($node, $resolved['operationMethods']);
         }
         return $files;
+    }
+
+    private function renderSdkRoot(ApiContract $contract): string
+    {
+        $class = PhpApiNameResolver::sdkClassFromTitle($contract->title);
+        return $this->header($this->namespace)
+            . "abstract class $class\n{\n"
+            . "    public static function configure(Configuration \$configuration): void\n"
+            . "    {\n        Client::configure(\$configuration);\n    }\n\n"
+            . "    protected static function client(): Client\n"
+            . "    {\n        return Client::current();\n    }\n"
+            . "}\n";
     }
 
     private function renderConnector(): string
@@ -141,54 +155,12 @@ PHP;
     }
 
     /**
-     * One public static facade for all operations. Prefer operationId, then
-     * deterministic route-derived names when PHP identifiers collide.
-     *
-     * @param array{
-     *   nodes:array<string,array{segments:list<string>,path:string,operations:list<OperationDefinition>}>,
-     *   operationNodes:array<string,string>,
-     *   operationMethods:array<string,string>
-     * } $resolved
-     */
-    private function renderApi(ApiContract $contract, array $resolved): string
-    {
-        $source = $this->header($this->namespace) . "final class Api\n{\n";
-        $occupied = [];
-        foreach ($contract->operations as $operation) {
-            $method = PhpOperationNameResolver::resolve($operation->operationId);
-            $key = strtolower($method);
-            if (isset($occupied[$key])) {
-                $method = PhpOperationNameResolver::resolve(self::routeOperationName($operation));
-                $key = strtolower($method);
-            }
-            if (isset($occupied[$key])) {
-                $method .= ucfirst(substr(hash('sha256', $operation->method . ' ' . $operation->path), 0, 8));
-                $key = strtolower($method);
-            }
-            if (isset($occupied[$key])) {
-                throw new InvalidArgumentException("Duplicate static API method $method.");
-            }
-            $occupied[$key] = true;
-
-            $nodeKey = $resolved['operationNodes'][$operation->operationId];
-            $segments = $resolved['nodes'][$nodeKey]['segments'];
-            if (strtolower($segments[0]) === 'api' && count($segments) > 1) {
-                array_shift($segments);
-            }
-            $resourceClass = '\\' . $this->namespace . '\\Api\\' . implode('\\', $segments);
-            $resourceMethod = $resolved['operationMethods'][$operation->operationId];
-            $source .= $this->renderOperation($operation, $method, $resourceClass, $resourceMethod);
-        }
-        return $source . "}\n";
-    }
-
-    /**
      * @param list<array{operation:OperationDefinition,method:string,prefix:string}> $entries
      * @param array<string,mixed> $resolved
      */
-    private function renderGroupedApi(string $class, array $entries, array $resolved): string
+    private function renderGroupedApi(string $class, array $entries, array $resolved, string $root): string
     {
-        $source = $this->header($this->namespace) . "final class $class\n{\n";
+        $source = $this->header($this->namespace) . "final class $class extends $root\n{\n";
         foreach ($entries as $entry) {
             $operation = $entry['operation'];
             $nodeKey = $resolved['operationNodes'][$operation->operationId];
@@ -201,23 +173,9 @@ PHP;
             $label = str_replace(["\r", "\n", '*/'], [' ', ' ', '* /'],
                 $operation->method . ' ' . $operation->path . ' [operationId: ' . $operation->operationId . ']');
             $source .= "    /** $label */\n";
-            $source .= $this->renderOperation($operation, $entry['method'], $resourceClass, $resourceMethod);
+            $source .= $this->renderOperation($operation, $entry['method'], $resourceClass, $resourceMethod, true);
         }
         return $source . "}\n";
-    }
-
-    private static function routeOperationName(OperationDefinition $operation): string
-    {
-        $segments = [];
-        foreach (explode('/', trim($operation->path, '/')) as $segment) {
-            if (preg_match('/^\{([^{}]+)\}$/D', $segment, $match) === 1) {
-                $segments[] = 'by';
-                $segments[] = $match[1];
-            } elseif ($segment !== '') {
-                $segments[] = $segment;
-            }
-        }
-        return implode('.', [strtolower($operation->method), ...($segments === [] ? ['root'] : $segments)]);
     }
 
     /** The optional static facade shares one current connection per PHP execution scope. */
@@ -297,7 +255,7 @@ PHP;
         return $source . "}\n";
     }
 
-    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null): string
+    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false): string
     {
         $parameters = [];
         foreach ($operation->parameters as $parameter) {
@@ -358,8 +316,9 @@ PHP;
                 static fn (array $parameter): string => '$' . $parameter['name'],
                 $parameters,
             ));
-            $connector = $resourceMethod === null ? 'StaticClient::client()' : 'Client::current()';
-            $call = '\\' . $this->namespace . '\\' . $connector . '->resource('
+            $connector = $grouped ? 'self::client()' :
+                ($resourceMethod === null ? 'StaticClient::client()' : 'Client::current()');
+            $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
                 . $resourceClass . '::class)->' . ($resourceMethod ?? $method) . '(' . $forwardArgs . ')';
             return "    public static function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n"
                 . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
@@ -445,10 +404,10 @@ PHP;
 
     private static function variableName(string $wireName): string
     {
-        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $wireName) === 1) {
-            return $wireName;
+        $latin = PhpNameTransliterator::latin($wireName);
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $latin) === 1) {
+            return $latin;
         }
-        $name = lcfirst(PhpResourceNameResolver::pascal($wireName));
-        return $name;
+        return lcfirst(PhpResourceNameResolver::pascal($wireName));
     }
 }
