@@ -46,8 +46,8 @@ final class GeneratedPackageIntegrationTest extends TestCase
         exec($cmd . ' 2>&1', $output, $exit);
         self::assertSame(0, $exit, implode("\n", $output));
         self::assertFileExists($dest . '/src/Client.php');
-        self::assertFileExists($dest . '/src/Api/Users.php');
-        self::assertFileExists($dest . '/src/Api/Users/User.php');
+        self::assertFileExists($dest . '/src/Resources/Users.php');
+        self::assertFileExists($dest . '/src/Resources/Users.php');
         self::assertFileExists($dest . '/src/DTOs/User.php');
         self::assertFileExists($dest . '/composer.json');
 
@@ -84,7 +84,7 @@ $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
     }
 };
 $client = \Acme\PublicSdk\Client::connect('https://api.example.test/v1', transport: $fake);
-$user = $client->resource(\Acme\PublicSdk\Api\Users\User::class)->getById(88, new \Acme\PublicSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => true]));
+$user = $client->resource(\Acme\PublicSdk\Resources\Users::class)->getById(88, new \Acme\PublicSdk\GetParams\Users\ById((object) ['verbose' => true]));
 if (!$user instanceof \Acme\PublicSdk\DTOs\User
     || $user->role !== \Acme\PublicSdk\Enums\User\RoleEnum::Viewer
     || $user->profile->city !== 'Bilbao'
@@ -128,7 +128,7 @@ PHP;
         // "Example Accounts" comes from the OpenAPI info.title, not a model name.
         self::assertSame('src/', $manifest['autoload']['psr-4']['ExampleAccounts\\']);
         self::assertFileExists($dest . '/src/DTOs/User.php');
-        self::assertFileExists($dest . '/src/Api/Users.php');
+        self::assertFileExists($dest . '/src/Resources/Users.php');
     }
 
     public function testCliGeneratesSdkFromYamlInput(): void
@@ -160,7 +160,7 @@ YAML);
 
         self::assertSame(0, $exit, implode("\n", $lines));
         self::assertFileExists($dest . '/src/Client.php');
-        self::assertFileExists($dest . '/src/Api/Health.php');
+        self::assertFileExists($dest . '/src/Resources/Health.php');
         self::assertFileExists($dest . '/composer.json');
     }
 

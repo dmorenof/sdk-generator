@@ -61,8 +61,8 @@ final class DtoValidationTest extends TestCase
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php', 'src/DTOs/NewUser.php', 'src/DTOs/User.php',
-            'src/Client.php', 'src/Api/Users.php',
-            'src/Api/Users/User.php',
+            'src/Client.php', 'src/Resources/Users.php',
+            
         ] as $path) {
             self::assertArrayHasKey($path, $files);
             eval(substr($files[$path], strlen('<?php')));
@@ -75,7 +75,7 @@ final class DtoValidationTest extends TestCase
         self::assertStringContainsString("'minLength' => 3", $files['src/DTOs/NewUser.php']);
         self::assertStringContainsString("'maxLength' => 12", $files['src/DTOs/NewUser.php']);
         self::assertStringContainsString("'maxItems' => 2", $files['src/DTOs/User.php']);
-        self::assertStringContainsString("'minimum' => 1", $files['src/Api/Users/User.php']);
+        self::assertStringContainsString("'minimum' => 1", $files['src/Resources/Users.php']);
         self::assertStringNotContainsString('function validate(', $files['src/DTOs/NewUser.php']);
         foreach ($files as $path => $content) {
             if (str_ends_with($path, '.php')) {
@@ -223,7 +223,7 @@ final class DtoValidationTest extends TestCase
         };
         $client = \Example\ConstraintSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
-            $client->resource(\Example\ConstraintSdk\Api\Users\User::class)->getById(0);
+            $client->resource(\Example\ConstraintSdk\Resources\Users::class)->getById(0);
             self::fail('Expected validation error');
         } catch (UnexpectedValueException $e) {
             self::assertStringContainsString('minimum', $e->getMessage());
@@ -245,7 +245,7 @@ final class DtoValidationTest extends TestCase
         $dto = new \Example\ConstraintSdk\DTOs\NewUser();
         $dto->name = 'Li';
         try {
-            $client->resource(\Example\ConstraintSdk\Api\Users::class)->post($dto);
+            $client->resource(\Example\ConstraintSdk\Resources\Users::class)->post($dto);
             self::fail('Expected validation error');
         } catch (UnexpectedValueException $e) {
             self::assertStringContainsString('minLength', $e->getMessage());

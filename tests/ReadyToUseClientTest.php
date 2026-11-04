@@ -31,12 +31,12 @@ final class ReadyToUseClientTest extends TestCase
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
-            'src/DTOs/Profile.php', 'src/DTOs/UsersApi/GetPayload.php',
+            'src/DTOs/Profile.php', 'src/GetParams/Users/ById.php',
             'src/DTOs/NewUser.php',
             'src/DTOs/User.php',
             'src/Client.php',
-            'src/Api/Users.php',
-            'src/Api/Users/User.php',
+            'src/Resources/Users.php',
+            
         ] as $path) {
             eval(substr($files[$path], strlen('<?php')));
         }
@@ -90,7 +90,7 @@ final class ReadyToUseClientTest extends TestCase
             new Client(['handler' => $stack]),
             ['Authorization' => 'Bearer demo'],
         );
-        $user = $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88, new \Example\ReadySdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
+        $user = $client->resource(\Example\ReadySdk\Resources\Users::class)->getById(88, new \Example\ReadySdk\GetParams\Users\ById((object) ['verbose' => false]));
         self::assertInstanceOf(\Example\ReadySdk\DTOs\User::class, $user);
         self::assertSame('Madrid', $user->profile->city);
         self::assertSame(\Example\ReadySdk\Enums\User\RoleEnum::Admin, $user->role);
@@ -127,7 +127,7 @@ final class ReadyToUseClientTest extends TestCase
         $client = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
         $request = new \Example\ReadySdk\DTOs\NewUser();
         $request->name = 'Grace';
-        $result = $client->resource(\Example\ReadySdk\Api\Users::class)->post($request);
+        $result = $client->resource(\Example\ReadySdk\Resources\Users::class)->post($request);
         self::assertInstanceOf(\Example\ReadySdk\DTOs\User::class, $result);
         self::assertSame(1, $http->calls);
     }
@@ -140,7 +140,7 @@ final class ReadyToUseClientTest extends TestCase
         $client = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from GET /users/{id}: 404');
-        $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88);
+        $client->resource(\Example\ReadySdk\Resources\Users::class)->getById(88);
     }
 
     public function testCasafariStyleCoreMiddlewareHooksRunOnPSR18WithoutDuplicatingTransport(): void
@@ -169,7 +169,7 @@ final class ReadyToUseClientTest extends TestCase
         });
 
         self::assertInstanceOf(\Dmorenof\SdkRuntime\ApiClient::class, $connection);
-        self::assertSame('Ada', $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88)->name);
+        self::assertSame('Ada', $client->resource(\Example\ReadySdk\Resources\Users::class)->getById(88)->name);
         self::assertSame(['before', 'after:yes'], $events->getArrayCopy());
         self::assertSame('yes', $history[0]['request']->getHeaderLine('X-Sdk-Core'));
     }
@@ -199,7 +199,7 @@ final class ReadyToUseClientTest extends TestCase
             }
         });
         try {
-            $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88);
+            $client->resource(\Example\ReadySdk\Resources\Users::class)->getById(88);
             self::fail('Middleware failed to abort the request');
         } catch (\DomainException $caught) {
             self::assertSame($exception, $caught);

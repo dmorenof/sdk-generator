@@ -31,10 +31,10 @@ final class CoreInheritanceTest extends TestCase
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
             'src/DTOs/NewUser.php',
-            'src/DTOs/User.php', 'src/DTOs/UsersApi/GetPayload.php',
+            'src/DTOs/User.php', 'src/GetParams/Users/ById.php',
             'src/Client.php',
-            'src/Api/Users.php',
-            'src/Api/Users/User.php',
+            'src/Resources/Users.php',
+            
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -115,7 +115,7 @@ final class CoreInheritanceTest extends TestCase
         };
         $client = \Example\InheritanceSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
-            $client->resource(\Example\InheritanceSdk\Api\Users::class)->post(new \Example\InheritanceSdk\DTOs\NewUser());
+            $client->resource(\Example\InheritanceSdk\Resources\Users::class)->post(new \Example\InheritanceSdk\DTOs\NewUser());
             self::fail('Missing required field was transmitted');
         } catch (\UnexpectedValueException $e) {
             self::assertStringContainsString('Required JSON property', $e->getMessage());
@@ -159,15 +159,15 @@ final class CoreInheritanceTest extends TestCase
 
     public function testOperationRequestRetainsRequiredPathAndOptionalQueryTypes(): void
     {
-        $method = new \ReflectionMethod(\Example\InheritanceSdk\Api\Users\User::class, 'getById');
+        $method = new \ReflectionMethod(\Example\InheritanceSdk\Resources\Users::class, 'getById');
         $parameters = $method->getParameters();
         self::assertSame(['id', 'payload'], array_map(
             static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
             $parameters,
         ));
         self::assertSame('int', $parameters[0]->getType()->getName());
-        self::assertSame(\Example\InheritanceSdk\DTOs\UsersApi\GetPayload::class, $parameters[1]->getType()->getName());
-        $verbose = (new \ReflectionClass(\Example\InheritanceSdk\DTOs\UsersApi\GetPayload::class))->getProperty('verbose');
+        self::assertSame(\Example\InheritanceSdk\GetParams\Users\ById::class, $parameters[1]->getType()->getName());
+        $verbose = (new \ReflectionClass(\Example\InheritanceSdk\GetParams\Users\ById::class))->getProperty('verbose');
         self::assertSame('bool', $verbose->getType()->getName());
         self::assertTrue($parameters[1]->allowsNull());
         self::assertSame(null, $parameters[1]->getDefaultValue());

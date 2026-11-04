@@ -33,10 +33,10 @@ final class PhpExecutableEmitterTest extends TestCase
             'src/DTOs/Profile.php',
             'src/DTOs/NewUser.php',
             'src/DTOs/User.php',
-            'src/DTOs/UsersApi/GetPayload.php',
+            'src/GetParams/Users/ById.php',
             'src/Client.php',
-            'src/Api/Users.php',
-            'src/Api/Users/User.php',
+            'src/Resources/Users.php',
+            
         ] as $file) {
             $source = $files[$file];
             eval(substr($source, strlen('<?php')));
@@ -56,15 +56,15 @@ final class PhpExecutableEmitterTest extends TestCase
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
         $files = (new PhpExecutableEmitter())->emit($contract);
 
-        self::assertStringContainsString("public function post(", $files['src/Api/Users.php']);
-        self::assertStringContainsString("'method' => 'POST'", $files['src/Api/Users.php']);
-        self::assertStringContainsString("'path' => '/users'", $files['src/Api/Users.php']);
-        self::assertStringNotContainsString("'operation-with-hyphens'", $files['src/Api/Users.php']);
+        self::assertStringContainsString("public function post(", $files['src/Resources/Users.php']);
+        self::assertStringContainsString("'method' => 'POST'", $files['src/Resources/Users.php']);
+        self::assertStringContainsString("'path' => '/users'", $files['src/Resources/Users.php']);
+        self::assertStringNotContainsString("'operation-with-hyphens'", $files['src/Resources/Users.php']);
         self::assertStringContainsString(
             'extends \\Generated\\Sdk\\Client',
-            $files['src/Api/Users.php'],
+            $files['src/Resources/Users.php'],
         );
-        self::assertStringContainsString('$this->executeOperation(', $files['src/Api/Users.php']);
+        self::assertStringContainsString('$this->executeOperation(', $files['src/Resources/Users.php']);
     }
 
     public function testNullablePrimitiveAnyOfIsSupportedForHttpParameters(): void
@@ -86,7 +86,7 @@ final class PhpExecutableEmitterTest extends TestCase
 
         self::assertStringContainsString(
             'public ?string $verbose;',
-            $files['src/DTOs/UsersApi/GetPayload.php'],
+            $files['src/GetParams/Users/ById.php'],
         );
     }
 
@@ -110,13 +110,13 @@ final class PhpExecutableEmitterTest extends TestCase
 
         self::assertStringContainsString(
             "'enum' => [",
-            $files['src/DTOs/UsersApi/GetPayload.php'],
+            $files['src/GetParams/Users/ById.php'],
         );
-        self::assertStringContainsString("'brief'", $files['src/DTOs/UsersApi/GetPayload.php']);
-        self::assertStringContainsString("'full'", $files['src/DTOs/UsersApi/GetPayload.php']);
+        self::assertStringContainsString("'brief'", $files['src/GetParams/Users/ById.php']);
+        self::assertStringContainsString("'full'", $files['src/GetParams/Users/ById.php']);
 
         foreach ([
-            'src/Client.php', 'src/Api/Users/User.php', 'src/DTOs/UsersApi/GetPayload.php',
+            'src/Client.php', 'src/Resources/Users.php', 'src/GetParams/Users/ById.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -131,14 +131,14 @@ final class PhpExecutableEmitterTest extends TestCase
                 'https://api.example.test',
                 transport: $transport,
             );
-            $client->resource(\Example\EnumParameterSdk\Api\Users\User::class)->getById(1, new \Example\EnumParameterSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => 'invalid']));
+            $client->resource(\Example\EnumParameterSdk\Resources\Users::class)->getById(1, new \Example\EnumParameterSdk\GetParams\Users\ById((object) ['verbose' => 'invalid']));
             self::fail('An enum value outside the declared set was accepted.');
         } catch (\UnexpectedValueException $exception) {
             self::assertStringContainsString('Validation enum failed', $exception->getMessage());
         }
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Valid enum value reached transport.');
-        $client->resource(\Example\EnumParameterSdk\Api\Users\User::class)->getById(1, new \Example\EnumParameterSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => 'brief']));
+        $client->resource(\Example\EnumParameterSdk\Resources\Users::class)->getById(1, new \Example\EnumParameterSdk\GetParams\Users\ById((object) ['verbose' => 'brief']));
     }
 
     public function testInlineSuccessAndErrorResponsesGenerateAndHydrateNamedTypes(): void
@@ -183,11 +183,11 @@ final class PhpExecutableEmitterTest extends TestCase
         self::assertArrayHasKey('src/DTOs/Errors/Users/ById/GetStatus404Response.php', $files);
         self::assertStringContainsString(
             '): ?\\Example\\InlineResponseSdk\\Collections\\UserCollection',
-            $files['src/Api/Users/User.php'],
+            $files['src/Resources/Users.php'],
         );
-        self::assertStringContainsString('    204,', $files['src/Api/Users/User.php']);
-        self::assertStringContainsString("'noContentAllowed' => true", $files['src/Api/Users/User.php']);
-        self::assertStringContainsString('GetStatus404Response', $files['src/Api/Users/User.php']);
+        self::assertStringContainsString('    204,', $files['src/Resources/Users.php']);
+        self::assertStringContainsString("'noContentAllowed' => true", $files['src/Resources/Users.php']);
+        self::assertStringContainsString('GetStatus404Response', $files['src/Resources/Users.php']);
 
         foreach ([
             'src/DTOs/UserResponse.php',
@@ -266,7 +266,7 @@ final class PhpExecutableEmitterTest extends TestCase
             }
         };
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1/', transport: $fake);
-        $user = $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(42, new \Example\ExecutableSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
+        $user = $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(42, new \Example\ExecutableSdk\GetParams\Users\ById((object) ['verbose' => false]));
         self::assertInstanceOf(\Example\ExecutableSdk\DTOs\User::class, $user);
         self::assertSame(42, $user->id);
         self::assertSame('Ada', $user->name);
@@ -283,7 +283,7 @@ final class PhpExecutableEmitterTest extends TestCase
         $input = new \Example\ExecutableSdk\DTOs\NewUser();
         $input->name = 'Grace';
         $input->role = \Example\ExecutableSdk\Enums\NewUser\RoleEnum::Viewer;
-        $result = $client->resource(\Example\ExecutableSdk\Api\Users::class)->post($input);
+        $result = $client->resource(\Example\ExecutableSdk\Resources\Users::class)->post($input);
         self::assertInstanceOf(\Example\ExecutableSdk\DTOs\User::class, $result);
         self::assertSame('POST', $fake->calls[1]['method']);
         self::assertSame('https://api.example.test/v1/users', $fake->calls[1]['url']);
@@ -310,7 +310,7 @@ final class PhpExecutableEmitterTest extends TestCase
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from GET /users/{id}: 404');
-        $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
+        $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
     }
 
     public function testUndeclaredHTTPErrorRetainsStatusAndResponseWithoutAssumingErrorDTO(): void
@@ -326,7 +326,7 @@ final class PhpExecutableEmitterTest extends TestCase
         };
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         try {
-            $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
+            $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
             self::fail('Unexpected status did not throw');
         } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame(429, $e->getCode());
@@ -349,7 +349,7 @@ final class PhpExecutableEmitterTest extends TestCase
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Required JSON property');
-        $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
+        $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
     }
 
     public function testHydratorRejectsInvalidScalarTypes(): void
@@ -366,6 +366,6 @@ final class PhpExecutableEmitterTest extends TestCase
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Invalid scalar value');
-        $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(1);
+        $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
     }
 }

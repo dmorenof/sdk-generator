@@ -44,7 +44,7 @@ final class SecurityGenerationTest extends TestCase
             'src/DTOs/NewUser.php',
             'src/DTOs/User.php',
             'src/Client.php',
-            'src/Api/Users/User.php',
+            'src/Resources/Users.php',
         ] as $path) {
             eval(substr($files[$path], strlen('<?php')));
         }
@@ -65,7 +65,7 @@ final class SecurityGenerationTest extends TestCase
             ]),
         );
 
-        $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
+        $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);
 
         self::assertCount(1, $history);
         $request = $history[0]['request'];
@@ -85,7 +85,7 @@ final class SecurityGenerationTest extends TestCase
             new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['QueryKey' => 'query-key']),
         );
 
-        $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
+        $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);
 
         self::assertSame(
             'https://api.example.test/v1/users/88?api_key=query-key',
@@ -107,7 +107,7 @@ final class SecurityGenerationTest extends TestCase
             ]),
         );
 
-        $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
+        $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);
 
         self::assertSame('Basic ' . base64_encode('user:secret'), $history[0]['request']->getHeaderLine('Authorization'));
     }
@@ -121,7 +121,7 @@ final class SecurityGenerationTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('No configured credentials satisfy');
-        $client->resource(\Example\SecuritySdk\Api\Users\User::class)->getById(88);
+        $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);
     }
 
     private static function response(): Response

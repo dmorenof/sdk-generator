@@ -43,7 +43,7 @@ final class TypedErrorResponseTest extends TestCase
             'src/Collections/StringCollection.php',
             'src/DTOs/ApiError.php', 'src/DTOs/Profile.php',
             'src/DTOs/NewUser.php', 'src/DTOs/User.php',
-            'src/Client.php', 'src/Api/Users/User.php',
+            'src/Client.php', 'src/Resources/Users.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);
             eval(substr($files[$path], strlen('<?php')));
@@ -71,7 +71,7 @@ final class TypedErrorResponseTest extends TestCase
         $payload = '{"message":"Missing user","code":4041}';
         try {
             $client = self::connect(404, $payload);
-            $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
+            $client->resource(\Example\ErrorSdk\Resources\Users::class)->getById(42);
             self::fail('Expected typed HTTP exception');
         } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertInstanceOf(\RuntimeException::class, $e);
@@ -90,7 +90,7 @@ final class TypedErrorResponseTest extends TestCase
     {
         try {
             $client = self::connect(503, '{"message":"Service unavailable","code":503}');
-            $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
+            $client->resource(\Example\ErrorSdk\Resources\Users::class)->getById(42);
             self::fail('Expected HTTP exception');
         } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame(503, $e->response->status);
@@ -103,7 +103,7 @@ final class TypedErrorResponseTest extends TestCase
     {
         try {
             $client = self::connect(404, '{"message":"No"}');
-            $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
+            $client->resource(\Example\ErrorSdk\Resources\Users::class)->getById(42);
             self::fail('Expected HTTP exception');
         } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame(404, $e->response->status);
@@ -117,7 +117,7 @@ final class TypedErrorResponseTest extends TestCase
     {
         try {
             $client = self::connect(404, '{broken');
-            $client->resource(\Example\ErrorSdk\Api\Users\User::class)->getById(42);
+            $client->resource(\Example\ErrorSdk\Resources\Users::class)->getById(42);
             self::fail('Expected HTTP exception');
         } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame('{broken', $e->response->body);
