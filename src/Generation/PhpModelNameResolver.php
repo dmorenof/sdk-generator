@@ -132,11 +132,11 @@ final class PhpModelNameResolver
                     break;
                 }
             }
-            $namespace = implode('', $family);
+            $namespace = implode('', array_map('ucfirst', $family));
             if ($suffix !== null) {
-                return [$namespace, implode('', $remainder), $suffix];
+                return [$namespace, implode('', array_map('ucfirst', $remainder)), $suffix];
             }
-            return [$namespace, implode('', $remainder)];
+            return [$namespace, implode('', array_map('ucfirst', $remainder))];
         }
 
         $segments = preg_split('/__|\./', $name);
