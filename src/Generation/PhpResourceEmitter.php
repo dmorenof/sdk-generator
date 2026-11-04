@@ -290,7 +290,10 @@ PHP;
         }
         if ($payload !== null) {
             $parameterName = $payload['kind'] === 'dto' ? 'params' : 'payload';
-            $arguments[] = ($payload['required'] ? '' : '?') . $payload['type'] . ' 
+            $arguments[] = ($payload['required'] ? '' : '?') . $payload['type'] . ' $' . $parameterName
+                . ($payload['required'] ? '' : ' = null');
+            $forward[] = '$' . $parameterName;
+        }
         $success = $this->successTypes[$operation->operationId]
             ?? throw new InvalidArgumentException("Missing success response metadata at $operation->operationId");
         $returnType = $success['type'] ?? 'void';
