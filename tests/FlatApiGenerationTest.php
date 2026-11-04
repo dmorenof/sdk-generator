@@ -23,9 +23,10 @@ final class FlatApiGenerationTest extends TestCase
         foreach ([
             'src/Enums/NewUser/RoleEnum.php', 'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php', 'src/DTOs/Profile.php',
-            'src/DTOs/NewUser.php', 'src/DTOs/User.php', 'src/DTOs/UsersApi/GetPayload.php',
-            'src/Client.php', 'src/Configuration.php', 'src/Api/Users.php',
-            'src/Api/Users/User.php', 'src/ExampleAccountsSDK.php', 'src/UsersApi.php',
+            'src/DTOs/NewUser.php', 'src/DTOs/User.php',
+            'src/GetParams/Users/ById.php',
+            'src/Client.php', 'src/Configuration.php',
+            'src/ExampleAccountsSDK.php', 'src/Resources/Users.php', 'src/Users.php',
         ] as $file) {
             self::assertArrayHasKey($file, $files);
             eval(substr($files[$file], strlen('<?php')));
@@ -34,17 +35,17 @@ final class FlatApiGenerationTest extends TestCase
 
     public function testOneApiPreservesOperationIdsTypesAndConnectionReplacement(): void
     {
-        $get = new \ReflectionMethod(\Example\FlatSdk\UsersApi::class, 'getById');
-        self::assertTrue(is_subclass_of(\Example\FlatSdk\UsersApi::class, \Example\FlatSdk\ExampleAccountsSDK::class));
+        $get = new \ReflectionMethod(\Example\FlatSdk\Users::class, 'getById');
+        self::assertTrue(is_subclass_of(\Example\FlatSdk\Users::class, \Example\FlatSdk\ExampleAccountsSDK::class));
         self::assertTrue($get->isStatic());
         self::assertSame('id', $get->getParameters()[0]->getName());
         self::assertSame('int', (string) $get->getParameters()[0]->getType());
-        self::assertSame('payload', $get->getParameters()[1]->getName());
-        self::assertSame('Example\\FlatSdk\\DTOs\\UsersApi\\GetPayload', (string) $get->getParameters()[1]->getType()->getName());
+        self::assertSame('params', $get->getParameters()[1]->getName());
+        self::assertSame('Example\\FlatSdk\\GetParams\\Users\\ById', (string) $get->getParameters()[1]->getType()->getName());
         self::assertSame('Example\\FlatSdk\\DTOs\\User', (string) $get->getReturnType());
 
         try {
-            \Example\FlatSdk\UsersApi::getById(88);
+            \Example\FlatSdk\Users::getById(88);
             self::fail('Calling before configure must fail');
         } catch (\LogicException $e) {
             self::assertStringContainsString('Client::configure', $e->getMessage());
@@ -69,18 +70,18 @@ final class FlatApiGenerationTest extends TestCase
         \Example\FlatSdk\Client::configure($config);
         $current = \Example\FlatSdk\Client::current();
 
-        $user = \Example\FlatSdk\UsersApi::getById(88, new \Example\FlatSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
+        $user = \Example\FlatSdk\Users::getById(88, new \Example\FlatSdk\GetParams\Users\ById((object) ['verbose' => false]));
         self::assertSame('Grace', $user->name);
         self::assertSame('https://first.test/v1/users/88?verbose=false', $transport->calls[0]['url']);
 
         $body = new \Example\FlatSdk\DTOs\NewUser();
         $body->name = 'Grace';
-        self::assertSame('Grace', \Example\FlatSdk\UsersApi::post($body)->name);
+        self::assertSame('Grace', \Example\FlatSdk\Users::post($body)->name);
         self::assertSame(['name' => 'Grace'], json_decode($transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR));
 
         $config->baseUrl = 'https://mutated.test';
         $config->headers = ['X-Account' => 'mutated'];
-        \Example\FlatSdk\UsersApi::getById(88);
+        \Example\FlatSdk\Users::getById(88);
         self::assertSame('https://first.test/v1/users/88', $transport->calls[2]['url']);
 
         $nextTransport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
@@ -98,7 +99,7 @@ final class FlatApiGenerationTest extends TestCase
         $next->transport = $nextTransport;
         \Example\FlatSdk\Client::configure($next);
         self::assertNotSame($current, \Example\FlatSdk\Client::current());
-        self::assertSame('Second', \Example\FlatSdk\UsersApi::getById(88)->name);
+        self::assertSame('Second', \Example\FlatSdk\Users::getById(88)->name);
         self::assertSame(['https://second.test/users/88'], $nextTransport->calls);
         self::assertCount(3, $transport->calls);
     }
@@ -114,8 +115,8 @@ final class FlatApiGenerationTest extends TestCase
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($spec, JSON_THROW_ON_ERROR));
         $files = (new PhpExecutableEmitter('Example\\NoIdSdk', 'example/no-id-sdk'))->emit($contract);
 
-        self::assertStringContainsString('public static function getByNum(int $num', $files['src/UserApi.php']);
-        self::assertStringNotContainsString('getById', $files['src/UserApi.php']);
+        self::assertStringContainsString('public static function getByNum(int $num', $files['src/User.php']);
+        self::assertStringNotContainsString('getById', $files['src/User.php']);
         self::assertSame('get.user.by.num', $contract->operations[0]->operationId);
     }
 }
