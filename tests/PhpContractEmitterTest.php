@@ -49,9 +49,9 @@ final class PhpContractEmitterTest extends TestCase
     {
         $files = $this->generated();
         $user = $files['src/DTOs/User.php'];
-        self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\Response', $user);
+        self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\DTO', $user);
         self::assertStringContainsString(
-            'extends \\Dmorenof\\SdkRuntime\\Request',
+            'extends \\Dmorenof\\SdkRuntime\\DTO',
             $files['src/DTOs/NewUser.php'],
         );
         self::assertStringContainsString(
@@ -177,7 +177,7 @@ final class PhpContractEmitterTest extends TestCase
             $files['src/DTOs/User.php'],
         );
         self::assertStringNotContainsString(
-            'extends \\Dmorenof\\SdkRuntime\\Response',
+            'extends \\Dmorenof\\SdkRuntime\\DTO',
             $files['src/DTOs/User.php'],
         );
     }

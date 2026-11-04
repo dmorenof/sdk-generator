@@ -45,8 +45,8 @@ final class CoreInheritanceTest extends TestCase
         $files = self::generated();
         self::assertArrayNotHasKey('src/Core/DTO.php', $files);
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\User::class, \Dmorenof\SdkRuntime\DTO::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\NewUser::class, \Dmorenof\SdkRuntime\Request::class));
-        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\User::class, \Dmorenof\SdkRuntime\Response::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\NewUser::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\User::class, \Dmorenof\SdkRuntime\DTO::class));
         self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\Profile::class, \Dmorenof\SdkRuntime\DTO::class));
         self::assertTrue(is_subclass_of(\Dmorenof\SdkRuntime\Request::class, \Dmorenof\SdkRuntime\DTO::class));
         self::assertTrue(is_subclass_of(\Dmorenof\SdkRuntime\Response::class, \Dmorenof\SdkRuntime\DTO::class));
