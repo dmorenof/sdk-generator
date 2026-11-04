@@ -25,8 +25,11 @@ for key, label in names.items():
                         "error": log.read_text(errors="replace")[-2500:] if log.exists() else ""}
         continue
     code = {str(p.relative_to(base)): p.read_bytes() for p in sources}
-    api = {k: v for k,v in code.items() if re.search(r"(^|/)(Api|API)/.+[.]php$", k)
-           or (key == "ours" and re.match(r"^src/[A-Za-z][A-Za-z0-9]*Api(V[0-9]+)?[.]php$", k))}
+    # Only true API classes: root resource/facade files and src/Api or lib/Api.
+    # Do not accidentally count schema models such as src/DTOs/Api/* as APIs.
+    api = {k: v for k,v in code.items() if k.startswith(("src/Api/", "lib/Api/"))
+           or (key == "ours" and re.match(
+               r"^src/(Api(V[0-9]+)?|[A-Za-z][A-Za-z0-9]*Api(V[0-9]+)?)[.]php$", k))}
     models = {k: v for k,v in code.items() if "/DTOs/" in k or re.search(r"(^|/)Model/",k)}
     enums = {k: v for k,v in code.items() if "/Enums/" in k}
     arrays = {k: v for k,v in code.items() if "/Collections/" in k}
