@@ -135,4 +135,70 @@ final class OperationEnvelopeTest extends TestCase
             }
         }
     }
+    public function testInlineRequestAndResponseEnvelopesExecuteAndHydrateNestedUser(): void
+    {
+        $files = self::generate();
+        $loader = static function (string $class) use ($files): void {
+            $prefix = 'Example\\EnvelopeSDK\\';
+            if (!str_starts_with($class, $prefix)) {
+                return;
+            }
+            $path = 'src/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
+            if (isset($files[$path])) {
+                eval(substr($files[$path], strlen('<?php')));
+            }
+        };
+        spl_autoload_register($loader);
+        try {
+            $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+                public array $calls = [];
+                public function send(
+                    string $method,
+                    string $url,
+                    array $headers,
+                    ?string $body,
+                ): \Dmorenof\SdkRuntime\Transport\HttpResponse {
+                    $this->calls[] = compact('method', 'url', 'headers', 'body');
+                    return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
+                        200,
+                        match ($method) {
+                            'GET' => '{"result":true}',
+                            'POST' => '{"result":true,"msg":"Todo ok","user":{"id":9,"name":"Ada"}}',
+                            'PATCH' => '{"msg":"Updated"}',
+                            default => throw new \LogicException('Unexpected method ' . $method),
+                        },
+                    );
+                }
+            };
+            $client = \Example\EnvelopeSDK\Client::connect(
+                'https://envelope.test',
+                transport: $transport,
+            );
+            $resource = $client->resource(\Example\EnvelopeSDK\Resources\Api\V1\User::class);
+
+            $user = new \Example\EnvelopeSDK\DTOs\Api\V1\User((object) ['name' => 'Ada']);
+            $created = $resource->post($user);
+            self::assertInstanceOf(\Example\EnvelopeSDK\Responses\Api\V1\User\Post::class, $created);
+            self::assertSame('Todo ok', $created->msg);
+            self::assertTrue($created->result);
+            self::assertInstanceOf(\Example\EnvelopeSDK\DTOs\Api\V1\User::class, $created->user);
+            self::assertSame(9, $created->user->id);
+            self::assertSame('{"name":"Ada"}', $transport->calls[0]['body']);
+
+            $patched = $resource->patch(
+                new \Example\EnvelopeSDK\Requests\Api\V1\User\Patch((object) ['name' => 'Updated']),
+            );
+            self::assertInstanceOf(\Example\EnvelopeSDK\Responses\Api\V1\User\Patch::class, $patched);
+            self::assertSame('Updated', $patched->msg);
+            self::assertSame('{"name":"Updated"}', $transport->calls[1]['body']);
+
+            $read = $resource->get();
+            self::assertInstanceOf(\Example\EnvelopeSDK\Responses\Api\V1\User\Get::class, $read);
+            self::assertTrue($read->result);
+            self::assertSame('https://envelope.test/api/v1/user', $transport->calls[2]['url']);
+        } finally {
+            spl_autoload_unregister($loader);
+        }
+    }
+
 }
