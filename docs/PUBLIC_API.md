@@ -32,6 +32,8 @@ Use OpenAPI-defined security credentials; the generator does not invent
 \`client_id\`/\`secret_token\` fields that the API specification never declared.
 The client captures configuration values on configure; changes to the
 Configuration object take effect only after another configure call.
+The `headers` property configures the default PSR-18 transport; a custom
+`transport` implementation manages its own default headers.
 
 Methods delegate to the shared runtime through the generated instance resource
 classes; the runtime handles HTTP, validation, serialization and hydration.

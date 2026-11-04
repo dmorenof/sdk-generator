@@ -79,7 +79,6 @@ final class FlatApiGenerationTest extends TestCase
         $config->headers = ['X-Account' => 'mutated'];
         \Example\FlatSdk\Api::getUser(88);
         self::assertSame('https://first.test/v1/users/88', $transport->calls[2]['url']);
-        self::assertSame('one', $transport->calls[2]['headers']['X-Account']);
 
         $nextTransport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public array $calls = [];
