@@ -3,46 +3,57 @@ declare(strict_types=1);
 
 namespace Dmorenof\SdkGenerator\Tests;
 
-use Dmorenof\SdkGenerator\Generation\PhpApiGroupingResolver;
 use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
+use Dmorenof\SdkGenerator\Generation\PhpRouteNameResolver;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use PHPUnit\Framework\TestCase;
 
 final class GroupedApiGenerationTest extends TestCase
 {
-    public function testCasafariGroupsAllOperationsByStructuralPaths(): void
+    public function testCasafariOperationsBecomeExactPathFacadesWithoutHashSuffixes(): void
     {
         $contract = (new SpecificationNormalizer())->fromJson(
             (string) file_get_contents(__DIR__ . '/fixtures/casafari-openapi31.json'),
         );
-        $expected = [
-            'AlertsApi' => 6,
-            'ApiV1' => 22,
-            'ApiV2' => 3,
-            'LoginApi' => 1,
-            'MarketAnalyticsApi' => 6,
-            'PropertySourcingApiV1' => 5,
-            'RefreshTokenApi' => 1,
-            'SellerLeadsApiV1' => 2,
-        ];
-        $groups = PhpApiGroupingResolver::resolve($contract);
-        self::assertSame($expected, array_map('count', $groups));
-        self::assertSame(46, array_sum(array_map('count', $groups)));
-        $files = (new PhpExecutableEmitter('Casafari\\GroupedSdk', 'preview/casafari-grouped'))->emit($contract);
-        foreach (array_keys($expected) as $class) {
-            self::assertArrayHasKey("src/$class.php", $files);
-        }
-        self::assertStringContainsString('public static function getReferencesTypes()', $files['src/ApiV1.php']);
-        self::assertStringContainsString('public static function postPropertiesSearch(', $files['src/ApiV1.php']);
-        self::assertStringContainsString('public static function deleteListingAlertsFeedsById(string $id)', $files['src/ApiV1.php']);
-        self::assertStringContainsString('public static function getByLeadId(', $files['src/SellerLeadsApiV1.php']);
-        self::assertStringContainsString('operationId: api__get__v1__references__types', $files['src/ApiV1.php']);
-        self::assertArrayNotHasKey('src/Api.php', $files); // No flat facade.
+        $routes = PhpRouteNameResolver::resolve($contract);
+        self::assertCount(46, $routes['operationNodes']);
+        $files = (new PhpExecutableEmitter('Casafari\\RouteSdk', 'preview/casafari-route'))->emit($contract);
+
         self::assertArrayHasKey('src/CasafariAPISDK.php', $files);
-        self::assertStringContainsString('extends CasafariAPISDK', $files['src/ApiV1.php']);
+        self::assertArrayHasKey('src/Api/V1/References/Types.php', $files);
+        self::assertArrayHasKey('src/Api/V1/Properties/Search.php', $files);
+        self::assertArrayHasKey('src/Api/V1/ListingAlerts/Feeds.php', $files);
+        self::assertArrayHasKey('src/Api/V1/ListingAlerts/Feeds/ById/Update.php', $files);
+        self::assertArrayHasKey('src/V1/SellerLeads.php', $files);
+        self::assertArrayHasKey('src/MarketAnalyticsApi/Analysis.php', $files);
+        self::assertArrayHasKey('src/GetParams/Api/V1/ListingAlerts/Feeds.php', $files);
+        self::assertArrayHasKey('src/GetParams/Api/V1/ListingAlerts/Feeds/ById.php', $files);
+        self::assertArrayHasKey('src/PostParams/Api/V1/Properties/Search.php', $files);
+
+        self::assertArrayNotHasKey('src/ApiV1.php', $files);
+        self::assertArrayNotHasKey('src/StaticApi/V1/ListingAlerts/Feeds.php', $files);
+        self::assertArrayNotHasKey('src/StaticClient.php', $files);
+        self::assertStringContainsString('public static function get()', $files['src/Api/V1/References/Types.php']);
+        self::assertStringContainsString('public static function deleteById(string $id)', $files['src/Api/V1/ListingAlerts/Feeds.php']);
+        self::assertStringContainsString('extends \\Casafari\\RouteSdk\\CasafariAPISDK', $files['src/Api/V1/ListingAlerts/Feeds.php']);
+        self::assertStringContainsString('operationId: api__get__v1__references__types', $files['src/Api/V1/References/Types.php']);
+
+        $publicMethods = 0;
+        foreach ($files as $path => $source) {
+            if (str_starts_with($path, 'src/Resources/')
+                || !str_starts_with($path, 'src/')
+                || str_starts_with($path, 'src/GetParams/')
+                || str_starts_with($path, 'src/PostParams/')) {
+                continue;
+            }
+            if (str_contains($source, 'extends \\Casafari\\RouteSdk\\CasafariAPISDK')) {
+                $publicMethods += preg_match_all('/public static function (?:get|post|put|patch|delete)\w*\(/', $source);
+            }
+        }
+        self::assertSame(46, $publicMethods);
     }
 
-    public function testUserNumPlaceholderIsKeptWithoutGuessingItsMeaning(): void
+    public function testUnknownPlaceholderIsNeverRenamedToId(): void
     {
         $spec = json_decode((string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json'),
             true, 512, JSON_THROW_ON_ERROR);
@@ -52,28 +63,30 @@ final class GroupedApiGenerationTest extends TestCase
         $spec['paths']['/user/{num}'] = ['get' => $get];
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($spec, JSON_THROW_ON_ERROR));
         $files = (new PhpExecutableEmitter('Example\\NumSdk', 'example/num'))->emit($contract);
-        self::assertStringContainsString('public static function getByNum(int $num', $files['src/UserApi.php']);
-        self::assertStringNotContainsString('ById', $files['src/UserApi.php']);
+        self::assertStringContainsString('public static function getByNum(int $num', $files['src/User.php']);
+        self::assertStringNotContainsString('getById', $files['src/User.php']);
     }
 
-    public function testLongestPrefixOverridesSplitGroupsAndPreservePaths(): void
+    public function testSameRouteIsDeterministicRegardlessOfOperationIdAndHasOneResourceClass(): void
     {
-        $contract = (new SpecificationNormalizer())->fromJson(
-            (string) file_get_contents(__DIR__ . '/fixtures/casafari-openapi31.json'),
-        );
-        $overrides = ['/api/v1/references' => 'ReferencesApi'];
-        $groups = PhpApiGroupingResolver::resolve($contract, $overrides);
-        self::assertCount(10, $groups['ReferencesApi']);
-        self::assertCount(12, $groups['ApiV1']);
-        self::assertSame(46, array_sum(array_map('count', $groups)));
-        $files = (new PhpExecutableEmitter('Example\\SplitSdk', 'example/split', $overrides))->emit($contract);
-        self::assertStringContainsString('public static function getTypes()', $files['src/ReferencesApi.php']);
-        self::assertStringContainsString('public static function getListingAlertsFeeds(', $files['src/ApiV1.php']);
-        self::assertStringNotContainsString('getReferencesTypes', $files['src/ApiV1.php']);
-        self::assertStringContainsString('/api/v1/references/types', $files['src/ReferencesApi.php']);
+        $spec = json_decode((string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json'),
+            true, 512, JSON_THROW_ON_ERROR);
+        $spec['paths']['/users']['post']['operationId'] = 'strange-post-operation';
+        $spec['paths']['/users/{id}']['get']['operationId'] = 'different-id';
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($spec, JSON_THROW_ON_ERROR));
+        $files = (new PhpExecutableEmitter('Example\\DeterministicSdk', 'example/deterministic'))->emit($contract);
+
+        self::assertArrayHasKey('src/Users.php', $files);
+        self::assertArrayHasKey('src/Resources/Users.php', $files);
+        self::assertArrayHasKey('src/GetParams/Users/ById.php', $files);
+        self::assertArrayNotHasKey('src/UsersApi.php', $files);
+        self::assertStringContainsString('public static function post(', $files['src/Users.php']);
+        self::assertStringContainsString('public static function getById(', $files['src/Users.php']);
+        self::assertStringContainsString('public function post(', $files['src/Resources/Users.php']);
+        self::assertStringContainsString('public function getById(', $files['src/Resources/Users.php']);
     }
 
-    public function testGroupMethodsUseCurrentClientAndKeepTypedResponses(): void
+    public function testRouteFacadeSharesConfiguredConnectionAndTypedResponses(): void
     {
         $contract = (new SpecificationNormalizer())->fromJson(
             (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json'),
@@ -104,11 +117,12 @@ final class GroupedApiGenerationTest extends TestCase
             $config->baseUrl = 'https://group.example.test';
             $config->transport = $transport;
             \Example\GroupSdk\Client::configure($config);
-            $user = \Example\GroupSdk\UsersApi::getById(88, new \Example\GroupSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
+            $params = new \Example\GroupSdk\GetParams\Users\ById((object) ['verbose' => false]);
+            $user = \Example\GroupSdk\Users::getById(88, $params);
             self::assertSame('Grace', $user->name);
             self::assertSame('https://group.example.test/users/88?verbose=false', $transport->calls[0]['url']);
             $body = new \Example\GroupSdk\DTOs\NewUser((object) ['name' => 'Grace']);
-            self::assertSame('Grace', \Example\GroupSdk\UsersApi::post($body)->name);
+            self::assertSame('Grace', \Example\GroupSdk\Users::post($body)->name);
             self::assertSame(['name' => 'Grace'], json_decode($transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR));
         } finally {
             spl_autoload_unregister($autoload);
