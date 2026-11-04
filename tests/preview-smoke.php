@@ -30,13 +30,13 @@ if ($api === 'accounts') {
     };
     $client = \Preview\AccountsSdk\Client::connect('https://api.example.test/v1', transport: $transport);
     $user = $client->resource(\Preview\AccountsSdk\Api\Users\User::class)->getById(27, true);
-    checkPreview($user instanceof \Preview\AccountsSdk\Responses\User, 'Accounts DTO type mismatch');
+    checkPreview($user instanceof \Preview\AccountsSdk\DTOs\User, 'Accounts DTO type mismatch');
     checkPreview($user->role === \Preview\AccountsSdk\Enums\User\RoleEnum::Admin, 'Accounts enum mismatch');
     checkPreview($user->profile->visits === 4, 'Accounts nested model mismatch');
     checkPreview($user->labels->getArrayCopy() === ['verified', 'preview'], 'Accounts collection mismatch');
     checkPreview($transport->calls[0]['url'] === 'https://api.example.test/v1/users/27?verbose=true', 'Accounts URL mismatch');
 
-    $body = new \Preview\AccountsSdk\Requests\NewUser();
+    $body = new \Preview\AccountsSdk\DTOs\NewUser();
     $body->name = 'A user';
     $client->resource(\Preview\AccountsSdk\Api\Users::class)->post($body);
     checkPreview($transport->calls[1]['method'] === 'POST', 'Accounts POST mismatch');
@@ -64,14 +64,14 @@ if ($api === 'accounts') {
     };
     $client = \Preview\CatalogSdk\Client::connect('https://catalog.example.test/api/v2', transport: $transport);
     $book = $client->resource(\Preview\CatalogSdk\Api\Books\Book::class)->getBySku('BOOK-09', false);
-    checkPreview($book instanceof \Preview\CatalogSdk\Responses\Book, 'Catalog DTO type mismatch');
+    checkPreview($book instanceof \Preview\CatalogSdk\DTOs\Book, 'Catalog DTO type mismatch');
     checkPreview($book->price === 19.75, 'Catalog float mismatch');
     checkPreview($book->genre === \Preview\CatalogSdk\Enums\Book\GenreEnum::Fiction, 'Catalog enum mismatch');
     checkPreview($book->warehouse->region === 'Castilla', 'Catalog nested DTO mismatch');
     checkPreview($book->tags->getArrayCopy() === ['demo', 'typed'], 'Catalog collection mismatch');
     checkPreview($transport->calls[0]['url'] === 'https://catalog.example.test/api/v2/books/BOOK-09?expand=false', 'Catalog URL mismatch');
 
-    $body = new \Preview\CatalogSdk\Requests\BookDraft();
+    $body = new \Preview\CatalogSdk\DTOs\BookDraft();
     $body->title = 'A new book';
     $body->price = 12.5;
     $client->resource(\Preview\CatalogSdk\Api\Books::class)->post($body);

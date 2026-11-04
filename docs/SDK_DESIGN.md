@@ -15,7 +15,7 @@ Los identificadores con puntos mantienen su jerarquía. En identificadores aplan
 
 Para esta convención codificada se omiten los segmentos técnicos `src`, `structures`, `schema` y `schemas`. Si la primera carpeta concatena un prefijo de proveedor con `src` o `api`, se separa esa raíz únicamente cuando el siguiente segmento es `structures`, `schema` o `schemas`; una raíz `api` aislada se omite solo antes de `schema`/`schemas`. Las demás carpetas se conservan y empiezan con mayúscula. Estas reglas no eliminan segmentos de los identificadores ordinarios con puntos. Los nombres inválidos y las colisiones de rutas, incluidas las diferencias solo de mayúsculas, producen errores explícitos.
 
-Los modelos referenciados conservan su identidad y jerarquía incluso cuando solo los usa un campo; no se sustituyen por nombres inferidos de ese campo. Los enums y colecciones derivados siguen la misma jerarquía del modelo propietario. Los errores inline se ubican bajo `Responses\Errors`, siguiendo ruta, método y estado.
+Los modelos referenciados conservan su identidad y jerarquía incluso cuando solo los usa un campo; no se sustituyen por nombres inferidos de ese campo. Los enums y colecciones derivados siguen la misma jerarquía del modelo propietario. Los errores inline se ubican bajo `DTOs\Errors`, siguiendo ruta, método y estado.
 
 El uso estático mantiene una conexión activa por contexto de ejecución PHP y permite sustituirla explícitamente; la conexión se resuelve en cada llamada. Bajo PHP-FPM, el estado estático es por petición. En servidores persistentes y ejecuciones concurrentes se deben utilizar clientes de instancia para aislar usuarios y credenciales. La fachada no duplica validación, hidratación ni lógica HTTP.
 
