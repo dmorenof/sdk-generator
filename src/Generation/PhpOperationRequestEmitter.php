@@ -36,6 +36,7 @@ final readonly class PhpOperationRequestEmitter
             }
             $files[$path] = $this->render(
                 $operation, $class, $this->namespace . '\\Api\\Requests', $contract,
+                $operation->parameters, true,
             );
         }
         ksort($files, SORT_STRING);
@@ -43,11 +44,11 @@ final readonly class PhpOperationRequestEmitter
     }
 
     /**
+     * Generate DTOs only for composite identifiers and request payloads.
+     * Direct body-only requests reuse the schema's original DTO.
+     *
      * @param array<string,string> $overrides
-     * @return array{
-     *   files:array<string,string>,
-     *   types:array<string,array{type:string,required:bool}>
-     * }
+     * @return array{files:array<string,string>,types:array<string,array{identifier:?array,payload:?array}>}
      */
     public function emitExecutable(ApiContract $contract, array $overrides = []): array
     {
@@ -57,44 +58,91 @@ final readonly class PhpOperationRequestEmitter
         foreach (PhpApiGroupingResolver::resolve($contract, $overrides) as $group => $entries) {
             foreach ($entries as $entry) {
                 $operation = $entry['operation'];
-                if ($operation->parameters === []) {
-                    continue;
-                }
-                $pathParts = self::segments($operation->path);
-                $prefixParts = self::segments($entry['prefix']);
-                $relative = array_slice($pathParts, count($prefixParts));
+                $pathParameters = array_values(array_filter($operation->parameters,
+                    static fn ($parameter): bool => $parameter->location === 'path'));
+                $otherParameters = array_values(array_filter($operation->parameters,
+                    static fn ($parameter): bool => $parameter->location !== 'path'));
+                $segments = self::segments($operation->path);
+                $relative = array_slice($segments, count(self::segments($entry['prefix'])));
                 $folders = [];
-                $placeholders = '';
                 foreach ($relative as $part) {
-                    if (preg_match('/^\{([^{}]+)\}$/D', $part, $matches) === 1) {
-                        $placeholders .= 'By' . PhpResourceNameResolver::pascal($matches[1]);
-                    } else {
+                    if (preg_match('/^\{[^{}]+\}$/D', $part) !== 1) {
                         $folders[] = PhpResourceNameResolver::pascal($part);
                     }
                 }
-                $class = ucfirst(strtolower($operation->method)) . $placeholders . 'Request';
-                $namespaceParts = [$group, ...$folders];
-                $directory = implode('/', $namespaceParts);
-                $key = strtolower("src/DTOs/$directory/$class.php");
-                if (isset($occupied[$key])) {
-                    $class .= ucfirst(substr(hash('sha256', $operation->method . ' ' . $operation->path), 0, 10));
-                    $key = strtolower("src/DTOs/$directory/$class.php");
+                $directory = implode('/', [$group, ...$folders]);
+                $namespace = $this->namespace . '\\DTOs\\' . str_replace('/', '\\', $directory);
+
+                $identifier = null;
+                if (count($pathParameters) === 1) {
+                    $parameter = $pathParameters[0];
+                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema,
+                        $operation->operationId . '.' . $parameter->wireName);
+                    $identifier = [
+                        'kind' => 'scalar',
+                        'type' => $resolved['type'],
+                        'name' => PhpNameTransliterator::property($parameter->wireName),
+                        'wireName' => $parameter->wireName,
+                    ];
+                } elseif (count($pathParameters) > 1) {
+                    $class = self::reserve($occupied, $directory, $operation, 'Identifier');
+                    $files["src/DTOs/$directory/$class.php"] = $this->render(
+                        $operation, $class, $namespace, $contract, $pathParameters, false,
+                    );
+                    $identifier = [
+                        'kind' => 'dto',
+                        'type' => '\\' . $namespace . '\\' . $class,
+                        'name' => 'identifier',
+                        'wireName' => null,
+                    ];
                 }
-                if (isset($occupied[$key])) {
-                    throw new InvalidArgumentException("Ambiguous operation Request DTO for $operation->path");
+
+                $payload = null;
+                if ($otherParameters !== []) {
+                    $class = self::reserve($occupied, $directory, $operation, 'Payload');
+                    $files["src/DTOs/$directory/$class.php"] = $this->render(
+                        $operation, $class, $namespace, $contract, $otherParameters, true,
+                    );
+                    $hasRequired = count(array_filter($otherParameters, static fn ($p): bool => $p->required)) > 0;
+                    $payload = [
+                        'kind' => 'dto',
+                        'type' => '\\' . $namespace . '\\' . $class,
+                        'required' => $hasRequired || ($operation->requestBody?->required ?? false),
+                    ];
+                } elseif ($operation->requestBody !== null) {
+                    $body = $operation->requestBody;
+                    if ($body->schema->kind !== SchemaKind::Reference
+                        || $body->schema->nullable || $body->schema->reference === null) {
+                        throw new InvalidArgumentException("Unsupported request body at $operation->operationId");
+                    }
+                    $payload = [
+                        'kind' => 'body',
+                        'type' => ($this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models))
+                            ->fqcn($body->schema->reference),
+                        'required' => $body->required,
+                    ];
                 }
-                $occupied[$key] = true;
-                $relativePath = "src/DTOs/$directory/$class.php";
-                $namespace = $this->namespace . '\\DTOs\\' . implode('\\', $namespaceParts);
-                $files[$relativePath] = $this->render($operation, $class, $namespace, $contract);
-                $types[$operation->operationId] = [
-                    'type' => '\\' . $namespace . '\\' . $class,
-                    'required' => self::requiresRequest($operation),
-                ];
+                $types[$operation->operationId] = ['identifier' => $identifier, 'payload' => $payload];
             }
         }
         ksort($files, SORT_STRING);
         return ['files' => $files, 'types' => $types];
+    }
+
+    /** @param array<string,bool> $occupied */
+    private static function reserve(array &$occupied, string $directory, OperationDefinition $operation, string $suffix): string
+    {
+        $class = ucfirst(strtolower($operation->method)) . $suffix;
+        $path = strtolower("src/DTOs/$directory/$class.php");
+        if (isset($occupied[$path])) {
+            $class .= ucfirst(substr(hash('sha256', $operation->method . ' ' . $operation->path), 0, 10));
+            $path = strtolower("src/DTOs/$directory/$class.php");
+        }
+        if (isset($occupied[$path])) {
+            throw new InvalidArgumentException("Ambiguous operation DTO for $operation->path");
+        }
+        $occupied[$path] = true;
+        return $class;
     }
 
     public static function name(OperationDefinition $operation): string
@@ -123,7 +171,7 @@ final readonly class PhpOperationRequestEmitter
         return array_values(array_filter(explode('/', trim($path, '/')), static fn (string $s): bool => $s !== ''));
     }
 
-    private function render(OperationDefinition $operation, string $class, string $namespace, ApiContract $contract): string
+    private function render(OperationDefinition $operation, string $class, string $namespace, ApiContract $contract, array $parameters, bool $includeBody): string
     {
         $fields = [];
         $required = [];
@@ -133,13 +181,13 @@ final readonly class PhpOperationRequestEmitter
         $locations = ['path' => [], 'query' => [], 'header' => []];
         $occupied = [];
         $wireOccurrences = [];
-        foreach ($operation->parameters as $parameter) {
+        foreach ($parameters as $parameter) {
             $wireOccurrences[$parameter->wireName] = ($wireOccurrences[$parameter->wireName] ?? 0) + 1;
         }
-        if ($operation->requestBody !== null) {
+        if ($includeBody && $operation->requestBody !== null) {
             $occupied['body'] = true;
         }
-        foreach ($operation->parameters as $parameter) {
+        foreach ($parameters as $parameter) {
             if (!isset($locations[$parameter->location])) {
                 throw new InvalidArgumentException("Unsupported HTTP parameter location: $parameter->location");
             }
@@ -180,7 +228,7 @@ final readonly class PhpOperationRequestEmitter
                 $required[] = $field;
             }
         }
-        if ($operation->requestBody !== null) {
+        if ($includeBody && $operation->requestBody !== null) {
             $body = $operation->requestBody;
             if ($body->schema->kind !== SchemaKind::Reference
                 || $body->schema->nullable || $body->schema->reference === null) {
