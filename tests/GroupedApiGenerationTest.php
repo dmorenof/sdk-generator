@@ -33,7 +33,7 @@ final class GroupedApiGenerationTest extends TestCase
         }
         self::assertStringContainsString('public static function getReferencesTypes()', $files['src/ApiV1.php']);
         self::assertStringContainsString('public static function postPropertiesSearch(', $files['src/ApiV1.php']);
-        self::assertStringContainsString('public static function deleteListingAlertsFeedsById(int $id)', $files['src/ApiV1.php']);
+        self::assertStringContainsString('public static function deleteListingAlertsFeedsById(string $id)', $files['src/ApiV1.php']);
         self::assertStringContainsString('public static function getByLeadId(', $files['src/SellerLeadsApiV1.php']);
         self::assertStringContainsString('operationId: api__get__v1__references__types', $files['src/ApiV1.php']);
         self::assertArrayHasKey('src/Api.php', $files); // migration alias
@@ -65,7 +65,7 @@ final class GroupedApiGenerationTest extends TestCase
         self::assertSame(46, array_sum(array_map('count', $groups)));
         $files = (new PhpExecutableEmitter('Example\\SplitSdk', 'example/split', $overrides))->emit($contract);
         self::assertStringContainsString('public static function getTypes()', $files['src/ReferencesApi.php']);
-        self::assertStringContainsString('public static function getListingAlertsFeeds()', $files['src/ApiV1.php']);
+        self::assertStringContainsString('public static function getListingAlertsFeeds(', $files['src/ApiV1.php']);
         self::assertStringNotContainsString('getReferencesTypes', $files['src/ApiV1.php']);
         self::assertStringContainsString('/api/v1/references/types', $files['src/ReferencesApi.php']);
     }
