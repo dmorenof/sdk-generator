@@ -16,7 +16,7 @@ use Psr\Http\Message\ResponseInterface;
 
 final class StaticFacadeGenerationTest extends TestCase
 {
-    public function testTypedStaticCallsShareConfiguredMiddlewareAndRejectReconfiguration(): void
+    public function testTypedStaticCallsShareConfiguredMiddlewareAndAllowConnectionSwitching(): void
     {
         $json = (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json');
         $contract = (new SpecificationNormalizer())->fromJson($json);
@@ -89,8 +89,41 @@ final class StaticFacadeGenerationTest extends TestCase
         self::assertSame('https://api.example.test/v1/users', (string) $history[1]['request']->getUri());
         self::assertSame('Bearer test', $history[0]['request']->getHeaderLine('Authorization'));
 
-        $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Static SDK connection is already configured.');
-        \Example\StaticFacadeSdk\StaticClient::connect('https://wrong-account.test');
+        $secondHistory = [];
+        $secondStack = HandlerStack::create(new MockHandler([
+            new Response(200, ['Content-Type' => 'application/json'], $response),
+        ]));
+        $secondStack->push(Middleware::history($secondHistory));
+        $second = \Example\StaticFacadeSdk\Client::connect(
+            'https://other-account.test/api',
+            new GuzzleClient(['handler' => $secondStack]),
+            ['Authorization' => 'Bearer second'],
+        );
+
+        \Example\StaticFacadeSdk\StaticClient::configure($second);
+        self::assertSame($second, \Example\StaticFacadeSdk\StaticClient::client());
+        $other = \Example\StaticFacadeSdk\StaticApi\Users\User::getById(88);
+        self::assertSame('Ada', $other->name);
+        self::assertCount(2, $history);
+        self::assertCount(1, $secondHistory);
+        self::assertSame('https://other-account.test/api/users/88', (string) $secondHistory[0]['request']->getUri());
+        self::assertSame('Bearer second', $secondHistory[0]['request']->getHeaderLine('Authorization'));
+        self::assertSame(['request:GET', 'response:200', 'request:POST', 'response:201'], $events->getArrayCopy());
+
+        // connect() can also replace the current client, including custom HTTP adapters.
+        $thirdHistory = [];
+        $thirdStack = HandlerStack::create(new MockHandler([
+            new Response(200, ['Content-Type' => 'application/json'], $response),
+        ]));
+        $thirdStack->push(Middleware::history($thirdHistory));
+        \Example\StaticFacadeSdk\StaticClient::connect(
+            'https://third-account.test',
+            new GuzzleClient(['handler' => $thirdStack]),
+            ['Authorization' => 'Bearer third'],
+        );
+        self::assertSame('Ada', \Example\StaticFacadeSdk\StaticApi\Users\User::getById(88)->name);
+        self::assertSame('https://third-account.test/users/88', (string) $thirdHistory[0]['request']->getUri());
+        self::assertSame('Bearer third', $thirdHistory[0]['request']->getHeaderLine('Authorization'));
+        self::assertCount(1, $secondHistory);
     }
 }

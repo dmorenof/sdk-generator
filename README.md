@@ -68,7 +68,7 @@ StaticClient::connect('https://api.example.com/v1');
 $user = User::getById(88);
 ~~~
 
-To attach HTTP middleware and credentials, configure a regular client first and pass it to `StaticClient::configure($client)`. The static facade rejects a second configuration. Instance clients remain available for multiple accounts and must be used for long-lived concurrent PHP workers. See [static facade documentation](docs/STATIC_FACADE.md).
+To attach HTTP middleware and credentials, configure a regular client first and pass it to `StaticClient::configure($client)`. The static facade reuses its current connection until explicitly replaced with `StaticClient::connect(...)` or `StaticClient::configure($client)`. Instance clients remain available for concurrent accounts and long-lived PHP workers. See [static facade documentation](docs/STATIC_FACADE.md).
 
 ### HTTP and authentication
 

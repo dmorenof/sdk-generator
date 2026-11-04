@@ -75,7 +75,7 @@ final readonly class PhpResourceEmitter
             . "}\n";
     }
 
-    /** The optional static facade is only safe in a single-account execution context. */
+    /** The optional static facade shares one current connection per PHP execution scope. */
     private function renderStaticConnector(): string
     {
         $body = <<<'PHP'
@@ -96,9 +96,6 @@ final class StaticClient
 
     public static function configure(Client $client): void
     {
-        if (self::$connection !== null) {
-            throw new \LogicException('Static SDK connection is already configured.');
-        }
         self::$connection = $client;
     }
 

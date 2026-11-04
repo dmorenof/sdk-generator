@@ -10,7 +10,7 @@ StaticClient::connect('https://api.example.com/v1');
 $user = User::getById(88, false); // a typed Responses\User
 ~~~
 
-Static facade methods forward to the corresponding instance resource. They retain the exact argument types, optional parameters and return types. The connection is configured once: the facade fails clearly before configuration and rejects attempts to replace the connection, avoiding accidental cross-account credential changes.
+Static facade methods forward to the corresponding instance resource. They retain the exact argument types, optional parameters and return types. The facade fails clearly before the first configuration, then reuses its current client for every static operation. A later `StaticClient::configure($anotherClient)` or `StaticClient::connect(...)` explicitly replaces that connection; subsequent operations use the new host, credentials and middleware.
 
 For customizable debugging, attach an HTTP middleware to the shared client before registering it:
 
@@ -43,6 +43,6 @@ $user = User::getById(88);
 
 Request and response middleware are optional, ordered and reusable across resources. Do not log tokens, Authorization headers or sensitive bodies by default. Error HTTP responses pass through the response middleware; transport exceptions retain their original identity.
 
-**Isolation boundary:** Static state belongs to one PHP execution context, not to an account or individual fiber. Use static operations for an isolated CLI command or standard isolated PHP request. For persistent workers, parallel coroutines and multi-account integrations, use separate instance clients; do not share the static facade between tenants.
+**Lifecycle boundary:** Under traditional PHP-FPM, static properties are reset at the end of the HTTP request, even when a worker serves later requests. In CLI scripts, the connection remains until process exit or explicit replacement. Long-lived servers such as RoadRunner/Swoole and concurrent fibers/coroutines have different lifetimes; a static property is not automatically isolated per fiber/request there. Use explicit instance clients for truly concurrent accounts, or reset/configure the SDK at the start of each sequential job. Replacing a connection never retroactively alters previously created instance clients.
 
 This feature lives only in generated 0.2.0 code; it does not modify the separately versioned sdk-runtime package or the published 0.1.0 generator.
