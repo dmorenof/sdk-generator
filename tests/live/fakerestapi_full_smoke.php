@@ -21,6 +21,20 @@ if (!$collection instanceof TypedArray || count($collection) < 1 || !$collection
     throw new RuntimeException('Full-spec SDK list GET did not produce an Activity TypedArray.');
 }
 
+// FakeRESTApi is a public synthetic test service. This POST exercises real
+// request DTO serialization and response hydration without user data.
+$input = new Activity((object) [
+    'id' => 99302,
+    'title' => 'SDK generator live validation',
+    'dueDate' => '2026-11-04T12:00:00.000Z',
+    'completed' => false,
+]);
+$created = $resource->post($input);
+if (!$created instanceof Activity || $created->id !== 99302 ||
+    $created->title !== 'SDK generator live validation') {
+    throw new RuntimeException('Full-spec SDK live POST did not return the typed Activity DTO.');
+}
+
 $result = [
     'specification' => 'full original OpenAPI, unmodified',
     'live_http' => true,
@@ -32,6 +46,10 @@ $result = [
     'collection_class' => $collection::class,
     'count' => count($collection),
     'item_class' => $collection[0]::class,
+    'post' => 'POST /api/v1/Activities',
+    'created_class' => $created::class,
+    'created_id' => $created->id,
+    'created_title' => $created->title,
 ];
 
 file_put_contents(
