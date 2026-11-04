@@ -152,9 +152,10 @@ final class PhpApiGroupingResolver
         $rules = [];
         foreach ($overrides as $prefix => $class) {
             if (!is_string($prefix) || !str_starts_with($prefix, '/')
-                || !is_string($class) || preg_match('/^[A-Z][A-Za-z0-9_]*$/D', $class) !== 1) {
+                || !is_string($class)) {
                 throw new InvalidArgumentException('Group overrides must map absolute route prefixes to valid PHP API class names.');
             }
+            $class = PhpResourceNameResolver::pascal($class);
             $segments = self::segments($prefix);
             if ($segments === [] || array_filter($segments, static fn (string $s): bool =>
                 preg_match('/^\{[^{}]+\}$/D', $s) === 1) !== []) {

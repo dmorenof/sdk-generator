@@ -41,6 +41,41 @@ final class PhpNameTransliterator
         return $name;
     }
 
+
+    /** PHP property alias for a JSON wire key, with no translation. */
+    public static function property(string $source): string
+    {
+        $latin = self::latin($source);
+        $candidate = preg_replace_callback(
+            '/[^A-Za-z0-9_]+([A-Za-z0-9_]?)/',
+            static fn (array $match): string => strtoupper($match[1] ?? ''),
+            $latin,
+        );
+        if (!is_string($candidate) || $candidate === '') {
+            throw new InvalidArgumentException("Cannot derive PHP property name from: $source");
+        }
+        if (preg_match('/^[A-Za-z_]/', $candidate) !== 1) {
+            $candidate = '_' . $candidate;
+        }
+        if (in_array(strtolower($candidate), [
+            'abstract','and','array','as','break','callable','case','catch',
+            'class','clone','const','continue','declare','default','die','do',
+            'echo','else','elseif','empty','enddeclare','endfor','endforeach',
+            'endif','endswitch','endwhile','enum','eval','exit','extends',
+            'final','finally','fn','for','foreach','function','global',
+            'goto','if','implements','include','include_once','instanceof',
+            'insteadof','interface','isset','list','match','namespace','new',
+            'or','print','private','protected','public','readonly','require',
+            'require_once','return','static','switch','throw','trait','try',
+            'unset','use','var','while','xor','yield','true','false','null',
+            'int','float','string','bool','void','object','mixed','never',
+            'self','parent',
+        ], true)) {
+            $candidate .= '_';
+        }
+        return $candidate;
+    }
+
     /** Keep existing PHP-compatible spelling for wire property and parameter aliases. */
     public static function camel(string $source, string $context = 'identifier'): string
     {

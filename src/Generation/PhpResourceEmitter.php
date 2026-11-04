@@ -404,10 +404,6 @@ PHP;
 
     private static function variableName(string $wireName): string
     {
-        $latin = PhpNameTransliterator::latin($wireName);
-        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $latin) === 1) {
-            return $latin;
-        }
-        return lcfirst(PhpResourceNameResolver::pascal($wireName));
+        return PhpNameTransliterator::property($wireName);
     }
 }

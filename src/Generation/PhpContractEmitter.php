@@ -931,20 +931,7 @@ final class PhpContractEmitter
 
     private function propertyName(string $wireName): string
     {
-        $candidate = preg_replace_callback(
-            '/[^A-Za-z0-9_]+([A-Za-z0-9_]?)/',
-            static fn (array $match): string => strtoupper($match[1] ?? ''),
-            PhpNameTransliterator::latin($wireName),
-        );
-        if (!is_string($candidate) || $candidate === '') {
-            $candidate = 'property';
-        }
-        if (preg_match('/^[A-Za-z_]/', $candidate) !== 1) {
-            $candidate = '_' . $candidate;
-        }
-        if (in_array(strtolower($candidate), self::PHP_KEYWORDS, true)) {
-            $candidate .= '_';
-        }
+        $candidate = PhpNameTransliterator::property($wireName);
         $this->checkName($candidate, 'model property');
         return $candidate;
     }

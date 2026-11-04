@@ -54,6 +54,23 @@ final class SdkRootNameGenerationTest extends TestCase
         self::assertStringContainsString('self::client()->resource(', $files['src/RevenueApi.php']);
     }
 
+    public function testTransliterationOfQueryParametersKeepsWireNames(): void
+    {
+        $raw = json_decode((string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json'),
+            true, 512, JSON_THROW_ON_ERROR);
+        $raw['paths']['/users/{id}']['get']['parameters'][] = [
+            'name' => 'código',
+            'in' => 'query',
+            'required' => false,
+            'schema' => ['type' => 'string'],
+        ];
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpExecutableEmitter('Example\\UnicodeQuery', 'example/unicode-query'))->emit($contract);
+        self::assertStringContainsString('?string $codigo = null', $files['src/UsersApi.php']);
+        self::assertStringContainsString("'código' => 'codigo'", $files['src/Api/Requests/GetUserRequest.php']);
+        self::assertStringContainsString("'código' => $codigo", $files['src/Api/Users/User.php']);
+    }
+
     public function testTransliterationOfSchemaPropertiesAndRoutesKeepsWireNames(): void
     {
         $raw = json_decode((string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json'),

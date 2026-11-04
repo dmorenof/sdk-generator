@@ -35,10 +35,16 @@ final readonly class PhpOperationRequestEmitter
             $fields = [];
             $required = [];
             $validation = [];
+            $propertyMap = [];
+            $wirePropertyMap = [];
             $seen = [];
             foreach ($operation->parameters as $parameter) {
-                $field = $parameter->wireName;
+                $field = PhpNameTransliterator::property($parameter->wireName);
                 $this->checkName($field);
+                if ($field !== $parameter->wireName) {
+                    $propertyMap[$parameter->wireName] = $field;
+                    $wirePropertyMap[$field] = $parameter->wireName;
+                }
                 if (isset($seen[strtolower($field)])) {
                     throw new InvalidArgumentException("Duplicate Request parameter $field for $name");
                 }
@@ -83,6 +89,10 @@ final readonly class PhpOperationRequestEmitter
             $source = $header . 'final class ' . $name . ' extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE
                 . "\\Request\n{\n"
                 . '    public const array REQUIRED_FIELDS = ' . PhpLiteral::export($required) . ";\n\n"
+                . ($propertyMap !== []
+                    ? '    protected const array PROPERTY_MAP = ' . PhpLiteral::export($propertyMap) . ";\n"
+                        . '    protected const array WIRE_PROPERTY_MAP = ' . PhpLiteral::export($wirePropertyMap) . ";\n\n"
+                    : '')
                 . ($validation !== [] ? '    protected const array VALIDATION = '
                     . PhpLiteral::export($validation) . ";\n\n" : '')
                 . implode("\n", $fields) . "\n}\n";
