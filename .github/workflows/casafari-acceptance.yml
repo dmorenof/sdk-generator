@@ -56,30 +56,33 @@ jobs:
             preview/casafari-generated-sdk
           find casafari-sdk/src -type f -name '*.php' -print0 | xargs -0 -r -P 8 -n1 php -l > /dev/null
           {
-            for source in casafari-sdk/src/*Api*.php; do
-              [ -f "$source" ] || continue
-              case "$source" in */StaticClient.php|*/Api.php) continue ;; esac
-              echo "== $(basename "$source" .php) =="
-              grep -E '^[[:space:]]*public static function ' "$source" || true
-              echo
-            done
-          } > casafari-sdk/API-GROUPED-METHODS.txt
-          test "$(grep -c 'public static function ' casafari-sdk/API-GROUPED-METHODS.txt)" -eq 46
+            find casafari-sdk/src -type f -name '*.php' -print0 | sort -z |
+              while IFS= read -r -d '' source; do
+                if grep -Fq 'extends \Casafari\GeneratedSdk\CasafariAPISDK' "$source"; then
+                  echo "== $source =="
+                  grep -E '^[[:space:]]*public static function ' "$source"
+                  echo
+                fi
+              done
+          } > casafari-sdk/API-ROUTE-METHODS.txt
+          test "$(grep -c 'public static function ' casafari-sdk/API-ROUTE-METHODS.txt)" -eq 46
           php -r '
             require "vendor/autoload.php";
-            $src = "tests/fixtures/casafari-openapi31.json";
-            $contract = (new \Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer())->fromJson(file_get_contents($src));
-            $groups = \Dmorenof\SdkGenerator\Generation\PhpApiGroupingResolver::resolve($contract);
-            $lines = ["# Grouped Casafari operations", ""];
-            foreach ($groups as $class => $entries) {
-                $lines[] = "## " . $class . " (" . count($entries) . ")";
-                foreach ($entries as $entry) {
-                    $o = $entry["operation"];
-                    $lines[] = "- " . $class . "::" . $entry["method"] . "() — " . $o->method . " " . $o->path . " — " . $o->operationId;
+            $contract = (new \Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer())
+                ->fromJson(file_get_contents("tests/fixtures/casafari-openapi31.json"));
+            $routes = \Dmorenof\SdkGenerator\Generation\PhpRouteNameResolver::resolve($contract);
+            $lines = ["# Casafari route facades (46 operations)", ""];
+            foreach ($routes["nodes"] as $node) {
+                $class = implode("\\", $node["segments"]);
+                $lines[] = "## " . $class;
+                foreach ($node["operations"] as $operation) {
+                    $method = $routes["operationMethods"][$operation->operationId];
+                    $lines[] = "- " . $class . "::" . $method . "() — "
+                        . strtoupper($operation->method) . " " . $operation->path;
                 }
                 $lines[] = "";
             }
-            file_put_contents("casafari-sdk/API-GROUPS.md", implode("\n", $lines));
+            file_put_contents("casafari-sdk/API-ROUTES.md", implode("\n", $lines));
           '
           cat > casafari-sdk/READ-FIRST.md <<'EOF'
           # Casafari generated SDK — 0.2.0 evaluation preview
@@ -95,7 +98,7 @@ jobs:
           (PHP 8.3+). Then import:
 
           ```php
-          use Casafari\GeneratedSdk\ApiV1;
+          use Casafari\GeneratedSdk\Api\V1\References\Types;
           use Casafari\GeneratedSdk\CasafariAPISDK;
           use Casafari\GeneratedSdk\Client;
           use Casafari\GeneratedSdk\Configuration;
@@ -108,8 +111,8 @@ jobs:
           ]);
           CasafariAPISDK::configure($configuration);
 
-          // Example: ApiV1::getReferencesTypes();
-          // API-GROUPS.md lists every group and method.
+          // Example: Types::get();
+          // API-ROUTES.md lists every group and method.
           ```
 
           The contract declares both HTTPBearer and PlatformApiKey as
@@ -118,15 +121,15 @@ jobs:
 
           ## Evaluation points
 
-          - Open `API-GROUPS.md` for the route-to-class-to-method mapping.
-          - Open `API-GROUPED-METHODS.txt` for typed signatures (46 operations).
-          - Open `src/ApiV1.php`, `src/ApiV2.php`, and other root *Api.php files.
+          - Open `API-ROUTES.md` for the route-to-class-to-method mapping.
+          - Open `API-ROUTE-METHODS.txt` for typed signatures (46 operations).
+          - Open `src/Api/V1/References/Types.php`, `src/Api/V2/Properties/Search.php`, and other root *Api.php files.
           - `src/CasafariAPISDK.php` is the abstract root for all groups.
           - There is no flat all-operations `Api` facade; `Api` is reserved for unversioned /api routes.
           - Inspect `src/DTOs` for hierarchical schema models
             such as `UserManagement/JWTRefreshToken/ResponseSchema.php`.
           - Operation-specific parameter wrappers, when generated, are separate.
-          - Grouped API methods follow route suffixes, not operationId naming.
+          - API facades and Params namespaces follow OpenAPI URL segments.
           - Their docblocks retain the original operationId and HTTP route.
           - For simultaneous clients/concurrent long-lived workers,
             use independent instance clients rather than the static facade.
@@ -139,7 +142,7 @@ jobs:
       - name: Upload complete Casafari SDK preview (ZIP)
         uses: actions/upload-artifact@v7
         with:
-          name: casafari-sdk-020-hierarchical-dtos
+          name: casafari-sdk-020-route-namespaces
           path: casafari-sdk/
           if-no-files-found: error
           retention-days: 30
