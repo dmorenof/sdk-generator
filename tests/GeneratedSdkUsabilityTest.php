@@ -114,7 +114,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testGeneratedRangeAndErrorNamesAreReadable(): void
     {
-        self::assertArrayHasKey('src/DTOs/Errors/V1/Properties/Search/PostStatus401Response.php', self::$files);
+        self::assertArrayHasKey('src/DTOs/Errors/Api/V1/Properties/Search/PostStatus401Response.php', self::$files);
         self::assertArrayHasKey('src/DTOs/AlertsApi/Ranges/IntRangeSchema1.php', self::$files);
         foreach (array_keys(self::$files) as $path) {
             self::assertStringNotContainsString('__', $path);
