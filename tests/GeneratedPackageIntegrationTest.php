@@ -48,7 +48,7 @@ final class GeneratedPackageIntegrationTest extends TestCase
         self::assertFileExists($dest . '/src/Client.php');
         self::assertFileExists($dest . '/src/Api/Users.php');
         self::assertFileExists($dest . '/src/Api/Users/User.php');
-        self::assertFileExists($dest . '/src/Responses/User.php');
+        self::assertFileExists($dest . '/src/DTOs/User.php');
         self::assertFileExists($dest . '/composer.json');
 
         $composer = json_decode(file_get_contents($dest . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
@@ -85,7 +85,7 @@ $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
 };
 $client = \Acme\PublicSdk\Client::connect('https://api.example.test/v1', transport: $fake);
 $user = $client->resource(\Acme\PublicSdk\Api\Users\User::class)->getById(88, true);
-if (!$user instanceof \Acme\PublicSdk\Responses\User
+if (!$user instanceof \Acme\PublicSdk\DTOs\User
     || $user->role !== \Acme\PublicSdk\Enums\User\RoleEnum::Viewer
     || $user->profile->city !== 'Bilbao'
     || $user->labels[0] !== 'php') {
@@ -127,7 +127,7 @@ PHP;
         );
         // "Example Accounts" comes from the OpenAPI info.title, not a model name.
         self::assertSame('src/', $manifest['autoload']['psr-4']['ExampleAccounts\\']);
-        self::assertFileExists($dest . '/src/Responses/User.php');
+        self::assertFileExists($dest . '/src/DTOs/User.php');
         self::assertFileExists($dest . '/src/Api/Users.php');
     }
 

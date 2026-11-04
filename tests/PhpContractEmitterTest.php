@@ -40,19 +40,19 @@ final class PhpContractEmitterTest extends TestCase
             'src/DTOs/Profile.php',
             'src/Enums/NewUser/RoleEnum.php',
             'src/Enums/User/RoleEnum.php',
-            'src/Requests/NewUser.php',
-            'src/Responses/User.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/User.php',
         ], array_keys($swagger));
     }
 
     public function testGeneratedDTOsHaveNativeTypesAndRetainWireNames(): void
     {
         $files = $this->generated();
-        $user = $files['src/Responses/User.php'];
+        $user = $files['src/DTOs/User.php'];
         self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\Response', $user);
         self::assertStringContainsString(
             'extends \\Dmorenof\\SdkRuntime\\Request',
-            $files['src/Requests/NewUser.php'],
+            $files['src/DTOs/NewUser.php'],
         );
         self::assertStringContainsString(
             'extends \\Dmorenof\\SdkRuntime\\DTO',
@@ -76,11 +76,11 @@ final class PhpContractEmitterTest extends TestCase
         $files = $this->generated();
         $operations = $files['src/Api/Operations.php'];
         self::assertStringContainsString(
-            'public function getUser(\\Example\\AccountsSdk\\Api\\Requests\\GetUserRequest $request): \\Example\\AccountsSdk\\Responses\\User;',
+            'public function getUser(\\Example\\AccountsSdk\\Api\\Requests\\GetUserRequest $request): \\Example\\AccountsSdk\\DTOs\\User;',
             $operations,
         );
         self::assertStringContainsString(
-            'public function createUser(\\Example\\AccountsSdk\\Requests\\NewUser $body): \\Example\\AccountsSdk\\Responses\\User;',
+            'public function createUser(\\Example\\AccountsSdk\\DTOs\\NewUser $body): \\Example\\AccountsSdk\\DTOs\\User;',
             $operations,
         );
         $catalog = $files['src/Api/OperationCatalog.php'];
@@ -127,13 +127,13 @@ final class PhpContractEmitterTest extends TestCase
         foreach ([
             'src/Enums/User/RoleEnum.php',
             'src/DTOs/Profile.php',
-            'src/Responses/User.php',
+            'src/DTOs/User.php',
         ] as $path) {
             eval(substr($files[$path], strlen('<?php')));
         }
 
         $profileClass = 'Example\\AccountsSdk\\DTOs\\Profile';
-        $userClass = 'Example\\AccountsSdk\\Responses\\User';
+        $userClass = 'Example\\AccountsSdk\\DTOs\\User';
         $roleEnum = 'Example\\AccountsSdk\\Enums\\User\\RoleEnum';
 
         $profile = new $profileClass();
@@ -194,8 +194,8 @@ final class PhpContractEmitterTest extends TestCase
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
         $files = (new PhpContractEmitter())->emit($contract);
 
-        self::assertStringContainsString('public string $notValidName;', $files['src/Responses/User.php']);
-        self::assertStringContainsString("'not-valid-name' => 'notValidName'", $files['src/Responses/User.php']);
+        self::assertStringContainsString('public string $notValidName;', $files['src/DTOs/User.php']);
+        self::assertStringContainsString("'not-valid-name' => 'notValidName'", $files['src/DTOs/User.php']);
     }
 
     public function testReservedEnumCaseNamesAreMappedSafely(): void

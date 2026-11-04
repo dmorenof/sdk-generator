@@ -31,8 +31,8 @@ final class PhpExecutableEmitterTest extends TestCase
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
-            'src/Requests/NewUser.php',
-            'src/Responses/User.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/User.php',
             'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
@@ -178,8 +178,8 @@ final class PhpExecutableEmitterTest extends TestCase
         ))->emit($contract);
 
         self::assertArrayHasKey('src/Collections/UserCollection.php', $files);
-        self::assertArrayHasKey('src/Responses/UserResponse.php', $files);
-        self::assertArrayHasKey('src/Responses/Errors/Users/ById/GetStatus404Response.php', $files);
+        self::assertArrayHasKey('src/DTOs/UserResponse.php', $files);
+        self::assertArrayHasKey('src/DTOs/Errors/Users/ById/GetStatus404Response.php', $files);
         self::assertStringContainsString(
             '): ?\\Example\\InlineResponseSdk\\Collections\\UserCollection',
             $files['src/Api/Users/User.php'],
@@ -189,9 +189,9 @@ final class PhpExecutableEmitterTest extends TestCase
         self::assertStringContainsString('GetStatus404Response', $files['src/Api/Users/User.php']);
 
         foreach ([
-            'src/Responses/UserResponse.php',
+            'src/DTOs/UserResponse.php',
             'src/Collections/UserCollection.php',
-            'src/Responses/Errors/Users/ById/GetStatus404Response.php',
+            'src/DTOs/Errors/Users/ById/GetStatus404Response.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -201,11 +201,11 @@ final class PhpExecutableEmitterTest extends TestCase
         );
         self::assertInstanceOf(\Example\InlineResponseSdk\Collections\UserCollection::class, $response);
         self::assertInstanceOf(
-            \Example\InlineResponseSdk\Responses\UserResponse::class,
+            \Example\InlineResponseSdk\DTOs\UserResponse::class,
             $response->getArrayCopy()[0],
         );
         self::assertSame(7, $response->getArrayCopy()[0]->id);
-        $error = new \Example\InlineResponseSdk\Responses\Errors\Users\ById\GetStatus404Response(
+        $error = new \Example\InlineResponseSdk\DTOs\Errors\Users\ById\GetStatus404Response(
             (object) ['detail' => 'Not found'],
         );
         self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $error);
@@ -266,7 +266,7 @@ final class PhpExecutableEmitterTest extends TestCase
         };
         $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1/', transport: $fake);
         $user = $client->resource(\Example\ExecutableSdk\Api\Users\User::class)->getById(42, false);
-        self::assertInstanceOf(\Example\ExecutableSdk\Responses\User::class, $user);
+        self::assertInstanceOf(\Example\ExecutableSdk\DTOs\User::class, $user);
         self::assertSame(42, $user->id);
         self::assertSame('Ada', $user->name);
         self::assertSame('Madrid', $user->profile->city);
@@ -279,11 +279,11 @@ final class PhpExecutableEmitterTest extends TestCase
         self::assertSame('https://api.example.test/v1/users/42?verbose=false', $fake->calls[0]['url']);
         self::assertNull($fake->calls[0]['body']);
 
-        $input = new \Example\ExecutableSdk\Requests\NewUser();
+        $input = new \Example\ExecutableSdk\DTOs\NewUser();
         $input->name = 'Grace';
         $input->role = \Example\ExecutableSdk\Enums\NewUser\RoleEnum::Viewer;
         $result = $client->resource(\Example\ExecutableSdk\Api\Users::class)->post($input);
-        self::assertInstanceOf(\Example\ExecutableSdk\Responses\User::class, $result);
+        self::assertInstanceOf(\Example\ExecutableSdk\DTOs\User::class, $result);
         self::assertSame('POST', $fake->calls[1]['method']);
         self::assertSame('https://api.example.test/v1/users', $fake->calls[1]['url']);
         self::assertSame('application/json', $fake->calls[1]['headers']['Content-Type']);

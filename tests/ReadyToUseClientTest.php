@@ -32,8 +32,8 @@ final class ReadyToUseClientTest extends TestCase
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
-            'src/Requests/NewUser.php',
-            'src/Responses/User.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/User.php',
             'src/Client.php',
             'src/Api/Users.php',
             'src/Api/Users/User.php',
@@ -91,7 +91,7 @@ final class ReadyToUseClientTest extends TestCase
             ['Authorization' => 'Bearer demo'],
         );
         $user = $client->resource(\Example\ReadySdk\Api\Users\User::class)->getById(88, false);
-        self::assertInstanceOf(\Example\ReadySdk\Responses\User::class, $user);
+        self::assertInstanceOf(\Example\ReadySdk\DTOs\User::class, $user);
         self::assertSame('Madrid', $user->profile->city);
         self::assertSame(\Example\ReadySdk\Enums\User\RoleEnum::Admin, $user->role);
         self::assertSame(['php', 'sdk'], $user->labels->getArrayCopy());
@@ -125,10 +125,10 @@ final class ReadyToUseClientTest extends TestCase
             }
         };
         $client = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
-        $request = new \Example\ReadySdk\Requests\NewUser();
+        $request = new \Example\ReadySdk\DTOs\NewUser();
         $request->name = 'Grace';
         $result = $client->resource(\Example\ReadySdk\Api\Users::class)->post($request);
-        self::assertInstanceOf(\Example\ReadySdk\Responses\User::class, $result);
+        self::assertInstanceOf(\Example\ReadySdk\DTOs\User::class, $result);
         self::assertSame(1, $http->calls);
     }
 

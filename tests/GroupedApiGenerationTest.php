@@ -107,7 +107,7 @@ final class GroupedApiGenerationTest extends TestCase
             $user = \Example\GroupSdk\UsersApi::getById(88, false);
             self::assertSame('Grace', $user->name);
             self::assertSame('https://group.example.test/users/88?verbose=false', $transport->calls[0]['url']);
-            $body = new \Example\GroupSdk\Requests\NewUser((object) ['name' => 'Grace']);
+            $body = new \Example\GroupSdk\DTOs\NewUser((object) ['name' => 'Grace']);
             self::assertSame('Grace', \Example\GroupSdk\UsersApi::post($body)->name);
             self::assertSame(['name' => 'Grace'], json_decode($transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR));
         } finally {

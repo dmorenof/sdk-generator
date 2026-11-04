@@ -80,15 +80,15 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testFiniteEnumUnionIsNaturalToConstructAndRoundTrips(): void
     {
-        $filters = new \UsableSdk\DTOs\AlertsApiAlertFeedFiltersSchema((object) [
+        $filters = new \UsableSdk\DTOs\AlertsApi\AlertFeedFiltersSchema((object) [
             'business_type' => 'sale', 'statuses' => ['active', 'sold', 'rented'],
         ]);
         self::assertInstanceOf(\BackedEnum::class, $filters->statuses[0]);
         self::assertSame('active', $filters->statuses[0]->value);
         self::assertSame(['active', 'sold', 'rented'], json_decode((string) $filters, true, 512, JSON_THROW_ON_ERROR)['statuses']);
-        self::assertArrayNotHasKey('src/DTOs/AlertsApiAlertFeedFiltersSchema/StatusesDTO.php', self::$files);
+        self::assertArrayNotHasKey('src/DTOs/AlertsApi/AlertFeedFiltersSchema/StatusesDTO.php', self::$files);
         $this->expectException(\ValueError::class);
-        new \UsableSdk\DTOs\AlertsApiAlertFeedFiltersSchema((object) ['business_type' => 'sale', 'statuses' => ['invented']]);
+        new \UsableSdk\DTOs\AlertsApi\AlertFeedFiltersSchema((object) ['business_type' => 'sale', 'statuses' => ['invented']]);
     }
 
     public function testGeneralUnionCollectionUsesTheSameConversionAsRootResponses(): void
@@ -114,7 +114,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testGeneratedRangeAndErrorNamesAreReadable(): void
     {
-        self::assertArrayHasKey('src/Responses/Errors/V1/Properties/Search/PostStatus401Response.php', self::$files);
+        self::assertArrayHasKey('src/DTOs/Errors/V1/Properties/Search/PostStatus401Response.php', self::$files);
         self::assertArrayHasKey('src/DTOs/AlertsApi/Ranges/IntRangeSchema1.php', self::$files);
         foreach (array_keys(self::$files) as $path) {
             self::assertStringNotContainsString('__', $path);
@@ -123,7 +123,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testReconstructedRangeReferencesKeepTypesConstraintsAndJsonFieldNames(): void
     {
-        $filters = new \UsableSdk\DTOs\AlertsApiAlertFeedFiltersSchema((object) [
+        $filters = new \UsableSdk\DTOs\AlertsApi\AlertFeedFiltersSchema((object) [
             'business_type' => 'sale',
             'price_range' => (object) ['min' => 100, 'max' => 500],
             'bedrooms_range' => (object) ['min' => 1, 'max' => 4],
