@@ -57,10 +57,10 @@ final class GeneratedSdkUsabilityTest extends TestCase
                 return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '[]');
             }
         };
-        $a = new \UsableSdk\Api\V1\ListingAlerts\Feeds(
+        $a = new \UsableSdk\Resources\Api\V1\ListingAlerts\Feeds(
             'https://account-a.test', securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['HTTPBearer' => 'a']), transport: $transport,
         );
-        $b = \UsableSdk\Api\V1\ListingAlerts\Feeds::connect(
+        $b = \UsableSdk\Resources\Api\V1\ListingAlerts\Feeds::connect(
             'https://account-b.test', securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['HTTPBearer' => 'b']), transport: $transport,
         );
         $a->get();
@@ -148,7 +148,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
                 return new \Dmorenof\SdkRuntime\Transport\HttpResponse(201, '{"name":"Feed","filter":{"operation":"sale"},"id":9,"user":"owner"}');
             }
         };
-        $client = new \UsableSdk\Api\V1\ListingAlerts\Feeds('https://api.test',
+        $client = new \UsableSdk\Resources\Api\V1\ListingAlerts\Feeds('https://api.test',
             securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['HTTPBearer' => 'token']), transport: $transport,
         );
         $body = new \UsableSdk\DTOs\Api\AlertsFeedV1((object) ['name' => 'Feed', 'filter' => (object) ['operation' => 'sale'], 'id' => 9, 'user' => 'owner']);

@@ -44,14 +44,14 @@ final class SdkRootNameGenerationTest extends TestCase
         $files = (new PhpExecutableEmitter('Example\\Facturas', 'example/facturas'))->emit($contract);
 
         self::assertArrayHasKey('src/FacturasGuaysSDK.php', $files);
-        self::assertArrayHasKey('src/Api.php', $files);
-        self::assertArrayHasKey('src/RevenueApi.php', $files);
+        self::assertArrayHasKey('src/Api/Facturas.php', $files);
+        self::assertArrayHasKey('src/Revenue.php', $files);
         self::assertStringContainsString('abstract class FacturasGuaysSDK', $files['src/FacturasGuaysSDK.php']);
-        self::assertStringContainsString('class Api extends FacturasGuaysSDK', $files['src/Api.php']);
-        self::assertStringContainsString('class RevenueApi extends FacturasGuaysSDK', $files['src/RevenueApi.php']);
-        self::assertStringContainsString('public static function postFacturas(', $files['src/Api.php']);
-        self::assertStringContainsString('public static function get()', $files['src/RevenueApi.php']);
-        self::assertStringContainsString('self::client()->resource(', $files['src/RevenueApi.php']);
+        self::assertStringContainsString('class Facturas extends \\Example\\Facturas\\FacturasGuaysSDK', $files['src/Api/Facturas.php']);
+        self::assertStringContainsString('class Revenue extends \\Example\\Facturas\\FacturasGuaysSDK', $files['src/Revenue.php']);
+        self::assertStringContainsString('public static function post(', $files['src/Api/Facturas.php']);
+        self::assertStringContainsString('public static function get()', $files['src/Revenue.php']);
+        self::assertStringContainsString('self::client()->resource(', $files['src/Revenue.php']);
     }
 
     public function testGeneratedApiClassAndNestedApiNamespaceCanCoexistAtRuntime(): void
@@ -96,8 +96,8 @@ final class SdkRootNameGenerationTest extends TestCase
             $config->transport = $transport;
             \Example\FacturasRuntime\FacturasGuaysSDK::configure($config);
             $input = new \Example\FacturasRuntime\DTOs\NewUser((object) ['name' => 'Grace']);
-            self::assertSame('Grace', \Example\FacturasRuntime\Api::postFacturas($input)->name);
-            self::assertSame('Grace', \Example\FacturasRuntime\RevenueApi::get()->name);
+            self::assertSame('Grace', \Example\FacturasRuntime\Api\Facturas::post($input)->name);
+            self::assertSame('Grace', \Example\FacturasRuntime\Revenue::get()->name);
             self::assertSame([
                 ['POST', 'https://facturas.test/api/facturas', '{"name":"Grace"}'],
                 ['GET', 'https://facturas.test/revenue/', null],
@@ -119,10 +119,10 @@ final class SdkRootNameGenerationTest extends TestCase
         ];
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
         $files = (new PhpExecutableEmitter('Example\\UnicodeQuery', 'example/unicode-query'))->emit($contract);
-        self::assertStringContainsString('public ?string $codigo;', $files['src/DTOs/UsersApi/GetPayload.php']);
+        self::assertStringContainsString('public ?string $codigo;', $files['src/GetParams/Users/ById.php']);
         // Executable SDKs inline parameter handling into the resource method;
         // they do not emit the contract-only Api/Requests operation wrapper.
-        self::assertStringContainsString("'código' => 'codigo'", $files['src/DTOs/UsersApi/GetPayload.php']);
+        self::assertStringContainsString("'código' => 'codigo'", $files['src/GetParams/Users/ById.php']);
     }
 
     public function testTransliterationOfSchemaPropertiesAndRoutesKeepsWireNames(): void

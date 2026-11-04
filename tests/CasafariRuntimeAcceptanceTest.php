@@ -87,9 +87,9 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
             [],
             $credentials,
         );
-        $feedsResource = \CasafariRuntimeSdk\Api\V1\ListingAlerts\Feeds::class;
+        $feedsResource = \CasafariRuntimeSdk\Resources\Api\V1\ListingAlerts\Feeds::class;
 
-        $feeds = $client->resource($feedsResource)->get(new \CasafariRuntimeSdk\DTOs\ApiV1\ListingAlerts\Feeds\GetPayload((object) ['filter' => true, 'only_self' => false]));
+        $feeds = $client->resource($feedsResource)->get(new \CasafariRuntimeSdk\GetParams\Api\V1\ListingAlerts\Feeds((object) ['filter' => true, 'only_self' => false]));
 
         self::assertInstanceOf(\Dmorenof\SdkRuntime\TypedArray::class, $feeds);
         self::assertCount(1, $feeds);
@@ -130,7 +130,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         );
 
         try {
-            $client->resource($feedsResource)->get(new \CasafariRuntimeSdk\DTOs\ApiV1\ListingAlerts\Feeds\GetPayload((object) ['filter' => false]));
+            $client->resource($feedsResource)->get(new \CasafariRuntimeSdk\GetParams\Api\V1\ListingAlerts\Feeds((object) ['filter' => false]));
             self::fail('The generated client did not throw for HTTP 401.');
         } catch (\Dmorenof\SdkRuntime\ApiException $exception) {
             self::assertSame(401, $exception->getCode());
@@ -149,7 +149,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
             new Client(['handler' => $unauthenticatedStack]),
         );
         try {
-            $client->resource($feedsResource)->get(new \CasafariRuntimeSdk\DTOs\ApiV1\ListingAlerts\Feeds\GetPayload((object) ['filter' => true]));
+            $client->resource($feedsResource)->get(new \CasafariRuntimeSdk\GetParams\Api\V1\ListingAlerts\Feeds((object) ['filter' => true]));
             self::fail('The generated client sent a secured request without credentials.');
         } catch (\InvalidArgumentException $exception) {
             self::assertStringContainsString('No configured credentials', $exception->getMessage());

@@ -36,10 +36,10 @@ final class MixedOperationRequestTest extends TestCase
             'src/Enums/User/RoleEnum.php',
             'src/Collections/StringCollection.php',
             'src/DTOs/Profile.php',
-            'src/DTOs/NewUser.php', 'src/DTOs/GroupsApi/Users/PostPayload.php',
+            'src/DTOs/NewUser.php', 'src/PostParams/Groups/ByGroup/Users.php',
             'src/DTOs/User.php',
             'src/Client.php',
-            'src/Api/Groups/ByGroup/Users.php',
+            'src/Resources/Groups/ByGroup/Users.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -64,10 +64,10 @@ final class MixedOperationRequestTest extends TestCase
         $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         $body = new \Example\MixedSdk\DTOs\NewUser((object) ['name' => 'Ada', 'role' => 'viewer']);
 
-        $payload = new \Example\MixedSdk\DTOs\GroupsApi\Users\PostPayload();
-        $payload->trace = false;
-        $payload->body = $body;
-        $result = $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup('my group', $payload);
+        $params = new \Example\MixedSdk\PostParams\Groups\ByGroup\Users();
+        $params->trace = false;
+        $params->body = $body;
+        $result = $client->resource(\Example\MixedSdk\Resources\Groups\ByGroup\Users::class)->post('my group', $params);
         self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $result);
         self::assertSame('Ada', $result->name);
         self::assertCount(1, $transport->calls);
@@ -92,8 +92,8 @@ final class MixedOperationRequestTest extends TestCase
         };
         $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
         try {
-            $client->resource(\Example\MixedSdk\Api\Groups\ByGroup\Users::class)->postByGroup(
-                payload: new \Example\MixedSdk\DTOs\GroupsApi\Users\PostPayload((object) [
+            $client->resource(\Example\MixedSdk\Resources\Groups\ByGroup\Users::class)->post(
+                params: new \Example\MixedSdk\PostParams\Groups\ByGroup\Users((object) [
                     'body' => (object) ['name' => 'Ada'],
                 ]),
             );

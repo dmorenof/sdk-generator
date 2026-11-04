@@ -128,11 +128,11 @@ final class HierarchicalNamesTest extends TestCase
         );
         self::assertStringContainsString(
             '\CasafariCrmApi\DTOs\Casafari\Crm\Api\Dtos\Agency\AgencyDto $payload',
-            $files['src/Api/Agencies/Agency.php'],
+            $files['src/Resources/Agencies.php'],
         );
         self::assertStringContainsString(
             'public function postById(',
-            $files['src/Api/Agencies/Agency.php'],
+            $files['src/Resources/Agencies.php'],
         );
         self::assertSame('src/', json_decode($files['composer.json'], true, 512, JSON_THROW_ON_ERROR)
             ['autoload']['psr-4']['CasafariCrmApi\\']);
@@ -147,7 +147,7 @@ final class HierarchicalNamesTest extends TestCase
             'src/DTOs/Casafari/Crm/Api/Dtos/User/UserDto.php',
             'src/DTOs/Casafari/Crm/Api/Dtos/Agency/AgencyDto.php',
             'src/Client.php',
-            'src/Api/Agencies/Agency.php',
+            'src/Resources/Agencies.php',
         ] as $path) {
             self::assertArrayHasKey($path, $files);
             eval(substr($files[$path], strlen('<?php')));
@@ -176,7 +176,7 @@ final class HierarchicalNamesTest extends TestCase
             }
         };
         $client = \CasafariCrmApi\Client::connect('https://api.example.test', transport: $transport);
-        $response = $client->resource(\CasafariCrmApi\Api\Agencies\Agency::class)->postById(27, $agency);
+        $response = $client->resource(\CasafariCrmApi\Resources\Agencies::class)->postById(27, $agency);
         self::assertSame('An agency', $response->name);
         // JSON objects are unordered; preserve the order-sensitive list assertions above.
         self::assertEquals(

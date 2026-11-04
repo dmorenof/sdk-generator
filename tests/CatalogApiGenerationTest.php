@@ -28,8 +28,8 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertArrayHasKey('src/DTOs/Book.php', $swagger);
         self::assertArrayHasKey('src/DTOs/Warehouse.php', $swagger);
         self::assertArrayHasKey('src/DTOs/BookDraft.php', $swagger);
-        self::assertArrayHasKey('src/Api/Books/Book.php', $swagger);
-        self::assertArrayHasKey('src/Api/Books.php', $swagger);
+        self::assertArrayHasKey('src/Resources/Books.php', $swagger);
+        self::assertArrayHasKey('src/Resources/Books.php', $swagger);
         self::assertArrayHasKey('src/Collections/StringCollection.php', $swagger);
         self::assertArrayHasKey('src/Enums/Book/GenreEnum.php', $swagger);
     }
@@ -55,14 +55,14 @@ final class CatalogApiGenerationTest extends TestCase
         self::assertStringContainsString('public float $price;', $out['src/DTOs/Book.php']);
         self::assertStringContainsString('public bool $available;', $out['src/DTOs/Book.php']);
         self::assertStringContainsString(
-            'public function getBySku(string $sku, ?\\Preview\\CatalogSdk\\DTOs\\BooksApi\\GetPayload $payload = null): \\Preview\\CatalogSdk\\DTOs\\Book',
-            $out['src/Api/Books/Book.php'],
+            'public function getBySku(string $sku, ?\\Preview\\CatalogSdk\\GetParams\\Books\\BySku $params = null): \\Preview\\CatalogSdk\\DTOs\\Book',
+            $out['src/Resources/Books.php'],
         );
         self::assertStringContainsString(
             'public function post(\\Preview\\CatalogSdk\\DTOs\\BookDraft $payload): \\Preview\\CatalogSdk\\DTOs\\Book',
-            $out['src/Api/Books.php'],
+            $out['src/Resources/Books.php'],
         );
-        self::assertStringContainsString("'/books/{sku}'", $out['src/Api/Books/Book.php']);
+        self::assertStringContainsString("'/books/{sku}'", $out['src/Resources/Books.php']);
     }
 
     public function testEveryCatalogPhpClassLintsSuccessfully(): void
