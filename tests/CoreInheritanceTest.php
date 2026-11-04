@@ -161,7 +161,7 @@ final class CoreInheritanceTest extends TestCase
     {
         $method = new \ReflectionMethod(\Example\InheritanceSdk\Resources\Users::class, 'getById');
         $parameters = $method->getParameters();
-        self::assertSame(['id', 'payload'], array_map(
+        self::assertSame(['id', 'params'], array_map(
             static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
             $parameters,
         ));
