@@ -76,7 +76,7 @@ final class StaticFacadeGenerationTest extends TestCase
         });
         \Example\StaticFacadeSdk\StaticClient::configure($client);
 
-        $user = \Example\StaticFacadeSdk\StaticApi\Users\User::getById(88, false);
+        $user = \Example\StaticFacadeSdk\StaticApi\Users\User::getById(88, new \Example\StaticFacadeSdk\DTOs\UsersApi\GetPayload((object) ['verbose' => false]));
         self::assertInstanceOf(\Example\StaticFacadeSdk\DTOs\User::class, $user);
         self::assertSame('Ada', $user->name);
         self::assertSame('Madrid', $user->profile->city);
