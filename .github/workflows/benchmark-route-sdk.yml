@@ -1,0 +1,88 @@
+name: Casafari exact-route SDK benchmark (before and after)
+
+on:
+  push:
+    branches: ['benchmark/route-namespaces-final-0.2.0']
+    paths: ['.github/workflows/benchmark-route-sdk.yml', 'benchmarks/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl
+          tools: composer:v2
+          coverage: none
+      - name: Install and verify pinned source
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          mkdir -p benchmark-results
+          echo 'd6dce87639a6a16b7f2aac2e17ab5845b21e4e7937e68fca20243442be15ba04  tests/fixtures/casafari-openapi31.json' | sha256sum --check
+          sha256sum tests/fixtures/casafari-openapi31.json > benchmark-results/spec.sha256
+      - name: Install old generator at last pre-refactor commit
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/sdk-before" ceef09c9304627068e6f620ee6e776e178913cf1
+          composer install --no-interaction --prefer-dist --no-progress --working-dir="$RUNNER_TEMP/sdk-before"
+          test -f "$RUNNER_TEMP/sdk-before/bin/generate-sdk.php"
+      - name: Download official OpenAPI Generator 7.27.0
+        run: |
+          set -euo pipefail
+          curl --retry 3 --retry-delay 2 -fLsS 'https://github.com/OpenAPITools/openapi-generator/releases/download/v7.27.0/openapi-generator-cli-7.27.0.jar' \
+            -o "$RUNNER_TEMP/openapi-generator-cli.jar" ||
+          curl --retry 3 --retry-delay 2 -fLsS 'https://repo.maven.apache.org/maven2/org/openapitools/openapi-generator-cli/7.27.0/openapi-generator-cli-7.27.0.jar' \
+            -o "$RUNNER_TEMP/openapi-generator-cli.jar"
+          java -jar "$RUNNER_TEMP/openapi-generator-cli.jar" version
+      - name: Generate SDK before and after route refactor
+        run: |
+          set -euo pipefail
+          /usr/bin/time -f '%e,%M' -o benchmark-results/before.time \
+            php "$RUNNER_TEMP/sdk-before/bin/generate-sdk.php" tests/fixtures/casafari-openapi31.json \
+              benchmark-results/before 'Casafari\GeneratedSdk' preview/casafari-before
+          /usr/bin/time -f '%e,%M' -o benchmark-results/ours.time \
+            php bin/generate-sdk.php tests/fixtures/casafari-openapi31.json \
+              benchmark-results/ours 'Casafari\GeneratedSdk' preview/casafari-after
+      - name: Generate OpenAPI Generator official PHP variants
+        run: |
+          set +e
+          for generator in php php-nextgen; do
+            /usr/bin/time -f '%e,%M' -o "benchmark-results/$generator.time" \
+              java -jar "$RUNNER_TEMP/openapi-generator-cli.jar" generate \
+                -g "$generator" -i tests/fixtures/casafari-openapi31.json \
+                -o "benchmark-results/$generator" --skip-validate-spec \
+                > "benchmark-results/$generator.log" 2>&1
+            echo "$?" > "benchmark-results/$generator.status"
+            tail -15 "benchmark-results/$generator.log" || true
+          done
+          exit 0
+      - name: Measure equivalent generated source
+        run: |
+          python3 benchmarks/route-benchmark.py benchmark-results
+          cat benchmark-results/REPORT.md
+      - name: Archive reproducible results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casafari-route-sdk-0.2.0-vs-openapi-generator
+          path: |
+            benchmark-results/REPORT.md
+            benchmark-results/report.json
+            benchmark-results/spec.sha256
+            benchmark-results/*.status
+            benchmark-results/*.time
+            benchmark-results/*.log
+          if-no-files-found: warn
+          retention-days: 30
