@@ -142,6 +142,31 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 
 OpenAPI 3.1 se apoya en JSON Schema 2020-12. Este bloque puede avanzar en paralelo a la capa HTTP.
 
+### Decisión de arquitectura: tipos nativos primero, validación declarativa después
+
+> **Principio acordado:** «Utilizar el sistema de tipos del lenguaje hasta donde alcance; completar su expresividad mediante validación declarativa».
+>
+> Separar tres responsabilidades: **PHP representa los tipos**; **sdk-runtime valida la semántica del contrato**; **sdk-generator elige la representación pública más simple que sea fiel al esquema**. Conservar DTOs tipados, legibilidad y código generado mínimo.
+
+**Aplicación a composiciones (diseño acordado; implementación pendiente):**
+
+- **`anyOf` (OR):** usar `Clase1|Clase2` en propiedades y firmas PHP **cuando sea representable sin pérdida semántica**. El valor JSON debe satisfacer **al menos un** esquema. Puede coincidir con varios; el hidratador necesita una estrategia explícita para la ambigüedad, preservando la información original cuando sea necesario.
+- **`oneOf` (XOR):** también preferir `Clase1|Clase2` cuando sea adecuado. El valor debe satisfacer **exactamente un** esquema; `required` solo exige presencia y **no garantiza exclusividad**. La validación debe contar las ramas compatibles, incluso cuando PHP pueda asignar una de las clases.
+- **`allOf` (AND):** el **mismo valor JSON** debe satisfacer **todos** los esquemas. No representa un array con una instancia de cada clase ni exige modificar `TypedArray`. Para objetos compatibles, fusionar propiedades en un DTO concreto solo si se conservan todas las restricciones, especialmente `required`, `additionalProperties`, composición y restricciones cruzadas; usar validación de intersección o representación auxiliar cuando la fusión no sea fiel.
+- **Fallback:** mantener envoltorios `AnyOf`/`OneOf` u otra representación explícita en los casos donde una unión nativa no baste (tipos solapados, ambigüedad de hidratación, varios esquemas para un único objeto JSON o necesidad de conservar variantes). No eliminar los actuales antes de comprobar compatibilidad.
+- **Hidratación y validación:** validar **el dato JSON de origen** contra los esquemas aplicables, seleccionar la clase PHP sin alterar arbitrariamente su significado y volver a validar al serializar/tras mutaciones. Compartir el motor de evaluación de ramas: `anyOf >= 1`, `oneOf === 1`, `allOf === total`.
+
+**Pruebas imprescindibles:**
+
+- [ ] `anyOf` con 0, 1 y 2+ ramas válidas; distinguir validez de la decisión de hidratación.
+- [ ] `oneOf` con 0, 1 y 2+ coincidencias, incluido el caso de propiedades adicionales toleradas por más de un esquema.
+- [ ] `allOf` que combina `id` y `name` en un objeto; casos conflictivos de `additionalProperties: false`, `required` y restricciones numéricas.
+- [ ] Composiciones anidadas, ramas `$ref`, tipos primitivos, enums, arrays y modelos recursivos.
+- [ ] Comparación de salida y API pública con los envoltorios existentes para evitar cambios incompatibles no justificados.
+- [ ] Comprobar que solo se generan clases auxiliares cuando aportan semántica que PHP no puede expresar.
+
+**Criterio de cierre:** minimizar clases generadas sin perder validación ni información necesaria para hidratar. **No confundir representación nativa con conformidad JSON Schema.**
+
 ### Tipos y composición
 
 - [ ] Unión de tipos arbitrarios: `type: [string, integer, 'null']`.
@@ -338,3 +363,4 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 | Fecha | Cambio | Referencia |
 | --- | --- | --- |
 | 2026-11-05 | Se guarda la auditoría inicial de funcionalidades ausentes/parciales y se divide en 10 paquetes. | Conversación de arquitectura SDK Generator |
+| 2026-11-05 | Decisión de diseño: tipos unión nativos cuando sean fieles, validación declarativa OR/XOR/AND y `allOf` como intersección del mismo JSON (no colección). | Debate sobre anyOf/oneOf/allOf |
