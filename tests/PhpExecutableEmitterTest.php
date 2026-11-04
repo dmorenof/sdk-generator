@@ -182,7 +182,7 @@ final class PhpExecutableEmitterTest extends TestCase
         self::assertArrayHasKey('src/DTOs/Users/ById/Get/UsersByIdResponse.php', $files);
         self::assertArrayHasKey('src/DTOs/Errors/Users/ById/GetStatus404Response.php', $files);
         self::assertStringContainsString(
-            '): ?\\Example\\InlineResponseSdk\\Collections\\UserCollection',
+            '): ?\\Example\\InlineResponseSdk\\Collections\\Users\\ById\\Get\\UsersByIdCollection',
             $files['src/Resources/Users.php'],
         );
         self::assertStringContainsString('    204,', $files['src/Resources/Users.php']);
