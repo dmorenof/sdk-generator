@@ -392,11 +392,7 @@ final class PhpContractEmitter
 
     private static function categoryForBaseClass(string $baseClass): string
     {
-        return match ($baseClass) {
-            'Request' => 'Requests',
-            'Response' => 'Responses',
-            default => 'DTOs',
-        };
+        return 'DTOs';
     }
 
     /** @param array<string,string> $files */

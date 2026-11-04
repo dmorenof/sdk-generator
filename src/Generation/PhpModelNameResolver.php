@@ -16,8 +16,9 @@ use InvalidArgumentException;
  * The namespace of the SDK is a separate concern: it is explicitly configured
  * or derived from OpenAPI/Swagger info.title, NEVER inferred from model paths.
  *
- * Dots and encoded double underscores describe schema hierarchy. Encoded
- * technical source folders are omitted; source identifiers still key references.
+ * Dots and encoded double underscores define explicit hierarchy. Flat
+ * concatenated identifiers are grouped using common structural prefixes
+ * across the full model list. Original schema identifiers still key references.
  */
 final class PhpModelNameResolver
 {
@@ -55,11 +56,12 @@ final class PhpModelNameResolver
         $paths = [];
         $types = [];
         $occupied = [];
+        $prefixes = self::inferFlattenedPrefixes($models);
         foreach ($models as $model) {
             $name = $model->name;
             $sourceSegments = array_map(
                 static fn (string $segment): string => PhpNameTransliterator::pascal($segment, 'schema segment'),
-                self::schemaSegments($name),
+                self::schemaSegments($name, $prefixes),
             );
             foreach ($sourceSegments as $segment) {
                 $this->checkSegment($segment);
@@ -70,11 +72,9 @@ final class PhpModelNameResolver
                 \Dmorenof\SdkGenerator\Contract\SchemaKind::OneOf => self::prefixLastSegment($resolvedName, 'OneOf'),
                 default => $resolvedName,
             };
-            $category = $model->schema->enumValues !== [] ? 'Enums' : match ($roles[$name] ?? 'DTO') {
-                'Request' => 'Requests',
-                'Response' => 'Responses',
-                default => 'DTOs',
-            };
+            // The single DTOs tree preserves the full source hierarchy.
+            // Directional behavior still comes from the runtime base class.
+            $category = $model->schema->enumValues !== [] ? 'Enums' : 'DTOs';
             [$path, $type] = $this->resolve($generatedName, $category);
             // On case-insensitive filesystems, path collisions must also fail.
             $key = strtolower($path);
@@ -99,11 +99,44 @@ final class PhpModelNameResolver
             ?? throw new InvalidArgumentException("Unknown model reference: $schemaName.");
     }
 
-    /** @return list<string> */
-    private static function schemaSegments(string $name): array
+    /**
+     * Inference applies only to flat, concatenated schema IDs. Explicit
+     * dotted/double-underscore namespace delimiters always take precedence.
+     *
+     * @param array<string,list<string>> $prefixes
+     * @return list<string>
+     */
+    private static function schemaSegments(string $name, array $prefixes): array
     {
         if (!str_contains($name, '__')) {
-            return explode('.', $name);
+            if (str_contains($name, '.')) {
+                return explode('.', $name);
+            }
+            $tokens = self::pascalTokens($name);
+            $family = $prefixes[strtolower($tokens[0] ?? '')] ?? [];
+            if ($family === [] || count($tokens) <= count($family)
+                || array_map('strtolower', array_slice($tokens, 0, count($family)))
+                    !== array_map('strtolower', $family)) {
+                return [$name];
+            }
+            $remainder = array_slice($tokens, count($family));
+            $suffix = null;
+            foreach (['ResponseSchema', 'RequestSchema', 'Response', 'Request'] as $candidate) {
+                $suffixTokens = self::pascalTokens($candidate);
+                $length = count($suffixTokens);
+                if (count($remainder) > $length
+                    && array_map('strtolower', array_slice($remainder, -$length))
+                        === array_map('strtolower', $suffixTokens)) {
+                    $suffix = $candidate;
+                    $remainder = array_slice($remainder, 0, -$length);
+                    break;
+                }
+            }
+            $namespace = implode('', $family);
+            if ($suffix !== null) {
+                return [$namespace, implode('', $remainder), $suffix];
+            }
+            return [$namespace, implode('', $remainder)];
         }
 
         $segments = preg_split('/__|\./', $name);
@@ -131,6 +164,75 @@ final class PhpModelNameResolver
             $folders[] = ucfirst($segment);
         }
         return [...$folders, ucfirst($class)];
+    }
+
+    /**
+     * Infer a stable shared prefix, not arbitrary word-by-word namespaces.
+     * The first PascalCase token identifies a family; only token boundaries
+     * shared by >=65% of that family can extend its root.
+     *
+     * @param list<ModelDefinition> $models
+     * @return array<string,list<string>>
+     */
+    private static function inferFlattenedPrefixes(array $models): array
+    {
+        $families = [];
+        foreach ($models as $model) {
+            if (str_contains($model->name, '.') || str_contains($model->name, '__')) {
+                continue;
+            }
+            $tokens = self::pascalTokens($model->name);
+            if (count($tokens) >= 2) {
+                $families[strtolower($tokens[0])][] = $tokens;
+            }
+        }
+        $result = [];
+        foreach ($families as $familyName => $members) {
+            $count = count($members);
+            if ($count < 3) {
+                continue;
+            }
+            $threshold = max(3, (int) ceil($count * 0.65));
+            $prefix = [];
+            for ($index = 0; ; ++$index) {
+                $votes = [];
+                foreach ($members as $tokens) {
+                    if (count($tokens) <= $index) {
+                        continue;
+                    }
+                    if (array_map('strtolower', array_slice($tokens, 0, $index))
+                        !== array_map('strtolower', $prefix)) {
+                        continue;
+                    }
+                    $token = $tokens[$index];
+                    $key = strtolower($token);
+                    $votes[$key]['token'] ??= $token;
+                    $votes[$key]['count'] = ($votes[$key]['count'] ?? 0) + 1;
+                }
+                if ($votes === []) {
+                    break;
+                }
+                uasort($votes, static fn (array $a, array $b): int =>
+                    $b['count'] <=> $a['count'] ?: strcmp($a['token'], $b['token']));
+                $best = reset($votes);
+                if ($best['count'] < $threshold) {
+                    break;
+                }
+                $prefix[] = $best['token'];
+            }
+            if ($prefix !== []) {
+                $result[$familyName] = $prefix;
+            }
+        }
+        return $result;
+    }
+
+    /** @return list<string> */
+    private static function pascalTokens(string $source): array
+    {
+        $latin = PhpNameTransliterator::latin($source);
+        preg_match_all('/[A-Z]+(?=[A-Z][a-z]|[0-9]|$)|[A-Z]?[a-z]+[0-9]*|[0-9]+/', $latin, $matches);
+        return $matches[0] ?? [];
     }
 
     public function fqcn(string $schemaName): string
