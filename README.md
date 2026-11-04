@@ -56,6 +56,20 @@ These endpoints exist in the example **synthetic Accounts specification**, not i
 
 Generated route classes live under `Api`, follow the route hierarchy, and extend the shared `Client` base so request construction and transport handling are implemented once. Request-only schemas are in `Requests`, response-only schemas in `Responses`, and shared or otherwise neutral schemas in `DTOs`; enums and domain collections are nested under their owning schema. Equivalent collections share a type, including `Collections\StringCollection` and `Collections\IntegerCollection` when unconstrained. Schema names flattened with `__` become folders, retaining the provider and numbered variants; technical source folders are omitted by the documented [naming policy](docs/SDK_DESIGN.md). Referenced schemas keep their identity even when used by one field. HTTP errors identify the failing method and route (for example, `GET /users/{id}`), rather than exposing an arbitrary OpenAPI `operationId`.
 
+### Optional static facade (0.2.0 development)
+
+Generated SDKs also expose typed static routes. Set up one connection and then call the route directly:
+
+~~~php
+use Example\AccountsSdk\StaticClient;
+use Example\AccountsSdk\StaticApi\Users\User;
+
+StaticClient::connect('https://api.example.com/v1');
+$user = User::getById(88);
+~~~
+
+To attach HTTP middleware and credentials, configure a regular client first and pass it to `StaticClient::configure($client)`. The static facade rejects a second configuration. Instance clients remain available for multiple accounts and must be used for long-lived concurrent PHP workers. See [static facade documentation](docs/STATIC_FACADE.md).
+
 ### HTTP and authentication
 
 A default Guzzle client is constructed automatically by `Client::connect(server)`. No explicit HTTP handler, transport, middleware, or configuration object is required for ordinary use.

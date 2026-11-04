@@ -38,7 +38,10 @@ final readonly class PhpResourceEmitter
     public function emit(ApiContract $contract): array
     {
         $resolved = PhpResourceNameResolver::resolve($contract);
-        $files = ['src/Client.php' => $this->renderConnector()];
+        $files = [
+            'src/Client.php' => $this->renderConnector(),
+            'src/StaticClient.php' => $this->renderStaticConnector(),
+        ];
         foreach ($resolved['nodes'] as $node) {
             if (strtolower($node['segments'][0]) === 'api' && count($node['segments']) > 1) {
                 array_shift($node['segments']);
@@ -47,6 +50,10 @@ final readonly class PhpResourceEmitter
                 . (count($node['segments']) > 1 ? '/' : '')
                 . end($node['segments']) . '.php';
             $files[$path] = $this->renderResource($node, $resolved['operationMethods']);
+            $staticPath = 'src/StaticApi/' . implode('/', array_slice($node['segments'], 0, -1))
+                . (count($node['segments']) > 1 ? '/' : '')
+                . end($node['segments']) . '.php';
+            $files[$staticPath] = $this->renderStaticResource($node, $resolved['operationMethods']);
         }
         return $files;
     }
@@ -66,6 +73,65 @@ final readonly class PhpResourceEmitter
             . 'class Client extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE . "\\ApiClient\n{\n"
             . '    protected const array SECURITY_SCHEMES = ' . PhpLiteral::export($schemes) . ";\n"
             . "}\n";
+    }
+
+    /** One configured client per isolated execution context, never per tenant in workers. */
+    private function renderStaticConnector(): string
+    {
+        $body = <<<'PHP'
+final class StaticClient
+{
+    private static ?Client $connection = null;
+
+    /** @param array<string, string> $headers */
+    public static function connect(
+        string $baseUrl,
+        ?\Psr\Http\Client\ClientInterface $httpClient = null,
+        array $headers = [],
+        ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null,
+        ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null,
+    ): void {
+        self::configure(Client::connect($baseUrl, $httpClient, $headers, $securityCredentials, $transport));
+    }
+
+    public static function configure(Client $client): void
+    {
+        if (self::$connection !== null) {
+            throw new \LogicException('Static SDK connection is already configured.');
+        }
+        self::$connection = $client;
+    }
+
+    public static function client(): Client
+    {
+        return self::$connection ?? throw new \LogicException(
+            'Configure the SDK with StaticClient::connect() or StaticClient::configure() first.',
+        );
+    }
+}
+PHP;
+        return $this->header($this->namespace) . $body . "\n";
+    }
+
+    /**
+     * @param array{segments:list<string>,path:string,operations:list<OperationDefinition>} $node
+     * @param array<string,string> $operationMethods
+     */
+    private function renderStaticResource(array $node, array $operationMethods): string
+    {
+        $segments = $node['segments'];
+        $class = end($segments);
+        $parentSegments = array_slice($segments, 0, -1);
+        $namespace = $this->namespace . '\\StaticApi'
+            . ($parentSegments === [] ? '' : '\\' . implode('\\', $parentSegments));
+        $resourceClass = '\\' . $this->namespace . '\\Api\\' . implode('\\', $segments);
+        $source = $this->header($namespace) . "final class $class\n{\n";
+        foreach ($node['operations'] as $operation) {
+            $method = $operationMethods[$operation->operationId]
+                ?? throw new InvalidArgumentException("Missing resource method for $operation->operationId.");
+            $source .= $this->renderOperation($operation, $method, $resourceClass);
+        }
+        return $source . "}\n";
     }
 
     /**
@@ -89,7 +155,7 @@ final readonly class PhpResourceEmitter
         return $source . "}\n";
     }
 
-    private function renderOperation(OperationDefinition $operation, string $method): string
+    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null): string
     {
         $parameters = [];
         foreach ($operation->parameters as $parameter) {
@@ -144,6 +210,104 @@ final readonly class PhpResourceEmitter
         $returnType = $success['type'] ?? 'void';
         if ($success['nullable'] && $success['type'] !== null) {
             $returnType = '?' . $returnType;
+        }
+        if ($resourceClass !== null) {
+            $forwardArgs = implode(', ', array_map(
+                static fn (array $parameter): string => '        $pathParameters = [];
+        $queryParameters = [];
+        $headerParameters = [];
+        $parameterValidations = [];
+        $body = 'null';
+        foreach ($parameters as $parameter) {
+            $name = '$' . $parameter['name'];
+            if ($parameter['validation'] !== []) {
+                $parameterValidations[$parameter['wireName']] = $parameter['validation'];
+            }
+            if ($parameter['location'] === 'path') {
+                $pathParameters[$parameter['wireName']] = $name;
+            } elseif ($parameter['location'] === 'query') {
+                $queryParameters[$parameter['wireName']] = $name;
+            } elseif ($parameter['location'] === 'header') {
+                $headerParameters[$parameter['wireName']] = $name;
+            } elseif ($parameter['location'] === 'body') {
+                $body = $name;
+            }
+        }
+        $pathParameters = self::formatParameterMap($pathParameters);
+        $queryParameters = self::formatParameterMap($queryParameters);
+        $headerParameters = self::formatParameterMap($headerParameters);
+        $successStatuses = array_values(array_map(
+            static fn ($response): int => (int) $response->status,
+            array_filter(
+                $operation->responses,
+                static fn ($response): bool => preg_match('/^2[0-9]{2}$/', $response->status) === 1,
+            ),
+        ));
+        $metadata = [
+            'method' => strtoupper($operation->method),
+            'path' => $operation->path,
+            'security' => $operation->securityRequirements,
+            'success' => $successStatuses,
+            'errors' => $this->errorTypes[$operation->operationId] ?? [],
+            'responseType' => $success['type'],
+            'schemaNullable' => $success['schemaNullable'],
+            'noContentAllowed' => $success['noContentAllowed'],
+            'validation' => $parameterValidations,
+        ];
+        foreach (self::OPERATION_DEFAULTS as $key => $default) {
+            if ($metadata[$key] === $default) {
+                unset($metadata[$key]);
+            }
+        }
+        $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
+        $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
+        $arguments = ['self::' . $constant];
+        if ($pathParameters !== '[]') { $arguments[] = 'pathParameters: ' . $pathParameters; }
+        if ($queryParameters !== '[]') { $arguments[] = 'queryParameters: ' . $queryParameters; }
+        if ($headerParameters !== '[]') { $arguments[] = 'headerParameters: ' . $headerParameters; }
+        if ($body !== 'null') { $arguments[] = 'body: ' . $body; }
+        $call = '$this->executeOperation(' . implode(', ', $arguments) . ')';
+        $source .= "    public function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n";
+        $source .= $success['type'] === null
+            ? "        $call;\n        return;\n"
+            : "        /** @var $returnType \$result */\n        \$result = $call;\n        return \$result;\n";
+        return $source . "    }\n\n";
+    }
+
+    /** @param array<string,string> $parameters */
+    private static function formatParameterMap(array $parameters): string
+    {
+        $entries = [];
+        foreach ($parameters as $wireName => $variable) {
+            $entries[] = var_export($wireName, true) . ' => ' . $variable;
+        }
+        return '[' . implode(', ', $entries) . ']';
+    }
+
+    private function header(string $namespace): string
+    {
+        return "<?php\n"
+            . "declare(strict_types=1);\n\n"
+            . "namespace $namespace;\n\n";
+    }
+
+    private static function variableName(string $wireName): string
+    {
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $wireName) === 1) {
+            return $wireName;
+        }
+        $name = lcfirst(PhpResourceNameResolver::pascal($wireName));
+        return $name;
+    }
+}
+ . $parameter['name'],
+                $parameters,
+            ));
+            $call = '\\' . $this->namespace . '\\StaticClient::client()->resource('
+                . $resourceClass . '::class)->' . $method . '(' . $forwardArgs . ')';
+            return "    public static function $method(" . implode(', ', $argumentList) . "): $returnType\n    {\n"
+                . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
+                . "    }\n\n";
         }
         $pathParameters = [];
         $queryParameters = [];
