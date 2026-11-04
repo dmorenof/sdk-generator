@@ -38,14 +38,15 @@ declare(strict_types=1);
 require __DIR__ . '/build/accounts-sdk/vendor/autoload.php';
 
 use Example\AccountsSdk\Client;
-use Example\AccountsSdk\Api\Users;
-use Example\AccountsSdk\Api\Users\User;
-use Example\AccountsSdk\Requests\NewUser;
+use Example\AccountsSdk\Resources\Users;
+use Example\AccountsSdk\GetParams\Users\ById as UserFilters;
+use Example\AccountsSdk\DTOs\NewUser;
 
+// Independent instance connection:
 $client = Client::connect('https://api.example.com/v1');
-// Demo fixture operations; real requests require a reachable compatible API.
-$user = $client->resource(User::class)->getById(88);
-echo $user->name;
+$filters = new UserFilters();
+$filters->verbose = false;
+$user = $client->resource(Users::class)->getById(88, $filters);
 
 $input = new NewUser();
 $input->name = 'Grace';
@@ -54,7 +55,7 @@ $created = $client->resource(Users::class)->post($input);
 
 These endpoints exist in the example **synthetic Accounts specification**, not in every API; generated endpoint names always come from the input contract.
 
-Generated route classes live under `Api` and inherit from `Client`.
+Static route facades mirror OpenAPI URL segments. Their independent instance resources live under Resources and inherit from Client.
 Reusable schema models are grouped in a **single hierarchical `DTOs` tree**.
 Explicit hierarchy from dotted or `__` schema identifiers is preserved.
 For flattened names, shared structural prefixes and common
@@ -66,40 +67,37 @@ The runtime's `Request` and `Response` base classes continue to enforce
 direction-sensitive validation. Enums and typed collections retain their
 own namespace trees. See [naming policy](docs/SDK_DESIGN.md).
 
-### Named SDK root and grouped APIs (0.2.0 development)
+### Named SDK root and predictable route classes (0.2.0)
 
-The generated **abstract SDK root** uses the exact OpenAPI title: e.g.
-`Casafari API` produces `CasafariAPISDK` (no dropped word).
-All route groups extend that root. PHP identifiers are transliterated to
-Latin ASCII using ICU; original path, parameter and JSON field names are
-retained on the wire. The generator needs `ext-intl`, but generated
-SDKs do not. See [SDK root and grouping policy](docs/PUBLIC_API.md).
+The abstract SDK root is derived from the complete OpenAPI info.title.
+For example, Casafari API produces CasafariAPISDK. Public API classes
+directly mirror the URL structure, while methods correspond to HTTP verbs.
+A terminal path identifier adds ById or By{Placeholder} to the method.
+GET query/header parameters use GetParams; equivalent POST parameters
+use PostParams. Named body schema objects are reused from DTOs.
 
 ~~~php
 use Example\AccountsSdk\ExampleAccountsSDK;
-use Example\AccountsSdk\UsersApi;
+use Example\AccountsSdk\Users;
 use Example\AccountsSdk\Configuration;
-use Example\AccountsSdk\Requests\NewUser;
+use Example\AccountsSdk\DTOs\NewUser;
 
 $config = new Configuration();
 $config->baseUrl = 'https://api.example.com/v1';
 ExampleAccountsSDK::configure($config);
 
-$input = new NewUser();
-$input->name = 'Grace';
-$created = UsersApi::post($input);
-$user = UsersApi::getById(88);
-
-ExampleAccountsSDK::configure($anotherConfiguration);
-$user = UsersApi::getById(88);
+$body = new NewUser();
+$body->name = 'Grace';
+$created = Users::post($body);
+$user = Users::getById(88);
 ~~~
 
-The flat, all-operations `Api` class is no longer generated: the name
-`Api` belongs to unversioned `/api/...` routes. During the staged
-migration, instance resource classes, legacy StaticApi and separate model
-categories still exist. Upcoming work will unify schema DTOs, improve
-authentication/error ergonomics, and reuse TypedArray primitives.
-
+The old grouped UsersApi/ApiV1 facade and duplicate StaticApi tree are
+replaced by this route structure. Client::connect() and Resources classes
+remain for independent simultaneous connections. The shared runtime
+handles HTTP transport, middleware, authentication and validation.
+PHP identifiers are transliterated using ICU, preserving all original
+wire names. See the complete design in docs/PUBLIC_API.md.
 
 ### HTTP and authentication
 
@@ -128,7 +126,7 @@ $client = Client::connect(
 );
 ~~~
 
-Generated resource methods are instance methods, while root `Api` methods are static. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
+Resources methods are instance methods; route facades (such as Users::getById()) are static. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
 
 ### Explore without PHP on your computer
 
