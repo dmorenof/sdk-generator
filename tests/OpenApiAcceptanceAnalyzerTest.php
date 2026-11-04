@@ -85,7 +85,7 @@ final class OpenApiAcceptanceAnalyzerTest extends TestCase
             static fn (array $operation): bool => $operation['status'] === 'generation_failed',
         ));
         self::assertCount(1, $bad);
-        self::assertStringContainsString('Unsupported non-reference request body', $bad[0]['error']['message']);
+        self::assertStringContainsString('Unsupported inline request body', $bad[0]['error']['message']);
     }
 
     public function testUnusedUnsupportedSchemaDoesNotHideIndividualOperationSuccess(): void
