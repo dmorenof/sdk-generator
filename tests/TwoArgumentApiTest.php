@@ -34,15 +34,15 @@ final class TwoArgumentApiTest extends TestCase
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($spec, JSON_THROW_ON_ERROR));
         $files = (new PhpExecutableEmitter('Example\\TwoArgSdk', 'example/two-arg-sdk'))->emit($contract);
 
-        $identifierPath = 'src/DTOs/CompaniesApi/Users/GetIdentifier.php';
-        $payloadPath = 'src/DTOs/CompaniesApi/Users/GetPayload.php';
+        $identifierPath = 'src/PathParams/Companies/ByCompanyId/Users/ByUserId.php';
+        $payloadPath = 'src/GetParams/Companies/ByCompanyId/Users/ByUserId.php';
         self::assertArrayHasKey($identifierPath, $files);
         self::assertArrayHasKey($payloadPath, $files);
-        self::assertArrayNotHasKey('src/DTOs/InvoicesApi/PostPayload.php', $files);
+        self::assertArrayNotHasKey('src/PostParams/Invoices.php', $files);
         self::assertStringContainsString("'company_id' => 'company_id'", $files[$identifierPath]);
         self::assertStringContainsString("'verbose' => 'verbose'", $files[$payloadPath]);
 
-        foreach (['src/CompaniesApi.php', 'src/InvoicesApi.php', 'src/HealthApi.php'] as $path) {
+        foreach (['src/Companies/ByCompanyId/Users.php', 'src/Invoices.php', 'src/Health.php'] as $path) {
             self::assertArrayHasKey($path, $files);
             preg_match_all('/public static function \w+\((.*?)\):/s', $files[$path], $matches);
             foreach ($matches[1] as $params) {
@@ -79,22 +79,22 @@ final class TwoArgumentApiTest extends TestCase
             $config->transport = $transport;
             \Example\TwoArgSdk\TwoArgumentTestSDK::configure($config);
 
-            $ids = new \Example\TwoArgSdk\DTOs\CompaniesApi\Users\GetIdentifier((object) [
+            $ids = new \Example\TwoArgSdk\PathParams\Companies\ByCompanyId\Users\ByUserId((object) [
                 'company_id' => 9, 'user_id' => 13,
             ]);
-            $payload = new \Example\TwoArgSdk\DTOs\CompaniesApi\Users\GetPayload((object) [
+            $payload = new \Example\TwoArgSdk\GetParams\Companies\ByCompanyId\Users\ByUserId((object) [
                 'verbose' => false,
             ]);
-            $person = \Example\TwoArgSdk\CompaniesApi::getByCompanyIdUsersByUserId($ids, $payload);
+            $person = \Example\TwoArgSdk\Companies\ByCompanyId\Users::getByUserId($ids, $payload);
             self::assertSame('Ada', $person->name);
             self::assertSame('https://sdk.test/companies/9/users/13?verbose=false', $transport->calls[0]['url']);
 
-            $invoice = \Example\TwoArgSdk\InvoicesApi::post(
+            $invoice = \Example\TwoArgSdk\Invoices::post(
                 new \Example\TwoArgSdk\DTOs\NewUser((object) ['name' => 'Ada']),
             );
             self::assertSame('Ada', $invoice->name);
             self::assertSame(['name' => 'Ada'], json_decode($transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR));
-            \Example\TwoArgSdk\HealthApi::get();
+            \Example\TwoArgSdk\Health::get();
             self::assertSame('https://sdk.test/health', $transport->calls[2]['url']);
         } finally {
             spl_autoload_unregister($loader);
