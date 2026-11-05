@@ -157,6 +157,31 @@ OpenAPI 3.1 se apoya en JSON Schema 2020-12. Este bloque puede avanzar en parale
 - **Fallback:** mantener envoltorios `AnyOf`/`OneOf` u otra representación explícita en los casos donde una unión nativa no baste (tipos solapados, ambigüedad de hidratación, varios esquemas para un único objeto JSON o necesidad de conservar variantes). No eliminar los actuales antes de comprobar compatibilidad.
 - **Hidratación y validación:** validar **el dato JSON de origen** contra los esquemas aplicables, seleccionar la clase PHP sin alterar arbitrariamente su significado y volver a validar al serializar/tras mutaciones. Compartir el motor de evaluación de ramas: `anyOf >= 1`, `oneOf === 1`, `allOf === total`.
 
+### Refinamiento: representar polimorfismo como herencia PHP cuando el contrato lo permita
+
+En el patrón habitual OpenAPI `Pet` + `Dog`/`Cat`, donde `Dog` y `Cat` declaran `allOf: [{$ref: Pet}, {type: object, properties: ...}]`, preferir `Pet extends DTO` y `Dog extends Pet`/`Cat extends Pet` **si la estructura es realmente compatible con herencia simple**. `oneOf: [Dog, Cat]` puede dar una firma PHP `Dog|Cat`, con validación del `oneOf` original. El `discriminator.propertyName` y su `mapping` explícito/implícito ayudan a elegir el DTO concreto durante la hidratación.
+
+**Matices normativos que debemos preservar:**
+
+- `allOf` es intersección de esquemas, **no implica siempre una jerarquía de clases**. No convertir automáticamente `allOf` con dos bases independientes en herencia múltiple PHP.
+- `discriminator` es una ayuda para decidir qué esquema instanciar; **no modifica el resultado de validar** `oneOf`/`anyOf`. Todas las ramas mantienen su semántica lógica.
+- Ejemplo de ambigüedad: si `Pet` solo exige `pet_type` y `Dog`/`Cat` añaden únicamente propiedades opcionales, `{"pet_type":"Dog"}` puede satisfacer **ambas** ramas y resulta inválido para `oneOf`. Para distinguir esquemas mediante validación, declarar `pet_type: {type: string, enum: [Dog]}` y su equivalente para `Cat` en OAS 3.0 (o `const` en OAS 3.1).
+- En PHP no redeclarar propiedades heredadas con tipos incompatibles: aplicar las restricciones del discriminador mediante metadatos/reglas de validación del hijo.
+- El generador actual **aplana** `allOf` compatible, genera modelos como `final class ... extends DTO` y **rechaza `discriminator`**. La herencia `Dog extends Pet` es una optimización futura, no algo ya implementado.
+- Al introducir herencia, combinar correctamente `REQUIRED_FIELDS`, `VALIDATION`, `PROPERTY_MAP`, `READ_ONLY_FIELDS`, `WRITE_ONLY_FIELDS` y demás metadatos de padres/hijos; comprobar reflexión, serialización e hidratación de propiedades heredadas.
+
+**Tareas del refinamiento:**
+
+- [ ] Reconocer y preservar `discriminator.propertyName` y `mapping`, con mapeo explícito/implícito y diagnóstico si el valor no identifica una rama.
+- [ ] Detectar patrón `allOf` de un único padre `$ref` + propiedades propias, con ausencia de conflictos de validación, y generar herencia nativa cuando sea fiel.
+- [ ] Permitir extender modelos base (ajustar `final` únicamente en las clases necesarias) sin romper usos independientes de `Pet`.
+- [ ] Fusionar o aplicar de forma incremental las reglas declarativas de toda la cadena de clases.
+- [ ] Hidratar `oneOf`/`anyOf` orientándose por el discriminador y validar la cardinalidad real de los esquemas originales.
+- [ ] Incluir tests de `Pet`, `Dog`, `Cat`: selección de clase, herencia, serialización, caso ambiguo y `mapping` con nombres diferentes.
+- [ ] Mantener fallback a DTO aplanado/representaciones auxiliares para composiciones sin herencia PHP válida.
+
+Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://spec.openapis.org/oas/v3.1.2.html#composition-and-inheritance-polymorphism); [JSON Schema: Combining Schemas](https://json-schema.org/understanding-json-schema/reference/combining).
+
 **Pruebas imprescindibles:**
 
 - [ ] `anyOf` con 0, 1 y 2+ ramas válidas; distinguir validez de la decisión de hidratación.
@@ -366,3 +391,4 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 | 2026-11-05 | Se guarda la auditoría inicial de funcionalidades ausentes/parciales y se divide en 10 paquetes. | Conversación de arquitectura SDK Generator |
 | 2026-11-05 | Decisión de diseño: tipos unión nativos cuando sean fieles, validación declarativa OR/XOR/AND y `allOf` como intersección del mismo JSON (no colección). | Debate sobre anyOf/oneOf/allOf |
 | 2026-11-05 | Publicados `sdk-runtime` v0.3.1 y `sdk-generator` v0.2.0, ambas CI verdes; permanece pendiente la prueba autenticada de Casafari. | [Runtime v0.3.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.3.1), [Generator v0.2.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.2.0) |
+| 2026-11-05 | Refinamiento de polimorfismo: representar `Pet -> Dog/Cat` como herencia PHP cuando `allOf` sea apto y usar `discriminator` para orientar la hidratación sin reemplazar la validación `oneOf`. | Debate sobre herencia y `discriminator` OpenAPI |
