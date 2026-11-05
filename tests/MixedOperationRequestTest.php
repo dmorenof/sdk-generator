@@ -68,7 +68,7 @@ final class MixedOperationRequestTest extends TestCase
         $params->trace = false;
         $params->body = $body;
         $result = $client->resource(\Example\MixedSdk\Resources\Groups\ByGroup\Users::class)->post('my group', $params);
-        self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $result);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\DTO::class, $result);
         self::assertSame('Ada', $result->name);
         self::assertCount(1, $transport->calls);
         self::assertSame('POST', $transport->calls[0]['method']);

@@ -179,8 +179,8 @@ final class PhpExecutableEmitterTest extends TestCase
         ))->emit($contract);
 
         self::assertArrayHasKey('src/Collections/Users/ById/Get/UsersByIdCollection.php', $files);
-        self::assertArrayHasKey('src/DTOs/Users/ById/Get/UsersByIdResponse.php', $files);
-        self::assertArrayHasKey('src/DTOs/Errors/Users/ById/GetStatus404Response.php', $files);
+        self::assertArrayHasKey('src/Responses/Users/ById/Get/UsersByIdResponse.php', $files);
+        self::assertArrayHasKey('src/Responses/Errors/Users/ById/GetStatus404Response.php', $files);
         self::assertStringContainsString(
             '): ?\\Example\\InlineResponseSdk\\Collections\\Users\\ById\\Get\\UsersByIdCollection',
             $files['src/Resources/Users.php'],
@@ -190,9 +190,9 @@ final class PhpExecutableEmitterTest extends TestCase
         self::assertStringContainsString('GetStatus404Response', $files['src/Resources/Users.php']);
 
         foreach ([
-            'src/DTOs/Users/ById/Get/UsersByIdResponse.php',
+            'src/Responses/Users/ById/Get/UsersByIdResponse.php',
             'src/Collections/Users/ById/Get/UsersByIdCollection.php',
-            'src/DTOs/Errors/Users/ById/GetStatus404Response.php',
+            'src/Responses/Errors/Users/ById/GetStatus404Response.php',
         ] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
@@ -202,14 +202,14 @@ final class PhpExecutableEmitterTest extends TestCase
         );
         self::assertInstanceOf(\Example\InlineResponseSdk\Collections\Users\ById\Get\UsersByIdCollection::class, $response);
         self::assertInstanceOf(
-            \Example\InlineResponseSdk\DTOs\Users\ById\Get\UsersByIdResponse::class,
+            \Example\InlineResponseSdk\Responses\Users\ById\Get\UsersByIdResponse::class,
             $response->getArrayCopy()[0],
         );
         self::assertSame(7, $response->getArrayCopy()[0]->id);
-        $error = new \Example\InlineResponseSdk\DTOs\Errors\Users\ById\GetStatus404Response(
+        $error = new \Example\InlineResponseSdk\Responses\Errors\Users\ById\GetStatus404Response(
             (object) ['detail' => 'Not found'],
         );
-        self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $error);
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\DTO::class, $error);
         self::assertSame('Not found', $error->detail);
     }
 

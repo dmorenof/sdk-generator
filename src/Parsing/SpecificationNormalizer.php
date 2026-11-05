@@ -421,23 +421,47 @@ final class SpecificationNormalizer
         if ($content === []) {
             return null;
         }
-        if (count($content) !== 1) {
-            throw new InvalidArgumentException("Unsupported multiple response/request media types at $where.");
+        $json = [];
+        foreach ($content as $mediaType => $definition) {
+            if (!is_string($mediaType) || !$this->isJsonMediaType($mediaType)) {
+                continue; // XML/text alternatives are not emitted by a JSON SDK.
+            }
+            if (!is_array($definition) || !is_array($definition['schema'] ?? null)) {
+                throw new InvalidArgumentException("Missing JSON schema for media type $mediaType at $where.");
+            }
+            $json[$mediaType] = $definition['schema'];
         }
-        $mediaType = (string) array_key_first($content);
-        if (!$this->isJsonMediaType($mediaType) || !is_array($content[$mediaType] ?? null)
-            || !is_array($content[$mediaType]['schema'] ?? null)) {
-            throw new InvalidArgumentException("Unsupported response/request media type or missing schema at $where.");
+        if ($json === []) {
+            throw new InvalidArgumentException("No supported JSON representation at $where.");
         }
-        return ['mediaType' => $mediaType, 'schema' => $content[$mediaType]['schema']];
+        // Do not silently choose between incompatible JSON contract variants.
+        $first = reset($json);
+        foreach ($json as $mediaType => $schema) {
+            if ($schema !== $first) {
+                throw new InvalidArgumentException(
+                    "Conflicting JSON schemas across media types at $where ($mediaType)."
+                );
+            }
+        }
+        uksort($json, static function (string $a, string $b): int {
+            $rank = static function (string $media): int {
+                $media = strtolower(trim($media));
+                if ($media === 'application/json') {
+                    return 0;
+                }
+                return str_starts_with($media, 'application/json;') ? 1 : 2;
+            };
+            return ($rank($a) <=> $rank($b)) ?: strcmp($a, $b);
+        });
+        $mediaType = (string) array_key_first($json);
+        return ['mediaType' => $mediaType, 'schema' => $json[$mediaType]];
     }
 
     private function isJsonMediaType(string $mediaType): bool
     {
-        return preg_match(
-            '~^application/(?:[a-z0-9!#$&^_.+-]+\+)?json$~iD',
-            $mediaType,
-        ) === 1;
+        // MIME parameters such as "application/json; v=1.0" are legal.
+        $mediaType = strtolower(trim(explode(';', $mediaType, 2)[0]));
+        return preg_match('~^application/(?:[a-z0-9!#$&^_.+-]+\+)?json$~iD', $mediaType) === 1;
     }
 
     private function schema(mixed $raw, string $dialect, string $where): SchemaDefinition

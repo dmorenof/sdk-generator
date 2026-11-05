@@ -38,6 +38,8 @@ src/
   GetParams/Users/ById.php         optional GET /users/{id} query/header filters
   DTOs/NewUser.php                 referenced OpenAPI body schema
   DTOs/User.php                    referenced OpenAPI response schema
+  Requests/Users/Patch.php         operation-specific inline PATCH body
+  Responses/Users/Post.php         operation-specific inline POST response
   Collections/...                  runtime TypedArray subclasses
   Enums/...                        typed backed enums
 ~~~
@@ -47,6 +49,10 @@ An intermediate URL placeholder becomes By{placeholder} in the namespace;
 a terminal placeholder becomes By{placeholder} in the function name.
 Existing named OpenAPI schemas preserve their declared or inferred model
 hierarchy under DTOs, rather than being duplicated per operation.
+Inline JSON object bodies are named after the route and verb under `Requests`.
+Inline JSON object responses use `Responses`, also by route and verb; an
+operation's error envelope is under `Responses/Errors` by path, verb and status.
+All three categories extend the same runtime `DTO` base.
 
 The generated static facade delegates to its corresponding instance
 Resource; the Resource extends generated Client and delegates to
@@ -89,3 +95,25 @@ schema referred to elsewhere in the document.
 
 This naming policy is tested against the 46 Casafari operations and the
 Accounts and Catalog fixtures (Swagger 2.0, OpenAPI 3.0 and 3.1).
+
+
+## Validation, formatting and external API smoke
+
+`DTO` implements `validateForRequest()` and `validateForResponse()`. The
+runtime selects the direction at the HTTP boundary (including nested DTOs).
+A required readOnly property is omitted when sending; a required writeOnly
+property is ignored when receiving.
+
+The CLI formats the generated `src` tree with `@PSR12` automatically and
+does not include PHP-CS-Fixer as a generated-package dependency.
+
+CI validates the original complete public FakeRESTApi OpenAPI 3.0.1 document
+from https://fakerestapi.azurewebsites.net/swagger/v1/swagger.json, installs
+the generated Composer package independently and uses its real Guzzle-backed
+runtime for two public GET endpoints and one public POST endpoint. Casafari generation and its 46
+operations are tested offline, without credentials. Wider OpenAPI dialect
+coverage remains governed by docs/SUPPORTED_SCOPE.md.
+
+Generated SDKs depend on the stable `dmorenof/sdk-runtime` constraint
+`^0.3.1`, published after the directional DTO consolidation.
+Run a real authenticated Casafari smoke before migrating production consumers.

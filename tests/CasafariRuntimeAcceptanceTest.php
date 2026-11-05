@@ -134,7 +134,7 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
             self::fail('The generated client did not throw for HTTP 401.');
         } catch (\Dmorenof\SdkRuntime\ApiException $exception) {
             self::assertSame(401, $exception->getCode());
-            self::assertInstanceOf(\Dmorenof\SdkRuntime\Response::class, $exception->error);
+            self::assertInstanceOf(\Dmorenof\SdkRuntime\DTO::class, $exception->error);
             self::assertSame('Authentication required', $exception->error->detail);
             self::assertSame('{"detail":"Authentication required"}', $exception->response->body);
         }

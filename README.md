@@ -5,7 +5,7 @@
 
 **v0.1.0: early, usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
-The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK.
+The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
 ## Quick start: generate Accounts SDK
 
@@ -63,8 +63,7 @@ For flattened names, shared structural prefixes and common
 namespaces. For example, `UserManagementJWTRefreshTokenResponseSchema`
 becomes `DTOs\\UserManagement\\JWTRefreshToken\\ResponseSchema`.
 Original schema identifiers and `$ref` links remain unchanged.
-The runtime's `Request` and `Response` base classes continue to enforce
-direction-sensitive validation. Enums and typed collections retain their
+All generated data classes inherit a single runtime `DTO` base. The HTTP operation applies request/response direction-specific validation at the boundary. Enums and typed collections retain their
 own namespace trees. See [naming policy](docs/SDK_DESIGN.md).
 
 ### Named SDK root and predictable route classes (0.2.0)
@@ -75,6 +74,9 @@ directly mirror the URL structure, while methods correspond to HTTP verbs.
 A terminal path identifier adds ById or By{Placeholder} to the method.
 GET query/header parameters use GetParams; equivalent POST parameters
 use PostParams. Named body schema objects are reused from DTOs.
+Inline operation-specific request objects live under `Requests`, and inline
+response envelopes under `Responses`, each separated by route and HTTP verb.
+These classes also extend `DTO` and can contain references to shared models.
 
 ~~~php
 use Example\AccountsSdk\ExampleAccountsSDK;
@@ -134,7 +136,7 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 
 ## Supported features and deliberate boundaries
 
-| Area | v0.1.0 |
+| Area | v0.2.0 (supported subset) |
 |---|---|
 | Input dialects | Swagger 2.0, OpenAPI 3.0.x and 3.1.x in **JSON or YAML**, tested common subset |
 | Models | Object properties, common primitive types, local model references, backed enums, typed arrays, nested DTOs, and bounded `allOf`/`anyOf`/`oneOf` support |
@@ -145,7 +147,7 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 
 The validator **rejects many unsupported constructs explicitly** instead of silently treating them as supported. Generated DTOs validate required fields and supported constraints on construction and before sending, including modified nested values. This is not complete JSON Schema validation. See [the SDK design criteria](docs/SDK_DESIGN.md) and the supported-scope document for the current boundaries.
 
-See [docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md) before generating a production-facing client. [CHANGELOG.md](CHANGELOG.md) lists v0.1.0 changes. [docs/READY_TO_USE_CLIENT.md](docs/READY_TO_USE_CLIENT.md) explains the HTTP factory; [docs/RUN_GENERATED_SDK.md](docs/RUN_GENERATED_SDK.md) covers the example.
+See [pendientes.md](pendientes.md) for the audited OpenAPI compatibility roadmap, and [docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md) before generating a production-facing client. [CHANGELOG.md](CHANGELOG.md) lists v0.1.0 changes. [docs/READY_TO_USE_CLIENT.md](docs/READY_TO_USE_CLIENT.md) explains the HTTP factory; [docs/RUN_GENERATED_SDK.md](docs/RUN_GENERATED_SDK.md) covers the example.
 
 ## Development and verification
 
@@ -159,7 +161,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-The first reviewed release uses [VERSION](VERSION) = 0.1.0 and the [Publish version workflow](.github/workflows/release.yml) to create immutable Git tag **v0.1.0** and a GitHub Release *after validation*. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+The current release target is [VERSION](VERSION) = 0.2.0. The [Publish version workflow](.github/workflows/release.yml) creates an immutable Git tag **v0.2.0** and GitHub Release when the changes reach `main` and validation succeeds. Generated SDKs require the stable `dmorenof/sdk-runtime` **^0.3.1**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

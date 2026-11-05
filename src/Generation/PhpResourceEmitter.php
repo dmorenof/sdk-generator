@@ -135,7 +135,7 @@ final readonly class PhpResourceEmitter
      *   body:?\Dmorenof\SdkRuntime\DTO
      * }
      */
-    private static function operationFields(\Dmorenof\SdkRuntime\Request $dto): array
+    private static function operationFields(\Dmorenof\SdkRuntime\DTO $dto): array
     {
         $dto->validateForRequest();
         $values = get_object_vars($dto);
@@ -167,14 +167,14 @@ final readonly class PhpResourceEmitter
      */
     protected function executeArguments(
         array $operation,
-        string|int|float|bool|\Dmorenof\SdkRuntime\Request|null $identifier = null,
+        string|int|float|bool|\Dmorenof\SdkRuntime\DTO|null $identifier = null,
         ?string $identifierName = null,
-        ?\Dmorenof\SdkRuntime\Request $payload = null,
+        ?\Dmorenof\SdkRuntime\DTO $payload = null,
         ?\Dmorenof\SdkRuntime\DTO $body = null,
     ): mixed {
         /** @var array<string,bool|float|int|string|null> $path */
         $path = [];
-        if ($identifier instanceof \Dmorenof\SdkRuntime\Request) {
+        if ($identifier instanceof \Dmorenof\SdkRuntime\DTO) {
             $path = self::operationFields($identifier)['path'];
         } elseif ($identifierName !== null) {
             $path[$identifierName] = $identifier;

@@ -1,0 +1,85 @@
+name: Live OpenAPI SDK smoke — public FakeRESTApi
+
+on:
+  push:
+    branches: ['feature/unified-dto-psr12-public-api']
+    paths:
+      - '.github/workflows/live-openapi-smoke.yml'
+      - 'tests/live/**'
+      - 'composer.json'
+      - 'src/Generation/**'
+      - 'src/Parsing/**'
+      - 'bin/generate-sdk.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl
+          tools: composer:v2
+          coverage: none
+      - name: Install build-time SDK generator
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Download complete original public specification
+        run: |
+          mkdir -p live-results
+          curl --fail --location --retry 3 --max-time 35 \
+            'https://fakerestapi.azurewebsites.net/swagger/v1/swagger.json' \
+            -o live-results/original-openapi.json
+          python3 -m json.tool live-results/original-openapi.json >/dev/null
+          sha256sum live-results/original-openapi.json | tee live-results/original-spec.sha256
+      - name: Generate from the full unmodified original OpenAPI (required)
+        run: |
+          php bin/generate-sdk.php live-results/original-openapi.json \
+            live-results/full-sdk 'Example\FakeRestComplete' example/fakerest-complete
+          test -f live-results/full-sdk/src/Api/V1/Activities.php
+          test -f live-results/full-sdk/src/DTOs/Activity.php
+      - name: Install and validate the full generated SDK independently
+        run: |
+          vendor/bin/php-cs-fixer fix live-results/full-sdk/src \
+            --rules=@PSR12 --using-cache=no --dry-run --diff --show-progress=none
+          composer install --working-dir=live-results/full-sdk --no-interaction --prefer-dist --no-progress
+      - name: Test the original full OpenAPI SDK against the real API
+        run: php tests/live/fakerestapi_full_smoke.php
+      - name: Extract supported read-only slice, preserving original schemas
+        run: python3 tests/live/extract_fakerestapi.py live-results/original-openapi.json live-results/read-only-openapi.json
+      - name: Generate SDK from original OpenAPI subset
+        run: |
+          php bin/generate-sdk.php live-results/read-only-openapi.json \
+            live-results/fakerest-sdk 'Example\FakeRestLive' example/fakerest-live
+          test -f live-results/fakerest-sdk/src/Api/V1/Activities.php
+          test -f live-results/fakerest-sdk/src/DTOs/Activity.php
+      - name: Assert generated source meets PSR-12
+        run: |
+          vendor/bin/php-cs-fixer fix live-results/fakerest-sdk/src \
+            --rules=@PSR12 --using-cache=no --dry-run --diff --show-progress=none
+      - name: Install generated SDK, independent of generator package
+        run: composer install --working-dir=live-results/fakerest-sdk --no-interaction --prefer-dist --no-progress
+      - name: Send actual HTTP requests with typed SDK (no key, no mock)
+        run: php tests/live/fakerestapi_smoke.php
+      - name: Package evidence and generated sources
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fakerestapi-live-smoke-openapi-and-php-sdk
+          path: |
+            live-results/original-openapi.json
+            live-results/original-spec.sha256
+            live-results/read-only-openapi.json
+            live-results/full-sdk/composer.json
+            live-results/full-sdk/src/**
+            live-results/full-response.json
+            live-results/live-response.json
+            live-results/fakerest-sdk/composer.json
+            live-results/fakerest-sdk/src/**
+          if-no-files-found: warn
+          retention-days: 30
