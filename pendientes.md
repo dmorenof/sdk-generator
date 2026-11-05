@@ -4,7 +4,7 @@
 >
 > **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.3.0** y `dmorenof/sdk-runtime` **v0.4.0** (ramas de desarrollo integradas; ver historial).
 >
-> **Criterio de actualización:** marcar las casillas solo tras código, pruebas de regresión y aceptación en CI. Registrar el PR y la versión de cierre. Volver a contrastar cada apartado con la especificación oficial correspondiente.
+> **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
 > **Principio arquitectónico:** conservar clases API ligeras, namespaces derivados de rutas, DTOs reutilizables y un runtime HTTP común. Las nuevas capacidades de OpenAPI deben implementarse principalmente en el normalizador, contrato intermedio y runtime, sin introducir lógica HTTP duplicada en los métodos generados.
 
@@ -49,17 +49,37 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 
 **Objetivo:** el normalizador nunca debe perder silenciosamente información que cambia la petición o la respuesta HTTP.
 
-**En desarrollo — primer incremento P0:** [PR #20](https://github.com/dmorenof/sdk-generator/pull/20), rama remota `feature/p0-contract-fidelity`, desde v0.3.0. Auditoría de opciones HTTP ignoradas, diagnóstico con archivo/operación/JSON Pointer/cadena local de referencias, inspección JSON/YAML sin escribir archivos y generación `--strict` que falla antes de crear el destino. La generación de compatibilidad sigue disponible y muestra avisos. Se ha detectado que Casafari declara servidores por ruta distintos del servidor raíz; su ejecución sigue pendiente. El contrato conserva opciones explícitas de parámetros, servidores efectivos y su procedencia/orden, media types/encoding, headers/links de respuestas y anotaciones. Los esquemas de alternativas no soportadas quedan identificados como no normalizados; estos metadatos no implican ejecución. Validación cloud: 205 pruebas / 2.011 aserciones; primer incremento con CI remota verde. La puerta de aceptación también rechaza semántica HTTP ignorada aunque se pueda emitir PHP; la selección por operación conserva servidores de ruta y descendientes del discriminador. Casafari: 46 operaciones emitibles en compatibilidad y 7 bloqueadas por overrides de servidor en aceptación estricta. No se cierra el paquete 01 completo ni se publica versión con este incremento. Ver [inspección de contrato](docs/CONTRACT_INSPECTION.md).
+**Estado del paquete 01: parcial — 3 tareas resueltas y 6 parcialmente cubiertas.**
 
-- [ ] Conservar la información completa de serialización de parámetros: `style`, `explode`, `allowReserved`, `allowEmptyValue`, `content`, `collectionFormat`.
-- [ ] Conservar por operación los servidores aplicables, media types y metadatos de request/response.
-- [ ] Conservar encabezados de respuesta, cookies, códigos y esquemas de respuesta diferenciados.
-- [ ] Separar **palabras clave que afectan a ejecución/validación** de simples anotaciones.
-- [ ] Auditar las propiedades de OpenAPI ignoradas actualmente a nivel de documento, ruta y operación.
-- [ ] Modo de compatibilidad por documento: `soportado` / `parcial` / `no soportado`, con ruta JSON Pointer y motivo.
-- [ ] Modo estricto: error ante la pérdida de semántica HTTP relevante.
-- [ ] Modo de inspección/dry-run sin generar archivos.
-- [ ] Diagnósticos deterministas con nombre de archivo, operación, JSON Pointer y cadena de referencias.
+- **Código:** [PR #20](https://github.com/dmorenof/sdk-generator/pull/20), rama `feature/p0-contract-fidelity`, commit de implementación `fafded6`.
+- **Entrega:** en rama y en borrador; pendiente de integrar y publicar. La versión estable sigue siendo v0.3.0 / runtime v0.4.0.
+- **Evidencia:** 205 pruebas / 2.011 aserciones; cuatro SDKs generados pasan PHPStan max; [CI remota del código en verde](https://github.com/dmorenof/sdk-generator/actions/runs/42037002030).
+- **Alcance:** este PR avanza el paquete 01. Los paquetes P0 02 (referencias), 03 (serialización HTTP) y 04 (cuerpos/respuestas) siguen pendientes de implementación general.
+
+### Lista de trabajo del paquete 01
+
+- [ ] **Parcial — Conservar toda la serialización de parámetros.** Hecho: conservar `style`, `explode`, `allowReserved`, `allowEmptyValue`, `collectionFormat`, valores `false` explícitos y representaciones de parámetros con `content` JSON. Falta: normalización general de `content` fuera de JSON y referencias. La ejecución de estos estilos en HTTP corresponde al paquete 03 y sigue pendiente.
+- [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. Ejecutar los servidores por operación sigue pendiente.
+- [ ] **Parcial — Conservar encabezados, cookies y respuestas diferenciadas.** Hecho: conservar los objetos originales de headers/links; mantener códigos y esquemas de respuesta ya soportados. Falta: normalización tipada general de headers/cookies y todas las formas de respuesta. Conservar headers en el contrato todavía no los expone desde el runtime.
+- [ ] **Parcial — Separar ejecución/validación de anotaciones.** Hecho: conservar anotaciones de documento, operación, parámetros y media types; distinguir las opciones HTTP auditadas y tratar los ejemplos como datos. Falta: completar esa clasificación en todos los componentes anidados y dialectos.
+- [ ] **Parcial — Auditar opciones ignoradas.** Hecho: detectar opciones conocidas de documento, ruta, operación y parámetros; estilos no ejecutados, overrides de servidor, headers/links, encoding y keywords no soportadas. Respetar sobrescrituras para evitar falsos errores. Falta: auditoría exhaustiva de componentes anidados y semántica HTTP restante.
+- [x] **Hecho en PR #20 — Modo de compatibilidad por documento.** `--inspect` informa `supported` / `partial` / `unsupported`, motivo y JSON Pointer para el subconjunto auditado. La clasificación no equivale a conformidad completa con OpenAPI.
+- [x] **Hecho en PR #20 — Modo estricto.** `--strict` rechaza los errores detectados antes de crear archivos; `fromJson()` / `fromYaml()` admiten `strict: true`. El analizador de aceptación usa `compatibility_failed` cuando emitir PHP ocultaría una opción HTTP no ejecutada. La cobertura depende de la auditoría, que sigue parcial en la tarea anterior.
+- [x] **Hecho en PR #20 — Inspección/dry-run sin generar archivos.** `--inspect` / `--dry-run` funcionan con JSON y YAML, conservan el hash del origen y no escriben el SDK ni consultan referencias externas.
+- [ ] **Parcial — Diagnósticos completos.** Hecho: archivo, operación cuando está identificada, JSON Pointer escapado, código estable y cadena local de referencias para los casos auditados. Falta: localizar con precisión todos los errores antiguos del parser/emisor; algunos aún se informan en la raíz del documento.
+
+### Qué cambia para quien usa el generador
+
+| Caso | Antes de PR #20 | En esta rama | Trabajo restante |
+| --- | --- | --- | --- |
+| Parámetro con `allowReserved: true` | La opción podía desaparecer del contrato sin aviso. | Se conserva y se diagnostica; el modo estricto bloquea la generación. | Implementar su serialización HTTP. |
+| Ruta con servidor distinto del raíz | El cliente usaba el servidor raíz y podía pasar la aceptación. | Se conserva el servidor de ruta y la aceptación estricta detecta que el runtime no lo ejecuta. | Corregir el enrutamiento del runtime. |
+| Revisar una especificación sin generar un SDK | Faltaba este modo de inspección en el generador. | `--inspect` devuelve un informe de compatibilidad sin crear archivos. | Ampliar la cobertura de la auditoría. |
+| Analizar por separado una operación polimórfica | La selección de esquemas podía eliminar subclases necesarias. | Se conserva el cierre de discriminadores explícitos/implícitos y los metadatos de ruta. | Resolución general de referencias del paquete 02. |
+
+**Hallazgo pendiente, no corrección terminada:** Casafari tiene 46 operaciones emitibles en modo de compatibilidad; la aceptación estricta aprueba 39 y bloquea 7 por servidores de ruta que el runtime aún no respeta. La generación de compatibilidad conserva el comportamiento anterior y muestra diagnósticos. No se han probado llamadas autenticadas.
+
+Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.md). Las casillas resueltas de este apartado corresponden al **PR #20 aún sin publicar**; no cierran P0 ni el paquete 01 completo.
 
 **Aceptación:** ninguna opción que cambie URL, método, headers, body, autenticación o interpretación de respuesta puede desaparecer del contrato intermedio sin una advertencia o error explícito.
 
