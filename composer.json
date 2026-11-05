@@ -4,6 +4,7 @@
     "type": "library",
     "license": "MIT",
     "require": {
+        "composer-runtime-api": "^2.2",
         "ext-intl": "*",
         "friendsofphp/php-cs-fixer": "^3.95",
         "php": "^8.3",

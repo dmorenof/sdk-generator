@@ -8,6 +8,7 @@ No changes yet.
 
 ## [0.3.0] — 2026-11-05
 
+- Fix the Composer-installed generator binary to use the consumer autoloader supplied by Composer, while retaining checkout execution.
 - Generate native PHP inheritance for supported `allOf` models with a single referenced object parent and compatible inline object extensions. Keep inherited property types (including enums), required fields, validation, JSON names and directional metadata across multiple levels. Only classes used as parents lose `final`.
 - Reject object `allOf` extensions that introduce properties forbidden by a branch's `additionalProperties: false` instead of silently flattening away that restriction.
 - Parse local explicit/implicit discriminator mappings and emit shared runtime metadata for base-model and composition hydration. Scalar enum intersections refine inherited fields without redeclaring their PHP type.
