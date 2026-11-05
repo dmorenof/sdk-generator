@@ -664,11 +664,24 @@ final class PhpContractEmitter
     private function discriminatorMapping(SchemaDefinition $schema, string $where): array
     {
         $discriminator = $schema->discriminator;
+        if ($discriminator === null) {
+            throw new \LogicException('Missing discriminator metadata.');
+        }
         $candidates = [];
         if (in_array($schema->kind, [SchemaKind::OneOf, SchemaKind::AnyOf], true)) {
             foreach ($schema->branches as $branch) {
                 if ($branch->kind !== SchemaKind::Reference) {
                     throw new InvalidArgumentException("Discriminator requires named reference branches at $where.");
+                }
+                $targetSchema = $this->expandAllOf($this->modelDefinitions[$branch->reference]->schema, $where);
+                $tagProperty = null;
+                foreach ($targetSchema->properties as $property) {
+                    if ($property->wireName === $discriminator->propertyName) {
+                        $tagProperty = $property->schema;
+                    }
+                }
+                if ($targetSchema->kind !== SchemaKind::Object || $tagProperty?->kind !== SchemaKind::String) {
+                    throw new InvalidArgumentException("Discriminator branches must declare a string tag property at $where.");
                 }
                 $candidates[] = $branch->reference;
             }
@@ -714,6 +727,16 @@ final class PhpContractEmitter
     private function discriminatedModel(string $name): bool
     {
         while (isset($this->modelDefinitions[$name])) {
+            foreach ($this->modelDefinitions as $model) {
+                if ($model->schema->discriminator !== null
+                    && in_array($model->schema->kind, [SchemaKind::OneOf, SchemaKind::AnyOf], true)) {
+                    foreach ($model->schema->branches as $branch) {
+                        if ($branch->kind === SchemaKind::Reference && $branch->reference === $name) {
+                            return true;
+                        }
+                    }
+                }
+            }
             if ($this->modelDefinitions[$name]->schema->discriminator !== null) {
                 return true;
             }
