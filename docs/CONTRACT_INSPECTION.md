@@ -59,3 +59,24 @@ The audit uses the normalizer's schema keyword inventory to localize unsupported
 schema keywords. Literal `$ref` values inside example payloads are not interpreted
 as OpenAPI references. Overridden path parameters and servers are audited according
 to their effective operation value.
+
+
+## Programmatic and acceptance gates
+
+Programmatic normalization accepts `strict: true` and `sourceName:` in both
+`SpecificationNormalizer::fromJson()` and `fromYaml()`. Unsupported HTTP semantics
+raise `Diagnostics\CompatibilityException` with structured diagnostics. The
+existing default remains compatibility normalization for callers that inspect or
+transform the preserved contract themselves.
+
+`check-openapi-acceptance.php` always uses the strict compatibility gate. Its report
+adds `compatibility` and a `compatibility_failed` operation/summary status. Merely
+emitting PHP is insufficient for acceptance. Isolated operations retain Path Item
+metadata and the explicit/implicit discriminator subtype closure; isolation must
+not hide unsupported servers or remove valid subtype definitions.
+
+For the pinned Casafari fixture, 46 operations can still emit PHP in compatibility
+mode, while strict acceptance rejects seven operations with path server overrides.
+Problem JSON error representations are not treated as unsupported success-content
+negotiation. The runtime routing fix remains pending. No authenticated API calls
+were made and no production compatibility is claimed.

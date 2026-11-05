@@ -24,12 +24,15 @@ try {
     $format = in_array(strtolower(pathinfo($argv[1], PATHINFO_EXTENSION)), ['yaml', 'yml'], true)
         ? 'yaml'
         : 'json';
-    $report = (new OpenApiAcceptanceAnalyzer())->analyze($source, $format);
+    $report = (new OpenApiAcceptanceAnalyzer())->analyze($source, $format, $argv[1]);
     echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), "\n";
     // Short diagnostic summary to CI logs; full per-operation data stays in artifact.
-    fwrite(STDERR, "Casafari acceptance: " . $report['summary']['generated'] . '/'
+    fwrite(STDERR, "OpenAPI acceptance: " . $report['summary']['generated'] . '/'
         . $report['operationCount'] . " isolated operations generated; full source: "
         . $report['full']['status'] . ".\n");
+    foreach ($report['compatibility']['diagnostics'] as $diagnostic) {
+        fwrite(STDERR, "Compatibility {$diagnostic->severity} [{$diagnostic->code}] {$diagnostic->source}#{$diagnostic->pointer}: {$diagnostic->message}\n");
+    }
     if ($report['full']['error'] !== null) {
         fwrite(STDERR, "Full source blocker: " . $report['full']['error']['message'] . "\n");
     }

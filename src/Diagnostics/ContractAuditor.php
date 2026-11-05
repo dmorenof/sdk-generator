@@ -44,6 +44,10 @@ final class ContractAuditor
                 $this->keys($operation, ['operationId', 'parameters', 'requestBody', 'responses', 'security', 'servers', 'consumes', 'produces', 'schemes'], $where, $id);
                 if (($document['swagger'] ?? null) === '2.0') {
                     foreach (['consumes' => true, 'produces' => false] as $keyword => $request) {
+                        if ($request && array_filter(array_merge($item['parameters'] ?? [], $operation['parameters'] ?? []),
+                            static fn ($parameter): bool => is_array($parameter) && ($parameter['in'] ?? null) === 'body') === []) {
+                            continue;
+                        }
                         $mediaTypes = $operation[$keyword] ?? $document[$keyword] ?? ['application/json'];
                         if (is_array($mediaTypes)) {
                             $declared = array_fill_keys(array_filter($mediaTypes, 'is_string'), []);
@@ -94,7 +98,11 @@ final class ContractAuditor
                         }
                     }
                     $this->content($response['content'] ?? [], "$at/content", $id);
-                    $this->selectedMedia($response['content'] ?? [], "$at/content", $id, false);
+                    // Error representations (e.g. RFC 9457 problem+json) may be
+                    // returned independently of success-content negotiation.
+                    if (preg_match('/^2[0-9]{2}$/', (string) $status) === 1) {
+                        $this->selectedMedia($response['content'] ?? [], "$at/content", $id, false);
+                    }
                     if (isset($response['schema'])) {
                         $this->schema($response['schema'], "$at/schema", $id);
                     }
@@ -245,7 +253,7 @@ final class ContractAuditor
             return;
         }
         foreach (array_keys($content) as $media) {
-            if (is_string($media) && strtolower(trim($media)) === 'application/json') {
+            if (is_string($media) && strtolower(trim($request ? $media : explode(';', $media, 2)[0])) === 'application/json') {
                 return;
             }
         }

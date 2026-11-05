@@ -43,7 +43,7 @@ final class SpecificationNormalizer
             'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf', 'discriminator',
     ];
 
-    public function fromYaml(string $source): ApiContract
+    public function fromYaml(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
     {
         try {
             $document = Yaml::parse($source, Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
@@ -52,10 +52,10 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException('Invalid specification YAML.', 0, $exception);
         }
 
-        return $this->fromJson($json);
+        return $this->fromJson($json, $strict, $sourceName);
     }
 
-    public function fromJson(string $source): ApiContract
+    public function fromJson(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
     {
         try {
             $document = json_decode($source, true, 512, JSON_THROW_ON_ERROR);
@@ -187,6 +187,15 @@ final class SpecificationNormalizer
             }
         }
 
+        if ($strict) {
+            $errors = array_values(array_filter(
+                (new \Dmorenof\SdkGenerator\Diagnostics\ContractAuditor())->audit($document, $sourceName),
+                static fn (\Dmorenof\SdkGenerator\Diagnostics\Diagnostic $issue): bool => $issue->severity === 'error',
+            ));
+            if ($errors !== []) {
+                throw new \Dmorenof\SdkGenerator\Diagnostics\CompatibilityException($errors);
+            }
+        }
         return $contract;
     }
 

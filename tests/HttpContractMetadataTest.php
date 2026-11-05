@@ -28,6 +28,7 @@ final class HttpContractMetadataTest extends TestCase
             'allowEmptyValue' => true, 'description' => 'Filter', 'deprecated' => true];
         $parameter['schema'] = ['type' => 'array', 'items' => ['type' => 'string']];
         $contract = self::normalize($document);
+        unset($parameter); // Stop referencing the original source node before reading the IR.
         $parameter = $contract->operations[1]->parameters[1];
         self::assertSame('form', $parameter->serialization->style);
         self::assertFalse($parameter->serialization->explode);
@@ -37,6 +38,8 @@ final class HttpContractMetadataTest extends TestCase
         self::assertTrue($parameter->annotations['deprecated']);
         $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));
         self::assertFalse($report['strictlyAccepted']);
+        self::assertTrue($report['normalized']);
+        self::assertContains('structured_parameter', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
     }
 
     public function testContentParametersArePreservedButRemainStrictlyUnsupported(): void
@@ -98,6 +101,7 @@ final class HttpContractMetadataTest extends TestCase
         $contract = self::normalize($document);
         self::assertSame(['name' => ['style' => 'form']], $contract->operations[0]->requestBody->content[0]->encoding);
         self::assertSame('Create', $contract->operations[0]->requestBody->annotations['description']);
+        unset($response);
         $response = $contract->operations[1]->responses[0];
         self::assertCount(3, $response->content);
         self::assertSame('application/json', $response->mediaType);
@@ -119,6 +123,43 @@ final class HttpContractMetadataTest extends TestCase
         self::assertFalse($report['strictlyAccepted']);
         self::assertContains('request_media_type', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
         self::assertContains('response_media_type', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
+    }
+
+    public function testProblemJsonErrorsAndSuccessCharsetDoNotCauseFalseNegotiationErrors(): void
+    {
+        $document = self::document();
+        $responses = &$document['paths']['/users/{id}']['get']['responses'];
+        $schema = $responses['200']['content']['application/json']['schema'];
+        $responses['200']['content'] = ['application/json; charset=utf-8' => ['schema' => $schema]];
+        $responses['400'] = ['description' => 'Problem', 'content' => [
+            'application/problem+json' => ['schema' => ['type' => 'object', 'properties' => ['detail' => ['type' => 'string']]]],
+        ]];
+        $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));
+        self::assertTrue($report['strictlyAccepted']);
+        self::assertSame([], $report['diagnostics']);
+    }
+
+    public function testProgrammaticStrictNormalizationProvidesStructuredErrors(): void
+    {
+        $document = self::document();
+        $document['paths']['/users/{id}']['get']['parameters'][1]['allowReserved'] = true;
+        try {
+            (new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR), strict: true, sourceName: 'source.json');
+            self::fail('Strict normalization accepted an unimplemented HTTP option.');
+        } catch (\Dmorenof\SdkGenerator\Diagnostics\CompatibilityException $exception) {
+            self::assertSame('source.json', $exception->diagnostics[0]->source);
+            self::assertSame('/paths/~1users~1{id}/get/parameters/1/allowReserved', $exception->diagnostics[0]->pointer);
+            self::assertSame('getUser', $exception->diagnostics[0]->operationId);
+        }
+    }
+
+    public function testProgrammaticYamlStrictModeUsesTheSameGate(): void
+    {
+        $document = self::document();
+        $document['paths']['/users/{id}']['get']['parameters'][1]['allowReserved'] = true;
+        $this->expectException(\Dmorenof\SdkGenerator\Diagnostics\CompatibilityException::class);
+        $this->expectExceptionMessage('source.yaml#/paths/~1users~1{id}/get/parameters/1/allowReserved');
+        (new SpecificationNormalizer())->fromYaml(\Symfony\Component\Yaml\Yaml::dump($document, 20, 2), strict: true, sourceName: 'source.yaml');
     }
 
     public function testExamplesContainingLiteralRefDataAreNotResolved(): void
