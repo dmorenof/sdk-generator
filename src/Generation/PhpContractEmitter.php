@@ -31,6 +31,8 @@ final class PhpContractEmitter
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
+    /** @var array<string, string> Child schema name => parent schema name. */
+    private array $modelParents = [];
     /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool}> */
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, string>> */
@@ -81,6 +83,13 @@ final class PhpContractEmitter
         $this->collectionTypes = [];
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
+        }
+        $this->modelParents = [];
+        foreach ($contract->models as $model) {
+            $parent = $this->inheritanceParent($model->schema, $model->name);
+            if ($parent !== null) {
+                $this->modelParents[$model->name] = $parent;
+            }
         }
         $names = [];
         foreach ($contract->models as $model) {
@@ -194,6 +203,8 @@ final class PhpContractEmitter
             $files,
             $baseClass,
             $model->name,
+            $this->modelParents[$model->name] ?? null,
+            in_array($model->name, $this->modelParents, true),
         );
     }
 
@@ -204,7 +215,15 @@ final class PhpContractEmitter
         array &$files,
         string $baseClass = 'DTO',
         string $hint = '',
+        ?string $parent = null,
+        bool $extensible = false,
     ): string {
+        $inherited = [];
+        if ($parent !== null) {
+            foreach ($this->expandAllOf($this->modelDefinitions[$parent]->schema, $parent)->properties as $property) {
+                $inherited[$property->wireName] = true;
+            }
+        }
         $fields = [];
         $validation = [];
         $readOnly = [];
@@ -225,18 +244,20 @@ final class PhpContractEmitter
             }
             $nullableBranch = self::nullableCompositionBranch($property->schema);
             $propertySchema = $nullableBranch ?? $property->schema;
-            $type = $this->typeFor(
-                $propertySchema,
-                $hint . '.' . ucfirst($propertyName),
-                $files,
-                $baseClass,
-            );
-            if ($property->schema->nullable || $nullableBranch !== null || $propertySchema->nullable) {
-                $type = '?' . $type;
+            if (!isset($inherited[$property->wireName])) {
+                $type = $this->typeFor(
+                    $propertySchema,
+                    $hint . '.' . ucfirst($propertyName),
+                    $files,
+                    $baseClass,
+                );
+                if ($property->schema->nullable || $nullableBranch !== null || $propertySchema->nullable) {
+                    $type = '?' . $type;
+                }
+                // Deliberately uninitialized when absent, including optional fields.
+                // Calling get_object_vars() preserves the absent-vs-null distinction.
+                $fields[] = '    public ' . $type . ' $' . $propertyName . ';';
             }
-            // Deliberately uninitialized when absent, including optional fields.
-            // Calling get_object_vars() preserves the absent-vs-null distinction.
-            $fields[] = '    public ' . $type . ' $' . $propertyName . ';';
             $propertyValidation = $property->schema->validation;
             if ($nullableBranch !== null) {
                 $propertyValidation += $nullableBranch->validation;
@@ -285,8 +306,9 @@ final class PhpContractEmitter
         }
         $class = substr($fqcn, strrpos($fqcn, '\\') + 1);
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
+        $extends = $parent !== null ? $this->modelNames->fqcn($parent) : '\\' . self::RUNTIME_NAMESPACE . '\\DTO';
         $source = $this->header($namespace)
-            . 'final class ' . $class . ' extends \\' . self::RUNTIME_NAMESPACE . "\\DTO\n{\n"
+            . ($extensible ? 'class ' : 'final class ') . $class . ' extends ' . $extends . "\n{\n"
             . "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n";
         if ($propertyMap !== []) {
             $source .= "    protected const array PROPERTY_MAP = " . PhpLiteral::export($propertyMap) . ";\n"
@@ -561,6 +583,36 @@ final class PhpContractEmitter
             . "}\n";
     }
 
+    /** Only a single referenced object plus inline object extensions maps to PHP inheritance. */
+    private function inheritanceParent(SchemaDefinition $schema, string $where): ?string
+    {
+        if ($schema->kind !== SchemaKind::AllOf) {
+            return null;
+        }
+        $this->expandAllOf($schema, $where);
+        $references = array_values(array_filter(
+            $schema->branches,
+            static fn (SchemaDefinition $branch): bool => $branch->kind === SchemaKind::Reference,
+        ));
+        if (count($references) !== 1) {
+            return null;
+        }
+        foreach ($schema->branches as $branch) {
+            if (!in_array($branch->kind, [SchemaKind::Reference, SchemaKind::Object], true)) {
+                return null;
+            }
+        }
+        $parent = $references[0]->reference;
+        if ($parent === null) {
+            return null;
+        }
+        $base = $this->expandAllOf($this->modelDefinitions[$parent]->schema, $parent);
+        if ($base->kind !== SchemaKind::Object || $base->properties === []) {
+            return null;
+        }
+        return $parent;
+    }
+
     private function expandAllOf(SchemaDefinition $schema, string $where, array $seen = []): SchemaDefinition
     {
         if ($schema->kind !== SchemaKind::AllOf) {
@@ -597,6 +649,22 @@ final class PhpContractEmitter
                 }
             }
         }
+        $closed = false;
+        foreach ($schema->branches as $branch) {
+            if ($branch->kind === SchemaKind::Reference) {
+                $branch = $this->modelDefinitions[$branch->reference]->schema;
+            }
+            if ($branch->kind === SchemaKind::AllOf) {
+                $branch = $this->expandAllOf($branch, $where);
+            }
+            if ($branch->additionalProperties === false) {
+                $closed = true;
+                $allowed = array_map(static fn ($property): string => $property->wireName, $branch->properties);
+                if (array_diff(array_keys($properties), $allowed) !== []) {
+                    throw new InvalidArgumentException("Cannot extend a closed allOf branch at $where");
+                }
+            }
+        }
         foreach ($properties as $name => $property) {
             if ($property->required !== isset($required[$name])) {
                 $properties[$name] = new \Dmorenof\SdkGenerator\Contract\PropertyDefinition(
@@ -607,7 +675,11 @@ final class PhpContractEmitter
             }
         }
         ksort($properties);
-        return new SchemaDefinition(SchemaKind::Object, properties: array_values($properties));
+        return new SchemaDefinition(
+            SchemaKind::Object,
+            properties: array_values($properties),
+            additionalProperties: $closed ? false : null,
+        );
     }
 
     private function reference(SchemaDefinition $schema): string

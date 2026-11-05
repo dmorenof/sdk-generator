@@ -4,7 +4,9 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 ## Unreleased
 
-No changes yet.
+- Generate native PHP inheritance for supported `allOf` models with a single referenced object parent and compatible inline object extensions. Keep inherited property types (including enums), required fields, validation, JSON names and directional metadata across multiple levels. Only classes used as parents lose `final`.
+- Reject object `allOf` extensions that introduce properties forbidden by a branch's `additionalProperties: false` instead of silently flattening away that restriction.
+- This increment does not add discriminator hydration, native composition unions or `not`; those remain tracked in `pendientes.md`.
 
 ## [0.2.0] — 2026-11-05
 
