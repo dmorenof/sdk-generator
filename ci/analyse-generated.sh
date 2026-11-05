@@ -20,3 +20,5 @@ analyse() {
 analyse accounts accounts-openapi31.json 'Example\AccountsSdk'
 analyse catalog catalog-openapi31.json 'Example\CatalogSdk'
 analyse casafari casafari-openapi31.json 'Example\CasafariSdk'
+
+analyse pets pets-discriminator-openapi30.json 'Example\PetsSdk'

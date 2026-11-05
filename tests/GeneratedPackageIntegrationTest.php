@@ -106,6 +106,32 @@ PHP;
         self::assertContains('GENERATED_CONSUMER_OK', $lines);
     }
 
+    public function testComposerInstalledBinaryUsesTheConsumerAutoloader(): void
+    {
+        $bin = $this->directory . '/installed-package/bin';
+        mkdir($bin, 0700, true);
+        copy(dirname(__DIR__) . '/bin/generate-sdk.php', $bin . '/generate-sdk.php');
+        // Composer's PHP bin proxy supplies the consumer autoloader. The installed
+        // dependency has no nested vendor directory of its own.
+        file_put_contents($this->directory . '/composer-proxy.php', <<<'PHP'
+<?php
+$_composer_autoload_path = $argv[1];
+array_splice($argv, 1, 1);
+$argc = count($argv);
+require __DIR__ . '/installed-package/bin/generate-sdk.php';
+PHP);
+        $dest = $this->directory . '/installed-client';
+        $command = implode(' ', array_map('escapeshellarg', [
+            PHP_BINARY, $this->directory . '/composer-proxy.php', dirname(__DIR__) . '/vendor/autoload.php',
+            __DIR__ . '/fixtures/pets-discriminator-openapi30.json', $dest, 'Acme\\InstalledPets', 'acme/installed-pets',
+        ]));
+        exec($command . ' 2>&1', $output, $exit);
+        self::assertSame(0, $exit, implode("\n", $output));
+        self::assertDirectoryDoesNotExist($this->directory . '/installed-package/vendor');
+        self::assertFileExists($dest . '/src/DTOs/Dog.php');
+        self::assertFileExists($dest . '/composer.json');
+    }
+
     public function testCliDerivesSdkNamespaceFromOpenApiTitleWhenNotSpecified(): void
     {
         $generator = dirname(__DIR__) . '/bin/generate-sdk.php';

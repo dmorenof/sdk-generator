@@ -165,7 +165,10 @@ final class CompositionGenerationTest extends TestCase
         self::assertCount(2, $payment->matchedVariants());
         self::assertInstanceOf(\Example\CompositionSdk\DTOs\CardPayment::class, $payment->matchedVariants()[0]);
         self::assertInstanceOf(\Example\CompositionSdk\DTOs\DuplicateCardPayment::class, $payment->matchedVariants()[1]);
-        self::assertSame($source, $payment->jsonSerialize());
+        self::assertEquals($source, $payment->jsonSerialize());
+        self::assertNotSame($source, $payment->jsonSerialize());
+        $source->token = 'changed';
+        self::assertSame('secret', $payment->jsonSerialize()->token);
     }
 
     public function testAnyOfSupportsInlineObjectVariants(): void

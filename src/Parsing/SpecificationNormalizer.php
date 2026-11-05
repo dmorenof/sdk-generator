@@ -11,6 +11,7 @@ use Dmorenof\SdkGenerator\Contract\PropertyDefinition;
 use Dmorenof\SdkGenerator\Contract\RequestBodyDefinition;
 use Dmorenof\SdkGenerator\Contract\ResponseDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaDefinition;
+use Dmorenof\SdkGenerator\Contract\DiscriminatorDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaKind;
 use Dmorenof\SdkGenerator\Contract\SecuritySchemeDefinition;
 use InvalidArgumentException;
@@ -475,7 +476,7 @@ final class SpecificationNormalizer
             'enum', 'nullable', 'x-nullable', 'additionalProperties',
             'description', 'title', 'example', 'minLength', 'maxLength',
             'minimum', 'maximum', 'minItems', 'maxItems', 'pattern', 'readOnly',
-            'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf',
+            'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf', 'discriminator',
         ];
         foreach (array_keys($raw) as $key) {
             if (!in_array($key, $allowed, true)) {
@@ -488,13 +489,39 @@ final class SpecificationNormalizer
             }
         }
 
+        $discriminator = null;
+        if (array_key_exists('discriminator', $raw)) {
+            $value = $raw['discriminator'];
+            if (!is_array($value) || !is_string($value['propertyName'] ?? null) || $value['propertyName'] === ''
+                || array_diff(array_keys($value), ['propertyName', 'mapping']) !== []) {
+                throw new InvalidArgumentException("Invalid or unsupported discriminator at $where.");
+            }
+            $mapping = $value['mapping'] ?? [];
+            if (!is_array($mapping)) {
+                throw new InvalidArgumentException("Invalid discriminator mapping at $where.");
+            }
+            $prefix = $dialect === 'swagger2' ? '#/definitions/' : '#/components/schemas/';
+            foreach ($mapping as $tag => $target) {
+                if (!is_string($target) || $target === '') {
+                    throw new InvalidArgumentException("Invalid discriminator mapping target at $where.");
+                }
+                $name = str_starts_with($target, $prefix) ? substr($target, strlen($prefix)) : $target;
+                if ($name === '' || strpbrk($name, '/#:') !== false) {
+                    throw new InvalidArgumentException("Unsupported non-local discriminator mapping at $where.");
+                }
+                $mapping[$tag] = $name;
+            }
+            ksort($mapping);
+            $discriminator = new DiscriminatorDefinition($value['propertyName'], $mapping);
+        }
+
         $compositionKeys = array_values(array_intersect(['anyOf', 'oneOf', 'allOf'], array_keys($raw)));
         if ($compositionKeys !== []) {
             if (count($compositionKeys) !== 1) {
                 throw new InvalidArgumentException("Only one composition keyword is supported at $where.");
             }
             $composition = $compositionKeys[0];
-            $siblings = array_diff(array_keys($raw), [$composition, 'description', 'title']);
+            $siblings = array_diff(array_keys($raw), [$composition, 'description', 'title', 'discriminator']);
             if ($siblings !== []) {
                 throw new InvalidArgumentException("Composition siblings are not supported at $where.");
             }
@@ -505,6 +532,7 @@ final class SpecificationNormalizer
             $kind = SchemaKind::from($composition);
             return new SchemaDefinition(
                 kind: $kind,
+                discriminator: $discriminator,
                 title: $raw['title'] ?? null,
                 description: $raw['description'] ?? null,
                 branches: array_map(
@@ -666,8 +694,12 @@ final class SpecificationNormalizer
             }
         }
 
+        if ($discriminator !== null && $kind !== SchemaKind::Object) {
+            throw new InvalidArgumentException("Discriminator requires an object schema at $where.");
+        }
         return new SchemaDefinition(
             kind: $kind,
+            discriminator: $discriminator,
             nullable: $nullable,
             format: $raw['format'] ?? null,
             items: $items,
@@ -690,6 +722,11 @@ final class SpecificationNormalizer
     {
         if ($schema->kind === SchemaKind::Reference && !isset($knownModels[$schema->reference])) {
             throw new InvalidArgumentException("Unresolved schema reference '$schema->reference' at $where.");
+        }
+        foreach ($schema->discriminator?->mapping ?? [] as $target) {
+            if (!isset($knownModels[$target])) {
+                throw new InvalidArgumentException("Unresolved discriminator mapping '$target' at $where.");
+            }
         }
         if ($schema->items !== null) {
             $this->checkReferences($schema->items, $knownModels, "$where.items");
