@@ -51,7 +51,7 @@
         "source": "https://github.com/dmorenof/sdk-generator"
     },
     "require-dev": {
-        "dmorenof/sdk-runtime": "dev-feature/dto-directional-context",
+        "dmorenof/sdk-runtime": "^0.3.1",
         "guzzlehttp/guzzle": "^7.9",
         "phpstan/phpstan": "^2",
         "phpunit/phpunit": "^11.5",

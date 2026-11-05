@@ -4,6 +4,19 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 ## Unreleased
 
+No changes yet.
+
+## [0.2.0] — 2026-11-05
+
+### Consolidation
+
+- Require stable `dmorenof/sdk-runtime` ^0.3.1, replacing the temporary feature branch.
+- Use a single DTO base class for generated data; keep operation-specific inline `Requests` and `Responses` separated by HTTP verb and route, preserving reusable named `DTOs`.
+- Generate and verify PHP sources in PSR-12 via build-time PHP-CS-Fixer.
+- Accept multiple advertised media types when compatible JSON representations share a schema.
+- Verify the entire public FakeRESTApi OpenAPI specification can generate a Composer package and execute GET and POST calls against the live synthetic test service.
+- Generate and validate 46 Casafari operations offline, without credentials; production migration remains separate.
+
 ### Changed
 
 - Generated SDKs no longer embed their own `Core`, `Transport` and `Support` classes (about 1,300 lines each). They depend on the shared `dmorenof/sdk-runtime` package, which owns hydration, validation, security, PSR-18 transport and operation execution; the generated `Client` only declares its `SECURITY_SCHEMES`.

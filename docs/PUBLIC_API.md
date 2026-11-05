@@ -110,10 +110,10 @@ does not include PHP-CS-Fixer as a generated-package dependency.
 CI validates the original complete public FakeRESTApi OpenAPI 3.0.1 document
 from https://fakerestapi.azurewebsites.net/swagger/v1/swagger.json, installs
 the generated Composer package independently and uses its real Guzzle-backed
-runtime for two public GET endpoints. Casafari generation and its 46
+runtime for two public GET endpoints and one public POST endpoint. Casafari generation and its 46
 operations are tested offline, without credentials. Wider OpenAPI dialect
 coverage remains governed by docs/SUPPORTED_SCOPE.md.
 
-The feature branch currently depends on the development branch of
-`dmorenof/sdk-runtime`; use a stable runtime release before production
-migration.
+Generated SDKs depend on the stable `dmorenof/sdk-runtime` constraint
+`^0.3.1`, published after the directional DTO consolidation.
+Run a real authenticated Casafari smoke before migrating production consumers.

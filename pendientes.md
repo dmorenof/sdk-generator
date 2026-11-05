@@ -31,7 +31,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [x] Casafari: generación de 46 operaciones y comprobaciones de Composer, PSR-12 y sintaxis **sin llamadas autenticadas a Casafari**.
 - [x] FakeRESTApi: generación del contrato original completo y peticiones reales GET individual, GET de lista y POST; no se han probado todas sus operaciones.
 - [x] CI del generador: 145 pruebas / 1.828 aserciones (estado comprobado al elaborar la auditoría).
-- [ ] **Integrar y versionar establemente** las ramas de generador/runtime antes de sustituir CasafariSDK en producción.
+- [ ] **Integrar y versionar establemente** el generador 0.2.0 antes de sustituir CasafariSDK en producción. El runtime unificado ya está integrado y publicado como **v0.3.1**; falta el release definitivo del generador y la prueba autenticada de Casafari.
 
 ### Versiones de entrada
 

@@ -136,7 +136,7 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 
 ## Supported features and deliberate boundaries
 
-| Area | v0.1.0 |
+| Area | v0.2.0 (supported subset) |
 |---|---|
 | Input dialects | Swagger 2.0, OpenAPI 3.0.x and 3.1.x in **JSON or YAML**, tested common subset |
 | Models | Object properties, common primitive types, local model references, backed enums, typed arrays, nested DTOs, and bounded `allOf`/`anyOf`/`oneOf` support |
@@ -147,7 +147,7 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 
 The validator **rejects many unsupported constructs explicitly** instead of silently treating them as supported. Generated DTOs validate required fields and supported constraints on construction and before sending, including modified nested values. This is not complete JSON Schema validation. See [the SDK design criteria](docs/SDK_DESIGN.md) and the supported-scope document for the current boundaries.
 
-See [docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md) before generating a production-facing client. [CHANGELOG.md](CHANGELOG.md) lists v0.1.0 changes. [docs/READY_TO_USE_CLIENT.md](docs/READY_TO_USE_CLIENT.md) explains the HTTP factory; [docs/RUN_GENERATED_SDK.md](docs/RUN_GENERATED_SDK.md) covers the example.
+See [pendientes.md](pendientes.md) for the audited OpenAPI compatibility roadmap, and [docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md) before generating a production-facing client. [CHANGELOG.md](CHANGELOG.md) lists v0.1.0 changes. [docs/READY_TO_USE_CLIENT.md](docs/READY_TO_USE_CLIENT.md) explains the HTTP factory; [docs/RUN_GENERATED_SDK.md](docs/RUN_GENERATED_SDK.md) covers the example.
 
 ## Development and verification
 
@@ -161,7 +161,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-The first reviewed release uses [VERSION](VERSION) = 0.1.0 and the [Publish version workflow](.github/workflows/release.yml) to create immutable Git tag **v0.1.0** and a GitHub Release *after validation*. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+The current release target is [VERSION](VERSION) = 0.2.0. The [Publish version workflow](.github/workflows/release.yml) creates an immutable Git tag **v0.2.0** and GitHub Release when the changes reach `main` and validation succeeds. Generated SDKs require the stable `dmorenof/sdk-runtime` **^0.3.1**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

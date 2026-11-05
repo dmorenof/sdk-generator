@@ -1,4 +1,4 @@
-# v0.1.0 supported scope and known limitations
+# v0.2.0 supported scope and known limitations
 
 **Status: initial release, not fully conformant Swagger/OpenAPI generation.**
 
@@ -24,15 +24,15 @@
 - YAML support does not expand the supported OpenAPI feature set: YAML input is subject to the same deliberate subset and explicit rejections as JSON.
 - Not a general OpenAPI 3.1 / JSON Schema implementation; composition discriminators, external references, unconstrained inline objects/additionalProperties, advanced formats, OAuth2/OpenID Connect authorization flows, API keys in cookies, or form/multipart support are not implemented. Patterns using ECMA-regex features that differ from PCRE may not validate identically. For OAuth2, provide a previously obtained bearer token only when the security scheme is declared as HTTP bearer; the generator does not acquire or refresh tokens.
 - OAuth2/OpenID Connect authorization flows are not implemented; credentials must be supplied by the caller, and tokens are not acquired or refreshed by the SDK.
-- Multiple body-bearing success responses and some non-object inline error schemas are not supported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single response checks.
+- Multiple body-bearing success responses and some non-object inline error schemas are not supported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Unknown incoming properties may be ignored; no configurable strict unknown-property policy. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by `sdk-runtime`; the in-development unified-DTO feature branch requires its matching runtime branch until a stable tag is published.
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by released `sdk-runtime` v0.3.1 or later compatible versions (`^0.3.1`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
-## Roadmap (not promises about 0.1.0)
+## Roadmap (not promises about 0.2.0)
 
-Broader OpenAPI coverage, more live endpoint cases (including authenticated POST/PATCH where safe), a stable runtime release for the unified-DTO changes, and feature-equivalent performance/usability comparisons.
+Broader OpenAPI coverage, more live endpoint cases (including authenticated requests and PATCH where safe), and feature-equivalent performance/usability comparisons.
 
 Please report supported-schema failures through GitHub Issues with a small **redacted** reproducible JSON specification (no keys or tokens).
