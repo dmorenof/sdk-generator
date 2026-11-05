@@ -74,6 +74,7 @@ jobs:
       - name: Validate Composer and dependencies
         if: steps.probe.outputs.new == 'true'
         run: |
+          php -l ci/verify-published.php
           composer validate --strict --no-check-lock
           composer install --no-interaction --prefer-dist --no-progress
       - name: Check PHP and run tests
@@ -109,3 +110,8 @@ jobs:
           else
             gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
           fi
+
+      - name: Verify installed published generator and independent SDKs
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: php ci/verify-published.php "$RELEASE_TAG" "$GITHUB_SHA"

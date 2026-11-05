@@ -1,4 +1,4 @@
-# v0.3.0 supported scope and known limitations
+# v0.4.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -27,22 +27,22 @@
 - Multiple body-bearing success responses and some non-object inline error schemas are not supported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.4.0 or later compatible versions (`^0.4.0`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.5.0 or later compatible versions (`^0.5.0`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
-## Roadmap (not promises about 0.3.0)
+## Roadmap (not promises about 0.4.0)
 
 Broader OpenAPI coverage, more live endpoint cases (including authenticated requests and PATCH where safe), and feature-equivalent performance/usability comparisons.
 
 Please report supported-schema failures through GitHub Issues with a small **redacted** reproducible JSON specification (no keys or tokens).
 
 
-## Polymorphic models in 0.3.0
+## Polymorphic models (since 0.3.0)
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The generator and generated Composer packages require stable runtime `^0.4.0`;
+The current generator and generated Composer packages require stable runtime `^0.5.0`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -71,3 +71,20 @@ installation no longer depends on a development branch.
 These changes do not provide arbitrary native unions, general non-object `allOf`,
 `not`, `const`, external mapping URIs, OAS 3.2 `defaultMapping`, or full JSON Schema
 validation. Existing wrappers remain part of the public API.
+
+
+## Contract fidelity and operation servers (0.4.0)
+
+The contract preserves explicit parameter serialization options, effective server
+precedence/order, media definitions/encoding, response headers/links and annotations.
+Inspection diagnoses unsupported HTTP behavior; preserving metadata does not
+implement every serializer or transport. `--inspect` / `--dry-run` create no files;
+`--strict` and strict normalization reject detected incompatibilities. The audit
+is bounded and some existing parser/emitter errors still use a root diagnostic.
+
+Literal HTTP(S) operation servers execute in the shared runtime with operation >
+path > root precedence, prefixes/encoded parameters and per-client `serverOverrides`.
+All 46 Casafari operations pass strict acceptance; seven HTTP mock regressions
+verify platform URLs and synthetic authentication. Relative/template servers,
+variables, dynamic selection, general references and serializers remain pending.
+No live Casafari authentication or production migration is claimed.

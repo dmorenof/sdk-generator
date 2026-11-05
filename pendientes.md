@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.3.0** y `dmorenof/sdk-runtime` **v0.4.0** (ramas de desarrollo integradas; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.4.0** y `dmorenof/sdk-runtime` **v0.5.0** (ramas de desarrollo integradas; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -51,10 +51,10 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 
 **Estado del paquete 01: parcial — 3 tareas resueltas y 6 parcialmente cubiertas.**
 
-- **Código:** [PR #20](https://github.com/dmorenof/sdk-generator/pull/20), rama `feature/p0-contract-fidelity`, conservación/diagnóstico y enrutamiento efectivo coordinado con runtime #7.
-- **Entrega:** [generador #20](https://github.com/dmorenof/sdk-generator/pull/20) + [runtime #7](https://github.com/dmorenof/sdk-runtime/pull/7), ambos en `feature/p0-contract-fidelity` y en borrador; pendiente de integrar y publicar. Dependencia temporal `dev-feature/p0-contract-fidelity` del runtime. La versión estable sigue siendo v0.3.0 / runtime v0.4.0.
+- **Publicado:** [sdk-generator v0.4.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.0) y [sdk-runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0), integrados en `main`. El generador y sus SDKs usan dependencia estable `^0.5.0`.
+- **Flujo acordado:** cada avance terminado y validado se integra y publica. Un PR o una rama no constituyen una entrega final; los pendientes futuros se desarrollan y publican por avances terminados, sin esperar a cerrar toda la hoja de ruta.
 - **Evidencia:** 216 pruebas / 2.061 aserciones; cinco SDKs generados pasan PHPStan max; runtime: 54 pruebas / 108 aserciones. [CI del generador en verde](https://github.com/dmorenof/sdk-generator/actions/runs/42059103852) y [CI del runtime en verde](https://github.com/dmorenof/sdk-runtime/actions/runs/42051180373).
-- **Alcance:** este PR avanza el paquete 01. Los paquetes P0 02 (referencias), 03 (serialización HTTP) y 04 (cuerpos/respuestas) siguen pendientes de implementación general.
+- **Alcance:** v0.4.0 publica los avances terminados del paquete 01 y el enrutamiento literal. Los paquetes P0 02 (referencias), 03 (serialización HTTP) y 04 (cuerpos/respuestas) siguen pendientes de implementación general.
 
 ### Lista de trabajo del paquete 01
 
@@ -63,9 +63,9 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [ ] **Parcial — Conservar encabezados, cookies y respuestas diferenciadas.** Hecho: conservar los objetos originales de headers/links; mantener códigos y esquemas de respuesta ya soportados. Falta: normalización tipada general de headers/cookies y todas las formas de respuesta. Conservar headers en el contrato todavía no los expone desde el runtime.
 - [ ] **Parcial — Separar ejecución/validación de anotaciones.** Hecho: conservar anotaciones de documento, operación, parámetros y media types; distinguir las opciones HTTP auditadas y tratar los ejemplos como datos. Falta: completar esa clasificación en todos los componentes anidados y dialectos.
 - [ ] **Parcial — Auditar opciones ignoradas.** Hecho: detectar opciones conocidas de documento, ruta, operación y parámetros; estilos no ejecutados, overrides de servidor, headers/links, encoding y keywords no soportadas. Respetar sobrescrituras para evitar falsos errores. Falta: auditoría exhaustiva de componentes anidados y semántica HTTP restante.
-- [x] **Hecho en PR #20 — Modo de compatibilidad por documento.** `--inspect` informa `supported` / `partial` / `unsupported`, motivo y JSON Pointer para el subconjunto auditado. La clasificación no equivale a conformidad completa con OpenAPI.
-- [x] **Hecho en PR #20 — Modo estricto.** `--strict` rechaza los errores detectados antes de crear archivos; `fromJson()` / `fromYaml()` admiten `strict: true`. El analizador de aceptación usa `compatibility_failed` cuando emitir PHP ocultaría una opción HTTP no ejecutada. La cobertura depende de la auditoría, que sigue parcial en la tarea anterior.
-- [x] **Hecho en PR #20 — Inspección/dry-run sin generar archivos.** `--inspect` / `--dry-run` funcionan con JSON y YAML, conservan el hash del origen y no escriben el SDK ni consultan referencias externas.
+- [x] **Publicado en v0.4.0 — Modo de compatibilidad por documento.** `--inspect` informa `supported` / `partial` / `unsupported`, motivo y JSON Pointer para el subconjunto auditado. La clasificación no equivale a conformidad completa con OpenAPI.
+- [x] **Publicado en v0.4.0 — Modo estricto.** `--strict` rechaza los errores detectados antes de crear archivos; `fromJson()` / `fromYaml()` admiten `strict: true`. El analizador de aceptación usa `compatibility_failed` cuando emitir PHP ocultaría una opción HTTP no ejecutada. La cobertura depende de la auditoría, que sigue parcial en la tarea anterior.
+- [x] **Publicado en v0.4.0 — Inspección/dry-run sin generar archivos.** `--inspect` / `--dry-run` funcionan con JSON y YAML, conservan el hash del origen y no escriben el SDK ni consultan referencias externas.
 - [ ] **Parcial — Diagnósticos completos.** Hecho: archivo, operación cuando está identificada, JSON Pointer escapado, código estable y cadena local de referencias para los casos auditados. Falta: localizar con precisión todos los errores antiguos del parser/emisor; algunos aún se informan en la raíz del documento.
 
 ### Qué cambia para quien usa el generador
@@ -77,10 +77,10 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 | Revisar una especificación sin generar un SDK | Faltaba este modo de inspección en el generador. | `--inspect` devuelve un informe de compatibilidad sin crear archivos. | Ampliar la cobertura de la auditoría. |
 | Analizar por separado una operación polimórfica | La selección de esquemas podía eliminar subclases necesarias. | Se conserva el cierre de discriminadores explícitos/implícitos y los metadatos de ruta. | Resolución general de referencias del paquete 02. |
 
-**Corrección urgente terminada en rama y con CI verde (PRs #20/#7, sin publicar):** las 46 operaciones de Casafari pasan ahora la aceptación estricta. Siete pruebas HTTP simuladas ejecutan los métodos generados afectados y comprueban la URL exacta de `platform.casafari.com`, parámetros y autenticación. Runtime: 54 pruebas / 108 aserciones y PHPStan max; [CI del runtime en verde](https://github.com/dmorenof/sdk-runtime/actions/runs/42051180373). No se han realizado llamadas reales/autenticadas a Casafari.
+**Corrección urgente publicada en generador v0.4.0 / runtime v0.5.0:** las 46 operaciones de Casafari pasan ahora la aceptación estricta. Siete pruebas HTTP simuladas ejecutan los métodos generados afectados y comprueban la URL exacta de `platform.casafari.com`, parámetros y autenticación. Runtime: 54 pruebas / 108 aserciones y PHPStan max; [CI del runtime en verde](https://github.com/dmorenof/sdk-runtime/actions/runs/42051180373). No se han realizado llamadas reales/autenticadas a Casafari.
 
 
-### Corrección urgente de servidores — comprobada en PRs #20/#7
+### Corrección urgente de servidores — publicada en v0.4.0 / v0.5.0
 
 - [x] Ejecutar el servidor literal HTTP(S) efectivo con precedencia operación → ruta → raíz, conservando prefijos de URL y parámetros codificados.
 - [x] Permitir sustituciones por entorno con `serverOverrides` por conexión y `Configuration::$serverOverrides`, compartidas por sus recursos y aisladas entre clientes.
@@ -88,7 +88,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 
 Los servidores relativos, las plantillas/variables y la selección dinámica entre varios servidores permanecen pendientes en el apartado 7.
 
-Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.md). Las casillas resueltas de este apartado corresponden al **PR #20 aún sin publicar**; no cierran P0 ni el paquete 01 completo.
+Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.md). Las casillas resueltas están publicadas en **v0.4.0 / v0.5.0**. P0 y el paquete 01 conservan sus tareas futuras abiertas.
 
 **Aceptación:** ninguna opción que cambie URL, método, headers, body, autenticación o interpretación de respuesta puede desaparecer del contrato intermedio sin una advertencia o error explícito.
 
@@ -298,7 +298,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 - [ ] Variables de `servers`, valores por defecto y `enum`.
 - [ ] Servidores relativos y resolución frente al documento o base URL.
-- [x] **Hecho en PRs #20/#7, sin publicar:** servidores literales HTTP(S) por Path Item y operación, precedencia operación → ruta → raíz y `serverOverrides` por conexión para otros entornos. PRs #20/#7, sin publicar. Relativos/variables siguen en sus tareas separadas.
+- [x] **Publicado en v0.4.0 / v0.5.0:** servidores literales HTTP(S) por Path Item y operación, precedencia operación → ruta → raíz y `serverOverrides` por conexión para otros entornos. Relativos/variables siguen en sus tareas separadas.
 - [ ] Manejo de operaciones con varios servidores disponibles.
 - [ ] Soporte completo de referencias a `Path Item`.
 - [ ] Detección de rutas ambiguas, placeholders inconsistentes y nombres PHP en conflicto.
@@ -408,7 +408,7 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 - [ ] Prueba de compatibilidad con los SDKs ya generados (Casafari y FakeRESTApi).
 - [ ] Comprobación de sintaxis, PHPStan, PSR-12, Composer y matriz PHP.
 - [ ] Documentación del subconjunto soportado actualizada.
-- [ ] Cambios de API pública revisados y notas de versión; acumular cada entrega en un único PR del generador y coordinar un PR del runtime si fuese necesario. La entrega de herencia cerró #19/#6; P0 continúa en `feature/p0-contract-fidelity`, sin PR por funcionalidad ni publicaciones parciales.
+- [ ] Cambios de API pública y notas de versión revisados; integrar y publicar cada avance terminado. Preferir `main` sin PR cuando las protecciones lo permitan; si se requiere PR, completarlo como trámite técnico. Ver [AGENTS.md](AGENTS.md) y [RELEASING.md](RELEASING.md).
 - [ ] Solo entonces marcar las casillas de este archivo.
 
 ## 13. Referencias de especificación
@@ -430,3 +430,5 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 | 2026-11-05 | Refinamiento de polimorfismo: representar `Pet -> Dog/Cat` como herencia PHP cuando `allOf` sea apto y usar `discriminator` para orientar la hidratación sin reemplazar la validación `oneOf`. | Debate sobre herencia y `discriminator` OpenAPI |
 | 2026-11-05 | Desarrollo coordinado de discriminator, refinamientos de enums y evaluación de ramas originales; dependencia temporal de la rama remota del runtime. Sin publicación ni merge. | [Generator #19](https://github.com/dmorenof/sdk-generator/pull/19), [Runtime #6](https://github.com/dmorenof/sdk-runtime/pull/6) |
 | 2026-11-05 | Entrega coordinada v0.3.0 del generador + v0.4.0 del runtime; dependencia estable `^0.4.0`, cierre del subconjunto de herencia/discriminadores y mantenimiento de los límites generales pendientes. | [Generator v0.3.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.3.0), [Runtime v0.4.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.4.0) |
+
+| 2026-11-05 | Publicados los avances de contrato/diagnóstico y enrutamiento: generador v0.4.0 + runtime v0.5.0, dependencia estable ^0.5.0. Se adopta integración/publicación de cada avance terminado; no finalizar con PRs en borrador. | [Generator v0.4.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.0), [Runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0) |

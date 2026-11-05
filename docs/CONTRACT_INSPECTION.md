@@ -1,6 +1,6 @@
-# Contract inspection (P0 development)
+# Contract inspection (v0.4.0)
 
-P0 development adds an HTTP-contract audit before generation and executes literal
+SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
 resolution, references and additional transports remain pending.
 
@@ -36,10 +36,10 @@ calling the emitter.
 Current audit coverage is bounded. General schema/dialect validation, source line
 numbers, external URI resolution and complete auditing of nested components remain
 pending. JSON Pointer inspection does not expand the normalizer's reference support.
-Literal Casafari path server overrides are executed through the coordinated
-runtime branch in [runtime PR #7](https://github.com/dmorenof/sdk-runtime/pull/7).
-Development packages require `dev-feature/p0-contract-fidelity` until the
-coordinated delivery; the published baseline remains runtime v0.4.0.
+Literal Casafari path server overrides execute through stable
+[runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0).
+The generator and generated packages require `^0.5.0`; installation does not
+depend on a development branch.
 
 ## Preserved canonical metadata
 
@@ -105,8 +105,8 @@ Static facades support the same mapping through `Configuration::$serverOverrides
 `Client::configure()` takes a snapshot, so later configuration edits do not change
 an existing connection. URL keys ignore trailing slashes.
 
-Relative/template servers, variable expansion, empty overrides and server URLs with
+Relative/template servers, variable expansion, explicit `servers: []` overrides and server URLs with
 credentials, query or fragment remain explicitly unsupported. This work does not
-choose dynamically between several declared servers. Generator PR #20 and runtime
-PR #7 remain a single coordinated development delivery, without an independent
-release or merge.
+choose dynamically between several declared servers. [Generator v0.4.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.0)
+and runtime v0.5.0 contain the completed implementation. Future roadmap items
+remain tracked separately from these published capabilities.
