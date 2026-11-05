@@ -105,6 +105,43 @@ final class OpenApiAcceptanceAnalyzerTest extends TestCase
         self::assertStringContainsString('Conflicting allOf property', $report['full']['error']['message']);
     }
 
+    public function testIgnoredHttpSemanticsCannotProduceAFalseAcceptance(): void
+    {
+        $document = self::spec();
+        $document['paths']['/users/{id}']['get']['parameters'][1]['allowReserved'] = true;
+        $report = (new OpenApiAcceptanceAnalyzer())->analyze(json_encode($document, JSON_THROW_ON_ERROR), sourceName: 'contract.json');
+        self::assertFalse($report['accepted']);
+        self::assertSame('compatibility_failed', $report['full']['status']);
+        self::assertSame('partial', $report['compatibility']['status']);
+        self::assertSame(1, $report['summary']['compatibility_failed']);
+        self::assertSame(1, $report['summary']['generated']);
+        self::assertStringContainsString('contract.json#/paths/~1users~1{id}/get/parameters/1/allowReserved', $report['full']['error']['message']);
+    }
+
+    public function testOperationIsolationDoesNotDropPathServerOverrides(): void
+    {
+        $document = self::spec();
+        $document['paths']['/users/{id}']['servers'] = [['url' => '/relative-server']];
+        $report = (new OpenApiAcceptanceAnalyzer())->analyze(json_encode($document, JSON_THROW_ON_ERROR));
+        self::assertSame(1, $report['summary']['generation_failed']);
+        self::assertFalse($report['accepted']);
+        self::assertSame('/paths/~1users~1{id}/servers/0/url', $report['operations'][1]['diagnostics'][0]->pointer);
+    }
+
+    public function testDiscriminatorMappingsAndImplicitDescendantsSurviveIsolation(): void
+    {
+        $document = json_decode(file_get_contents(__DIR__ . '/fixtures/pets-discriminator-openapi30.json'), true, 512, JSON_THROW_ON_ERROR);
+        foreach ($document['components']['schemas'] as &$schema) {
+            if (isset($schema['discriminator'])) {
+                unset($schema['discriminator']['mapping']);
+            }
+        }
+        unset($schema);
+        $report = (new OpenApiAcceptanceAnalyzer())->analyze(json_encode($document, JSON_THROW_ON_ERROR));
+        self::assertTrue($report['accepted'], json_encode($report['operations']));
+        self::assertSame(2, $report['summary']['generated']);
+    }
+
     public function testSupportedSecurityRequirementsAreAccepted(): void
     {
         $raw = self::spec();

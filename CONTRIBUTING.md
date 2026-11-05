@@ -1,14 +1,10 @@
 # Contributing
 
-Use short-lived feature/fix branches based on `main`, open a PR, and let
-GitHub Actions validate Composer, PHP 8.3/8.4/8.5, minimum dependencies and
-security advisories. Never push directly to the protected `main` branch.
+Complete each validated change through integration and stable publication in the same task. Prefer direct integration into `main` when protections allow it; use a PR only if GitHub requires that technical step, and finish it rather than leaving a draft. See [AGENTS.md](AGENTS.md) and [RELEASING.md](RELEASING.md).
 
-Keep responsibilities separate and reuse abstractions rather than creating
-near-duplicates. Avoid introducing new public interfaces without a concrete
-use case and tests.
+Keep responsibilities separate and reuse abstractions. Public API changes need concrete use cases and meaningful regression coverage. Validate PHP 8.3/8.4/8.5, minimum dependencies and advisories through GitHub Actions.
 
-## Local checks
+## Checks
 
 ```sh
 composer validate --strict --no-check-lock
@@ -17,9 +13,4 @@ bash ci/run-tests.sh
 composer audit --no-interaction
 ```
 
-No behavioral tests are currently present because implementation has not
-started. The first functional contribution must include PHPUnit tests
-and execute them through the common `ci/run-tests.sh` command.
-
-Before merging a release PR, review API stability and PHP minimum requirements.
-See [RELEASING.md](RELEASING.md). Do not commit secrets.
+Review API stability and PHP minimum requirements before publication. Never move release tags or commit secrets.

@@ -8,21 +8,51 @@ use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
 use Dmorenof\SdkGenerator\Generation\PhpApiNameResolver;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 
-if (!in_array($argc, [4, 5], true)) {
-    fwrite(STDERR, "Usage: php bin/generate-sdk.php <swagger-or-openapi.json|yaml|yml> <output-directory> [Php\\Namespace] <vendor/package>\n");
+$arguments = [];
+$inspect = false;
+$strict = false;
+foreach (array_slice($argv, 1) as $argument) {
+    if (in_array($argument, ['--inspect', '--dry-run'], true)) {
+        $inspect = true;
+    } elseif ($argument === '--strict') {
+        $strict = true;
+    } else {
+        $arguments[] = $argument;
+    }
+}
+if (($inspect && count($arguments) !== 1) || (!$inspect && !in_array(count($arguments), [3, 4], true))) {
+    fwrite(STDERR, "Usage: generate-sdk.php [--strict] <spec.json|yaml> <output-directory> [Php\\Namespace] <vendor/package>\n"
+        . "       generate-sdk.php --inspect|--dry-run <spec.json|yaml>\n");
     exit(2);
 }
-
-if ($argc === 5) {
-    [, $input, $output, $namespace, $packageName] = $argv;
-} else {
-    [, $input, $output, $packageName] = $argv;
-    $namespace = null; // Use the API's declared info.title, not schema prefixes.
+$input = $arguments[0];
+if (!$inspect) {
+    $output = $arguments[1];
+    $namespace = count($arguments) === 4 ? $arguments[2] : null;
+    $packageName = $arguments[count($arguments) - 1];
 }
 
 try {
     if (!is_file($input) || !is_readable($input)) {
         throw new RuntimeException("Specification is missing or unreadable: $input");
+    }
+    $source = file_get_contents($input);
+    if ($source === false) {
+        throw new RuntimeException("Unable to read specification: $input");
+    }
+
+    $extension = strtolower(pathinfo($input, PATHINFO_EXTENSION));
+    $format = in_array($extension, ['yaml', 'yml'], true) ? 'yaml' : 'json';
+    $report = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspect($source, $format, $input);
+    if ($inspect) {
+        echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), "\n";
+        exit($report['strictlyAccepted'] ? 0 : 1);
+    }
+    foreach ($report['diagnostics'] as $diagnostic) {
+        fwrite(STDERR, "Compatibility {$diagnostic->severity} [{$diagnostic->code}] {$diagnostic->source}#{$diagnostic->pointer}: {$diagnostic->message}\n");
+    }
+    if ($strict && !$report['strictlyAccepted']) {
+        throw new RuntimeException('Strict compatibility inspection rejected this document; no files were generated.');
     }
     if (file_exists($output)) {
         if (!is_dir($output)) {
@@ -31,11 +61,6 @@ try {
         if ((new FilesystemIterator($output))->valid()) {
             throw new RuntimeException("Destination must be empty to avoid overwriting files: $output");
         }
-    }
-
-    $source = file_get_contents($input);
-    if ($source === false) {
-        throw new RuntimeException("Unable to read specification: $input");
     }
 
     // Build and validate all files before writing anything to disk.

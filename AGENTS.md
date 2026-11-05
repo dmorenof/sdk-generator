@@ -1,0 +1,9 @@
+# Flujo de trabajo acordado
+
+- Trabajar desde GitHub en el entorno cloud, sin depender del ordenador del usuario.
+- Cada avance terminado y validado debe integrarse y publicarse como versión estable dentro de la misma tarea. No dar por terminado el trabajo dejando solo una rama o un PR en borrador.
+- Preferir commits y push a `main` cuando sus protecciones lo permitan. No abrir PRs como flujo habitual. Si GitHub exige un PR, resolverlo como trámite técnico y completar integración y publicación sin pedir otra confirmación.
+- Las tareas futuras de la hoja de ruta no deben retrasar la publicación de funcionalidad ya terminada. Mantener explícitos los límites reales y actualizar `pendientes.md` cuando corresponda.
+- Coordinar dependencias entre repositorios: publicar y comprobar el runtime primero; después usar su versión estable en el generador y los SDKs emitidos. No terminar una entrega con dependencias temporales de ramas.
+- Validar con las pruebas adecuadas, CI y smoke de instalación. Cambiar `VERSION` para activar la publicación existente; comprobar tag inmutable, GitHub Release y workflow finalizados antes de afirmar que está publicado. Nunca mover un tag existente.
+- Mantener el código y cada avance coherente accesibles online. La instrucción del usuario de publicar sustituye las antiguas reglas de dejar entregas acumuladas en PRs de desarrollo.

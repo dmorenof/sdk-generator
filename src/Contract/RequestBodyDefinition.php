@@ -9,5 +9,9 @@ final readonly class RequestBodyDefinition
         public string $mediaType,
         public SchemaDefinition $schema,
         public bool $required,
+        /** @var list<MediaTypeDefinition> All declared representations. */
+        public array $content = [],
+        /** @var array<string, mixed> */
+        public array $annotations = [],
     ) {}
 }

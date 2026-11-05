@@ -19,5 +19,9 @@ final readonly class ApiContract
         public array $operations,
         public array $securitySchemes = [],
         public array $securityRequirements = [],
+        /** @var list<array<string, mixed>> Complete server objects, in source preference order. */
+        public array $serverDefinitions = [],
+        /** @var array<string, mixed> */
+        public array $annotations = [],
     ) {}
 }

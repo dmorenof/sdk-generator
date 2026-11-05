@@ -1,23 +1,15 @@
 # Release process
 
-**Versioning:** root VERSION is the authoritative release request. The package's composer.json does **not** contain a version field; Composer package versions are derived from Git tags.
+`VERSION` is the authoritative release request (`X.Y.Z`, without `v`). Composer versions come from immutable Git tags; do not add a version field to composer.json.
 
-## Releasing 0.1.0 and later
+The agreed workflow is to publish each completed, validated increment. Do not stop at a draft PR or wait for the entire roadmap. See [AGENTS.md](AGENTS.md).
 
-1. Integrate the reviewed implementation and documentation into a **protected** main branch through a PR with all required CI checks green.
-2. Add or update the VERSION file in that PR, containing a single semver X.Y.Z without leading v (first version: **0.1.0**).
-3. Merge the release PR. The existing GitHub Actions workflow .github/workflows/release.yml responds to the change in VERSION on main.
-4. The workflow independently validates Composer, installs dependencies, runs PHP lint and PHPUnit, audits advisories, and checks that any tag vX.Y.Z either does not exist or points to this exact commit.
-5. If the checks pass, GitHub Actions pushes an immutable tag and creates the GitHub Release with generated notes. Re-running must never move an existing tag.
-6. Verify the **tag**, **GitHub Release** and linked **Actions success**. A green PR is **not** confirmation the release exists until publishing finishes.
-7. Packagist is **not registered by this workflow**. If distribution via Packagist is desired, register dmorenof/sdk-generator and connect GitHub updates separately; a GitHub tag alone does not prove Packagist availability.
+1. Run Composer validation, appropriate tests/static analysis and advisory checks. Use cloud execution and remote GitHub state.
+2. Update `VERSION`, versioned release notes and the actual supported scope. Integrate into `main` directly when protections permit it. If GitHub requires a PR, complete that technical step and continue through publication in the same task.
+3. The existing `.github/workflows/release.yml` runs on a `VERSION` change on `main`. It checks dependencies, PHP/tests and advisories, then creates the immutable tag and GitHub Release. Never bypass protections or force-update a tag.
+4. Wait for the publish workflow and main CI; verify that the tag points to the integrated commit and the stable Release exists.
+5. Verify a clean Composer installation and the appropriate consumer smoke. Update progress/release evidence; do not claim publication from green source checks alone.
 
-## Post-release smoke verification
+For coordinated changes, publish and clean-install the runtime first, then replace temporary runtime branch dependencies with its stable version in the generator and generated packages before publishing the generator. The two repositories have separate versions and releases.
 
-The generator and its output are independent Composer packages. Generate Accounts from tests/fixtures/accounts-openapi31.json, install its Composer dependencies in the output directory and run it with the fake Guzzle handler in CI; do not use API credentials for regression fixtures.
-
-## Scope
-
-0.1.0 is a deliberately limited JSON Swagger/OpenAPI feature set. The supported subset, technical debt and absent pre-send semantic validation are explicitly documented in docs/SUPPORTED_SCOPE.md and CHANGELOG.md.
-
-Do not claim published versions unless both immutable Git tag and release have been verified. Never force-update a release tag. No release of dmorenof/sdk-runtime is implied by a release of dmorenof/sdk-generator.
+A GitHub release does not establish Packagist registration or availability. Keep VCS repository entries where needed. Do not commit secrets or use production credentials for synthetic regression fixtures.

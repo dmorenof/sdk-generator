@@ -1,0 +1,89 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Routing",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://root.example.test/v1/"
+    },
+    {
+      "url": "https://second.example.test/v1"
+    }
+  ],
+  "paths": {
+    "/root": {
+      "get": {
+        "operationId": "root",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/equivalent": {
+      "servers": [
+        {
+          "url": "https://root.example.test/v1"
+        }
+      ],
+      "get": {
+        "operationId": "equivalent",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/items/{id}": {
+      "servers": [
+        {
+          "url": "https://path.example.test/v2/"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "readItem",
+        "servers": [
+          {
+            "url": "https://operation.example.test/v3/"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      },
+      "post": {
+        "operationId": "writeItem",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  }
+}

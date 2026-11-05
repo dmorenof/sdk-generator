@@ -18,5 +18,12 @@ final readonly class OperationDefinition
         public ?RequestBodyDefinition $requestBody,
         public array $responses,
         public array $securityRequirements = [],
+        /** @var list<string> Applicable servers in preference order. */
+        public array $servers = [],
+        /** @var list<array<string, mixed>> */
+        public array $serverDefinitions = [],
+        public string $serverSource = 'root',
+        /** @var array<string, mixed> */
+        public array $annotations = [],
     ) {}
 }

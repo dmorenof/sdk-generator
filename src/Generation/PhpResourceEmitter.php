@@ -20,6 +20,7 @@ final readonly class PhpResourceEmitter
         'schemaNullable' => false,
         'noContentAllowed' => false,
         'validation' => [],
+        'serverUrl' => null,
     ];
 
     /**
@@ -63,7 +64,7 @@ final readonly class PhpResourceEmitter
                 throw new InvalidArgumentException("API route conflicts with reserved class: $facadePath.");
             }
             $paths[$facadeKey] = true;
-            $files[$resourcePath] = $this->renderResource($node, $resolved['operationMethods']);
+            $files[$resourcePath] = $this->renderResource($node, $resolved['operationMethods'], $contract->servers[0] ?? null);
             $files[$facadePath] = $this->renderRouteFacade($node, $resolved['operationMethods'], $root);
         }
         ksort($files, SORT_STRING);
@@ -110,6 +111,7 @@ final readonly class PhpResourceEmitter
             $configuration->headers,
             $configuration->securityCredentials,
             $configuration->transport,
+            $configuration->serverOverrides,
         );
         foreach ($configuration->middleware as $middleware) {
             $client->withMiddleware($middleware);
@@ -218,6 +220,9 @@ PHP;
     public ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null;
     public ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null;
 
+    /** @var array<string, string> Declared operation server URL => environment base URL. */
+    public array $serverOverrides = [];
+
     /** @var list<\Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface> */
     public array $middleware = [];
 PHP;
@@ -259,7 +264,7 @@ PHP;
      * @param array{segments:list<string>,operations:list<OperationDefinition>} $node
      * @param array<string,string> $operationMethods
      */
-    private function renderResource(array $node, array $operationMethods): string
+    private function renderResource(array $node, array $operationMethods, ?string $rootServer): string
     {
         $segments = $node['segments'];
         $class = end($segments);
@@ -271,12 +276,24 @@ PHP;
         foreach ($node['operations'] as $operation) {
             $method = $operationMethods[$operation->operationId]
                 ?? throw new InvalidArgumentException("Missing route method: $operation->operationId");
-            $source .= $this->renderOperation($operation, $method);
+            $serverUrl = null;
+            if ($operation->serverSource !== 'root') {
+                $selected = $operation->servers[0] ?? null;
+                if ($selected === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($selected)
+                    || !empty($operation->serverDefinitions[0]['variables'])) {
+                    throw new InvalidArgumentException("Unsupported operation server at $operation->operationId: only literal absolute HTTP(S) servers are executable.");
+                }
+                // Equivalent root declarations still follow the configured client baseUrl.
+                if (rtrim($selected, '/') !== ($rootServer === null ? null : rtrim($rootServer, '/'))) {
+                    $serverUrl = rtrim($selected, '/');
+                }
+            }
+            $source .= $this->renderOperation($operation, $method, serverUrl: $serverUrl);
         }
         return $source . "}\n";
     }
 
-    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false): string
+    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false, ?string $serverUrl = null): string
     {
         $signature = $this->requestTypes[$operation->operationId]
             ?? throw new InvalidArgumentException("Missing operation signature: $operation->operationId");
@@ -342,6 +359,7 @@ PHP;
             'schemaNullable' => $success['schemaNullable'],
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $validation,
+            'serverUrl' => $serverUrl,
         ];
         foreach (self::OPERATION_DEFAULTS as $key => $default) {
             if ($metadata[$key] === $default) {

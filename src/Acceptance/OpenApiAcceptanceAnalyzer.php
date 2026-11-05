@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Dmorenof\SdkGenerator\Acceptance;
 
 use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
+use Dmorenof\SdkGenerator\Diagnostics\ContractAuditor;
+use Dmorenof\SdkGenerator\Diagnostics\Diagnostic;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use InvalidArgumentException;
 use JsonException;
@@ -21,7 +23,7 @@ final class OpenApiAcceptanceAnalyzer
     private const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace'];
 
     /** @return array<string, mixed> */
-    public function analyze(string $source, string $format = 'json'): array
+    public function analyze(string $source, string $format = 'json', string $sourceName = '<input>'): array
     {
         $document = $this->decodeDocument($source, $format);
         if (!is_array($document) || array_is_list($document) || !is_array($document['paths'] ?? null)) {
@@ -48,7 +50,7 @@ final class OpenApiAcceptanceAnalyzer
                 ];
                 try {
                     $subset = $this->operationSubset($document, $path, $method);
-                    $result = $this->attempt(json_encode($subset, JSON_THROW_ON_ERROR));
+                    $result = $this->attempt(json_encode($subset, JSON_THROW_ON_ERROR), 'json', $subset, $sourceName);
                 } catch (Throwable $exception) {
                     $result = $this->failure('selection_failed', $exception);
                 }
@@ -56,12 +58,13 @@ final class OpenApiAcceptanceAnalyzer
             }
         }
 
-        $full = $this->attempt($source, $format);
+        $full = $this->attempt($source, $format, $document, $sourceName);
         $counts = [
             'generated' => 0,
             'normalization_failed' => 0,
             'generation_failed' => 0,
             'selection_failed' => 0,
+            'compatibility_failed' => 0,
         ];
         foreach ($operations as $operation) {
             ++$counts[$operation['status']];
@@ -69,6 +72,13 @@ final class OpenApiAcceptanceAnalyzer
 
         return [
             'sourceSha256' => hash('sha256', $source),
+            'source' => $sourceName,
+            'compatibility' => [
+                'status' => $full['status'] === 'normalization_failed' ? 'unsupported'
+                    : ($full['status'] === 'generated' && ($full['diagnostics'] ?? []) === [] ? 'supported' : 'partial'),
+                'strictlyAccepted' => $full['status'] === 'generated',
+                'diagnostics' => $full['diagnostics'] ?? [],
+            ],
             'openapi' => $document['openapi'] ?? $document['swagger'] ?? null,
             'title' => $document['info']['title'] ?? null,
             'pathCount' => count($paths),
@@ -101,23 +111,31 @@ final class OpenApiAcceptanceAnalyzer
         throw new InvalidArgumentException("Unsupported acceptance input format: $format.");
     }
 
-    /** @return array{status:string,error:?array<string,string>} */
-    private function attempt(string $source, string $format = 'json'): array
+    /** @return array{status:string,error:?array<string,string>,diagnostics:list<Diagnostic>} */
+    private function attempt(string $source, string $format, array $document, string $sourceName): array
     {
+        $diagnostics = (new ContractAuditor())->audit($document, $sourceName);
         try {
             $normalizer = new SpecificationNormalizer();
             $contract = $format === 'yaml'
                 ? $normalizer->fromYaml($source)
                 : $normalizer->fromJson($source);
         } catch (Throwable $exception) {
-            return $this->failure('normalization_failed', $exception);
+            return [...$this->failure('normalization_failed', $exception), 'diagnostics' => $diagnostics];
         }
         try {
             (new PhpExecutableEmitter('Acceptance\\Probe', 'example/acceptance-probe'))->emit($contract);
         } catch (Throwable $exception) {
-            return $this->failure('generation_failed', $exception);
+            return [...$this->failure('generation_failed', $exception), 'diagnostics' => $diagnostics];
         }
-        return ['status' => 'generated', 'error' => null];
+        foreach ($diagnostics as $diagnostic) {
+            if ($diagnostic->severity === 'error') {
+                return [...$this->failure('compatibility_failed', new InvalidArgumentException(
+                    $diagnostic->message . ' [' . $diagnostic->source . '#' . $diagnostic->pointer . ']'
+                )), 'diagnostics' => $diagnostics];
+            }
+        }
+        return ['status' => 'generated', 'error' => null, 'diagnostics' => $diagnostics];
     }
 
     /** @return array{status:string,error:array<string,string>} */
@@ -140,10 +158,9 @@ final class OpenApiAcceptanceAnalyzer
     private function operationSubset(array $document, string $path, string $method): array
     {
         $item = $document['paths'][$path];
-        $kept = [$method => $item[$method]];
-        if (isset($item['parameters'])) {
-            $kept['parameters'] = $item['parameters'];
-        }
+        // Keep effective Path Item metadata as well as the selected operation.
+        $kept = array_diff_key($item, array_fill_keys(self::METHODS, true));
+        $kept[$method] = $item[$method];
         $document['paths'] = [$path => $kept];
         $definitionsKey = ($document['swagger'] ?? null) === '2.0' ? 'definitions' : 'schemas';
         $allDefinitions = $definitionsKey === 'definitions'
@@ -155,8 +172,10 @@ final class OpenApiAcceptanceAnalyzer
         }
 
         $selected = [];
+        $polymorphic = [];
         $queue = [];
-        $this->findReferences($kept, $queue);
+        $prefix = $definitionsKey === 'definitions' ? '#/definitions/' : '#/components/schemas/';
+        $this->findReferences($kept, $queue, $prefix);
         for ($i = 0; $i < count($queue); ++$i) {
             $reference = $queue[$i];
             $prefix = $definitionsKey === 'definitions'
@@ -170,7 +189,18 @@ final class OpenApiAcceptanceAnalyzer
                 continue;
             }
             $selected[$name] = $allDefinitions[$name];
-            $this->findReferences($allDefinitions[$name], $queue);
+            $this->findReferences($allDefinitions[$name], $queue, $prefix);
+            $definition = $allDefinitions[$name];
+            $parents = array_column($definition['allOf'] ?? [], '$ref');
+            if (isset($definition['discriminator']) || array_intersect($parents, array_keys($polymorphic)) !== []) {
+                $polymorphic[$reference] = true;
+                foreach ($allDefinitions as $child => $candidate) {
+                    $bases = array_column($candidate['allOf'] ?? [], '$ref');
+                    if ($bases === [$reference] && !in_array($prefix . $child, $queue, true)) {
+                        $queue[] = $prefix . $child;
+                    }
+                }
+            }
         }
         ksort($selected, SORT_STRING);
         if ($definitionsKey === 'definitions') {
@@ -182,7 +212,7 @@ final class OpenApiAcceptanceAnalyzer
     }
 
     /** @param list<string> $queue */
-    private function findReferences(mixed $value, array &$queue): void
+    private function findReferences(mixed $value, array &$queue, string $prefix, bool $map = false): void
     {
         if (!is_array($value)) {
             return;
@@ -190,8 +220,23 @@ final class OpenApiAcceptanceAnalyzer
         if (is_string($value['$ref'] ?? null) && !in_array($value['$ref'], $queue, true)) {
             $queue[] = $value['$ref'];
         }
-        foreach ($value as $child) {
-            $this->findReferences($child, $queue);
+        foreach ($value['discriminator']['mapping'] ?? [] as $target) {
+            if (is_string($target)) {
+                $reference = str_starts_with($target, '#/') || str_contains($target, ':') || str_contains($target, '/')
+                    ? $target : $prefix . $target;
+                if (!in_array($reference, $queue, true)) {
+                    $queue[] = $reference;
+                }
+            }
+        }
+        foreach ($value as $key => $child) {
+            if (!$map && (in_array($key, ['example', 'default', 'enum', 'value'], true)
+                || ($key === 'examples' && is_array($child) && array_is_list($child))
+                || str_starts_with((string) $key, 'x-'))) {
+                continue;
+            }
+            $this->findReferences($child, $queue, $prefix,
+                in_array($key, ['properties', 'schemas', 'definitions', '$defs', 'headers', 'examples'], true));
         }
     }
 }
