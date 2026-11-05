@@ -53,7 +53,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 
 - **Código:** [PR #20](https://github.com/dmorenof/sdk-generator/pull/20), rama `feature/p0-contract-fidelity`, conservación/diagnóstico y enrutamiento efectivo coordinado con runtime #7.
 - **Entrega:** [generador #20](https://github.com/dmorenof/sdk-generator/pull/20) + [runtime #7](https://github.com/dmorenof/sdk-runtime/pull/7), ambos en `feature/p0-contract-fidelity` y en borrador; pendiente de integrar y publicar. Dependencia temporal `dev-feature/p0-contract-fidelity` del runtime. La versión estable sigue siendo v0.3.0 / runtime v0.4.0.
-- **Evidencia:** 216 pruebas / 2.061 aserciones; cuatro SDKs generados pasan PHPStan max; runtime: 54 pruebas / 108 aserciones y CI verde. CI del nuevo enrutamiento del generador pendiente.
+- **Evidencia:** 216 pruebas / 2.061 aserciones; cinco SDKs generados pasan PHPStan max; runtime: 54 pruebas / 108 aserciones. [CI del generador en verde](https://github.com/dmorenof/sdk-generator/actions/runs/42059103852) y [CI del runtime en verde](https://github.com/dmorenof/sdk-runtime/actions/runs/42051180373).
 - **Alcance:** este PR avanza el paquete 01. Los paquetes P0 02 (referencias), 03 (serialización HTTP) y 04 (cuerpos/respuestas) siguen pendientes de implementación general.
 
 ### Lista de trabajo del paquete 01
@@ -77,7 +77,16 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 | Revisar una especificación sin generar un SDK | Faltaba este modo de inspección en el generador. | `--inspect` devuelve un informe de compatibilidad sin crear archivos. | Ampliar la cobertura de la auditoría. |
 | Analizar por separado una operación polimórfica | La selección de esquemas podía eliminar subclases necesarias. | Se conserva el cierre de discriminadores explícitos/implícitos y los metadatos de ruta. | Resolución general de referencias del paquete 02. |
 
-**Corrección urgente implementada en rama, CI del generador en curso:** las 46 operaciones de Casafari pasan ahora la aceptación estricta. Siete pruebas HTTP simuladas ejecutan los métodos generados afectados y comprueban la URL exacta de `platform.casafari.com`, parámetros y autenticación. Runtime: 54 pruebas / 108 aserciones y PHPStan max; [CI del runtime en verde](https://github.com/dmorenof/sdk-runtime/actions/runs/42051180373). No se han realizado llamadas reales/autenticadas a Casafari.
+**Corrección urgente terminada en rama y con CI verde (PRs #20/#7, sin publicar):** las 46 operaciones de Casafari pasan ahora la aceptación estricta. Siete pruebas HTTP simuladas ejecutan los métodos generados afectados y comprueban la URL exacta de `platform.casafari.com`, parámetros y autenticación. Runtime: 54 pruebas / 108 aserciones y PHPStan max; [CI del runtime en verde](https://github.com/dmorenof/sdk-runtime/actions/runs/42051180373). No se han realizado llamadas reales/autenticadas a Casafari.
+
+
+### Corrección urgente de servidores — comprobada en PRs #20/#7
+
+- [x] Ejecutar el servidor literal HTTP(S) efectivo con precedencia operación → ruta → raíz, conservando prefijos de URL y parámetros codificados.
+- [x] Permitir sustituciones por entorno con `serverOverrides` por conexión y `Configuration::$serverOverrides`, compartidas por sus recursos y aisladas entre clientes.
+- [x] Comprobar los siete métodos reales de Casafari con HTTP simulado y aceptación estricta de las 46 operaciones. Código validado: generador `7aa5593` y runtime `09ce07f`.
+
+Los servidores relativos, las plantillas/variables y la selección dinámica entre varios servidores permanecen pendientes en el apartado 7.
 
 Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.md). Las casillas resueltas de este apartado corresponden al **PR #20 aún sin publicar**; no cierran P0 ni el paquete 01 completo.
 
@@ -289,7 +298,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 - [ ] Variables de `servers`, valores por defecto y `enum`.
 - [ ] Servidores relativos y resolución frente al documento o base URL.
-- [ ] **Implementado en rama; CI del generador pendiente:** servidores literales HTTP(S) por Path Item y operación, precedencia operación → ruta → raíz y `serverOverrides` por conexión para otros entornos. PRs #20/#7, sin publicar. Relativos/variables siguen en sus tareas separadas.
+- [x] **Hecho en PRs #20/#7, sin publicar:** servidores literales HTTP(S) por Path Item y operación, precedencia operación → ruta → raíz y `serverOverrides` por conexión para otros entornos. PRs #20/#7, sin publicar. Relativos/variables siguen en sus tareas separadas.
 - [ ] Manejo de operaciones con varios servidores disponibles.
 - [ ] Soporte completo de referencias a `Path Item`.
 - [ ] Detección de rutas ambiguas, placeholders inconsistentes y nombres PHP en conflicto.
