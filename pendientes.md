@@ -49,6 +49,8 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 
 **Objetivo:** el normalizador nunca debe perder silenciosamente información que cambia la petición o la respuesta HTTP.
 
+**En desarrollo — primer incremento P0:** rama remota `feature/p0-contract-fidelity`, desde v0.3.0. Auditoría de opciones HTTP ignoradas, diagnóstico con archivo/operación/JSON Pointer/cadena local de referencias, inspección JSON/YAML sin escribir archivos y generación `--strict` que falla antes de crear el destino. La generación de compatibilidad sigue disponible y muestra avisos. Se ha detectado que Casafari declara servidores por ruta distintos del servidor raíz; su ejecución sigue pendiente. No se cierra el paquete 01 completo ni se publica versión con este incremento. Ver [inspección de contrato](docs/CONTRACT_INSPECTION.md).
+
 - [ ] Conservar la información completa de serialización de parámetros: `style`, `explode`, `allowReserved`, `allowEmptyValue`, `content`, `collectionFormat`.
 - [ ] Conservar por operación los servidores aplicables, media types y metadatos de request/response.
 - [ ] Conservar encabezados de respuesta, cookies, códigos y esquemas de respuesta diferenciados.
@@ -377,7 +379,7 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 - [ ] Prueba de compatibilidad con los SDKs ya generados (Casafari y FakeRESTApi).
 - [ ] Comprobación de sintaxis, PHPStan, PSR-12, Composer y matriz PHP.
 - [ ] Documentación del subconjunto soportado actualizada.
-- [ ] Cambios de API pública revisados y notas de versión; para este trabajo acumular el generador en PR #19 y coordinar runtime #6 en una única entrega (sin PR por funcionalidad).
+- [ ] Cambios de API pública revisados y notas de versión; acumular cada entrega en un único PR del generador y coordinar un PR del runtime si fuese necesario. La entrega de herencia cerró #19/#6; P0 continúa en `feature/p0-contract-fidelity`, sin PR por funcionalidad ni publicaciones parciales.
 - [ ] Solo entonces marcar las casillas de este archivo.
 
 ## 13. Referencias de especificación
