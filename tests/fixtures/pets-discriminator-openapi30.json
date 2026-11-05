@@ -1,0 +1,170 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Discriminated Pets",
+    "version": "1.0"
+  },
+  "paths": {
+    "/pet": {
+      "get": {
+        "operationId": "getPet",
+        "responses": {
+          "200": {
+            "description": "A pet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pet"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/choice": {
+      "get": {
+        "operationId": "getChoice",
+        "responses": {
+          "200": {
+            "description": "One pet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetChoice"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Pet": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "pet_type",
+          "mapping": {
+            "canine": "#/components/schemas/Dog",
+            "feline": "Cat"
+          }
+        },
+        "required": [
+          "pet_type"
+        ],
+        "properties": {
+          "pet_type": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2
+          }
+        }
+      },
+      "Dog": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Pet"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "pet_type": {
+                "type": "string",
+                "enum": [
+                  "Dog",
+                  "canine"
+                ]
+              },
+              "bark": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "Cat": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Pet"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "pet_type": {
+                "type": "string",
+                "enum": [
+                  "Cat",
+                  "feline"
+                ]
+              },
+              "hunts": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "PetChoice": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Dog"
+          },
+          {
+            "$ref": "#/components/schemas/Cat"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "pet_type",
+          "mapping": {
+            "canine": "#/components/schemas/Dog",
+            "feline": "Cat"
+          }
+        }
+      },
+      "PetOptions": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/Dog"
+          },
+          {
+            "$ref": "#/components/schemas/Cat"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "pet_type",
+          "mapping": {
+            "canine": "#/components/schemas/Dog",
+            "feline": "Cat"
+          }
+        }
+      },
+      "Household": {
+        "type": "object",
+        "properties": {
+          "pet": {
+            "$ref": "#/components/schemas/Pet"
+          },
+          "pets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Pet"
+            }
+          },
+          "byName": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Pet"
+            }
+          },
+          "choice": {
+            "$ref": "#/components/schemas/PetChoice"
+          }
+        }
+      }
+    }
+  }
+}

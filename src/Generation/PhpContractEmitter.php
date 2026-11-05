@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.3.1';
+    public const RUNTIME_CONSTRAINT = 'dev-feature/native-model-inheritance';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -259,6 +259,9 @@ final class PhpContractEmitter
                 $fields[] = '    public ' . $type . ' $' . $propertyName . ';';
             }
             $propertyValidation = $property->schema->validation;
+            if ($propertySchema->enumValues !== []) {
+                $propertyValidation['enum'] = $propertySchema->enumValues;
+            }
             if ($nullableBranch !== null) {
                 $propertyValidation += $nullableBranch->validation;
                 if ($nullableBranch->pattern !== null) {
@@ -288,7 +291,8 @@ final class PhpContractEmitter
         $additionalPropertiesType = null;
         $additionalPropertiesNullable = false;
         $additionalPropertiesValidation = [];
-        if ($schema->additionalProperties === true) {
+        if ($schema->additionalProperties === true
+            || ($schema->additionalProperties === null && $this->discriminatedModel($hint))) {
             $additionalPropertiesType = 'mixed';
         } elseif ($schema->additionalProperties instanceof SchemaDefinition) {
             $additionalSchema = $schema->additionalProperties;
@@ -310,6 +314,12 @@ final class PhpContractEmitter
         $source = $this->header($namespace)
             . ($extensible ? 'class ' : 'final class ') . $class . ' extends ' . $extends . "\n{\n"
             . "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n";
+        if ($schema->discriminator !== null) {
+            $mapping = $this->discriminatorMapping($schema, $hint);
+            $source .= "    public const string DISCRIMINATOR_BASE = self::class;\n"
+                . "    public const string DISCRIMINATOR_PROPERTY = " . PhpLiteral::export($schema->discriminator->propertyName) . ";\n"
+                . "    public const array DISCRIMINATOR_MAPPING = " . PhpLiteral::export($mapping) . ";\n\n";
+        }
         if ($propertyMap !== []) {
             $source .= "    protected const array PROPERTY_MAP = " . PhpLiteral::export($propertyMap) . ";\n"
                 . "    protected const array WIRE_PROPERTY_MAP = " . PhpLiteral::export($wirePropertyMap) . ";\n\n";
@@ -577,10 +587,160 @@ final class PhpContractEmitter
                 : var_export($type, true);
         }
         $core = $schema->kind === SchemaKind::AnyOf ? 'AnyOf' : 'OneOf';
-        return $this->header($namespace)
+        $references = [];
+        $branches = [];
+        foreach ($schema->branches as $branch) {
+            $branches[] = $this->schemaDescriptor($branch, $references);
+        }
+        // Collect only the reachable local definitions; references stay symbolic,
+        // so recursive object models do not expand infinitely.
+        $definitions = [];
+        while (array_diff_key($references, $definitions) !== []) {
+            foreach (array_diff_key($references, $definitions) as $name => $_) {
+                $definitions[$name] = $this->schemaDescriptor($this->modelDefinitions[$name]->schema, $references);
+            }
+        }
+        ksort($definitions);
+        $source = $this->header($namespace)
             . "final class $class extends \\" . self::RUNTIME_NAMESPACE . "\\$core\n{\n"
             . '    protected const array TYPES = [' . implode(', ', $types) . "];\n"
-            . "}\n";
+            . '    protected const array BRANCH_SCHEMAS = ' . PhpLiteral::export($branches) . ";\n"
+            . '    protected const array SCHEMA_DEFINITIONS = ' . PhpLiteral::export($definitions) . ";\n";
+        if ($schema->discriminator !== null) {
+            $source .= "    protected const string DISCRIMINATOR_PROPERTY = " . PhpLiteral::export($schema->discriminator->propertyName) . ";\n"
+                . "    protected const array DISCRIMINATOR_MAPPING = " . PhpLiteral::export($this->discriminatorMapping($schema, $fqcn)) . ";\n";
+        }
+        return $source . "}\n";
+    }
+
+    /** @param array<string, true> $references @return array<string, mixed> */
+    private function schemaDescriptor(SchemaDefinition $schema, array &$references): array
+    {
+        $node = ['kind' => $schema->kind->value];
+        if ($schema->kind === SchemaKind::Reference) {
+            $references[$schema->reference] = true;
+            $node['ref'] = $schema->reference;
+            return $node;
+        }
+        if ($schema->nullable) {
+            $node['nullable'] = true;
+        }
+        if ($schema->enumValues !== []) {
+            $node['enum'] = $schema->enumValues;
+        }
+        $rules = $schema->validation;
+        if ($schema->pattern !== null) {
+            $rules['pattern'] = $schema->pattern;
+        }
+        if ($rules !== []) {
+            $node['rules'] = $rules;
+        }
+        if ($schema->items !== null) {
+            $node['items'] = $this->schemaDescriptor($schema->items, $references);
+        }
+        foreach ($schema->properties as $property) {
+            $node['properties'][$property->wireName] = $this->schemaDescriptor($property->schema, $references);
+            if ($property->required) {
+                $node['required'][] = $property->wireName;
+            }
+            if ($property->schema->readOnly) {
+                $node['readOnly'][] = $property->wireName;
+            }
+            if ($property->schema->writeOnly) {
+                $node['writeOnly'][] = $property->wireName;
+            }
+        }
+        if ($schema->additionalProperties !== null) {
+            $node['additional'] = $schema->additionalProperties instanceof SchemaDefinition
+                ? $this->schemaDescriptor($schema->additionalProperties, $references) : $schema->additionalProperties;
+        }
+        foreach ($schema->branches as $branch) {
+            $node['branches'][] = $this->schemaDescriptor($branch, $references);
+        }
+        return $node;
+    }
+
+    /** @return array<string, string> Discriminator values to generated class names. */
+    private function discriminatorMapping(SchemaDefinition $schema, string $where): array
+    {
+        $discriminator = $schema->discriminator;
+        $candidates = [];
+        if (in_array($schema->kind, [SchemaKind::OneOf, SchemaKind::AnyOf], true)) {
+            foreach ($schema->branches as $branch) {
+                if ($branch->kind !== SchemaKind::Reference) {
+                    throw new InvalidArgumentException("Discriminator requires named reference branches at $where.");
+                }
+                $candidates[] = $branch->reference;
+            }
+        } else {
+            foreach ($this->modelParents as $child => $parent) {
+                while (true) {
+                    if ($parent === $where) {
+                        $candidates[] = $child;
+                        break;
+                    }
+                    if (!isset($this->modelParents[$parent])) {
+                        break;
+                    }
+                    $parent = $this->modelParents[$parent];
+                }
+            }
+            $properties = [];
+            foreach ($schema->properties as $property) {
+                $properties[$property->wireName] = $property->schema;
+            }
+            if (!isset($properties[$discriminator->propertyName])
+                || $properties[$discriminator->propertyName]->kind !== SchemaKind::String) {
+                throw new InvalidArgumentException("Discriminator property must be a declared string at $where.");
+            }
+        }
+        $mapping = [];
+        foreach ($candidates as $name) {
+            $mapping[$name] = ltrim($this->modelNames->fqcn($name), '\\');
+        }
+        foreach ($discriminator->mapping as $tag => $target) {
+            if (!in_array($target, $candidates, true)) {
+                throw new InvalidArgumentException("Discriminator mapping '$tag' must target a compatible named subtype/branch at $where.");
+            }
+            $mapping[$tag] = ltrim($this->modelNames->fqcn($target), '\\');
+        }
+        if ($mapping === []) {
+            throw new InvalidArgumentException("Discriminator has no compatible named subtypes at $where.");
+        }
+        ksort($mapping);
+        return $mapping;
+    }
+
+    private function discriminatedModel(string $name): bool
+    {
+        while (isset($this->modelDefinitions[$name])) {
+            if ($this->modelDefinitions[$name]->schema->discriminator !== null) {
+                return true;
+            }
+            if (!isset($this->modelParents[$name])) {
+                break;
+            }
+            $name = $this->modelParents[$name];
+        }
+        return false;
+    }
+
+    /** Bounded scalar enum intersection; the inherited PHP property keeps its original type. */
+    private function refineProperty(SchemaDefinition $left, SchemaDefinition $right, string $where, string $name): SchemaDefinition
+    {
+        $a = get_object_vars($left);
+        $b = get_object_vars($right);
+        unset($a['enumValues'], $b['enumValues']);
+        if ($a !== $b || !in_array($left->kind, [SchemaKind::String, SchemaKind::Integer], true)) {
+            throw new InvalidArgumentException("Conflicting allOf property '$name' at $where");
+        }
+        $values = $left->enumValues === [] ? $right->enumValues
+            : ($right->enumValues === [] ? $left->enumValues
+                : array_values(array_filter($left->enumValues, static fn ($value): bool => in_array($value, $right->enumValues, true))));
+        if ($values === []) {
+            throw new InvalidArgumentException("Empty allOf enum intersection for '$name' at $where");
+        }
+        return new SchemaDefinition(...array_replace(get_object_vars($left), ['enumValues' => $values]));
     }
 
     /** Only a single referenced object plus inline object extensions maps to PHP inheritance. */
@@ -639,8 +799,10 @@ final class PhpContractEmitter
             foreach ($branch->properties as $property) {
                 if (isset($properties[$property->wireName])
                     && $properties[$property->wireName]->schema != $property->schema) {
-                    throw new InvalidArgumentException(
-                        "Conflicting allOf property '$property->wireName' at $where",
+                    $property = new \Dmorenof\SdkGenerator\Contract\PropertyDefinition(
+                        $property->wireName,
+                        $this->refineProperty($properties[$property->wireName]->schema, $property->schema, $where, $property->wireName),
+                        $property->required,
                     );
                 }
                 $properties[$property->wireName] = $property;
@@ -679,6 +841,7 @@ final class PhpContractEmitter
             SchemaKind::Object,
             properties: array_values($properties),
             additionalProperties: $closed ? false : null,
+            discriminator: $schema->discriminator,
         );
     }
 

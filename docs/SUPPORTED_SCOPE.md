@@ -36,3 +36,39 @@
 Broader OpenAPI coverage, more live endpoint cases (including authenticated requests and PATCH where safe), and feature-equivalent performance/usability comparisons.
 
 Please report supported-schema failures through GitHub Issues with a small **redacted** reproducible JSON specification (no keys or tokens).
+
+
+## Unreleased coordinated discriminator work
+
+Generator [PR #19](https://github.com/dmorenof/sdk-generator/pull/19) and runtime
+[PR #6](https://github.com/dmorenof/sdk-runtime/pull/6) use remote branch
+`feature/native-model-inheritance`. Development-generated Composer packages
+explicitly require that runtime branch. The stable versions described above do
+not include these changes; both repositories must ship together.
+
+- Compatible single-parent object `allOf` models use real PHP inheritance. Only
+  parents lose `final`; multiple independent bases retain flattening. Closed
+  branches cannot gain forbidden properties.
+- Supported string/integer enum intersections refine inherited validation without
+  changing the parent's PHP property type or backed enum class. Other differing
+  inherited-property constraints still fail explicitly.
+- OAS 3 discriminator objects accept `propertyName` and local explicit mappings
+  (component names or schema references), plus implicit schema-name mappings.
+  Base-object mappings must target compatible descendants; composition mappings
+  target named reference branches. Missing/unknown/non-string tags fail.
+- `Pet::fromValue()` and shared runtime hydration dispatch to `Dog`/`Cat`, including
+  nested properties, collections, maps and operation values. `new Pet(...)` keeps
+  the explicitly constructed PHP class. Concrete subclasses do not redispatch.
+- Composition descriptors preserve the original branches, local references and
+  supported constraints. Matching evaluates an independent JSON snapshot before
+  hydration and ignores discriminator dispatch. `oneOf` requires exactly one
+  valid schema; `anyOf` permits several. Permitted extra fields of discriminated
+  families are preserved.
+- A single selected variant supplies serialized output after mutation, with
+  branch cardinality and discriminator identity checked again. Several `anyOf`
+  matches remain views of the original snapshot; concurrent edits to several
+  views are not merged into an outbound payload.
+
+These changes do not provide arbitrary native unions, general non-object `allOf`,
+`not`, `const`, external mapping URIs, OAS 3.2 `defaultMapping`, or full JSON Schema
+validation. Existing wrappers remain part of the public API.

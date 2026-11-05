@@ -29,5 +29,6 @@ final readonly class SchemaDefinition
         public bool $writeOnly = false,
         public ?string $title = null,
         public ?string $description = null,
+        public ?DiscriminatorDefinition $discriminator = null,
     ) {}
 }

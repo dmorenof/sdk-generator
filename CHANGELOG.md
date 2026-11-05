@@ -6,7 +6,10 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 - Generate native PHP inheritance for supported `allOf` models with a single referenced object parent and compatible inline object extensions. Keep inherited property types (including enums), required fields, validation, JSON names and directional metadata across multiple levels. Only classes used as parents lose `final`.
 - Reject object `allOf` extensions that introduce properties forbidden by a branch's `additionalProperties: false` instead of silently flattening away that restriction.
-- This increment does not add discriminator hydration, native composition unions or `not`; those remain tracked in `pendientes.md`.
+- Parse local explicit/implicit discriminator mappings and emit shared runtime metadata for base-model and composition hydration. Scalar enum intersections refine inherited fields without redeclaring their PHP type.
+- Evaluate original composition schemas before hydrating; discriminator selection cannot hide `oneOf` ambiguity. Preserve independent JSON snapshots and serialize/revalidate a selected variant after mutation.
+- Development packages temporarily require `sdk-runtime` `dev-feature/native-model-inheritance`, coordinated with runtime PR #6 and generator PR #19. No release or independent merge is intended.
+- Native composition unions, `not`, `const`, arbitrary inherited-property refinements and general JSON Schema remain pending; see `pendientes.md` and `docs/SUPPORTED_SCOPE.md`.
 
 ## [0.2.0] — 2026-11-05
 
