@@ -7,6 +7,8 @@ use Dmorenof\SdkGenerator\Contract\ApiContract;
 use Dmorenof\SdkGenerator\Contract\ModelDefinition;
 use Dmorenof\SdkGenerator\Contract\OperationDefinition;
 use Dmorenof\SdkGenerator\Contract\ParameterDefinition;
+use Dmorenof\SdkGenerator\Contract\ParameterSerialization;
+use Dmorenof\SdkGenerator\Contract\MediaTypeDefinition;
 use Dmorenof\SdkGenerator\Contract\PropertyDefinition;
 use Dmorenof\SdkGenerator\Contract\RequestBodyDefinition;
 use Dmorenof\SdkGenerator\Contract\ResponseDefinition;
@@ -31,6 +33,14 @@ final class SpecificationNormalizer
 {
     private const METHODS = [
         'get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace',
+    ];
+
+    public const array SCHEMA_KEYWORDS = [
+            '$ref', 'type', 'format', 'properties', 'required', 'items',
+            'enum', 'nullable', 'x-nullable', 'additionalProperties',
+            'description', 'title', 'example', 'minLength', 'maxLength',
+            'minimum', 'maximum', 'minItems', 'maxItems', 'pattern', 'readOnly',
+            'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf', 'discriminator',
     ];
 
     public function fromYaml(string $source): ApiContract
@@ -132,8 +142,17 @@ final class SpecificationNormalizer
                     "$method $path",
                 );
                 $responses = $this->responses($raw, $document, $dialect, "$method $path");
+                $serverSource = array_key_exists('servers', $raw) ? 'operation'
+                    : (array_key_exists('servers', $pathItem) ? 'path' : 'root');
+                $serverDefinitions = $dialect === 'swagger2'
+                    ? array_map(static fn (string $url): array => ['url' => $url], $servers)
+                    : ($raw['servers'] ?? $pathItem['servers'] ?? $document['servers'] ?? []);
+                $operationServers = $serverSource === 'root' ? $servers : array_map(
+                    static fn (array $server): string => rtrim($server['url'], '/'), $serverDefinitions,
+                );
                 $operations[] = new OperationDefinition(
                     $id, strtoupper($method), $path, $parameters, $requestBody, $responses, $security,
+                    $operationServers, $serverDefinitions, $serverSource, $this->annotations($raw),
                 );
             }
         }
@@ -141,7 +160,11 @@ final class SpecificationNormalizer
         usort($operations, static fn (OperationDefinition $a, OperationDefinition $b): int
             => [$a->path, $a->method] <=> [$b->path, $b->method]);
 
-        $contract = new ApiContract($title, $servers, $models, $operations, $securitySchemes, $rootSecurity);
+        $serverDefinitions = $dialect === 'swagger2'
+            ? array_map(static fn (string $url): array => ['url' => $url], $servers)
+            : ($document['servers'] ?? []);
+        $contract = new ApiContract($title, $servers, $models, $operations, $securitySchemes, $rootSecurity,
+            $serverDefinitions, ['info' => $info] + $this->annotations($document));
         $knownModels = array_fill_keys(array_map(
             static fn (ModelDefinition $model): string => $model->name,
             $models,
@@ -292,7 +315,7 @@ final class SpecificationNormalizer
                 $servers[] = rtrim($server['url'], '/');
             }
         }
-        sort($servers);
+        // Server order is preference order; sorting can change the default host.
         return $servers;
     }
 
@@ -328,11 +351,14 @@ final class SpecificationNormalizer
                 if ($requestBody !== null || !is_array($raw['schema'] ?? null)) {
                     throw new InvalidArgumentException("Invalid or duplicated body at $where.");
                 }
-                $this->requireJsonMedia($operation['consumes'] ?? $document['consumes'] ?? ['application/json'], "$where consumes");
+                $mediaTypes = $operation['consumes'] ?? $document['consumes'] ?? ['application/json'];
+                $this->requireJsonMedia($mediaTypes, "$where consumes");
                 $requestBody = new RequestBodyDefinition(
-                    'application/json',
+                    $mediaTypes[0],
                     $this->schema($raw['schema'], $dialect, "$where.body"),
                     (bool) ($raw['required'] ?? false),
+                    $this->swaggerContent($operation['consumes'] ?? $document['consumes'] ?? ['application/json'], $raw['schema'], $dialect, "$where.body"),
+                    $this->annotations($raw),
                 );
                 continue;
             }
@@ -340,8 +366,8 @@ final class SpecificationNormalizer
                 throw new InvalidArgumentException("Unsupported parameter location $loc at $where.");
             }
             $schema = $dialect === 'swagger2'
-                ? array_diff_key($raw, array_flip(['name', 'in', 'required', 'description']))
-                : ($raw['schema'] ?? null);
+                ? array_diff_key($raw, array_flip(['name', 'in', 'required', 'description', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', 'deprecated', 'example', 'examples']), $this->annotations($raw))
+                : ($raw['schema'] ?? (isset($raw['content']) ? ($this->jsonContent($raw['content'], "$where.parameters." . $raw['name'])['schema'] ?? null) : null));
             if (!is_array($schema)) {
                 throw new InvalidArgumentException("Missing parameter schema at $where.");
             }
@@ -349,6 +375,10 @@ final class SpecificationNormalizer
                 $raw['name'], $loc,
                 $this->schema($schema, $dialect, "$where.parameters." . $raw['name']),
                 (bool) ($raw['required'] ?? false),
+                new ParameterSerialization($raw['style'] ?? null, $raw['explode'] ?? null,
+                    $raw['allowReserved'] ?? null, $raw['allowEmptyValue'] ?? null, $raw['collectionFormat'] ?? null),
+                $this->mediaContent($raw['content'] ?? [], $dialect, "$where.parameters." . $raw['name']),
+                $this->annotations($raw),
             );
         }
 
@@ -365,6 +395,8 @@ final class SpecificationNormalizer
                 $bodyContent['mediaType'],
                 $this->schema($bodyContent['schema'], $dialect, "$where.requestBody"),
                 (bool) ($raw['required'] ?? false),
+                $this->mediaContent($raw['content'] ?? [], $dialect, "$where.requestBody"),
+                $this->annotations($raw),
             );
         }
 
@@ -393,7 +425,7 @@ final class SpecificationNormalizer
                 if ($schema !== null) {
                     $this->requireJsonMedia($operation['produces'] ?? $document['produces'] ?? ['application/json'], "$where produces");
                 }
-                $mediaType = $schema === null ? null : 'application/json';
+                $mediaType = $schema === null ? null : ($operation['produces'] ?? $document['produces'] ?? ['application/json'])[0];
             } else {
                 $content = $this->jsonContent($raw['content'] ?? [], "$where.responses.$status");
                 $schema = $content['schema'] ?? null;
@@ -403,9 +435,55 @@ final class SpecificationNormalizer
                 $status,
                 $mediaType,
                 $schema === null ? null : $this->schema($schema, $dialect, "$where.responses.$status"),
+                $dialect === 'swagger2'
+                    ? ($schema === null ? [] : $this->swaggerContent($operation['produces'] ?? $document['produces'] ?? ['application/json'], $schema, $dialect, "$where.responses.$status"))
+                    : $this->mediaContent($raw['content'] ?? [], $dialect, "$where.responses.$status"),
+                $raw['headers'] ?? [], $raw['links'] ?? [], $this->annotations($raw),
             );
         }
         return $responses;
+    }
+
+    /** @return array<string, mixed> */
+    private function annotations(array $raw): array
+    {
+        return array_filter($raw, static fn ($key): bool => in_array($key,
+            ['summary', 'description', 'title', 'example', 'examples', 'deprecated', 'externalDocs', 'tags'], true)
+            || str_starts_with((string) $key, 'x-'), ARRAY_FILTER_USE_KEY);
+    }
+
+    /** @return list<MediaTypeDefinition> */
+    private function mediaContent(array $content, string $dialect, string $where): array
+    {
+        $representations = [];
+        foreach ($content as $media => $raw) {
+            if (!is_string($media) || !is_array($raw)) {
+                throw new InvalidArgumentException("Invalid content representation at $where.");
+            }
+            $schema = null;
+            $unparsed = null;
+            if (array_key_exists('schema', $raw)) {
+                try {
+                    $schema = $this->schema($raw['schema'], $dialect, "$where.content.$media");
+                } catch (InvalidArgumentException) {
+                    // An unsupported, unselected alternative must remain visible.
+                    // The selected JSON schema is normalized separately and still fails.
+                    $unparsed = $raw['schema'];
+                }
+            }
+            $representations[] = new MediaTypeDefinition($media, $schema, $raw['encoding'] ?? [], $this->annotations($raw), $unparsed);
+        }
+        return $representations;
+    }
+
+    /** @return list<MediaTypeDefinition> */
+    private function swaggerContent(array $mediaTypes, array $schema, string $dialect, string $where): array
+    {
+        $content = [];
+        foreach ($mediaTypes as $media) {
+            $content[$media] = ['schema' => $schema];
+        }
+        return $this->mediaContent($content, $dialect, $where);
     }
 
     private function requireJsonMedia(array $mediaTypes, string $where): void
@@ -471,13 +549,7 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException("Schema must be an object at $where.");
         }
 
-        $allowed = [
-            '$ref', 'type', 'format', 'properties', 'required', 'items',
-            'enum', 'nullable', 'x-nullable', 'additionalProperties',
-            'description', 'title', 'example', 'minLength', 'maxLength',
-            'minimum', 'maximum', 'minItems', 'maxItems', 'pattern', 'readOnly',
-            'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf', 'discriminator',
-        ];
+        $allowed = self::SCHEMA_KEYWORDS;
         foreach (array_keys($raw) as $key) {
             if (!in_array($key, $allowed, true)) {
                 throw new InvalidArgumentException("Unsupported schema keyword '$key' at $where.");

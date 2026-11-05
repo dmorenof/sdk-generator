@@ -10,5 +10,10 @@ final readonly class ParameterDefinition
         public string $location,
         public SchemaDefinition $schema,
         public bool $required,
+        public ParameterSerialization $serialization = new ParameterSerialization(),
+        /** @var list<MediaTypeDefinition> */
+        public array $content = [],
+        /** @var array<string, mixed> */
+        public array $annotations = [],
     ) {}
 }

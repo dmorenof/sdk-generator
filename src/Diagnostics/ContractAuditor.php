@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Dmorenof\SdkGenerator\Diagnostics;
 
+use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
+
 /** Audit HTTP-affecting options which the current executable pipeline would ignore. */
 final class ContractAuditor
 {
@@ -32,7 +34,6 @@ final class ContractAuditor
             if (isset($item['$ref'])) {
                 $this->reference($item['$ref'], "$pointer/\$ref", null, false);
             }
-            $this->parameters($item['parameters'] ?? [], "$pointer/parameters", null);
             foreach (self::METHODS as $method) {
                 $operation = $item[$method] ?? null;
                 if (!is_array($operation)) {
@@ -41,6 +42,15 @@ final class ContractAuditor
                 $where = "$pointer/$method";
                 $id = is_string($operation['operationId'] ?? null) ? $operation['operationId'] : strtoupper($method) . ' ' . $path;
                 $this->keys($operation, ['operationId', 'parameters', 'requestBody', 'responses', 'security', 'servers', 'consumes', 'produces', 'schemes'], $where, $id);
+                if (($document['swagger'] ?? null) === '2.0') {
+                    foreach (['consumes' => true, 'produces' => false] as $keyword => $request) {
+                        $mediaTypes = $operation[$keyword] ?? $document[$keyword] ?? ['application/json'];
+                        if (is_array($mediaTypes)) {
+                            $declared = array_fill_keys(array_filter($mediaTypes, 'is_string'), []);
+                            $this->selectedMedia($declared, isset($operation[$keyword]) ? "$where/$keyword" : "/$keyword", $id, $request);
+                        }
+                    }
+                }
                 if (array_key_exists('servers', $operation)) {
                     $this->servers($operation['servers'], "$where/servers", $id, $rootServers);
                 } elseif (array_key_exists('servers', $item)) {
@@ -49,6 +59,16 @@ final class ContractAuditor
                 if (isset($operation['schemes']) && $operation['schemes'] !== ($document['schemes'] ?? [])) {
                     $this->add('operation_schemes', "$where/schemes", 'Operation-specific Swagger schemes are not executed.', $id);
                 }
+                $overrides = [];
+                foreach ($operation['parameters'] ?? [] as $parameter) {
+                    if (is_array($parameter) && isset($parameter['in'], $parameter['name'])) {
+                        $overrides[$parameter['in'] . ':' . $parameter['name']] = true;
+                    }
+                }
+                $pathParameters = array_filter($item['parameters'] ?? [], static fn ($parameter): bool =>
+                    !is_array($parameter) || !isset($parameter['in'], $parameter['name'])
+                    || !isset($overrides[$parameter['in'] . ':' . $parameter['name']]));
+                $this->parameters($pathParameters, "$pointer/parameters", $id);
                 $this->parameters($operation['parameters'] ?? [], "$where/parameters", $id);
                 if (is_array($operation['requestBody'] ?? null)) {
                     $body = $operation['requestBody'];
@@ -57,6 +77,7 @@ final class ContractAuditor
                         $this->reference($body['$ref'], "$where/requestBody/\$ref", $id, false);
                     }
                     $this->content($body['content'] ?? [], "$where/requestBody/content", $id);
+                    $this->selectedMedia($body['content'] ?? [], "$where/requestBody/content", $id, true);
                 }
                 foreach ($operation['responses'] ?? [] as $status => $response) {
                     if (!is_array($response)) {
@@ -73,11 +94,31 @@ final class ContractAuditor
                         }
                     }
                     $this->content($response['content'] ?? [], "$at/content", $id);
+                    $this->selectedMedia($response['content'] ?? [], "$at/content", $id, false);
+                    if (isset($response['schema'])) {
+                        $this->schema($response['schema'], "$at/schema", $id);
+                    }
+                    foreach ($response['headers'] ?? [] as $name => $header) {
+                        if (!is_array($header)) {
+                            continue;
+                        }
+                        $headerAt = JsonPointer::append("$at/headers", $name);
+                        if (isset($header['$ref'])) {
+                            $this->reference($header['$ref'], "$headerAt/\$ref", $id, false);
+                        }
+                        if (isset($header['schema'])) {
+                            $this->schema($header['schema'], "$headerAt/schema", $id);
+                        }
+                    }
                 }
             }
         }
-        // References are inspected across the original document, including unused components.
-        $this->references($document, '');
+        foreach ($document['components']['schemas'] ?? [] as $name => $schema) {
+            $this->schema($schema, JsonPointer::append('/components/schemas', $name), null);
+        }
+        foreach ($document['definitions'] ?? [] as $name => $schema) {
+            $this->schema($schema, JsonPointer::append('/definitions', $name), null);
+        }
         $unique = [];
         foreach ($this->diagnostics as $diagnostic) {
             $key = $diagnostic->pointer . ':' . $diagnostic->code . ':' . $diagnostic->operationId;
@@ -109,7 +150,7 @@ final class ContractAuditor
             $this->add('invalid_servers', $pointer, 'Servers must be an array.', $operation);
             return;
         }
-        $urls = static fn (array $values): array => array_map(static fn ($server): mixed => is_array($server) ? ($server['url'] ?? null) : null, $values);
+        $urls = static fn (array $values): array => array_map(static fn ($server): mixed => is_array($server) && is_string($server['url'] ?? null) ? rtrim($server['url'], '/') : null, $values);
         if (is_array($root) && $urls($servers) !== $urls($root)) {
             $this->add('server_override', $pointer, 'Path/operation server overrides are not executed by the shared client.', $operation);
         }
@@ -152,12 +193,22 @@ final class ContractAuditor
                     $this->add('parameter_' . $flag, "$at/$flag", "Parameter $flag is not executed.", $operation);
                 }
             }
+            if (isset($parameter['schema'], $parameter['content'])) {
+                $this->add('conflicting_parameter_schema', "$at/content", 'A parameter must declare either schema or content, not both.', $operation);
+            }
             if (isset($parameter['content'])) {
                 $this->add('parameter_content', "$at/content", 'Content-based parameter serialization is not implemented.', $operation);
             }
             if (isset($parameter['collectionFormat'])) {
                 $this->add('parameter_collectionFormat', "$at/collectionFormat", 'Swagger collection formats are not executed.', $operation);
             }
+            if (isset($parameter['schema'])) {
+                $this->schema($parameter['schema'], "$at/schema", $operation);
+            } elseif (($this->document['swagger'] ?? null) === '2.0') {
+                $schema = array_intersect_key($parameter, array_flip(SpecificationNormalizer::SCHEMA_KEYWORDS));
+                $this->schema($schema, $at, $operation);
+            }
+            $this->content($parameter['content'] ?? [], "$at/content", $operation);
             $type = $parameter['schema']['type'] ?? $parameter['type'] ?? null;
             if (in_array($type, ['array', 'object'], true)) {
                 $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Array/object parameter serialization is not implemented.', $operation);
@@ -176,6 +227,9 @@ final class ContractAuditor
                 continue;
             }
             $this->keys($definition, ['schema', 'encoding'], $at, $operation);
+            if (array_key_exists('schema', $definition)) {
+                $this->schema($definition['schema'], "$at/schema", $operation);
+            }
             if (!preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
                 $this->add('media_type', $at, 'This representation is preserved but the SDK sends/accepts JSON only.', $operation, 'warning');
             }
@@ -185,16 +239,46 @@ final class ContractAuditor
         }
     }
 
-    private function references(mixed $node, string $pointer): void
+    private function selectedMedia(mixed $content, string $pointer, ?string $operation, bool $request): void
     {
-        if (!is_array($node)) {
+        if (!is_array($content) || $content === []) {
             return;
         }
-        if (isset($node['$ref'])) {
-            $this->reference($node['$ref'], "$pointer/\$ref", null, true);
+        foreach (array_keys($content) as $media) {
+            if (is_string($media) && strtolower(trim($media)) === 'application/json') {
+                return;
+            }
         }
-        foreach ($node as $name => $value) {
-            $this->references($value, JsonPointer::append($pointer, $name));
+        $header = $request ? 'Content-Type' : 'Accept';
+        $this->add($request ? 'request_media_type' : 'response_media_type', $pointer,
+            "The shared runtime uses $header: application/json; none of the declared media types match that value.", $operation);
+    }
+
+    private function schema(mixed $schema, string $pointer, ?string $operation): void
+    {
+        if (!is_array($schema)) {
+            return; // The normalizer retains responsibility for structural schema errors.
+        }
+        foreach ($schema as $keyword => $_) {
+            if (!in_array($keyword, SpecificationNormalizer::SCHEMA_KEYWORDS, true)) {
+                $this->add('unsupported_schema_keyword', JsonPointer::append($pointer, $keyword), "Unsupported schema keyword '$keyword'.", $operation);
+            }
+        }
+        if (isset($schema['$ref'])) {
+            $this->reference($schema['$ref'], "$pointer/\$ref", $operation, true);
+        }
+        foreach ($schema['properties'] ?? [] as $name => $property) {
+            $this->schema($property, JsonPointer::append("$pointer/properties", $name), $operation);
+        }
+        foreach (['items', 'additionalProperties'] as $keyword) {
+            if (is_array($schema[$keyword] ?? null)) {
+                $this->schema($schema[$keyword], "$pointer/$keyword", $operation);
+            }
+        }
+        foreach (['allOf', 'oneOf', 'anyOf'] as $keyword) {
+            foreach ($schema[$keyword] ?? [] as $index => $branch) {
+                $this->schema($branch, "$pointer/$keyword/$index", $operation);
+            }
         }
     }
 

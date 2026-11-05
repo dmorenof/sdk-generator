@@ -37,3 +37,25 @@ numbers, external URI resolution and complete auditing of nested components rema
 pending. JSON Pointer inspection does not expand the normalizer's reference support.
 In particular, current Casafari path server overrides are detected; they are not
 executed by this increment. The stable runtime dependency remains `^0.4.0`.
+
+## Preserved canonical metadata
+
+The normalizer now retains `ParameterSerialization` options (including explicit
+false values), content-based parameter representations, effective operation
+servers with root/path/operation provenance and their original preference order,
+all request/response media definitions, encoding, examples, response headers/links
+and document/operation/parameter annotations. Swagger collection formats are kept
+outside the schema rather than misparsed as schema keywords.
+
+`MediaTypeDefinition::schema` is normalized when supported. An unsupported,
+unselected representation keeps its original schema in `unparsedSchema`; it is not
+an executable canonical schema. Response headers/links retain their source objects
+until their dedicated normalization and runtime work. Preserving these fields does
+not implement them. In particular, vendor JSON media types are diagnosed when the
+runtime's fixed `Content-Type`/`Accept: application/json` does not match any declared
+representation. Server preference is no longer changed by alphabetical sorting.
+
+The audit uses the normalizer's schema keyword inventory to localize unsupported
+schema keywords. Literal `$ref` values inside example payloads are not interpreted
+as OpenAPI references. Overridden path parameters and servers are audited according
+to their effective operation value.
