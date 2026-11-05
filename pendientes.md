@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Ámbito:** `dmorenof/sdk-generator` (`feature/unified-dto-psr12-public-api`, a integrar en `release/0.2.0`) y `dmorenof/sdk-runtime` (`feature/dto-directional-context`).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.2.0** y `dmorenof/sdk-runtime` **v0.3.1** (ramas de desarrollo integradas; ver historial).
 >
 > **Criterio de actualización:** marcar las casillas solo tras código, pruebas de regresión y aceptación en CI. Registrar el PR y la versión de cierre. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -26,12 +26,13 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [x] DTOs tipados, enums de `string`/`integer`, TypedArrays, modelos locales y ciertas composiciones `allOf`/`anyOf`/`oneOf`.
 - [x] Parámetros básicos `path`, `query` y `header`; cuerpo JSON; respuestas JSON tipadas.
 - [x] HTTP Basic, Bearer y API key en `query` o `header`, con herencia de requisitos y alternativas AND/OR.
-- [x] DTO único como clase base y namespaces `DTOs`/`Requests`/`Responses` para tipos propios de cada operación **en ramas de trabajo**.
-- [x] Formateo PSR-12 automático del código generado **en rama de trabajo**.
+- [x] DTO único como clase base y namespaces `DTOs`/`Requests`/`Responses` para tipos propios de cada operación **publicado en v0.2.0**.
+- [x] Formateo PSR-12 automático del código generado **publicado en v0.2.0**.
 - [x] Casafari: generación de 46 operaciones y comprobaciones de Composer, PSR-12 y sintaxis **sin llamadas autenticadas a Casafari**.
 - [x] FakeRESTApi: generación del contrato original completo y peticiones reales GET individual, GET de lista y POST; no se han probado todas sus operaciones.
 - [x] CI del generador: 145 pruebas / 1.828 aserciones (estado comprobado al elaborar la auditoría).
-- [ ] **Integrar y versionar establemente** el generador 0.2.0 antes de sustituir CasafariSDK en producción. El runtime unificado ya está integrado y publicado como **v0.3.1**; falta el release definitivo del generador y la prueba autenticada de Casafari.
+- [x] **Integración y publicación estables:** `sdk-runtime` **v0.3.1** y `sdk-generator` **v0.2.0**, con CI y pruebas de aceptación en verde.
+- [ ] **Migración de CasafariSDK:** probar operaciones autenticadas reales, revisar compatibilidad de uso/middleware, comparar datos y preparar rollback antes del cambio en producción.
 
 ### Versiones de entrada
 
@@ -364,3 +365,4 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 | --- | --- | --- |
 | 2026-11-05 | Se guarda la auditoría inicial de funcionalidades ausentes/parciales y se divide en 10 paquetes. | Conversación de arquitectura SDK Generator |
 | 2026-11-05 | Decisión de diseño: tipos unión nativos cuando sean fieles, validación declarativa OR/XOR/AND y `allOf` como intersección del mismo JSON (no colección). | Debate sobre anyOf/oneOf/allOf |
+| 2026-11-05 | Publicados `sdk-runtime` v0.3.1 y `sdk-generator` v0.2.0, ambas CI verdes; permanece pendiente la prueba autenticada de Casafari. | [Runtime v0.3.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.3.1), [Generator v0.2.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.2.0) |
