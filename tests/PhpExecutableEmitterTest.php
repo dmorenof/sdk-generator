@@ -9,6 +9,8 @@ use PHPUnit\Framework\TestCase;
 
 final class PhpExecutableEmitterTest extends TestCase
 {
+    private static bool $defaultClassesLoaded = false;
+
     /** @return array<string, string> */
     private function files(string $fixture = 'accounts-swagger2.json'): array
     {
@@ -20,36 +22,204 @@ final class PhpExecutableEmitterTest extends TestCase
 
     private function loadGeneratedClasses(): void
     {
-        // The generator is a build-time dependency. The generated code does
-        // not depend on sdk-generator in order to run.
+        if (self::$defaultClassesLoaded) {
+            return;
+        }
         $files = $this->files();
         foreach ([
-            'src/Enums/NewUserRoleEnum.php',
-            'src/Enums/UserRoleEnum.php',
-            'src/Collections/UserLabelsArray.php',
-            'src/Models/Profile.php',
-            'src/Models/NewUser.php',
-            'src/Models/User.php',
-            'src/Transport/HttpResponse.php',
-            'src/Transport/TransportInterface.php',
-            'src/Support/JsonHydrator.php',
-            'src/Api/Operations.php',
-            'src/Api/ApiClient.php',
+            'src/Enums/NewUser/RoleEnum.php',
+            'src/Enums/User/RoleEnum.php',
+            'src/Collections/StringCollection.php',
+            'src/DTOs/Profile.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/User.php',
+            'src/GetParams/Users/ById.php',
+            'src/Client.php',
+            'src/Resources/Users.php',
+            
         ] as $file) {
             $source = $files[$file];
-            // eval only tests our generated source; it never evaluates a
-            // third-party Swagger payload or untrusted arbitrary PHP input.
             eval(substr($source, strlen('<?php')));
         }
+        self::$defaultClassesLoaded = true;
+    }
+
+    public function testInvalidOperationIdentifiersAreMappedToStablePhpNames(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['paths']['/users']['post']['operationId'] = 'operation-with-hyphens';
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpExecutableEmitter())->emit($contract);
+
+        self::assertStringContainsString("public function post(", $files['src/Resources/Users.php']);
+        self::assertStringContainsString("'method' => 'POST'", $files['src/Resources/Users.php']);
+        self::assertStringContainsString("'path' => '/users'", $files['src/Resources/Users.php']);
+        self::assertStringNotContainsString("'operation-with-hyphens'", $files['src/Resources/Users.php']);
+        self::assertStringContainsString(
+            'extends \\Generated\\Sdk\\Client',
+            $files['src/Resources/Users.php'],
+        );
+        self::assertStringContainsString('$this->executeOperation(', $files['src/Resources/Users.php']);
+    }
+
+    public function testNullablePrimitiveAnyOfIsSupportedForHttpParameters(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['paths']['/users/{id}']['get']['parameters'][1]['schema'] = [
+            'anyOf' => [
+                ['type' => 'string'],
+                ['type' => 'null'],
+            ],
+        ];
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpExecutableEmitter())->emit($contract);
+
+        self::assertStringContainsString(
+            'public ?string $verbose;',
+            $files['src/GetParams/Users/ById.php'],
+        );
+    }
+
+    public function testEnumHttpParametersAreValidatedAsTheirPrimitiveType(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['paths']['/users/{id}']['get']['parameters'][1]['schema'] = [
+            'type' => 'string',
+            'enum' => ['brief', 'full'],
+        ];
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpExecutableEmitter(
+            'Example\\EnumParameterSdk',
+            'example/enum-parameter-sdk',
+        ))->emit($contract);
+
+        self::assertStringContainsString(
+            "'enum' => [",
+            $files['src/GetParams/Users/ById.php'],
+        );
+        self::assertStringContainsString("'brief'", $files['src/GetParams/Users/ById.php']);
+        self::assertStringContainsString("'full'", $files['src/GetParams/Users/ById.php']);
+
+        foreach ([
+            'src/Client.php', 'src/Resources/Users.php', 'src/GetParams/Users/ById.php',
+        ] as $file) {
+            eval(substr($files[$file], strlen('<?php')));
+        }
+        try {
+            $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+                public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+                {
+                    throw new \RuntimeException('Valid enum value reached transport.');
+                }
+            };
+            $client = \Example\EnumParameterSdk\Client::connect(
+                'https://api.example.test',
+                transport: $transport,
+            );
+            $client->resource(\Example\EnumParameterSdk\Resources\Users::class)->getById(1, new \Example\EnumParameterSdk\GetParams\Users\ById((object) ['verbose' => 'invalid']));
+            self::fail('An enum value outside the declared set was accepted.');
+        } catch (\UnexpectedValueException $exception) {
+            self::assertStringContainsString('Validation enum failed', $exception->getMessage());
+        }
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Valid enum value reached transport.');
+        $client->resource(\Example\EnumParameterSdk\Resources\Users::class)->getById(1, new \Example\EnumParameterSdk\GetParams\Users\ById((object) ['verbose' => 'brief']));
+    }
+
+    public function testInlineSuccessAndErrorResponsesGenerateAndHydrateNamedTypes(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['paths']['/users/{id}']['get']['responses']['200']['content']['application/json']['schema'] = [
+            'type' => 'array',
+            'items' => [
+                'type' => 'object',
+                'required' => ['id', 'name'],
+                'properties' => [
+                    'id' => ['type' => 'integer'],
+                    'name' => ['type' => 'string'],
+                ],
+            ],
+        ];
+        $raw['paths']['/users/{id}']['get']['responses']['404'] = [
+            'description' => 'Not found',
+            'content' => [
+                'application/json' => [
+                    'schema' => [
+                        'type' => 'object',
+                        'properties' => ['detail' => ['type' => 'string']],
+                    ],
+                ],
+            ],
+        ];
+        $raw['paths']['/users/{id}']['get']['responses']['204'] = ['description' => 'No content'];
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpExecutableEmitter(
+            'Example\\InlineResponseSdk',
+            'example/inline-response-sdk',
+        ))->emit($contract);
+
+        self::assertArrayHasKey('src/Collections/Users/ById/Get/UsersByIdCollection.php', $files);
+        self::assertArrayHasKey('src/Responses/Users/ById/Get/UsersByIdResponse.php', $files);
+        self::assertArrayHasKey('src/Responses/Errors/Users/ById/GetStatus404Response.php', $files);
+        self::assertStringContainsString(
+            '): ?\\Example\\InlineResponseSdk\\Collections\\Users\\ById\\Get\\UsersByIdCollection',
+            $files['src/Resources/Users.php'],
+        );
+        self::assertStringContainsString('    204,', $files['src/Resources/Users.php']);
+        self::assertStringContainsString("'noContentAllowed' => true", $files['src/Resources/Users.php']);
+        self::assertStringContainsString('GetStatus404Response', $files['src/Resources/Users.php']);
+
+        foreach ([
+            'src/Responses/Users/ById/Get/UsersByIdResponse.php',
+            'src/Collections/Users/ById/Get/UsersByIdCollection.php',
+            'src/Responses/Errors/Users/ById/GetStatus404Response.php',
+        ] as $file) {
+            eval(substr($files[$file], strlen('<?php')));
+        }
+        $response = \Dmorenof\SdkRuntime\JsonHydrator::decode(
+            '[{"id":7,"name":"Ada"}]',
+            \Example\InlineResponseSdk\Collections\Users\ById\Get\UsersByIdCollection::class,
+        );
+        self::assertInstanceOf(\Example\InlineResponseSdk\Collections\Users\ById\Get\UsersByIdCollection::class, $response);
+        self::assertInstanceOf(
+            \Example\InlineResponseSdk\Responses\Users\ById\Get\UsersByIdResponse::class,
+            $response->getArrayCopy()[0],
+        );
+        self::assertSame(7, $response->getArrayCopy()[0]->id);
+        $error = new \Example\InlineResponseSdk\Responses\Errors\Users\ById\GetStatus404Response(
+            (object) ['detail' => 'Not found'],
+        );
+        self::assertInstanceOf(\Dmorenof\SdkRuntime\DTO::class, $error);
+        self::assertSame('Not found', $error->detail);
     }
 
     public function testOutputIsIdenticalForThreeEquivalentDialects(): void
     {
         self::assertSame($this->files(), $this->files('accounts-openapi30.json'));
         self::assertSame($this->files(), $this->files('accounts-openapi31.json'));
-        self::assertArrayHasKey('src/Api/ApiClient.php', $this->files());
-        self::assertArrayHasKey('src/Transport/TransportInterface.php', $this->files());
-        self::assertArrayHasKey('src/Support/JsonHydrator.php', $this->files());
+        self::assertArrayHasKey('src/Client.php', $this->files());
+        self::assertArrayNotHasKey('src/Core/DTO.php', $this->files());
+        self::assertArrayNotHasKey('src/Transport/Psr18Transport.php', $this->files());
     }
 
     public function testEveryGeneratedPhpFileIsSyntacticallyValid(): void
@@ -76,10 +246,10 @@ final class PhpExecutableEmitterTest extends TestCase
     {
         $this->loadGeneratedClasses();
 
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public array $calls = [];
 
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
                 $this->calls[] = compact('method', 'url', 'headers', 'body');
                 $payload = json_encode([
@@ -89,32 +259,32 @@ final class PhpExecutableEmitterTest extends TestCase
                     'profile' => ['city' => 'Madrid', 'visits' => 3],
                     'labels' => ['php', 'sdk'],
                 ], JSON_THROW_ON_ERROR);
-                return new \Example\ExecutableSdk\Transport\HttpResponse(
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                     $method === 'GET' ? 200 : 201,
                     $payload,
                 );
             }
         };
-        $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1/');
-        $user = $client->getUser(42, false);
-        self::assertInstanceOf(\Example\ExecutableSdk\Models\User::class, $user);
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1/', transport: $fake);
+        $user = $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(42, new \Example\ExecutableSdk\GetParams\Users\ById((object) ['verbose' => false]));
+        self::assertInstanceOf(\Example\ExecutableSdk\DTOs\User::class, $user);
         self::assertSame(42, $user->id);
         self::assertSame('Ada', $user->name);
         self::assertSame('Madrid', $user->profile->city);
         self::assertSame(3, $user->profile->visits);
-        self::assertSame(\Example\ExecutableSdk\Enums\UserRoleEnum::Admin, $user->role);
-        self::assertInstanceOf(\Example\ExecutableSdk\Collections\UserLabelsArray::class, $user->labels);
+        self::assertSame(\Example\ExecutableSdk\Enums\User\RoleEnum::Admin, $user->role);
+        self::assertInstanceOf(\Example\ExecutableSdk\Collections\StringCollection::class, $user->labels);
         self::assertSame(['php', 'sdk'], $user->labels->getArrayCopy());
         self::assertFalse(isset($user->nickname));
         self::assertSame('GET', $fake->calls[0]['method']);
         self::assertSame('https://api.example.test/v1/users/42?verbose=false', $fake->calls[0]['url']);
         self::assertNull($fake->calls[0]['body']);
 
-        $input = new \Example\ExecutableSdk\Models\NewUser();
+        $input = new \Example\ExecutableSdk\DTOs\NewUser();
         $input->name = 'Grace';
-        $input->role = \Example\ExecutableSdk\Enums\NewUserRoleEnum::Viewer;
-        $result = $client->createUser($input);
-        self::assertInstanceOf(\Example\ExecutableSdk\Models\User::class, $result);
+        $input->role = \Example\ExecutableSdk\Enums\NewUser\RoleEnum::Viewer;
+        $result = $client->resource(\Example\ExecutableSdk\Resources\Users::class)->post($input);
+        self::assertInstanceOf(\Example\ExecutableSdk\DTOs\User::class, $result);
         self::assertSame('POST', $fake->calls[1]['method']);
         self::assertSame('https://api.example.test/v1/users', $fake->calls[1]['url']);
         self::assertSame('application/json', $fake->calls[1]['headers']['Content-Type']);
@@ -128,52 +298,74 @@ final class PhpExecutableEmitterTest extends TestCase
 
     public function testGeneratedClientRejectsUnexpectedHttpStatus(): void
     {
-        if (!class_exists(\Example\ExecutableSdk\Api\ApiClient::class, false)) {
+        if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
-                return new \Example\ExecutableSdk\Transport\HttpResponse(404, '{"error":"not found"}');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(404, '{"error":"not found"}');
             }
         };
-        $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Unexpected HTTP status from getUser: 404');
-        $client->getUser(1);
+        $this->expectExceptionMessage('Unexpected HTTP status from GET /users/{id}: 404');
+        $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
+    }
+
+    public function testUndeclaredHTTPErrorRetainsStatusAndResponseWithoutAssumingErrorDTO(): void
+    {
+        if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
+            $this->loadGeneratedClasses();
+        }
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+            {
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(429, '{"reason":"throttled"}');
+            }
+        };
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
+        try {
+            $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
+            self::fail('Unexpected status did not throw');
+        } catch (\Dmorenof\SdkRuntime\ApiException $e) {
+            self::assertSame(429, $e->getCode());
+            self::assertNull($e->error);
+            self::assertSame('{"reason":"throttled"}', $e->response->body);
+        }
     }
 
     public function testHydratorRejectsMissingRequiredJsonFields(): void
     {
-        if (!class_exists(\Example\ExecutableSdk\Api\ApiClient::class, false)) {
+        if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
-                return new \Example\ExecutableSdk\Transport\HttpResponse(200, '{"name":"Ada"}');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '{"name":"Ada"}');
             }
         };
-        $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Required JSON property');
-        $client->getUser(1);
+        $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
     }
 
     public function testHydratorRejectsInvalidScalarTypes(): void
     {
-        if (!class_exists(\Example\ExecutableSdk\Api\ApiClient::class, false)) {
+        if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
         }
-        $fake = new class implements \Example\ExecutableSdk\Transport\TransportInterface {
-            public function send(string $method, string $url, array $headers, ?string $body): \Example\ExecutableSdk\Transport\HttpResponse
+        $fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
             {
-                return new \Example\ExecutableSdk\Transport\HttpResponse(200, '{"id":"oops","name":"Ada"}');
+                return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '{"id":"oops","name":"Ada"}');
             }
         };
-        $client = new \Example\ExecutableSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
+        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Invalid scalar value');
-        $client->getUser(1);
+        $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
     }
 }

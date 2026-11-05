@@ -1,6 +1,6 @@
 # Guía rápida — SDK Generator 0.1.0
 
-Generador experimental de SDKs PHP **8.3+** a partir de un subconjunto de especificaciones **JSON** Swagger 2.0 y OpenAPI 3.0/3.1. No admite todavía toda la especificación.
+Generador experimental de SDKs PHP **8.3+** a partir de un subconjunto de especificaciones **JSON o YAML** Swagger 2.0 y OpenAPI 3.0/3.1. No admite todavía toda la especificación.
 
 ## Generar un SDK
 
@@ -16,11 +16,18 @@ composer install
 Se crea un paquete Composer **independiente del generador** con DTOs, enums, colecciones tipadas, métodos de API y Guzzle por defecto.
 
 ~~~php
-use Example\AccountsSdk\Api\ApiClient;
+use Example\AccountsSdk\Client;
+use Example\AccountsSdk\Api\Users\User;
+use Example\AccountsSdk\Api\Users;
+use Example\AccountsSdk\Requests\NewUser;
 
-$api = ApiClient::connect('https://api.example.com/v1');
-$user = $api->getUser(88);
+$client = Client::connect('https://api.example.com/v1');
+$user = $client->resource(User::class)->getById(88);
 echo $user->name;
+
+$nuevo = new NewUser();
+$nuevo->name = 'Grace';
+$creado = $client->resource(Users::class)->post($nuevo);
 ~~~
 
 La especificación de demostración es **sintética**: esa URL es ilustrativa y no se contacta durante las pruebas.
@@ -28,14 +35,16 @@ La especificación de demostración es **sintética**: esa URL es ilustrativa y 
 ### Cliente HTTP opcional
 
 ~~~php
-$api = ApiClient::connect(
+$client = Client::connect(
     'https://api.example.com/v1',
     $customPsr18Client,
     ['Authorization' => 'Bearer ' . $token]
 );
 ~~~
 
-Se puede inyectar Guzzle con middlewares o cualquier implementación PSR-18 compatible. Todavía **no generamos autenticación** a partir de securitySchemes.
+Se puede inyectar Guzzle con middlewares o cualquier implementación PSR-18 compatible. Las operaciones son métodos de instancia: cada cliente conserva su conexión y credenciales. También puedes crear directamente una clase de ruta con `new User($server)` o compartir la configuración de un cliente mediante `$client->resource(User::class)`. Las operaciones protegidas aplican los `securitySchemes` de OpenAPI; los flujos para obtener tokens OAuth2/OpenID Connect no están implementados.
+
+Las clases de rutas se generan bajo `Api`, siguiendo la jerarquía de cada ruta, y extienden `Client` para reutilizar la construcción de peticiones y el transporte común. Los errores HTTP identifican el método y la ruta (por ejemplo, `GET /users/{id}`), no el `operationId` arbitrario de OpenAPI. Los esquemas usados solo para enviar datos se generan bajo `Requests`; los de respuesta, bajo `Responses`; los compartidos o neutrales permanecen en `DTOs`. Los enums y colecciones de dominio se organizan según su esquema. Las colecciones equivalentes comparten clase; las de strings y enteros sin restricciones usan `StringCollection` e `IntegerCollection`. Los identificadores aplanados con `__` reconstruyen carpetas y conservan las variantes numéricas. Por ejemplo, `AlertsApisrc__structures__schemas__ranges__IntRangeSchema__1` pasa a `DTOs\AlertsApi\Ranges\IntRangeSchema1`. Los modelos referenciados conservan su identidad incluso cuando solo los usa un campo; las uniones simples con `null` se expresan como propiedades nullable de PHP. La política completa de carpetas técnicas y colisiones está en [SDK_DESIGN.md](SDK_DESIGN.md).
 
 ## Sin instalar PHP
 
@@ -43,6 +52,6 @@ Entra en [Actions: Downloadable SDK previews](https://github.com/dmorenof/sdk-ge
 
 ## Límites importantes
 
-Solo subconjunto JSON y endpoints/modelos admitidos; no YAML, composiciones completas de esquema ni autenticación automática. Hay tipos PHP nativos, pero **faltan verificaciones completas de campos requeridos y restricciones antes de enviar DTOs**. Consulta [SUPPORTED_SCOPE.md](SUPPORTED_SCOPE.md) y el [README principal](../README.md).
+El CLI detecta YAML por extensión `.yaml` o `.yml`; JSON sigue siendo compatible. `allOf`, `anyOf` y `oneOf` están soportados en un subconjunto acotado, no como implementación general de JSON Schema. La autenticación no se genera automáticamente. Consulta [SUPPORTED_SCOPE.md](SUPPORTED_SCOPE.md) para los límites y [el README principal](../README.md) para la visión general.
 
-Esta versión no exige modificar Casafari SDK ni su interfaz de middlewares.
+Los DTOs sí se instancian normalmente; las clases de rutas no.

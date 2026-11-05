@@ -5,14 +5,20 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 
 use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
+use Dmorenof\SdkGenerator\Generation\PhpApiNameResolver;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 
-if ($argc !== 5) {
-    fwrite(STDERR, "Usage: php bin/generate-sdk.php <swagger-or-openapi.json> <output-directory> <Php\\Namespace> <vendor/package>\n");
+if (!in_array($argc, [4, 5], true)) {
+    fwrite(STDERR, "Usage: php bin/generate-sdk.php <swagger-or-openapi.json|yaml|yml> <output-directory> [Php\\Namespace] <vendor/package>\n");
     exit(2);
 }
 
-[, $input, $output, $namespace, $packageName] = $argv;
+if ($argc === 5) {
+    [, $input, $output, $namespace, $packageName] = $argv;
+} else {
+    [, $input, $output, $packageName] = $argv;
+    $namespace = null; // Use the API's declared info.title, not schema prefixes.
+}
 
 try {
     if (!is_file($input) || !is_readable($input)) {
@@ -33,7 +39,12 @@ try {
     }
 
     // Build and validate all files before writing anything to disk.
-    $contract = (new SpecificationNormalizer())->fromJson($source);
+    $normalizer = new SpecificationNormalizer();
+    $extension = strtolower(pathinfo($input, PATHINFO_EXTENSION));
+    $contract = in_array($extension, ['yaml', 'yml'], true)
+        ? $normalizer->fromYaml($source)
+        : $normalizer->fromJson($source);
+    $namespace ??= PhpApiNameResolver::fromTitle($contract->title);
     $files = (new PhpExecutableEmitter($namespace, $packageName))->emit($contract);
 
     foreach ($files as $relative => $content) {
@@ -54,6 +65,23 @@ try {
         if (file_put_contents($destination, $content) === false) {
             throw new RuntimeException("Unable to write: $destination");
         }
+    }
+
+    // Formatting is a build-time concern. Generated packages stay tiny and
+    // do not depend on PHP-CS-Fixer. Use the same PSR-12 rules as the project.
+    $fixerClass = new ReflectionClass(\PhpCsFixer\Config::class);
+    $fixerRoot = dirname((string) $fixerClass->getFileName(), 2);
+    $fixerBinary = $fixerRoot . '/php-cs-fixer';
+    if (!is_file($fixerBinary)) {
+        throw new RuntimeException('PHP-CS-Fixer executable is missing from the generator dependencies.');
+    }
+    $command = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($fixerBinary)
+        . ' fix ' . escapeshellarg(rtrim($output, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'src')
+        . ' --rules=' . escapeshellarg('@PSR12')
+        . ' --using-cache=no --show-progress=none --quiet 2>&1';
+    exec($command, $formatterOutput, $formatterCode);
+    if ($formatterCode !== 0) {
+        throw new RuntimeException("PSR-12 formatter failed:\n" . implode("\n", $formatterOutput));
     }
 
     fwrite(STDOUT, "Generated " . count($files) . " files in $output\n");

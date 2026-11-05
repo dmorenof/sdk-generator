@@ -1,0 +1,76 @@
+name: Casafari 0.2.0 unified DTO acceptance package
+
+on:
+  push:
+    branches: ['feature/unified-dto-psr12-public-api']
+    paths:
+      - '.github/workflows/casafari-unified-dto.yml'
+      - 'src/Generation/**'
+      - 'src/Parsing/**'
+      - 'bin/generate-sdk.php'
+      - 'tests/OperationEnvelopeTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  casafari:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl
+          tools: composer:v2
+          coverage: none
+      - name: Install SDK generator and verify pinned OpenAPI fixture
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          echo 'd6dce87639a6a16b7f2aac2e17ab5845b21e4e7937e68fca20243442be15ba04  tests/fixtures/casafari-openapi31.json' | sha256sum --check
+      - name: Count all operations and generate SDK using PSR-12
+        run: |
+          php -r '
+            require "vendor/autoload.php";
+            $contract=(new \Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer())
+                ->fromJson(file_get_contents("tests/fixtures/casafari-openapi31.json"));
+            if (count($contract->operations)!==46) { throw new \RuntimeException("Not all Casafari operations loaded"); }
+            echo "CASAFARI_OPERATIONS=46\n";
+          '
+          php bin/generate-sdk.php tests/fixtures/casafari-openapi31.json \
+            build/casafari-sdk 'Casafari\GeneratedSdk' preview/casafari-unified-dto
+          test -f build/casafari-sdk/src/Api/V1/ListingAlerts/Feeds.php
+          test -d build/casafari-sdk/src/Responses
+      - name: Verify output PSR-12 and PHP syntax
+        run: |
+          vendor/bin/php-cs-fixer fix build/casafari-sdk/src --rules=@PSR12 \
+            --dry-run --diff --using-cache=no --show-progress=none
+          find build/casafari-sdk/src -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+      - name: Install SDK and test Composer dependency resolution
+        run: |
+          composer install --working-dir=build/casafari-sdk --no-interaction --prefer-dist --no-progress
+          php -r '
+            require "build/casafari-sdk/vendor/autoload.php";
+            if (!class_exists("Casafari\\GeneratedSdk\\Client")) {
+                throw new \RuntimeException("Missing executable client");
+            }
+            if (!class_exists("Casafari\\GeneratedSdk\\Api\\V1\\ListingAlerts\\Feeds")) {
+                throw new \RuntimeException("Missing route facade");
+            }
+            echo "CASAFARI_SDK_INSTALL_OK\n";
+          '
+      - name: Produce archive for evaluation (no vendor included)
+        run: |
+          cd build
+          zip -qr casafari-sdk-unified-DTO-0.2.0.zip casafari-sdk -x '*/vendor/*'
+          unzip -t casafari-sdk-unified-DTO-0.2.0.zip | tail -2
+      - name: Upload evaluated Casafari SDK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: casafari-unified-dto-020-psr12
+          path: build/casafari-sdk-unified-DTO-0.2.0.zip
+          if-no-files-found: warn
+          retention-days: 30

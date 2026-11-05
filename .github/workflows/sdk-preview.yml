@@ -1,5 +1,14 @@
 name: Downloadable SDK previews
 on:
+  push:
+    branches: ['release/**']
+    paths:
+      - '.github/workflows/sdk-preview.yml'
+      - 'src/**'
+      - 'bin/**'
+      - 'tests/fixtures/**'
+      - 'tests/preview-smoke.php'
+      - 'composer.json'
   pull_request:
     branches: [main]
     paths:

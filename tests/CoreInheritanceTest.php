@@ -1,0 +1,182 @@
+<?php
+declare(strict_types=1);
+
+namespace Dmorenof\SdkGenerator\Tests;
+
+use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
+use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Casafari-inspired contract tests: actual inheritance and inherited behavior,
+ * not simply matching a generated source-code string.
+ */
+final class CoreInheritanceTest extends TestCase
+{
+    /** @return array<string, string> */
+    private static function generated(): array
+    {
+        $json = file_get_contents(__DIR__ . '/fixtures/accounts-openapi31.json');
+        self::assertIsString($json);
+        $contract = (new SpecificationNormalizer())->fromJson($json);
+        return (new PhpExecutableEmitter('Example\\InheritanceSdk', 'example/inheritance-sdk'))->emit($contract);
+    }
+
+    public static function setUpBeforeClass(): void
+    {
+        $files = self::generated();
+        foreach ([
+            'src/Enums/NewUser/RoleEnum.php',
+            'src/Enums/User/RoleEnum.php',
+            'src/Collections/StringCollection.php',
+            'src/DTOs/Profile.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/User.php', 'src/GetParams/Users/ById.php',
+            'src/Client.php',
+            'src/Resources/Users.php',
+            
+        ] as $file) {
+            eval(substr($files[$file], strlen('<?php')));
+        }
+    }
+
+    public function testModelAndCollectionInheritReusableCoreAndExposeNativeTypes(): void
+    {
+        $files = self::generated();
+        self::assertArrayNotHasKey('src/Core/DTO.php', $files);
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\User::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\NewUser::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\User::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\DTOs\Profile::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Dmorenof\SdkRuntime\Request::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Dmorenof\SdkRuntime\Response::class, \Dmorenof\SdkRuntime\DTO::class));
+        self::assertTrue(is_subclass_of(\Example\InheritanceSdk\Collections\StringCollection::class, \Dmorenof\SdkRuntime\TypedArray::class));
+        self::assertSame('string', (new \Example\InheritanceSdk\Collections\StringCollection())->getExpectedType());
+        $property = (new \ReflectionClass(\Example\InheritanceSdk\DTOs\User::class))->getProperty('profile');
+        self::assertSame(\Example\InheritanceSdk\DTOs\Profile::class, $property->getType()->getName());
+    }
+
+    public function testConstructorRecursivelyHydratesModelsEnumsAndCollections(): void
+    {
+        $user = new \Example\InheritanceSdk\DTOs\User(json_decode(
+            '{"id":27,"name":"Ada","profile":{"city":"Madrid","visits":3},"role":"admin","labels":["php","sdk"]}',
+            false,
+            512,
+            JSON_THROW_ON_ERROR,
+        ));
+        self::assertSame(27, $user->id);
+        self::assertSame(\Example\InheritanceSdk\Enums\User\RoleEnum::Admin, $user->role);
+        self::assertInstanceOf(\Example\InheritanceSdk\DTOs\Profile::class, $user->profile);
+        self::assertSame('Madrid', $user->profile->city);
+        self::assertSame(['php', 'sdk'], $user->labels->getArrayCopy());
+        self::assertSame('["php","sdk"]', (string) $user->labels);
+        self::assertSame(27, json_decode((string) $user, true, 512, JSON_THROW_ON_ERROR)['id']);
+        self::assertFalse(isset($user->nickname));
+
+        $user->nickname = null;
+        self::assertArrayHasKey('nickname', json_decode((string) $user, true, 512, JSON_THROW_ON_ERROR));
+    }
+
+    public function testConstructorRejectsInvalidScalarTypes(): void
+    {
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage('Invalid scalar value');
+        new \Example\InheritanceSdk\DTOs\User((object) ['id' => 'not-an-integer', 'name' => 'Ada']);
+    }
+
+    public function testConstructorRejectsUnknownFields(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown JSON property');
+        new \Example\InheritanceSdk\DTOs\Profile((object) ['city' => 'Madrid', 'surprise' => 'hidden']);
+    }
+
+    public function testRequestAndResponseInheritJsonBehavior(): void
+    {
+        $request = new class((object) ['name' => 'example']) extends \Dmorenof\SdkRuntime\Request {
+            public string $name;
+        };
+        $response = new class((object) ['result' => 'accepted']) extends \Dmorenof\SdkRuntime\Response {
+            public string $result;
+        };
+        self::assertSame('{"name":"example"}', (string) $request);
+        self::assertSame('{"result":"accepted"}', (string) $response);
+    }
+
+    public function testMissingRequiredOutgoingFieldStopsBeforeHttp(): void
+    {
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public int $calls = 0;
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+            {
+                $this->calls++;
+                throw new \LogicException('Should not send invalid DTO');
+            }
+        };
+        $client = \Example\InheritanceSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+        try {
+            $client->resource(\Example\InheritanceSdk\Resources\Users::class)->post(new \Example\InheritanceSdk\DTOs\NewUser());
+            self::fail('Missing required field was transmitted');
+        } catch (\UnexpectedValueException $e) {
+            self::assertStringContainsString('Required JSON property', $e->getMessage());
+        }
+        self::assertSame(0, $transport->calls);
+    }
+
+    public function testNestedTypedArraysAcceptHydratedElements(): void
+    {
+        $source = file_get_contents(__DIR__ . '/fixtures/typed-collections-openapi31.json');
+        self::assertIsString($source);
+        $contract = (new SpecificationNormalizer())->fromJson($source);
+        $files = (new PhpExecutableEmitter('Example\\NestedSdk', 'example/nested-sdk'))->emit($contract);
+        foreach ([
+            'src/Enums/Bundle/RolesEnum.php',
+            'src/Collections/Bundle/EntriesCollection.php',
+            'src/Collections/Bundle/RolesCollection.php',
+            'src/DTOs/Entry.php', 'src/DTOs/Bundle.php',
+        ] as $file) {
+            eval(substr($files[$file], strlen('<?php')));
+        }
+
+        $entry = new \Example\NestedSdk\DTOs\Entry((object) ['name' => 'Ada']);
+        $role = \Example\NestedSdk\Enums\Bundle\RolesEnum::Admin;
+        $bundle = new \Example\NestedSdk\DTOs\Bundle((object) [
+            'entries' => [$entry], 'roles' => [$role],
+        ]);
+        self::assertSame($entry, $bundle->entries[0]);
+        self::assertSame($role, $bundle->roles[0]);
+        self::assertSame(
+            ['entries' => [['name' => 'Ada']], 'roles' => ['admin']],
+            json_decode((string) $bundle, true, 512, JSON_THROW_ON_ERROR),
+        );
+
+        $fromJson = new \Example\NestedSdk\DTOs\Bundle(
+            json_decode('{"entries":[{"name":"Grace"}],"roles":["viewer"]}', false, 512, JSON_THROW_ON_ERROR),
+        );
+        self::assertSame('Grace', $fromJson->entries[0]->name);
+        self::assertSame(\Example\NestedSdk\Enums\Bundle\RolesEnum::Viewer, $fromJson->roles[0]);
+    }
+
+    public function testOperationRequestRetainsRequiredPathAndOptionalQueryTypes(): void
+    {
+        $method = new \ReflectionMethod(\Example\InheritanceSdk\Resources\Users::class, 'getById');
+        $parameters = $method->getParameters();
+        self::assertSame(['id', 'params'], array_map(
+            static fn (\ReflectionParameter $parameter): string => $parameter->getName(),
+            $parameters,
+        ));
+        self::assertSame('int', $parameters[0]->getType()->getName());
+        self::assertSame(\Example\InheritanceSdk\GetParams\Users\ById::class, $parameters[1]->getType()->getName());
+        $verbose = (new \ReflectionClass(\Example\InheritanceSdk\GetParams\Users\ById::class))->getProperty('verbose');
+        self::assertSame('bool', $verbose->getType()->getName());
+        self::assertTrue($parameters[1]->allowsNull());
+        self::assertSame(null, $parameters[1]->getDefaultValue());
+    }
+
+    public function testTypedFieldRejectsUnrelatedClass(): void
+    {
+        $user = new \Example\InheritanceSdk\DTOs\User();
+        $this->expectException(\TypeError::class);
+        $user->profile = new \stdClass();
+    }
+}

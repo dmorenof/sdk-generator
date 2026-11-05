@@ -8,6 +8,7 @@ final readonly class OperationDefinition
     /**
      * @param list<ParameterDefinition> $parameters
      * @param list<ResponseDefinition> $responses
+     * @param list<array<string, list<string>>> $securityRequirements
      */
     public function __construct(
         public string $operationId,
@@ -16,5 +17,6 @@ final readonly class OperationDefinition
         public array $parameters,
         public ?RequestBodyDefinition $requestBody,
         public array $responses,
+        public array $securityRequirements = [],
     ) {}
 }

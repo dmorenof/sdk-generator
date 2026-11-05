@@ -12,13 +12,13 @@ function checkPreview(bool $actual, string $message): void
 
 $api = $argv[1] ?? '';
 if ($api === 'accounts') {
-    $transport = new class implements \Preview\AccountsSdk\Transport\TransportInterface {
+    $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
         public array $calls = [];
 
-        public function send(string $method, string $url, array $headers, ?string $body): \Preview\AccountsSdk\Transport\HttpResponse
+        public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
         {
             $this->calls[] = compact('method', 'url', 'headers', 'body');
-            return new \Preview\AccountsSdk\Transport\HttpResponse(
+            return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                 $method === 'GET' ? 200 : 201,
                 json_encode([
                     'id' => 27, 'name' => 'Example user', 'role' => 'admin',
@@ -28,30 +28,30 @@ if ($api === 'accounts') {
             );
         }
     };
-    $client = new \Preview\AccountsSdk\Api\ApiClient($transport, 'https://api.example.test/v1');
-    $user = $client->getUser(27, true);
-    checkPreview($user instanceof \Preview\AccountsSdk\Models\User, 'Accounts DTO type mismatch');
-    checkPreview($user->role === \Preview\AccountsSdk\Enums\UserRoleEnum::Admin, 'Accounts enum mismatch');
+    $client = \Preview\AccountsSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+    $user = $client->resource(\Preview\AccountsSdk\Resources\Users::class)->getById(27, new \Preview\AccountsSdk\GetParams\Users\ById((object) ['verbose' => true]));
+    checkPreview($user instanceof \Preview\AccountsSdk\DTOs\User, 'Accounts DTO type mismatch');
+    checkPreview($user->role === \Preview\AccountsSdk\Enums\User\RoleEnum::Admin, 'Accounts enum mismatch');
     checkPreview($user->profile->visits === 4, 'Accounts nested model mismatch');
     checkPreview($user->labels->getArrayCopy() === ['verified', 'preview'], 'Accounts collection mismatch');
     checkPreview($transport->calls[0]['url'] === 'https://api.example.test/v1/users/27?verbose=true', 'Accounts URL mismatch');
 
-    $body = new \Preview\AccountsSdk\Models\NewUser();
+    $body = new \Preview\AccountsSdk\DTOs\NewUser();
     $body->name = 'A user';
-    $client->createUser($body);
+    $client->resource(\Preview\AccountsSdk\Resources\Users::class)->post($body);
     checkPreview($transport->calls[1]['method'] === 'POST', 'Accounts POST mismatch');
     checkPreview(
         json_decode((string)$transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR) === ['name' => 'A user'],
         'Accounts POST JSON mismatch',
     );
 } elseif ($api === 'catalog') {
-    $transport = new class implements \Preview\CatalogSdk\Transport\TransportInterface {
+    $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
         public array $calls = [];
 
-        public function send(string $method, string $url, array $headers, ?string $body): \Preview\CatalogSdk\Transport\HttpResponse
+        public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
         {
             $this->calls[] = compact('method', 'url', 'headers', 'body');
-            return new \Preview\CatalogSdk\Transport\HttpResponse(
+            return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
                 $method === 'GET' ? 200 : 201,
                 json_encode([
                     'sku' => 'BOOK-09', 'title' => 'Example book', 'price' => 19.75,
@@ -62,19 +62,19 @@ if ($api === 'accounts') {
             );
         }
     };
-    $client = new \Preview\CatalogSdk\Api\ApiClient($transport, 'https://catalog.example.test/api/v2');
-    $book = $client->findBook('BOOK-09', false);
-    checkPreview($book instanceof \Preview\CatalogSdk\Models\Book, 'Catalog DTO type mismatch');
+    $client = \Preview\CatalogSdk\Client::connect('https://catalog.example.test/api/v2', transport: $transport);
+    $book = $client->resource(\Preview\CatalogSdk\Resources\Books::class)->getBySku('BOOK-09', new \Preview\CatalogSdk\GetParams\Books\BySku((object) ['expand' => false]));
+    checkPreview($book instanceof \Preview\CatalogSdk\DTOs\Book, 'Catalog DTO type mismatch');
     checkPreview($book->price === 19.75, 'Catalog float mismatch');
-    checkPreview($book->genre === \Preview\CatalogSdk\Enums\BookGenreEnum::Fiction, 'Catalog enum mismatch');
+    checkPreview($book->genre === \Preview\CatalogSdk\Enums\Book\GenreEnum::Fiction, 'Catalog enum mismatch');
     checkPreview($book->warehouse->region === 'Castilla', 'Catalog nested DTO mismatch');
     checkPreview($book->tags->getArrayCopy() === ['demo', 'typed'], 'Catalog collection mismatch');
     checkPreview($transport->calls[0]['url'] === 'https://catalog.example.test/api/v2/books/BOOK-09?expand=false', 'Catalog URL mismatch');
 
-    $body = new \Preview\CatalogSdk\Models\BookDraft();
+    $body = new \Preview\CatalogSdk\DTOs\BookDraft();
     $body->title = 'A new book';
     $body->price = 12.5;
-    $client->addBook($body);
+    $client->resource(\Preview\CatalogSdk\Resources\Books::class)->post($body);
     checkPreview($transport->calls[1]['method'] === 'POST', 'Catalog POST mismatch');
     checkPreview(
         count(json_decode((string)$transport->calls[1]['body'], true, 512, JSON_THROW_ON_ERROR)) === 2
@@ -111,12 +111,12 @@ if ($api === 'accounts') {
         }
     ));
 
-    $ready = \Preview\AccountsSdk\Api\ApiClient::connect(
+    $client = \Preview\AccountsSdk\Client::connect(
         'https://api.example.test/v1',
         new \GuzzleHttp\Client(['handler' => $stack]),
         ['Authorization' => 'Bearer example'],
     );
-    $result = $ready->getUser(27);
+    $result = $client->resource(\Preview\AccountsSdk\Resources\Users::class)->getById(27);
     checkPreview($result->name === 'Standalone', 'Ready-to-use Accounts DTO mismatch');
     checkPreview($events === ['before', 'after'], 'Guzzle middleware chain did not run');
 } else {
@@ -130,11 +130,11 @@ if ($api === 'accounts') {
     $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([
         new \GuzzleHttp\Psr7\Response(200, [], $payload),
     ]));
-    $ready = \Preview\CatalogSdk\Api\ApiClient::connect(
+    $client = \Preview\CatalogSdk\Client::connect(
         'https://catalog.example.test/api/v2',
         new \GuzzleHttp\Client(['handler' => $stack]),
     );
-    $result = $ready->findBook('BOOK-09');
+    $result = $client->resource(\Preview\CatalogSdk\Resources\Books::class)->getBySku('BOOK-09');
     checkPreview($result->title === 'Ready', 'Ready-to-use Catalog DTO mismatch');
 }
 echo "READY_PSR18_CONSUMER_OK: $api\n";

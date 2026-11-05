@@ -45,8 +45,10 @@ final class GeneratedPackageIntegrationTest extends TestCase
         ]));
         exec($cmd . ' 2>&1', $output, $exit);
         self::assertSame(0, $exit, implode("\n", $output));
-        self::assertFileExists($dest . '/src/Api/ApiClient.php');
-        self::assertFileExists($dest . '/src/Models/User.php');
+        self::assertFileExists($dest . '/src/Client.php');
+        self::assertFileExists($dest . '/src/Resources/Users.php');
+        self::assertFileExists($dest . '/src/Resources/Users.php');
+        self::assertFileExists($dest . '/src/DTOs/User.php');
         self::assertFileExists($dest . '/composer.json');
 
         $composer = json_decode(file_get_contents($dest . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
@@ -69,22 +71,22 @@ spl_autoload_register(static function (string $class) use ($argv): void {
     }
 });
 
-$fake = new class implements \Acme\PublicSdk\Transport\TransportInterface {
-    public function send(string $method, string $url, array $headers, ?string $body): \Acme\PublicSdk\Transport\HttpResponse
+$fake = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+    public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
     {
         if ($method !== 'GET' || $url !== 'https://api.example.test/v1/users/88?verbose=true') {
             throw new RuntimeException('Unexpected wire request: ' . $method . ' ' . $url);
         }
-        return new \Acme\PublicSdk\Transport\HttpResponse(
+        return new \Dmorenof\SdkRuntime\Transport\HttpResponse(
             200,
             '{"id":88,"name":"Demo","role":"viewer","profile":{"city":"Bilbao","visits":2},"labels":["php"]}',
         );
     }
 };
-$client = new \Acme\PublicSdk\Api\ApiClient($fake, 'https://api.example.test/v1');
-$user = $client->getUser(88, true);
-if (!$user instanceof \Acme\PublicSdk\Models\User
-    || $user->role !== \Acme\PublicSdk\Enums\UserRoleEnum::Viewer
+$client = \Acme\PublicSdk\Client::connect('https://api.example.test/v1', transport: $fake);
+$user = $client->resource(\Acme\PublicSdk\Resources\Users::class)->getById(88, new \Acme\PublicSdk\GetParams\Users\ById((object) ['verbose' => true]));
+if (!$user instanceof \Acme\PublicSdk\DTOs\User
+    || $user->role !== \Acme\PublicSdk\Enums\User\RoleEnum::Viewer
     || $user->profile->city !== 'Bilbao'
     || $user->labels[0] !== 'php') {
     throw new RuntimeException('Generated DTO hydration failed.');
@@ -102,6 +104,64 @@ PHP;
         exec($external . ' 2>&1', $lines, $result);
         self::assertSame(0, $result, implode("\n", $lines));
         self::assertContains('GENERATED_CONSUMER_OK', $lines);
+    }
+
+    public function testCliDerivesSdkNamespaceFromOpenApiTitleWhenNotSpecified(): void
+    {
+        $generator = dirname(__DIR__) . '/bin/generate-sdk.php';
+        $fixture = __DIR__ . '/fixtures/accounts-openapi31.json';
+        $dest = $this->directory . '/automatic-root';
+        // The shorter CLI form supplies only vendor/package; no PHP namespace.
+        $cmd = implode(' ', array_map('escapeshellarg', [
+            PHP_BINARY, $generator, $fixture, $dest, 'example/automatic-accounts-sdk',
+        ]));
+        $lines = [];
+        $exit = 0;
+        exec($cmd . ' 2>&1', $lines, $exit);
+        self::assertSame(0, $exit, implode("\n", $lines));
+        $manifest = json_decode(
+            (string) file_get_contents($dest . '/composer.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        // "Example Accounts" comes from the OpenAPI info.title, not a model name.
+        self::assertSame('src/', $manifest['autoload']['psr-4']['ExampleAccounts\\']);
+        self::assertFileExists($dest . '/src/DTOs/User.php');
+        self::assertFileExists($dest . '/src/Resources/Users.php');
+    }
+
+    public function testCliGeneratesSdkFromYamlInput(): void
+    {
+        $generator = dirname(__DIR__) . '/bin/generate-sdk.php';
+        $fixture = $this->directory . '/input.yml';
+        file_put_contents($fixture, <<<'YAML'
+openapi: 3.1.0
+info:
+  title: YAML API
+  version: '1.0'
+servers:
+  - url: https://api.example.test
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        '204':
+          description: Healthy
+YAML);
+        $dest = $this->directory . '/yaml-client';
+        $cmd = implode(' ', array_map('escapeshellarg', [
+            PHP_BINARY, $generator, $fixture, $dest, 'Acme\\YamlSdk', 'acme/yaml-sdk',
+        ]));
+        $lines = [];
+        $exit = 0;
+        exec($cmd . ' 2>&1', $lines, $exit);
+
+        self::assertSame(0, $exit, implode("\n", $lines));
+        self::assertFileExists($dest . '/src/Client.php');
+        self::assertFileExists($dest . '/src/Resources/Health.php');
+        self::assertFileExists($dest . '/composer.json');
     }
 
     public function testCliRefusesToOverwriteNonemptyOutputDirectory(): void

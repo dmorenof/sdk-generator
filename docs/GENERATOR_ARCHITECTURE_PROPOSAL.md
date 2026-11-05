@@ -3,6 +3,8 @@
 **Status:** historical architecture proposal; read README.md and docs/SUPPORTED_SCOPE.md for the actually implemented v0.1.0 subset. Corrects the earlier
 Casafari-first/DTO-first sequence. No PHP source, dependencies or tags changed.
 
+Current product direction and output acceptance criteria are defined in [SDK_DESIGN.md](SDK_DESIGN.md). The historical proposal below describes the format-neutral input pipeline; generated SDK usability, inherited behavior and measured runtime costs take priority over increasing specification coverage.
+
 ## Goal: one path from any supported API specification to a PHP SDK
 
 This project's primary product is a **source-code generator**, analogous in

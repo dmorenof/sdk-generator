@@ -1,5 +1,7 @@
 # First controlled comparison with OpenAPI Generator
 
+Current DTO runtime measurements for the instance-client refactor are in [DTO_REFACTOR.md](DTO_REFACTOR.md), with reproducible probes and raw CPU/memory results. The historical comparisons below do not establish the performance of the current output.
+
 Do not infer superior runtime efficiency from shorter source files.
 The benchmark compares **generation only** first.
 

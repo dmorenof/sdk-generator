@@ -35,30 +35,40 @@ final class PhpContractEmitterTest extends TestCase
             'composer.json',
             'src/Api/OperationCatalog.php',
             'src/Api/Operations.php',
-            'src/Collections/UserLabelsArray.php',
-            'src/Enums/NewUserRoleEnum.php',
-            'src/Enums/UserRoleEnum.php',
-            'src/Models/NewUser.php',
-            'src/Models/Profile.php',
-            'src/Models/User.php',
+            'src/Api/Requests/GetUserRequest.php',
+            'src/Collections/StringCollection.php',
+            'src/DTOs/NewUser.php',
+            'src/DTOs/Profile.php',
+            'src/DTOs/User.php',
+            'src/Enums/NewUser/RoleEnum.php',
+            'src/Enums/User/RoleEnum.php',
         ], array_keys($swagger));
     }
 
     public function testGeneratedDTOsHaveNativeTypesAndRetainWireNames(): void
     {
         $files = $this->generated();
-        $user = $files['src/Models/User.php'];
+        $user = $files['src/DTOs/User.php'];
+        self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\DTO', $user);
+        self::assertStringContainsString(
+            'extends \\Dmorenof\\SdkRuntime\\DTO',
+            $files['src/DTOs/NewUser.php'],
+        );
+        self::assertStringContainsString(
+            'extends \\Dmorenof\\SdkRuntime\\DTO',
+            $files['src/DTOs/Profile.php'],
+        );
         self::assertStringContainsString('public int $id;', $user);
         self::assertStringContainsString('public string $name;', $user);
         self::assertStringContainsString('public ?string $nickname;', $user);
-        self::assertStringContainsString('public \\Example\\AccountsSdk\\Models\\Profile $profile;', $user);
-        self::assertStringContainsString('public \\Example\\AccountsSdk\\Enums\\UserRoleEnum $role;', $user);
-        self::assertStringContainsString('public \\Example\\AccountsSdk\\Collections\\UserLabelsArray $labels;', $user);
-        self::assertStringContainsString('(object) get_object_vars($this)', $user);
+        self::assertStringContainsString('public \\Example\\AccountsSdk\\DTOs\\Profile $profile;', $user);
+        self::assertStringContainsString('public \\Example\\AccountsSdk\\Enums\\User\\RoleEnum $role;', $user);
+        self::assertStringContainsString('public \\Example\\AccountsSdk\\Collections\\StringCollection $labels;', $user);
+        self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\TypedArray', $files['src/Collections/StringCollection.php']);
         self::assertStringNotContainsString('= null;', $user);
-        self::assertStringContainsString("case Admin = 'admin';", $files['src/Enums/UserRoleEnum.php']);
-        self::assertStringContainsString("case Viewer = 'viewer';", $files['src/Enums/UserRoleEnum.php']);
-        self::assertStringContainsString("protected string \$expected_type = 'string';", $files['src/Collections/UserLabelsArray.php']);
+        self::assertStringContainsString("case Admin = 'admin';", $files['src/Enums/User/RoleEnum.php']);
+        self::assertStringContainsString("case Viewer = 'viewer';", $files['src/Enums/User/RoleEnum.php']);
+        self::assertStringContainsString("protected string \$expected_type = 'string';", $files['src/Collections/StringCollection.php']);
     }
 
     public function testGeneratedEndpointContractsExposeTypedArgumentsAndRoutes(): void
@@ -66,11 +76,11 @@ final class PhpContractEmitterTest extends TestCase
         $files = $this->generated();
         $operations = $files['src/Api/Operations.php'];
         self::assertStringContainsString(
-            'public function getUser(int $id, ?bool $verbose = null): \\Example\\AccountsSdk\\Models\\User;',
+            'public function getUser(\\Example\\AccountsSdk\\Api\\Requests\\GetUserRequest $request): \\Example\\AccountsSdk\\DTOs\\User;',
             $operations,
         );
         self::assertStringContainsString(
-            'public function createUser(\\Example\\AccountsSdk\\Models\\NewUser $body): \\Example\\AccountsSdk\\Models\\User;',
+            'public function createUser(\\Example\\AccountsSdk\\DTOs\\NewUser $body): \\Example\\AccountsSdk\\DTOs\\User;',
             $operations,
         );
         $catalog = $files['src/Api/OperationCatalog.php'];
@@ -85,7 +95,7 @@ final class PhpContractEmitterTest extends TestCase
         $data = json_decode($this->generated()['composer.json'], true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('example/accounts-sdk', $data['name']);
         self::assertSame('^8.3', $data['require']['php']);
-        self::assertSame('^1.0', $data['require']['typedarray/typedarray']);
+        self::assertSame(\Dmorenof\SdkGenerator\Generation\PhpContractEmitter::RUNTIME_CONSTRAINT, $data['require']['dmorenof/sdk-runtime']);
         self::assertSame('src/', $data['autoload']['psr-4']['Example\\AccountsSdk\\']);
         self::assertArrayNotHasKey('version', $data);
     }
@@ -115,16 +125,16 @@ final class PhpContractEmitterTest extends TestCase
         $files = $this->generated();
         // Load only the PHP classes this smoke test needs (no HTTP runtime).
         foreach ([
-            'src/Enums/UserRoleEnum.php',
-            'src/Models/Profile.php',
-            'src/Models/User.php',
+            'src/Enums/User/RoleEnum.php',
+            'src/DTOs/Profile.php',
+            'src/DTOs/User.php',
         ] as $path) {
             eval(substr($files[$path], strlen('<?php')));
         }
 
-        $profileClass = 'Example\\AccountsSdk\\Models\\Profile';
-        $userClass = 'Example\\AccountsSdk\\Models\\User';
-        $roleEnum = 'Example\\AccountsSdk\\Enums\\UserRoleEnum';
+        $profileClass = 'Example\\AccountsSdk\\DTOs\\Profile';
+        $userClass = 'Example\\AccountsSdk\\DTOs\\User';
+        $roleEnum = 'Example\\AccountsSdk\\Enums\\User\\RoleEnum';
 
         $profile = new $profileClass();
         $profile->city = 'Madrid';
@@ -150,7 +160,33 @@ final class PhpContractEmitterTest extends TestCase
         self::assertNull($data['nickname']);
     }
 
-    public function testRejectsUnrepresentableWireNameInsteadOfEmittingBrokenPhp(): void
+    public function testSharedInputOutputModelStaysNeutralDto(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['paths']['/users']['post']['requestBody']['content']['application/json']['schema']['$ref']
+            = '#/components/schemas/User';
+        $modified = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpContractEmitter('Example\\BothRoles', 'example/both-roles'))->emit($modified);
+        self::assertStringContainsString(
+            'final class User extends \\Dmorenof\\SdkRuntime\\DTO',
+            $files['src/DTOs/User.php'],
+        );
+        self::assertStringNotContainsString(
+            'extends \\Dmorenof\\SdkRuntime\\Response',
+            $files['src/DTOs/User.php'],
+        );
+        self::assertStringNotContainsString(
+            'extends \\Dmorenof\\SdkRuntime\\Request',
+            $files['src/DTOs/User.php'],
+        );
+    }
+
+    public function testWirePropertyNamesAreMappedToSafePhpIdentifiers(): void
     {
         $raw = json_decode(
             (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
@@ -160,13 +196,13 @@ final class PhpContractEmitterTest extends TestCase
         );
         $raw['components']['schemas']['User']['properties']['not-valid-name'] = ['type' => 'string'];
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpContractEmitter())->emit($contract);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid PHP model property identifier');
-        (new PhpContractEmitter())->emit($contract);
+        self::assertStringContainsString('public string $notValidName;', $files['src/DTOs/User.php']);
+        self::assertStringContainsString("'not-valid-name' => 'notValidName'", $files['src/DTOs/User.php']);
     }
 
-    public function testRejectsEnumValuesWhichWouldGenerateReservedPHPCaseNames(): void
+    public function testReservedEnumCaseNamesAreMappedSafely(): void
     {
         $raw = json_decode(
             (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
@@ -176,10 +212,44 @@ final class PhpContractEmitterTest extends TestCase
         );
         $raw['components']['schemas']['User']['properties']['role']['enum'][] = 'class';
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpContractEmitter())->emit($contract);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid PHP enum case identifier: Class');
-        (new PhpContractEmitter())->emit($contract);
+        self::assertStringContainsString("case Class_ = 'class';", $files['src/Enums/User/RoleEnum.php']);
+    }
+
+    public function testCollidingSanitizedEnumCaseNamesGetStableSuffixes(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['components']['schemas']['User']['properties']['role']['enum'][] = 'a';
+        $raw['components']['schemas']['User']['properties']['role']['enum'][] = 'a+';
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpContractEmitter())->emit($contract);
+
+        self::assertStringContainsString("case A = 'a';", $files['src/Enums/User/RoleEnum.php']);
+        self::assertStringContainsString("case A2 = 'a+';", $files['src/Enums/User/RoleEnum.php']);
+    }
+
+    public function testTopLevelStringEnumsGenerateBackedEnums(): void
+    {
+        $raw = json_decode(
+            (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $raw['components']['schemas']['UserStatus'] = [
+            'type' => 'string',
+            'enum' => ['active', 'new'],
+        ];
+        $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
+        $files = (new PhpContractEmitter())->emit($contract);
+
+        self::assertStringContainsString("case New_ = 'new';", $files['src/Enums/UserStatus.php']);
     }
 
     public function testRejectsNonObjectTopLevelModelUntilAliasesSupported(): void
