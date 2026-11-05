@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Ámbito:** `dmorenof/sdk-generator` (`feature/unified-dto-psr12-public-api`, a integrar en `release/0.2.0`) y `dmorenof/sdk-runtime` (`feature/dto-directional-context`).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.2.0** y `dmorenof/sdk-runtime` **v0.3.1** (ramas de desarrollo integradas; ver historial).
 >
 > **Criterio de actualización:** marcar las casillas solo tras código, pruebas de regresión y aceptación en CI. Registrar el PR y la versión de cierre. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -26,12 +26,13 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [x] DTOs tipados, enums de `string`/`integer`, TypedArrays, modelos locales y ciertas composiciones `allOf`/`anyOf`/`oneOf`.
 - [x] Parámetros básicos `path`, `query` y `header`; cuerpo JSON; respuestas JSON tipadas.
 - [x] HTTP Basic, Bearer y API key en `query` o `header`, con herencia de requisitos y alternativas AND/OR.
-- [x] DTO único como clase base y namespaces `DTOs`/`Requests`/`Responses` para tipos propios de cada operación **en ramas de trabajo**.
-- [x] Formateo PSR-12 automático del código generado **en rama de trabajo**.
+- [x] DTO único como clase base y namespaces `DTOs`/`Requests`/`Responses` para tipos propios de cada operación **publicado en v0.2.0**.
+- [x] Formateo PSR-12 automático del código generado **publicado en v0.2.0**.
 - [x] Casafari: generación de 46 operaciones y comprobaciones de Composer, PSR-12 y sintaxis **sin llamadas autenticadas a Casafari**.
 - [x] FakeRESTApi: generación del contrato original completo y peticiones reales GET individual, GET de lista y POST; no se han probado todas sus operaciones.
 - [x] CI del generador: 145 pruebas / 1.828 aserciones (estado comprobado al elaborar la auditoría).
-- [ ] **Integrar y versionar establemente** el generador 0.2.0 antes de sustituir CasafariSDK en producción. El runtime unificado ya está integrado y publicado como **v0.3.1**; falta el release definitivo del generador y la prueba autenticada de Casafari.
+- [x] **Integración y publicación estables:** `sdk-runtime` **v0.3.1** y `sdk-generator` **v0.2.0**, con CI y pruebas de aceptación en verde.
+- [ ] **Migración de CasafariSDK:** probar operaciones autenticadas reales, revisar compatibilidad de uso/middleware, comparar datos y preparar rollback antes del cambio en producción.
 
 ### Versiones de entrada
 
@@ -155,6 +156,31 @@ OpenAPI 3.1 se apoya en JSON Schema 2020-12. Este bloque puede avanzar en parale
 - **`allOf` (AND):** el **mismo valor JSON** debe satisfacer **todos** los esquemas. No representa un array con una instancia de cada clase ni exige modificar `TypedArray`. Para objetos compatibles, fusionar propiedades en un DTO concreto solo si se conservan todas las restricciones, especialmente `required`, `additionalProperties`, composición y restricciones cruzadas; usar validación de intersección o representación auxiliar cuando la fusión no sea fiel.
 - **Fallback:** mantener envoltorios `AnyOf`/`OneOf` u otra representación explícita en los casos donde una unión nativa no baste (tipos solapados, ambigüedad de hidratación, varios esquemas para un único objeto JSON o necesidad de conservar variantes). No eliminar los actuales antes de comprobar compatibilidad.
 - **Hidratación y validación:** validar **el dato JSON de origen** contra los esquemas aplicables, seleccionar la clase PHP sin alterar arbitrariamente su significado y volver a validar al serializar/tras mutaciones. Compartir el motor de evaluación de ramas: `anyOf >= 1`, `oneOf === 1`, `allOf === total`.
+
+### Refinamiento: representar polimorfismo como herencia PHP cuando el contrato lo permita
+
+En el patrón habitual OpenAPI `Pet` + `Dog`/`Cat`, donde `Dog` y `Cat` declaran `allOf: [{$ref: Pet}, {type: object, properties: ...}]`, preferir `Pet extends DTO` y `Dog extends Pet`/`Cat extends Pet` **si la estructura es realmente compatible con herencia simple**. `oneOf: [Dog, Cat]` puede dar una firma PHP `Dog|Cat`, con validación del `oneOf` original. El `discriminator.propertyName` y su `mapping` explícito/implícito ayudan a elegir el DTO concreto durante la hidratación.
+
+**Matices normativos que debemos preservar:**
+
+- `allOf` es intersección de esquemas, **no implica siempre una jerarquía de clases**. No convertir automáticamente `allOf` con dos bases independientes en herencia múltiple PHP.
+- `discriminator` es una ayuda para decidir qué esquema instanciar; **no modifica el resultado de validar** `oneOf`/`anyOf`. Todas las ramas mantienen su semántica lógica.
+- Ejemplo de ambigüedad: si `Pet` solo exige `pet_type` y `Dog`/`Cat` añaden únicamente propiedades opcionales, `{"pet_type":"Dog"}` puede satisfacer **ambas** ramas y resulta inválido para `oneOf`. Para distinguir esquemas mediante validación, declarar `pet_type: {type: string, enum: [Dog]}` y su equivalente para `Cat` en OAS 3.0 (o `const` en OAS 3.1).
+- En PHP no redeclarar propiedades heredadas con tipos incompatibles: aplicar las restricciones del discriminador mediante metadatos/reglas de validación del hijo.
+- El generador actual **aplana** `allOf` compatible, genera modelos como `final class ... extends DTO` y **rechaza `discriminator`**. La herencia `Dog extends Pet` es una optimización futura, no algo ya implementado.
+- Al introducir herencia, combinar correctamente `REQUIRED_FIELDS`, `VALIDATION`, `PROPERTY_MAP`, `READ_ONLY_FIELDS`, `WRITE_ONLY_FIELDS` y demás metadatos de padres/hijos; comprobar reflexión, serialización e hidratación de propiedades heredadas.
+
+**Tareas del refinamiento:**
+
+- [ ] Reconocer y preservar `discriminator.propertyName` y `mapping`, con mapeo explícito/implícito y diagnóstico si el valor no identifica una rama.
+- [ ] Detectar patrón `allOf` de un único padre `$ref` + propiedades propias, con ausencia de conflictos de validación, y generar herencia nativa cuando sea fiel.
+- [ ] Permitir extender modelos base (ajustar `final` únicamente en las clases necesarias) sin romper usos independientes de `Pet`.
+- [ ] Fusionar o aplicar de forma incremental las reglas declarativas de toda la cadena de clases.
+- [ ] Hidratar `oneOf`/`anyOf` orientándose por el discriminador y validar la cardinalidad real de los esquemas originales.
+- [ ] Incluir tests de `Pet`, `Dog`, `Cat`: selección de clase, herencia, serialización, caso ambiguo y `mapping` con nombres diferentes.
+- [ ] Mantener fallback a DTO aplanado/representaciones auxiliares para composiciones sin herencia PHP válida.
+
+Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://spec.openapis.org/oas/v3.1.2.html#composition-and-inheritance-polymorphism); [JSON Schema: Combining Schemas](https://json-schema.org/understanding-json-schema/reference/combining).
 
 **Pruebas imprescindibles:**
 
@@ -364,3 +390,5 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 | --- | --- | --- |
 | 2026-11-05 | Se guarda la auditoría inicial de funcionalidades ausentes/parciales y se divide en 10 paquetes. | Conversación de arquitectura SDK Generator |
 | 2026-11-05 | Decisión de diseño: tipos unión nativos cuando sean fieles, validación declarativa OR/XOR/AND y `allOf` como intersección del mismo JSON (no colección). | Debate sobre anyOf/oneOf/allOf |
+| 2026-11-05 | Publicados `sdk-runtime` v0.3.1 y `sdk-generator` v0.2.0, ambas CI verdes; permanece pendiente la prueba autenticada de Casafari. | [Runtime v0.3.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.3.1), [Generator v0.2.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.2.0) |
+| 2026-11-05 | Refinamiento de polimorfismo: representar `Pet -> Dog/Cat` como herencia PHP cuando `allOf` sea apto y usar `discriminator` para orientar la hidratación sin reemplazar la validación `oneOf`. | Debate sobre herencia y `discriminator` OpenAPI |

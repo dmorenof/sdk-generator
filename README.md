@@ -161,7 +161,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-The current release target is [VERSION](VERSION) = 0.2.0. The [Publish version workflow](.github/workflows/release.yml) creates an immutable Git tag **v0.2.0** and GitHub Release when the changes reach `main` and validation succeeds. Generated SDKs require the stable `dmorenof/sdk-runtime` **^0.3.1**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+The current stable release is **[v0.2.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.2.0)**, matching [VERSION](VERSION). Its immutable tag and GitHub Release were published through the validated [Publish version workflow](.github/workflows/release.yml). Generated SDKs require the stable `dmorenof/sdk-runtime` **^0.3.1**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 
