@@ -48,9 +48,16 @@ $handler = static function (\Psr\Http\Message\RequestInterface $request, array $
 };
 $http = new \GuzzleHttp\Client(['handler' => \GuzzleHttp\HandlerStack::create($handler)]);
 
+$params = null;
 if ($kind === 'ours') {
-    $class = 'Benchmark\\' . ucfirst($api) . 'Sdk\\Api\\' . ($api === 'accounts' ? 'Users\\User' : 'Books\\Book');
-    $client = $class::connect($url, $http);
+    // Use the public route/resource API emitted by SDK Generator 0.2.0.
+    // Preserve the same optional query value as the OpenAPI Generator probe.
+    $namespace = 'Benchmark\\' . ucfirst($api) . 'Sdk';
+    $clientClass = $namespace . '\\Client';
+    $resourceClass = $namespace . '\\Resources\\' . ($api === 'accounts' ? 'Users' : 'Books');
+    $paramsClass = $namespace . '\\GetParams\\' . ($api === 'accounts' ? 'Users\\ById' : 'Books\\BySku');
+    $params = new $paramsClass((object) [($api === 'accounts' ? 'verbose' : 'expand') => false]);
+    $client = $clientClass::connect($url, $http)->resource($resourceClass);
 } else {
     $config = \OpenAPI\Client\Configuration::getDefaultConfiguration()->setHost($url);
     $client = new \OpenAPI\Client\Api\DefaultApi($http, $config);
@@ -68,11 +75,11 @@ $check = static function (object $result) use ($kind, $api, $expectedName, $expe
         throw new RuntimeException('Response DTO semantics differ from fixture.');
     }
 };
-$execute = static function () use ($client, $api, $kind): object {
+$execute = static function () use ($client, $api, $kind, $params): object {
     if ($kind === 'ours') {
         return $api === 'accounts'
-            ? $client->getById(88, false)
-            : $client->getBySku('BOOK-09', false);
+            ? $client->getById(88, $params)
+            : $client->getBySku('BOOK-09', $params);
     }
     return $api === 'accounts'
         ? $client->getUser(88, false)
