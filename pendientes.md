@@ -51,15 +51,15 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 
 **Estado del paquete 01: parcial — 3 tareas resueltas y 6 parcialmente cubiertas.**
 
-- **Código:** [PR #20](https://github.com/dmorenof/sdk-generator/pull/20), rama `feature/p0-contract-fidelity`, commit de implementación `fafded6`.
-- **Entrega:** en rama y en borrador; pendiente de integrar y publicar. La versión estable sigue siendo v0.3.0 / runtime v0.4.0.
-- **Evidencia:** 205 pruebas / 2.011 aserciones; cuatro SDKs generados pasan PHPStan max; [CI remota del código en verde](https://github.com/dmorenof/sdk-generator/actions/runs/42037002030).
+- **Código:** [PR #20](https://github.com/dmorenof/sdk-generator/pull/20), rama `feature/p0-contract-fidelity`, conservación/diagnóstico y enrutamiento efectivo coordinado con runtime #7.
+- **Entrega:** [generador #20](https://github.com/dmorenof/sdk-generator/pull/20) + [runtime #7](https://github.com/dmorenof/sdk-runtime/pull/7), ambos en `feature/p0-contract-fidelity` y en borrador; pendiente de integrar y publicar. Dependencia temporal `dev-feature/p0-contract-fidelity` del runtime. La versión estable sigue siendo v0.3.0 / runtime v0.4.0.
+- **Evidencia:** 216 pruebas / 2.061 aserciones; cuatro SDKs generados pasan PHPStan max; runtime: 54 pruebas / 108 aserciones y CI verde. CI del nuevo enrutamiento del generador pendiente.
 - **Alcance:** este PR avanza el paquete 01. Los paquetes P0 02 (referencias), 03 (serialización HTTP) y 04 (cuerpos/respuestas) siguen pendientes de implementación general.
 
 ### Lista de trabajo del paquete 01
 
 - [ ] **Parcial — Conservar toda la serialización de parámetros.** Hecho: conservar `style`, `explode`, `allowReserved`, `allowEmptyValue`, `collectionFormat`, valores `false` explícitos y representaciones de parámetros con `content` JSON. Falta: normalización general de `content` fuera de JSON y referencias. La ejecución de estos estilos en HTTP corresponde al paquete 03 y sigue pendiente.
-- [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. Ejecutar los servidores por operación sigue pendiente.
+- [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. El enrutamiento de servidores literales HTTP(S) está implementado con sustituciones por entorno en el runtime compartido; relativos, plantillas y variables siguen pendientes.
 - [ ] **Parcial — Conservar encabezados, cookies y respuestas diferenciadas.** Hecho: conservar los objetos originales de headers/links; mantener códigos y esquemas de respuesta ya soportados. Falta: normalización tipada general de headers/cookies y todas las formas de respuesta. Conservar headers en el contrato todavía no los expone desde el runtime.
 - [ ] **Parcial — Separar ejecución/validación de anotaciones.** Hecho: conservar anotaciones de documento, operación, parámetros y media types; distinguir las opciones HTTP auditadas y tratar los ejemplos como datos. Falta: completar esa clasificación en todos los componentes anidados y dialectos.
 - [ ] **Parcial — Auditar opciones ignoradas.** Hecho: detectar opciones conocidas de documento, ruta, operación y parámetros; estilos no ejecutados, overrides de servidor, headers/links, encoding y keywords no soportadas. Respetar sobrescrituras para evitar falsos errores. Falta: auditoría exhaustiva de componentes anidados y semántica HTTP restante.
@@ -73,11 +73,11 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 | Caso | Antes de PR #20 | En esta rama | Trabajo restante |
 | --- | --- | --- | --- |
 | Parámetro con `allowReserved: true` | La opción podía desaparecer del contrato sin aviso. | Se conserva y se diagnostica; el modo estricto bloquea la generación. | Implementar su serialización HTTP. |
-| Ruta con servidor distinto del raíz | El cliente usaba el servidor raíz y podía pasar la aceptación. | Se conserva el servidor de ruta y la aceptación estricta detecta que el runtime no lo ejecuta. | Corregir el enrutamiento del runtime. |
+| Ruta con servidor distinto del raíz | El cliente usaba el servidor raíz y podía pasar la aceptación. | Se conserva y ejecuta el servidor efectivo con precedencia operación → ruta → raíz; configurable por entorno. | Relativos, variables y selección dinámica entre servidores. |
 | Revisar una especificación sin generar un SDK | Faltaba este modo de inspección en el generador. | `--inspect` devuelve un informe de compatibilidad sin crear archivos. | Ampliar la cobertura de la auditoría. |
 | Analizar por separado una operación polimórfica | La selección de esquemas podía eliminar subclases necesarias. | Se conserva el cierre de discriminadores explícitos/implícitos y los metadatos de ruta. | Resolución general de referencias del paquete 02. |
 
-**Hallazgo pendiente, no corrección terminada:** Casafari tiene 46 operaciones emitibles en modo de compatibilidad; la aceptación estricta aprueba 39 y bloquea 7 por servidores de ruta que el runtime aún no respeta. La generación de compatibilidad conserva el comportamiento anterior y muestra diagnósticos. No se han probado llamadas autenticadas.
+**Corrección urgente implementada en rama, CI del generador en curso:** las 46 operaciones de Casafari pasan ahora la aceptación estricta. Siete pruebas HTTP simuladas ejecutan los métodos generados afectados y comprueban la URL exacta de `platform.casafari.com`, parámetros y autenticación. Runtime: 54 pruebas / 108 aserciones y PHPStan max; [CI del runtime en verde](https://github.com/dmorenof/sdk-runtime/actions/runs/42051180373). No se han realizado llamadas reales/autenticadas a Casafari.
 
 Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.md). Las casillas resueltas de este apartado corresponden al **PR #20 aún sin publicar**; no cierran P0 ni el paquete 01 completo.
 
@@ -289,7 +289,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 - [ ] Variables de `servers`, valores por defecto y `enum`.
 - [ ] Servidores relativos y resolución frente al documento o base URL.
-- [ ] Sobreescrituras de servidor por Path Item y operación.
+- [ ] **Implementado en rama; CI del generador pendiente:** servidores literales HTTP(S) por Path Item y operación, precedencia operación → ruta → raíz y `serverOverrides` por conexión para otros entornos. PRs #20/#7, sin publicar. Relativos/variables siguen en sus tareas separadas.
 - [ ] Manejo de operaciones con varios servidores disponibles.
 - [ ] Soporte completo de referencias a `Path Item`.
 - [ ] Detección de rutas ambiguas, placeholders inconsistentes y nombres PHP en conflicto.

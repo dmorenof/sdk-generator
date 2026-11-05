@@ -46,13 +46,13 @@ final class DocumentInspectorTest extends TestCase
         self::assertSame('api.json', $issue->source);
     }
 
-    public function testServerOverrideIsReportedButAnnotationDifferencesDoNotChangeServerSelection(): void
+    public function testLiteralServerOverridesAreExecutableAndAnnotationsDoNotChangeSelection(): void
     {
         $document = self::source();
         $document['paths']['/users/{id}']['servers'] = [['url' => 'https://elsewhere.test']];
         $report = self::inspect($document);
-        self::assertFalse($report['strictlyAccepted']);
-        self::assertSame('/paths/~1users~1{id}/servers', $report['diagnostics'][0]->pointer);
+        self::assertTrue($report['strictlyAccepted']);
+        self::assertSame([], $report['diagnostics']);
         $document['paths']['/users/{id}']['get']['servers'] = $document['servers'];
         $document['paths']['/users/{id}']['get']['servers'][0]['description'] = 'same effective endpoint';
         self::assertTrue(self::inspect($document)['strictlyAccepted']);

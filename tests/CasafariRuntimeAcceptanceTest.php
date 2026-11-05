@@ -55,6 +55,56 @@ final class CasafariRuntimeAcceptanceTest extends TestCase
         $this->removeDirectory($this->directory);
     }
 
+    public static function platformOperations(): iterable
+    {
+        yield 'create search' => ['V1\\PropertySourcing\\Searches', 'post', [['location_ids' => [12345]]],
+            'https://platform.casafari.com/v1/property-sourcing/searches'];
+        yield 'describe search' => ['V1\\PropertySourcing\\Searches\\Describe', 'post', [['location_ids' => [12345]]],
+            'https://platform.casafari.com/v1/property-sourcing/searches/describe'];
+        yield 'next search page' => ['V1\\PropertySourcing\\Searches', 'getByCursor', ['cur/a b'],
+            'https://platform.casafari.com/v1/property-sourcing/searches/cur%2Fa%20b'];
+        yield 'property details' => ['V1\\PropertySourcing\\Properties', 'getByPropertyId', ['prop/a b', ['expand' => 'listings,history', 'operation' => 'sale']],
+            'https://platform.casafari.com/v1/property-sourcing/properties/prop%2Fa%20b?expand=listings%2Chistory&operation=sale'];
+        yield 'resolve property' => ['V1\\PropertySourcing\\Properties\\Resolve', 'post', [['url' => 'https://agency.example/listing/123', 'country' => 'ES']],
+            'https://platform.casafari.com/v1/property-sourcing/properties/resolve'];
+        yield 'list seller leads' => ['V1\\SellerLeads', 'get', [['lat' => 40.4168, 'lon' => -3.7038]],
+            'https://platform.casafari.com/v1/seller-leads?lat=40.4168&lon=-3.7038'];
+        yield 'seller lead details' => ['V1\\SellerLeads', 'getByLeadId', ['lead/a b'],
+            'https://platform.casafari.com/v1/seller-leads/lead%2Fa%20b'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('platformOperations')]
+    public function testEveryPlatformOperationSendsToItsDeclaredHost(string $route, string $method, array $values, string $expectedUrl): void
+    {
+        $history = [];
+        // A mock error avoids inventing success DTO payloads while proving the
+        // actual generated method, body validation, auth and transport URL.
+        $stack = HandlerStack::create(new MockHandler([
+            new Response(401, ['Content-Type' => 'application/problem+json'], '{"detail":"Mock response"}'),
+        ]));
+        $stack->push(Middleware::history($history));
+        $client = \CasafariRuntimeSdk\Client::connect('https://root.invalid', new Client(['handler' => $stack]),
+            securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['PlatformApiKey' => 'routing-test-token']));
+        $resource = $client->resource('CasafariRuntimeSdk\\Resources\\' . $route);
+        $parameters = (new \ReflectionMethod($resource, $method))->getParameters();
+        $arguments = [];
+        foreach ($values as $index => $value) {
+            $type = $parameters[$index]->getType();
+            self::assertInstanceOf(\ReflectionNamedType::class, $type);
+            $name = $type->getName();
+            $arguments[] = $type->isBuiltin() ? $value : new $name((object) $value);
+        }
+        try {
+            $resource->{$method}(...$arguments);
+            self::fail('The mock 401 response should produce an API exception.');
+        } catch (\Dmorenof\SdkRuntime\ApiException $exception) {
+            self::assertSame(401, $exception->response->status);
+        }
+        self::assertCount(1, $history);
+        self::assertSame($expectedUrl, (string) $history[0]['request']->getUri());
+        self::assertSame('Bearer routing-test-token', $history[0]['request']->getHeaderLine('Authorization'));
+    }
+
     public function testGeneratedCasafariClientHandlesAuthenticatedListAndTypedError(): void
     {
         $history = [];

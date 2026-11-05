@@ -4,11 +4,14 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 ## Unreleased
 
+- Execute literal absolute HTTP(S) operation servers with operation > path > root precedence in the shared runtime. Preserve configured root URLs, declared server path prefixes and encoded parameters; support per-connection `serverOverrides` through instance clients and static configuration.
+- All 46 pinned Casafari operations pass strict acceptance; seven HTTP mock regressions verify the actual generated methods route to platform.casafari.com with their declared authentication.
+- Coordinate with runtime PR #7 via temporary `dev-feature/p0-contract-fidelity`; no independent release. Relative/template servers, variable expansion and dynamic server selection remain pending.
 - Add in-memory `--inspect` / `--dry-run` compatibility reporting and an opt-in `--strict` generation gate before output is created.
 - Audit previously ignored HTTP options with deterministic source/operation JSON Pointer diagnostics and local reference chains. Compatibility generation now prints diagnostics instead of silently ignoring known unsupported options.
 - Preserve explicit parameter serialization options, content representations/encoding, effective server metadata, response headers/links and annotations in the intermediate contract. Keep server preference order and the declared Swagger JSON media type.
 - Apply the strict HTTP audit to acceptance reports (`compatibility_failed`) and expose structured strict normalization errors. Operation isolation retains Path Item metadata and discriminator subtype closures instead of hiding server overrides or removing valid subtypes.
-- This is the first P0 contract/diagnostic increment; unsupported serializers, server overrides, full reference resolution and transport formats remain pending. See `docs/CONTRACT_INSPECTION.md`.
+- This is the first P0 contract/diagnostic increment; unsupported serializers, relative/template servers, full reference resolution and transport formats remain pending. See `docs/CONTRACT_INSPECTION.md`.
 
 ## [0.3.0] — 2026-11-05
 

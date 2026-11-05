@@ -158,11 +158,14 @@ final class ContractAuditor
             $this->add('invalid_servers', $pointer, 'Servers must be an array.', $operation);
             return;
         }
-        $urls = static fn (array $values): array => array_map(static fn ($server): mixed => is_array($server) && is_string($server['url'] ?? null) ? rtrim($server['url'], '/') : null, $values);
-        if (is_array($root) && $urls($servers) !== $urls($root)) {
-            $this->add('server_override', $pointer, 'Path/operation server overrides are not executed by the shared client.', $operation);
+        if ($root !== null && $servers === []) {
+            $this->add('unsupported_server_override', $pointer, 'An empty server override requires relative default-server resolution, which is not implemented.', $operation);
         }
         foreach ($servers as $index => $server) {
+            $url = is_array($server) ? ($server['url'] ?? null) : null;
+            if (!is_string($url) || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($url)) {
+                $this->add('unsupported_server_url', "$pointer/$index/url", 'Only literal absolute HTTP(S) server URLs without credentials, query or fragment are executable.', $operation);
+            }
             if (is_array($server) && isset($server['variables'])) {
                 $this->add('server_variables', "$pointer/$index/variables", 'Server variables are not expanded.', $operation);
             }

@@ -1,7 +1,8 @@
 # Contract inspection (P0 development)
 
-The first P0 increment adds an HTTP-contract audit before generation. It does not
-implement the missing serializers, server routing, reference resolver or transports.
+P0 development adds an HTTP-contract audit before generation and executes literal
+absolute HTTP(S) operation servers. General serializers, relative/template server
+resolution, references and additional transports remain pending.
 
 ```sh
 php bin/generate-sdk.php --inspect api.json
@@ -35,8 +36,10 @@ calling the emitter.
 Current audit coverage is bounded. General schema/dialect validation, source line
 numbers, external URI resolution and complete auditing of nested components remain
 pending. JSON Pointer inspection does not expand the normalizer's reference support.
-In particular, current Casafari path server overrides are detected; they are not
-executed by this increment. The stable runtime dependency remains `^0.4.0`.
+Literal Casafari path server overrides are executed through the coordinated
+runtime branch in [runtime PR #7](https://github.com/dmorenof/sdk-runtime/pull/7).
+Development packages require `dev-feature/p0-contract-fidelity` until the
+coordinated delivery; the published baseline remains runtime v0.4.0.
 
 ## Preserved canonical metadata
 
@@ -75,8 +78,35 @@ emitting PHP is insufficient for acceptance. Isolated operations retain Path Ite
 metadata and the explicit/implicit discriminator subtype closure; isolation must
 not hide unsupported servers or remove valid subtype definitions.
 
-For the pinned Casafari fixture, 46 operations can still emit PHP in compatibility
-mode, while strict acceptance rejects seven operations with path server overrides.
-Problem JSON error representations are not treated as unsupported success-content
-negotiation. The runtime routing fix remains pending. No authenticated API calls
-were made and no production compatibility is claimed.
+For the pinned Casafari fixture, all 46 operations now pass strict acceptance.
+Seven HTTP mock tests invoke the actual affected generated methods and assert their
+exact platform.casafari.com URL, encoded identifiers/query values and authentication
+header. The tests use synthetic PlatformApiKey credentials and mock 401 responses;
+no live/authenticated Casafari calls are made. Problem JSON error representations
+remain compatible with success-content negotiation.
+
+## Executing operation servers
+
+The generator selects the first effective server with precedence **operation >
+Path Item > root**. It emits `serverUrl` only for an override differing from the
+root default. Root operations and equivalent root declarations keep using the
+configured client `baseUrl`. The shared runtime preserves the selected server's
+path prefix before adding the operation path and encoded parameters.
+
+Environment substitutions are per connection and are copied to shared resources:
+
+```php
+$client = Client::connect('https://root.staging.test', serverOverrides: [
+    'https://platform.casafari.com' => 'https://platform.staging.test',
+]);
+```
+
+Static facades support the same mapping through `Configuration::$serverOverrides`.
+`Client::configure()` takes a snapshot, so later configuration edits do not change
+an existing connection. URL keys ignore trailing slashes.
+
+Relative/template servers, variable expansion, empty overrides and server URLs with
+credentials, query or fragment remain explicitly unsupported. This work does not
+choose dynamically between several declared servers. Generator PR #20 and runtime
+PR #7 remain a single coordinated development delivery, without an independent
+release or merge.
