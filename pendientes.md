@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.2.0** y `dmorenof/sdk-runtime` **v0.3.1** (ramas de desarrollo integradas; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.3.0** y `dmorenof/sdk-runtime` **v0.4.0** (ramas de desarrollo integradas; ver historial).
 >
 > **Criterio de actualización:** marcar las casillas solo tras código, pruebas de regresión y aceptación en CI. Registrar el PR y la versión de cierre. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -31,7 +31,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [x] Casafari: generación de 46 operaciones y comprobaciones de Composer, PSR-12 y sintaxis **sin llamadas autenticadas a Casafari**.
 - [x] FakeRESTApi: generación del contrato original completo y peticiones reales GET individual, GET de lista y POST; no se han probado todas sus operaciones.
 - [x] CI del generador: 145 pruebas / 1.828 aserciones (estado comprobado al elaborar la auditoría).
-- [x] **Integración y publicación estables:** `sdk-runtime` **v0.3.1** y `sdk-generator` **v0.2.0**, con CI y pruebas de aceptación en verde.
+- [x] **Entrega coordinada:** `sdk-runtime` **v0.4.0** y `sdk-generator` **v0.3.0**, con herencia compatible, discriminadores locales y dependencia estable `^0.4.0`. Cierre: [Runtime #6](https://github.com/dmorenof/sdk-runtime/pull/6) y [Generator #19](https://github.com/dmorenof/sdk-generator/pull/19).
 - [ ] **Migración de CasafariSDK:** probar operaciones autenticadas reales, revisar compatibilidad de uso/middleware, comparar datos y preparar rollback antes del cambio en producción.
 
 ### Versiones de entrada
@@ -167,28 +167,30 @@ En el patrón habitual OpenAPI `Pet` + `Dog`/`Cat`, donde `Dog` y `Cat` declaran
 - `discriminator` es una ayuda para decidir qué esquema instanciar; **no modifica el resultado de validar** `oneOf`/`anyOf`. Todas las ramas mantienen su semántica lógica.
 - Ejemplo de ambigüedad: si `Pet` solo exige `pet_type` y `Dog`/`Cat` añaden únicamente propiedades opcionales, `{"pet_type":"Dog"}` puede satisfacer **ambas** ramas y resulta inválido para `oneOf`. Para distinguir esquemas mediante validación, declarar `pet_type: {type: string, enum: [Dog]}` y su equivalente para `Cat` en OAS 3.0 (o `const` en OAS 3.1).
 - En PHP no redeclarar propiedades heredadas con tipos incompatibles: aplicar las restricciones del discriminador mediante metadatos/reglas de validación del hijo.
-- La versión estable v0.2.0 **aplana** `allOf` compatible, genera modelos como `final class ... extends DTO` y **rechaza `discriminator`**.
-- En desarrollo ([generador PR #19](https://github.com/dmorenof/sdk-generator/pull/19) + [runtime PR #6](https://github.com/dmorenof/sdk-runtime/pull/6), ambos en `feature/native-model-inheritance`): herencia PHP de un único padre compatible, metadatos completos y refinamientos por intersección de enums `string`/`integer` sin redeclarar la propiedad heredada. Parsing de `discriminator.propertyName` y mapping local explícito/implícito; hidratación compartida en propiedades, arrays, mapas y `DTO::fromValue()`. Los envoltorios evalúan las ramas originales antes de hidratar y vuelven a comprobar cardinalidad/identidad al serializar la variante seleccionada. Las familias discriminadas conservan propiedades adicionales permitidas para no perder JSON. Dependencia temporal explícita `dev-feature/native-model-inheritance` del runtime; no publicar ni integrar por separado.
-- Validación cloud ampliada: PHP 8.3.36, 181 pruebas / 1.916 aserciones del generador (28 pruebas de discriminadores); SDKs accounts, catalog, casafari y Pet/Dog/Cat instalados y sin errores PHPStan max. Runtime: 50 pruebas / 101 aserciones y PHPStan max. CI remota verde para el generador `7b0ab1d` (cuatro workflows) y el runtime `b27d9e8` (PHP package CI); incluye PHP 8.3/8.4/8.5, dependencias mínimas y auditoría. Casos añadidos: HTTP real simulado, recursividad, discriminador con enum heredado, renombrado JSON, required direccional y mutación que introduce ambigüedad. Las casillas siguen abiertas hasta aceptación completa y entrega coordinada.
+- Hasta v0.2.0, el generador **aplana** `allOf` compatible, genera modelos como `final class ... extends DTO` y **rechaza `discriminator`**.
+- En v0.3.0 ([generador PR #19](https://github.com/dmorenof/sdk-generator/pull/19), runtime v0.4.0 [PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)): herencia PHP de un único padre compatible, metadatos completos y refinamientos por intersección de enums `string`/`integer` sin redeclarar la propiedad heredada. Parsing de `discriminator.propertyName` y mapping local explícito/implícito; hidratación compartida en propiedades, arrays, mapas, respuestas HTTP y `DTO::fromValue()`. Los envoltorios evalúan las ramas originales antes de hidratar y vuelven a comprobar cardinalidad/identidad al serializar la variante seleccionada. Las familias discriminadas conservan propiedades adicionales permitidas para no perder JSON. Dependencia estable del runtime `^0.4.0`.
+- Validación cloud: PHP 8.3.36, 181 pruebas / 1.916 aserciones del generador (28 pruebas de discriminadores); SDKs accounts, catalog, casafari y Pet/Dog/Cat instalados y sin errores PHPStan max. Runtime: 50 pruebas / 101 aserciones y PHPStan max. CI de ambos incluye PHP 8.3/8.4/8.5, dependencias mínimas y auditoría. Casos: HTTP simulado, recursividad, enum heredado, renombrado JSON, required direccional y mutación que introduce ambigüedad.
 - Límites actuales: mapping a referencias locales/nombres de componentes; ramas discriminadas con nombre y herencia compatible para bases objeto. `new Pet(...)` conserva la clase solicitada; usar `Pet::fromValue()` para despachar. Refinamientos distintos de enums, `const`, `not`, uniones nativas generales, composición general de `allOf` y schemas externos siguen pendientes. Varios matches de `anyOf` sin selección son vistas del snapshot original, no una API para fusionar mutaciones.
 - Al introducir herencia, combinar correctamente `REQUIRED_FIELDS`, `VALIDATION`, `PROPERTY_MAP`, `READ_ONLY_FIELDS`, `WRITE_ONLY_FIELDS` y demás metadatos de padres/hijos; comprobar reflexión, serialización e hidratación de propiedades heredadas.
 
 **Tareas del refinamiento:**
 
-- [ ] Reconocer y preservar `discriminator.propertyName` y `mapping`, con mapeo explícito/implícito y diagnóstico si el valor no identifica una rama.
-- [ ] Detectar patrón `allOf` de un único padre `$ref` + propiedades propias, con ausencia de conflictos de validación, y generar herencia nativa cuando sea fiel.
-- [ ] Permitir extender modelos base (ajustar `final` únicamente en las clases necesarias) sin romper usos independientes de `Pet`.
-- [ ] Fusionar o aplicar de forma incremental las reglas declarativas de toda la cadena de clases.
-- [ ] Hidratar `oneOf`/`anyOf` orientándose por el discriminador y validar la cardinalidad real de los esquemas originales.
-- [ ] Incluir tests de `Pet`, `Dog`, `Cat`: selección de clase, herencia, serialización, caso ambiguo y `mapping` con nombres diferentes.
-- [ ] Mantener fallback a DTO aplanado/representaciones auxiliares para composiciones sin herencia PHP válida.
+- [x] Reconocer y preservar `discriminator.propertyName` y `mapping`, con mapeo explícito/implícito y diagnóstico si el valor no identifica una rama.
+- [x] Detectar patrón `allOf` de un único padre `$ref` + propiedades propias, con ausencia de conflictos de validación, y generar herencia nativa cuando sea fiel.
+- [x] Permitir extender modelos base (ajustar `final` únicamente en las clases necesarias) sin romper usos independientes de `Pet`.
+- [x] Fusionar o aplicar de forma incremental las reglas declarativas de toda la cadena de clases.
+- [x] Hidratar `oneOf`/`anyOf` orientándose por el discriminador y validar la cardinalidad real de los esquemas originales.
+- [x] Incluir tests de `Pet`, `Dog`, `Cat`: selección de clase, herencia, serialización, caso ambiguo y `mapping` con nombres diferentes.
+- [x] Mantener fallback a DTO aplanado/representaciones auxiliares para composiciones sin herencia PHP válida.
 
+
+Cierre del **subconjunto descrito**: generador v0.3.0 / runtime v0.4.0, PRs #19 / #6. No cierra el bloque general de JSON Schema.
 Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://spec.openapis.org/oas/v3.1.2.html#composition-and-inheritance-polymorphism); [JSON Schema: Combining Schemas](https://json-schema.org/understanding-json-schema/reference/combining).
 
 **Pruebas imprescindibles:**
 
-- [ ] `anyOf` con 0, 1 y 2+ ramas válidas; distinguir validez de la decisión de hidratación.
-- [ ] `oneOf` con 0, 1 y 2+ coincidencias, incluido el caso de propiedades adicionales toleradas por más de un esquema.
+- [x] `anyOf` con 0, 1 y 2+ ramas válidas en el subconjunto soportado; distinguir validez de hidratación (v0.3.0, #19/#6).
+- [x] `oneOf` con 0, 1 y 2+ coincidencias, incluidas propiedades adicionales toleradas por varios esquemas y ambigüedad tras mutación (v0.3.0, #19/#6).
 - [ ] `allOf` que combina `id` y `name` en un objeto; casos conflictivos de `additionalProperties: false`, `required` y restricciones numéricas.
 - [ ] Composiciones anidadas, ramas `$ref`, tipos primitivos, enums, arrays y modelos recursivos.
 - [ ] Comparación de salida y API pública con los envoltorios existentes para evitar cambios incompatibles no justificados.
@@ -205,7 +207,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 - [ ] `discriminator` con `propertyName`, `mapping` y casos por defecto de nuevas versiones.
 - [ ] `allOf` completo, incluidos hermanos, fusiones y conflictos complejos.
 - [ ] `oneOf` y `anyOf` con restricciones hermanas y composición anidada.
-- [ ] Validación exacta de `oneOf` cuando varias ramas son compatibles.
+- [x] Validación exacta de `oneOf` sobre los esquemas originales soportados cuando varias ramas son compatibles (v0.3.0, #19/#6).
 - [ ] Uniones de objetos, mapas, arrays y escalares, incluyendo recursividad.
 - [ ] Preservación de identidad y ciclos de tipos en grafos complejos.
 
@@ -396,3 +398,4 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 | 2026-11-05 | Publicados `sdk-runtime` v0.3.1 y `sdk-generator` v0.2.0, ambas CI verdes; permanece pendiente la prueba autenticada de Casafari. | [Runtime v0.3.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.3.1), [Generator v0.2.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.2.0) |
 | 2026-11-05 | Refinamiento de polimorfismo: representar `Pet -> Dog/Cat` como herencia PHP cuando `allOf` sea apto y usar `discriminator` para orientar la hidratación sin reemplazar la validación `oneOf`. | Debate sobre herencia y `discriminator` OpenAPI |
 | 2026-11-05 | Desarrollo coordinado de discriminator, refinamientos de enums y evaluación de ramas originales; dependencia temporal de la rama remota del runtime. Sin publicación ni merge. | [Generator #19](https://github.com/dmorenof/sdk-generator/pull/19), [Runtime #6](https://github.com/dmorenof/sdk-runtime/pull/6) |
+| 2026-11-05 | Entrega coordinada v0.3.0 del generador + v0.4.0 del runtime; dependencia estable `^0.4.0`, cierre del subconjunto de herencia/discriminadores y mantenimiento de los límites generales pendientes. | [Generator v0.3.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.3.0), [Runtime v0.4.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.4.0) |
