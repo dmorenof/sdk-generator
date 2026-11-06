@@ -1,0 +1,75 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Example Accounts",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test/v1"
+    }
+  ],
+  "paths": {
+    "/users/{id}": {
+      "$ref": "#/components/pathItems/ReadAlias",
+      "summary": "Read user route"
+    },
+    "/users": {
+      "$ref": "#/components/pathItems/CreateUser"
+    }
+  },
+  "components": {
+    "schemas": {
+      "NewUser": {
+        "$ref": "./models/NewUser.json"
+      },
+      "Profile": {
+        "$ref": "./models/Profile.json"
+      },
+      "User": {
+        "$ref": "./models/User.json"
+      }
+    },
+    "parameters": {
+      "ID/~": {
+        "$ref": "./http/parameters.json#/ID~1~0"
+      },
+      "Identifier": {
+        "$ref": "./http/parameters.json#/Identifier"
+      },
+      "Détail": {
+        "$ref": "./http/parameters.json#/Détail"
+      }
+    },
+    "requestBodies": {
+      "NewUser": {
+        "$ref": "./http/requestBodies.json#/NewUser"
+      },
+      "CreateAlias": {
+        "$ref": "./http/requestBodies.json#/CreateAlias"
+      }
+    },
+    "responses": {
+      "User/~": {
+        "$ref": "./http/responses.json#/User~1~0"
+      },
+      "Created": {
+        "$ref": "./http/responses.json#/Created"
+      },
+      "ReadAlias": {
+        "$ref": "./http/responses.json#/ReadAlias"
+      }
+    },
+    "pathItems": {
+      "ReadUser": {
+        "$ref": "./http/pathItems.json#/ReadUser"
+      },
+      "CreateUser": {
+        "$ref": "./http/pathItems.json#/CreateUser"
+      },
+      "ReadAlias": {
+        "$ref": "./http/pathItems.json#/ReadAlias"
+      }
+    }
+  }
+}

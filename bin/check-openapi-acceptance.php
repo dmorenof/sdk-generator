@@ -6,25 +6,39 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Dmorenof\SdkGenerator\Acceptance\OpenApiAcceptanceAnalyzer;
 
-if (!in_array($argc, [2, 4], true) || ($argc === 4 && $argv[2] !== '--sha256')) {
-    fwrite(STDERR, "Usage: php bin/check-openapi-acceptance.php <spec.json|spec.yaml|spec.yml> [--sha256 expected-hash]\n");
-    exit(2);
+$arguments = [];
+$resolveLocal = false;
+$referenceRoot = null;
+foreach (array_slice($argv, 1) as $argument) {
+    if ($argument === '--resolve-local-references') {
+        $resolveLocal = true;
+    } elseif (str_starts_with($argument, '--reference-root=')) {
+        $referenceRoot = substr($argument, strlen('--reference-root='));
+    } else {
+        $arguments[] = $argument;
+    }
 }
-$source = @file_get_contents($argv[1]);
-if ($source === false) {
-    fwrite(STDERR, "Cannot read OpenAPI specification: {$argv[1]}\n");
+if (!in_array(count($arguments), [1, 3], true) || (count($arguments) === 3 && $arguments[1] !== '--sha256')
+    || ($referenceRoot !== null && !$resolveLocal)) {
+    fwrite(STDERR, "Usage: check-openapi-acceptance.php <spec.json|yaml> [--sha256 expected-hash] [--resolve-local-references [--reference-root=directory]]\n");
     exit(2);
-}
-$actualHash = hash('sha256', $source);
-if ($argc === 4 && !hash_equals(strtolower($argv[3]), $actualHash)) {
-    fwrite(STDERR, "SPECIFICATION DRIFT: expected {$argv[3]}, received $actualHash. This is not the pinned acceptance input.\n");
-    exit(3);
 }
 try {
-    $format = in_array(strtolower(pathinfo($argv[1], PATHINFO_EXTENSION)), ['yaml', 'yml'], true)
-        ? 'yaml'
-        : 'json';
-    $report = (new OpenApiAcceptanceAnalyzer())->analyze($source, $format, $argv[1]);
+    $input = $arguments[0];
+    $bundle = $resolveLocal ? (new \Dmorenof\SdkGenerator\Parsing\LocalFileBundler())->bundle($input, $referenceRoot,
+        count($arguments) === 3 ? $arguments[2] : null) : null;
+    $source = $bundle === null ? @file_get_contents($input) : null;
+    if ($bundle === null && $source === false) {
+        throw new RuntimeException("Cannot read OpenAPI specification: $input");
+    }
+    $actualHash = $bundle?->sourceSha256 ?? hash('sha256', $source);
+    if (count($arguments) === 3 && !hash_equals(strtolower($arguments[2]), $actualHash)) {
+        fwrite(STDERR, "SPECIFICATION DRIFT: expected {$arguments[2]}, received $actualHash. This is not the pinned acceptance input.\n");
+        exit(3);
+    }
+    $analyzer = new OpenApiAcceptanceAnalyzer();
+    $format = in_array(strtolower(pathinfo($input, PATHINFO_EXTENSION)), ['yaml', 'yml'], true) ? 'yaml' : 'json';
+    $report = $bundle === null ? $analyzer->analyze($source, $format, $input) : $analyzer->analyzeBundle($bundle);
     echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), "\n";
     // Short diagnostic summary to CI logs; full per-operation data stays in artifact.
     fwrite(STDERR, "OpenAPI acceptance: " . $report['summary']['generated'] . '/'
@@ -55,6 +69,7 @@ try {
     // An honest failing gate until EVERY operation and the entire source generate.
     exit($report['accepted'] ? 0 : 1);
 } catch (Throwable $exception) {
-    fwrite(STDERR, "Acceptance analysis failed: " . $exception->getMessage() . "\n");
-    exit(2);
+    $drift = $exception instanceof \Dmorenof\SdkGenerator\Parsing\FileReferenceException && $exception->diagnostic->code === 'source_hash_mismatch';
+    fwrite(STDERR, ($drift ? 'SPECIFICATION DRIFT: ' : 'Acceptance analysis failed: ') . $exception->getMessage() . "\n");
+    exit($drift ? 3 : 2);
 }

@@ -1,4 +1,4 @@
-# Contract inspection (v0.6.0)
+# Contract inspection (v0.7.0)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -174,3 +174,24 @@ continues to reject unimplemented header exposure or media encoding. Alias cycle
 invalid targets and unsupported recursive HTTP-metadata graphs are explicit
 failures. See [supported scope](SUPPORTED_SCOPE.md#path-item-and-header-references-060)
 for exact target locations and dialect limits.
+
+
+## Explicit file inspection (v0.7.0)
+
+`--inspect --resolve-local-references` and `DocumentInspector::inspectFile()` opt
+into confined local dependency reads. `inspect(source)` and CLI inspection
+without this flag retain their existing in-memory behavior; no mode fetches HTTP
+references. File inspection creates no SDK output or modified source files.
+
+Successful file reports include `sources` (canonical file → SHA-256), the original
+root `sourceSha256` and `bundleSha256`. Diagnostics are mapped to original files
+and pointers; imported reference-chain entries identify their source documents.
+File-load failures return unsupported reports with structured diagnostics; when
+no complete bundle exists the root hash is null and no success manifest is claimed.
+The acceptance CLI accepts the same file flags and checks a supplied root SHA-256
+before opening dependencies. Dependency hashes record the rest of the input graph.
+
+The loader does not override the strict compatibility gate or implement unsupported
+serializers, media types, header exposure or JSON Schema keywords. See
+[local file references](FILE_REFERENCES.md) for bounded file categories, dialects,
+reference roots, alias rules and explicit discriminator/HTTP namespace limits.

@@ -56,6 +56,31 @@ final class SpecificationNormalizer
         return $this->fromJson($json, $strict, $sourceName);
     }
 
+    /** Explicit local file graph loading; string-based normalization stays in memory. */
+    public function fromFile(string $file, bool $strict = false, ?string $referenceRoot = null): ApiContract
+    {
+        try {
+            $bundle = (new LocalFileBundler())->bundle($file, $referenceRoot);
+        } catch (FileReferenceException $exception) {
+            if ($strict) {
+                throw new \Dmorenof\SdkGenerator\Diagnostics\CompatibilityException([$exception->diagnostic]);
+            }
+            throw $exception;
+        }
+        if ($strict) {
+            $errors = [];
+            foreach ((new \Dmorenof\SdkGenerator\Diagnostics\ContractAuditor())->audit($bundle->document, $bundle->source) as $issue) {
+                if ($issue->severity === 'error') {
+                    $errors[] = $bundle->mapDiagnostic($issue);
+                }
+            }
+            if ($errors !== []) {
+                throw new \Dmorenof\SdkGenerator\Diagnostics\CompatibilityException($errors);
+            }
+        }
+        return $this->fromJson(json_encode($bundle->document, JSON_THROW_ON_ERROR), sourceName: $bundle->source);
+    }
+
     public function fromJson(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
     {
         try {

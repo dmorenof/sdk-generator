@@ -25,6 +25,29 @@ final class OpenApiAcceptanceAnalyzer
 {
     private const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace'];
 
+    public function analyzeFile(string $file, ?string $referenceRoot = null): array
+    {
+        return $this->analyzeBundle((new \Dmorenof\SdkGenerator\Parsing\LocalFileBundler())->bundle($file, $referenceRoot));
+    }
+
+    public function analyzeBundle(\Dmorenof\SdkGenerator\Parsing\DocumentBundle $bundle): array
+    {
+        $json = json_encode($bundle->document, JSON_THROW_ON_ERROR);
+        $report = $this->analyze($json, sourceName: $bundle->source);
+        $report['sourceSha256'] = $bundle->sourceSha256;
+        $report['bundleSha256'] = hash('sha256', $json);
+        $report['sources'] = $bundle->sources;
+        $report['compatibility']['diagnostics'] = array_map($bundle->mapDiagnostic(...), $report['compatibility']['diagnostics']);
+        $report['full']['diagnostics'] = array_map($bundle->mapDiagnostic(...), $report['full']['diagnostics'] ?? []);
+        foreach ($report['operations'] as &$operation) {
+            if (isset($operation['diagnostics'])) {
+                $operation['diagnostics'] = array_map($bundle->mapDiagnostic(...), $operation['diagnostics']);
+            }
+        }
+        unset($operation);
+        return $report;
+    }
+
     /** @return array<string, mixed> */
     public function analyze(string $source, string $format = 'json', string $sourceName = '<input>'): array
     {

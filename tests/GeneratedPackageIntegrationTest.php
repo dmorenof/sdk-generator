@@ -37,17 +37,18 @@ final class GeneratedPackageIntegrationTest extends TestCase
 
     public static function accountDocuments(): array
     {
-        return [['accounts-openapi31.json'], ['accounts-references-openapi31.json'], ['accounts-path-items-openapi31.json']];
+        return [['accounts-openapi31.json', false], ['accounts-references-openapi31.json', false],
+            ['accounts-path-items-openapi31.json', false], ['multifile-accounts/api.json', true]];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('accountDocuments')]
-    public function testCliCreatesARealLoadableSDKAndConsumerRunsInSeparatePhpProcess(string $document): void
+    public function testCliCreatesARealLoadableSDKAndConsumerRunsInSeparatePhpProcess(string $document, bool $resolveLocal): void
     {
         $generator = dirname(__DIR__) . '/bin/generate-sdk.php';
         $fixture = __DIR__ . '/fixtures/' . $document;
         $dest = $this->directory . '/client';
         $cmd = implode(' ', array_map('escapeshellarg', [
-            PHP_BINARY, $generator, $fixture, $dest, 'Acme\\PublicSdk', 'acme/public-sdk',
+            PHP_BINARY, $generator, ...($resolveLocal ? ['--resolve-local-references'] : []), $fixture, $dest, 'Acme\\PublicSdk', 'acme/public-sdk',
         ]));
         exec($cmd . ' 2>&1', $output, $exit);
         self::assertSame(0, $exit, implode("\n", $output));

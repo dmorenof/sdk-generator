@@ -7,9 +7,34 @@ use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use Symfony\Component\Yaml\Yaml;
 
-/** In-memory inspection only: no generated files, network requests or source modifications. */
+/** String inspection stays in memory; explicit file inspection reads a confined local graph. */
 final class DocumentInspector
 {
+    public function inspectFile(string $file, ?string $referenceRoot = null): array
+    {
+        try {
+            return $this->inspectBundle((new \Dmorenof\SdkGenerator\Parsing\LocalFileBundler())->bundle($file, $referenceRoot));
+        } catch (\Dmorenof\SdkGenerator\Parsing\FileReferenceException $exception) {
+            return [
+                'source' => realpath($file) ?: $file,
+                'sourceSha256' => null,
+                'status' => 'unsupported', 'normalized' => false, 'generatable' => false, 'strictlyAccepted' => false,
+                'diagnostics' => [$exception->diagnostic],
+            ];
+        }
+    }
+
+    public function inspectBundle(\Dmorenof\SdkGenerator\Parsing\DocumentBundle $bundle): array
+    {
+        $json = json_encode($bundle->document, JSON_THROW_ON_ERROR);
+        $report = $this->inspect($json, sourceName: $bundle->source);
+        $report['sourceSha256'] = $bundle->sourceSha256;
+        $report['bundleSha256'] = hash('sha256', $json);
+        $report['sources'] = $bundle->sources;
+        $report['diagnostics'] = array_map($bundle->mapDiagnostic(...), $report['diagnostics']);
+        return $report;
+    }
+
     public function inspect(string $source, string $format = 'json', string $sourceName = '<input>'): array
     {
         $diagnostics = [];
