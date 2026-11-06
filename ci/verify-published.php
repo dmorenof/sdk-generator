@@ -32,12 +32,13 @@ if (\Composer\InstalledVersions::getReference('dmorenof/sdk-generator') !== $exp
 $package = $directory . '/vendor/dmorenof/sdk-generator';
 $binary = $directory . '/vendor/bin/generate-sdk.php';
 $accounts = $directory . '/accounts';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/accounts-references-openapi31.json', $accounts, 'Preview\\AccountsSdk', 'example/published-accounts']);
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/accounts-path-items-openapi31.json', $accounts, 'Preview\\AccountsSdk', 'example/published-accounts']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $accounts]);
 runPublished([PHP_BINARY, $package . '/tests/preview-smoke.php', 'accounts'], $accounts);
 echo "PUBLISHED_LOCAL_REFERENCES_OK", PHP_EOL;
+echo "PUBLISHED_PATH_ITEM_REFERENCES_OK", PHP_EOL;
 $servers = $directory . '/servers';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/operation-servers-openapi30.json', $servers, 'Example\\PublishedServers', 'example/published-servers']);
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/operation-servers-path-items-openapi31.json', $servers, 'Example\\PublishedServers', 'example/published-servers']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $servers]);
 file_put_contents($directory . '/server-consumer.php', <<<'PHP'
 <?php
@@ -79,4 +80,12 @@ if ($report['strictlyAccepted'] || !$report['generatable']
     throw new RuntimeException('Published generator did not audit reusable parameter declarations.');
 }
 echo "PUBLISHED_NESTED_AUDIT_OK", PHP_EOL;
+$headerDocument = json_decode(file_get_contents($package . '/tests/fixtures/accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+$headerDocument['components']['headers']['Page'] = ['schema' => ['type' => 'integer']];
+$headerDocument['paths']['/users/{id}']['get']['responses']['200']['headers']['X-Page'] = ['$ref' => '#/components/headers/Page'];
+$headerContract = (new \Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer())->fromJson(json_encode($headerDocument, JSON_THROW_ON_ERROR));
+if (($headerContract->operations[1]->responses[0]->headers['X-Page']['schema']['type'] ?? null) !== 'integer') {
+    throw new RuntimeException('Published generator did not resolve header metadata.');
+}
+echo "PUBLISHED_HEADER_REFERENCES_OK", PHP_EOL;
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

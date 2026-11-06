@@ -1,0 +1,102 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Routing",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://root.example.test/v1/"
+    },
+    {
+      "url": "https://second.example.test/v1"
+    }
+  ],
+  "paths": {
+    "/root": {
+      "$ref": "#/components/pathItems/Root"
+    },
+    "/equivalent": {
+      "$ref": "#/components/pathItems/Equivalent"
+    },
+    "/items/{id}": {
+      "$ref": "#/components/pathItems/Items"
+    }
+  },
+  "components": {
+    "pathItems": {
+      "Root": {
+        "get": {
+          "operationId": "root",
+          "responses": {
+            "204": {
+              "description": "Done"
+            }
+          }
+        }
+      },
+      "Equivalent": {
+        "servers": [
+          {
+            "url": "https://root.example.test/v1"
+          }
+        ],
+        "get": {
+          "operationId": "equivalent",
+          "responses": {
+            "204": {
+              "description": "Done"
+            }
+          }
+        }
+      },
+      "Items": {
+        "servers": [
+          {
+            "url": "https://path.example.test/v2/"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "get": {
+          "operationId": "readItem",
+          "servers": [
+            {
+              "url": "https://operation.example.test/v3/"
+            }
+          ],
+          "parameters": [
+            {
+              "name": "q",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "Done"
+            }
+          }
+        },
+        "post": {
+          "operationId": "writeItem",
+          "responses": {
+            "204": {
+              "description": "Done"
+            }
+          }
+        }
+      }
+    }
+  }
+}

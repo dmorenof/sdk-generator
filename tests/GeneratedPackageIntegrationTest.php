@@ -37,7 +37,7 @@ final class GeneratedPackageIntegrationTest extends TestCase
 
     public static function accountDocuments(): array
     {
-        return [['accounts-openapi31.json'], ['accounts-references-openapi31.json']];
+        return [['accounts-openapi31.json'], ['accounts-references-openapi31.json'], ['accounts-path-items-openapi31.json']];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('accountDocuments')]

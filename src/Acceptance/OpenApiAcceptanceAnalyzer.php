@@ -8,6 +8,8 @@ use Dmorenof\SdkGenerator\Diagnostics\ContractAuditor;
 use Dmorenof\SdkGenerator\Diagnostics\Diagnostic;
 use Dmorenof\SdkGenerator\Diagnostics\JsonPointer;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
+use Dmorenof\SdkGenerator\Parsing\LocalObjectResolver;
+use Dmorenof\SdkGenerator\Parsing\LocalReferenceException;
 use InvalidArgumentException;
 use JsonException;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -32,10 +34,37 @@ final class OpenApiAcceptanceAnalyzer
         }
 
         $operations = [];
+        $resolver = new LocalObjectResolver($document);
+        $selectionDocument = $document;
+        $declarationOrigins = [];
+        // Materialize reusable Path Items before dropping other actual paths.
+        // Their field origins retain the original source and reference chains.
+        foreach ($document['components']['pathItems'] ?? [] as $name => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $pointer = JsonPointer::append('/components/pathItems', $name);
+            try {
+                $resolved = $resolver->resolve($item, 'pathItems', $pointer);
+                $selectionDocument['components']['pathItems'][$name] = $resolved['value'];
+                $declarationOrigins[$pointer] = $resolved['origins'];
+            } catch (LocalReferenceException) {
+                // The full audit retains the precise failure on the original source.
+            }
+        }
+        $unresolvedPaths = 0;
         $paths = $document['paths'];
         ksort($paths, SORT_STRING);
         foreach ($paths as $path => $pathItem) {
             if (!is_array($pathItem)) {
+                continue;
+            }
+            $pointer = JsonPointer::append('/paths', $path);
+            try {
+                $resolved = $resolver->resolve($pathItem, 'pathItems', $pointer);
+                $pathItem = $resolved['value'];
+            } catch (LocalReferenceException) {
+                ++$unresolvedPaths;
                 continue;
             }
             foreach (self::METHODS as $method) {
@@ -50,8 +79,9 @@ final class OpenApiAcceptanceAnalyzer
                     'operationId' => is_string($name) ? $name : null,
                 ];
                 try {
-                    $subset = $this->operationSubset($document, $path, $method);
-                    $result = $this->attempt(json_encode($subset, JSON_THROW_ON_ERROR), 'json', $subset, $sourceName);
+                    $subset = $this->operationSubset($selectionDocument, $path, $method, $pathItem);
+                    $result = $this->attempt(json_encode($subset, JSON_THROW_ON_ERROR), 'json', $subset, $sourceName,
+                        [$pointer => $resolved['origins']] + $declarationOrigins);
                 } catch (Throwable $exception) {
                     $result = $this->failure('selection_failed', $exception);
                 }
@@ -83,6 +113,7 @@ final class OpenApiAcceptanceAnalyzer
             'openapi' => $document['openapi'] ?? $document['swagger'] ?? null,
             'title' => $document['info']['title'] ?? null,
             'pathCount' => count($paths),
+            'unresolvedPathCount' => $unresolvedPaths,
             'operationCount' => count($operations),
             'schemaCount' => count($document['components']['schemas'] ?? $document['definitions'] ?? []),
             'summary' => $counts,
@@ -113,9 +144,9 @@ final class OpenApiAcceptanceAnalyzer
     }
 
     /** @return array{status:string,error:?array<string,string>,diagnostics:list<Diagnostic>} */
-    private function attempt(string $source, string $format, array $document, string $sourceName): array
+    private function attempt(string $source, string $format, array $document, string $sourceName, array $pathItemOrigins = []): array
     {
-        $diagnostics = (new ContractAuditor())->audit($document, $sourceName);
+        $diagnostics = (new ContractAuditor())->audit($document, $sourceName, $pathItemOrigins);
         try {
             $normalizer = new SpecificationNormalizer();
             $contract = $format === 'yaml'
@@ -156,9 +187,8 @@ final class OpenApiAcceptanceAnalyzer
      * @param array<string, mixed> $document
      * @return array<string, mixed>
      */
-    private function operationSubset(array $document, string $path, string $method): array
+    private function operationSubset(array $document, string $path, string $method, array $item): array
     {
-        $item = $document['paths'][$path];
         // Keep effective Path Item metadata as well as the selected operation.
         $kept = array_diff_key($item, array_fill_keys(self::METHODS, true));
         $kept[$method] = $item[$method];
