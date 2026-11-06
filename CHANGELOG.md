@@ -6,6 +6,14 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.8.0] — 2026-11-06
+
+- Resolve local OpenAPI 3.0/3.1 `components/securitySchemes` Reference Objects through the shared resolver, including alias chains and existing annotation/cycle/missing-target rules.
+- Keep the declaring security-scheme name as the public credential key. Root/operation inheritance, empty overrides and AND/OR requirement selection remain unchanged; base-definition credentials do not replace credentials required under an alias.
+- Audit the resolved authentication definition at its actual source pointer with the complete reference chain. Unsupported OAuth, scopes and cookie keys remain unsupported and cannot be enabled by sibling overrides.
+- Verify Bearer/header-key AND, query-key OR fallback, Basic auth, missing credentials, split credential names, JSON/YAML and inline/reference SDK equivalence. Add a ninth PHPStan-max generated SDK and independently install/execute an alias-authenticated SDK in release smoke.
+- Keep runtime `^0.5.0`. Swagger 2.0 security-definition references and file/network security-scheme imports are not added by this local-reference release.
+
 ## [0.7.0] — 2026-11-06
 
 - Add opt-in local JSON/YAML file graphs through `--resolve-local-references`, `--reference-root=...`, `SpecificationNormalizer::fromFile()`, `DocumentInspector::inspectFile()` and acceptance file APIs. String-based APIs retain their in-memory behavior; HTTP(S), absolute paths and URI streams are not fetched.

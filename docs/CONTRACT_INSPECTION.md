@@ -1,4 +1,4 @@
-# Contract inspection (v0.7.0)
+# Contract inspection (v0.8.0)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -195,3 +195,13 @@ The loader does not override the strict compatibility gate or implement unsuppor
 serializers, media types, header exposure or JSON Schema keywords. See
 [local file references](FILE_REFERENCES.md) for bounded file categories, dialects,
 reference roots, alias rules and explicit discriminator/HTTP namespace limits.
+
+
+## Local security aliases (v0.8.0)
+
+Named OpenAPI `components/securitySchemes` references now resolve before security
+normalization. The audit checks the target type/location at its real pointer and
+retains multi-hop provenance. Missing, cyclic, wrong-category and external targets
+remain structured failures. Root/operation security requirements still refer to
+the declaring alias name; inspection does not rewrite them to the base definition.
+OAuth flows, scopes, cookie keys and external scheme imports remain unsupported.

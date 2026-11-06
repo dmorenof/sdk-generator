@@ -311,6 +311,16 @@ final class ContractAuditor
         if (!is_array($scheme)) {
             return;
         }
+        if (($this->document['swagger'] ?? null) !== '2.0') {
+            $this->resolvedObject($scheme, 'securitySchemes', $pointer, null,
+                fn (array $value, string $at) => $this->auditSecurityScheme($value, $at));
+            return;
+        }
+        $this->auditSecurityScheme($scheme, $pointer);
+    }
+
+    private function auditSecurityScheme(array $scheme, string $pointer): void
+    {
         $this->keys($scheme, ['type', 'name', 'in', 'scheme', 'bearerFormat', 'flows', 'openIdConnectUrl', 'flow', 'authorizationUrl', 'tokenUrl', 'scopes', '$ref'], $pointer);
         $this->objectReference($scheme, $pointer, null);
         if (array_key_exists('$ref', $scheme)) {
