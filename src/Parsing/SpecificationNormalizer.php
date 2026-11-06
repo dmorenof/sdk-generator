@@ -25,7 +25,8 @@ use Symfony\Component\Yaml\Yaml;
  * First, intentionally small cross-dialect normalization slice.
  *
  * Supported: JSON or YAML Swagger 2.0, OpenAPI 3.0.x and 3.1.x; local model
- * refs, primitive/object/array/enum schemas, HTTP path/query/header parameters,
+ * refs, named local HTTP parameter/body/response refs, primitive/object/array/enum
+ * schemas, HTTP path/query/header parameters,
  * JSON bodies and status-based JSON responses. Anything beyond the
  * supported contract subset fails visibly rather than disappearing.
  */
@@ -68,6 +69,16 @@ final class SpecificationNormalizer
         }
 
         $dialect = $this->dialect($document);
+        if ($strict) {
+            $errors = array_values(array_filter(
+                (new \Dmorenof\SdkGenerator\Diagnostics\ContractAuditor())->audit($document, $sourceName),
+                static fn (\Dmorenof\SdkGenerator\Diagnostics\Diagnostic $issue): bool => $issue->severity === 'error',
+            ));
+            if ($errors !== []) {
+                throw new \Dmorenof\SdkGenerator\Diagnostics\CompatibilityException($errors);
+            }
+        }
+        $document = (new LocalObjectResolver($document))->expandOperations();
         $info = $document['info'] ?? [];
         $title = $info['title'] ?? null;
         if (!is_string($title) || $title === '') {
@@ -187,15 +198,6 @@ final class SpecificationNormalizer
             }
         }
 
-        if ($strict) {
-            $errors = array_values(array_filter(
-                (new \Dmorenof\SdkGenerator\Diagnostics\ContractAuditor())->audit($document, $sourceName),
-                static fn (\Dmorenof\SdkGenerator\Diagnostics\Diagnostic $issue): bool => $issue->severity === 'error',
-            ));
-            if ($errors !== []) {
-                throw new \Dmorenof\SdkGenerator\Diagnostics\CompatibilityException($errors);
-            }
-        }
         return $contract;
     }
 

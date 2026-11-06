@@ -6,6 +6,7 @@ namespace Dmorenof\SdkGenerator\Acceptance;
 use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
 use Dmorenof\SdkGenerator\Diagnostics\ContractAuditor;
 use Dmorenof\SdkGenerator\Diagnostics\Diagnostic;
+use Dmorenof\SdkGenerator\Diagnostics\JsonPointer;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use InvalidArgumentException;
 use JsonException;
@@ -176,12 +177,27 @@ final class OpenApiAcceptanceAnalyzer
         $queue = [];
         $prefix = $definitionsKey === 'definitions' ? '#/definitions/' : '#/components/schemas/';
         $this->findReferences($kept, $queue, $prefix);
+        // Retained reusable declarations must keep their schema dependencies,
+        // including those hidden behind a parameter/body/response alias.
+        $this->findReferences(array_diff_key($document['components'] ?? [], ['schemas' => true]), $queue, $prefix);
+        $this->findReferences($document['parameters'] ?? [], $queue, $prefix);
+        $this->findReferences($document['responses'] ?? [], $queue, $prefix);
+        $visitedObjects = [];
         for ($i = 0; $i < count($queue); ++$i) {
             $reference = $queue[$i];
             $prefix = $definitionsKey === 'definitions'
                 ? '#/definitions/' : '#/components/schemas/';
             if (!str_starts_with($reference, $prefix)) {
-                continue; // An unsupported reference remains unchanged in its original usage.
+                if (!isset($visitedObjects[$reference]) && str_starts_with($reference, '#')) {
+                    $visitedObjects[$reference] = true;
+                    try {
+                        $target = JsonPointer::resolve($document, $reference);
+                        $this->findReferences($target, $queue, $prefix);
+                    } catch (InvalidArgumentException) {
+                        // Preserve the original reference for the audit/normalizer.
+                    }
+                }
+                continue;
             }
             $encoded = substr($reference, strlen($prefix));
             $name = str_replace(['~1', '~0'], ['/', '~'], $encoded);
@@ -212,7 +228,7 @@ final class OpenApiAcceptanceAnalyzer
     }
 
     /** @param list<string> $queue */
-    private function findReferences(mixed $value, array &$queue, string $prefix, bool $map = false): void
+    private function findReferences(mixed $value, array &$queue, string $prefix, string $context = 'object'): void
     {
         if (!is_array($value)) {
             return;
@@ -229,14 +245,21 @@ final class OpenApiAcceptanceAnalyzer
                 }
             }
         }
+        $map = in_array($context, ['map', 'links'], true);
         foreach ($value as $key => $child) {
-            if (!$map && (in_array($key, ['example', 'default', 'enum', 'value'], true)
-                || ($key === 'examples' && is_array($child) && array_is_list($child))
+            if (!$map && (in_array($key, ['example', 'examples', 'default', 'enum', 'value'], true)
+                || ($context === 'link' && in_array($key, ['parameters', 'requestBody'], true))
                 || str_starts_with((string) $key, 'x-'))) {
                 continue;
             }
-            $this->findReferences($child, $queue, $prefix,
-                in_array($key, ['properties', 'schemas', 'definitions', '$defs', 'headers', 'examples'], true));
+            $childContext = $context === 'links' ? 'link' : 'object';
+            if (!$map && $key === 'links') {
+                $childContext = 'links';
+            } elseif (!$map && in_array($key, ['properties', 'schemas', 'definitions', '$defs', 'headers',
+                'parameters', 'requestBodies', 'responses', 'callbacks', 'pathItems', 'encoding', 'securitySchemes'], true)) {
+                $childContext = 'map';
+            }
+            $this->findReferences($child, $queue, $prefix, $childContext);
         }
     }
 }

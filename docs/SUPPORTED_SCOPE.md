@@ -1,4 +1,4 @@
-# v0.4.0 supported scope and known limitations
+# v0.5.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -88,3 +88,31 @@ All 46 Casafari operations pass strict acceptance; seven HTTP mock regressions
 verify platform URLs and synthetic authentication. Relative/template servers,
 variables, dynamic selection, general references and serializers remain pending.
 No live Casafari authentication or production migration is claimed.
+
+
+## Local HTTP Reference Objects (0.5.0)
+
+Named document-local references to OpenAPI `components/parameters`,
+`components/requestBodies` and `components/responses` execute through one shared
+resolver. Swagger 2.0 supports `#/parameters/...` (including body parameters) and
+`#/responses/...`. Path/operation parameter merging uses resolved `in` and `name`,
+so operation overrides keep their normal precedence. Supported JSON Pointer
+fragments decode URI escapes and `~0`/`~1`; inspection retains the original source
+hash and reports the declaration pointer, operation and alias chain.
+
+OAS 3.0 and Swagger Reference Object siblings are ignored. OAS 3.1 reference
+`description`/`summary` annotations override the target, with the outer alias
+winning; sibling `required`, `schema` and other execution fields do not replace
+the target. This does not implement general Schema Object `$ref` sibling semantics.
+Alias cycles are errors and chains beyond 128 hops are rejected; schema references
+are kept as references, preserving existing recursive model support.
+
+The referenced Accounts fixture produces the same canonical contract and SDK
+sources as its inline equivalent. Its generated SDK is independently installed
+and exercises mock GET/POST, enums, collections and DTO hydration in release smoke.
+
+Only the named local HTTP reference categories above are added. Arbitrary target
+locations, header/Path Item/security/example/link/callback references, external
+JSON/YAML/HTTP documents, anchors, dialect resolution and full JSON Schema remain
+pending. `content` parameters, structured HTTP parameters and non-JSON transports
+retain their existing diagnostics until their serializers are implemented.

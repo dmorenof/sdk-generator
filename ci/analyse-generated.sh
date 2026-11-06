@@ -24,3 +24,5 @@ analyse casafari casafari-openapi31.json 'Example\CasafariSdk'
 analyse pets pets-discriminator-openapi30.json 'Example\PetsSdk'
 
 analyse operation-servers operation-servers-openapi30.json 'Example\OperationServersSdk'
+
+analyse referenced-accounts accounts-references-openapi31.json 'Example\ReferencedAccountsSdk'

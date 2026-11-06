@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.4.1** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.5.0** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -103,8 +103,10 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 2. [P0] Resolución general de referencias
 
-- [ ] JSON Pointer completo, incluyendo escape `~0`, `~1` y URIs relativas.
-- [ ] Referencias a `components/parameters`, `responses`, `requestBodies`, `headers`.
+- [ ] **Parcial — JSON Pointer completo.** v0.5.0 decodifica escapes URI y `~0`/`~1` en las referencias HTTP locales soportadas. Faltan ubicaciones arbitrarias, URIs relativas y la aplicación general al resto de referencias.
+- [x] **v0.5.0 — Referencias locales con nombre a `components/parameters`, `responses` y `requestBodies`**, con alias, parámetros en Path Item/operación y precedencia tras resolver `in`/`name`.
+- [x] **v0.5.0 — Referencias locales Swagger `#/parameters/...` y `#/responses/...`**, incluidos parámetros de body.
+- [ ] Referencias a `components/headers`; su normalización/ejecución tipada sigue pendiente.
 - [ ] Referencias a `components/examples`, `links`, `callbacks`, `pathItems` y `securitySchemes` cuando proceda.
 - [ ] Referencias a `Path Item` completos y su reutilización.
 - [ ] Referencias a archivos JSON/YAML externos, relativos al documento raíz.
@@ -113,8 +115,18 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] Referencias válidas entre distintos espacios de nombres de documentos.
 - [ ] Soporte JSON Schema: `$id`, `$anchor`, `$dynamicAnchor`, `$dynamicRef` y `$defs`.
 - [ ] `jsonSchemaDialect`, `$schema` y dialectos diferentes según el documento/recurso.
-- [ ] Reglas de hermanos de `$ref` diferentes entre OAS 3.0 y 3.1.
-- [ ] Validación de referencias a elementos inexistentes con errores accionables.
+- [ ] **Parcial — Reglas de hermanos de `$ref`.** v0.5.0 ignora hermanos de Reference Objects HTTP en OAS 3.0/Swagger y aplica description/summary en OAS 3.1 sin cambiar required/schema del destino. Faltan reglas generales de Schema Objects y otros dialectos.
+- [ ] **Parcial — Referencias inexistentes con errores accionables.** v0.5.0 añade puntero de uso/declaración y cadena de alias para los objetos HTTP locales soportados; referencias externas, anchors y otras categorías siguen pendientes.
+
+### Entrega local de referencias HTTP — v0.5.0
+
+- [x] Resolver compartido de normalización/inspección con referencias locales con nombre de las categorías indicadas, sin consultar la red ni expandir schemas o ejemplos.
+- [x] Rechazar ciclos de alias y limitar cadenas a 128 saltos; conservar la identidad de esquemas recursivos ya soportados.
+- [x] Equivalencia del contrato y código emitido frente a la versión inline; entrada JSON/YAML, overrides y anotaciones por dialecto.
+- [x] Mantener las dependencias de modelos al aislar operaciones con requestBody/response referenciados; no interpretar payloads de ejemplos/links como referencias de schemas.
+- [x] SDK Accounts con referencias ejecutado por HTTP simulado y añadido al análisis PHPStan max y al smoke de instalación de la versión publicada.
+- **Validación:** cloud PHP 8.4: 245 pruebas / 2.149 aserciones; seis SDKs sin errores PHPStan max; Casafari conserva 46/46 operaciones aceptadas. La publicación comprueba instalación independiente y ejecución HTTP simulada del SDK con referencias.
+- **Límite:** este avance local no cierra el paquete 02. Las referencias a documentos divididos, headers, Path Items y las restantes categorías permanecen abiertas. Runtime estable `^0.5.0`.
 
 **Aceptación:** un OpenAPI dividido en varios archivos debe generar un SDK equivalente al de su versión consolidada; casos cíclicos válidos deben resolverse de forma segura.
 
@@ -343,7 +355,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 - [ ] Parámetros `formData`.
 - [ ] Tipo `file` y transmisión de archivos.
 - [ ] Arrays en parámetros HTTP de Swagger 2.0.
-- [ ] Referencias `#/parameters/...` y `#/responses/...`.
+- [x] **v0.5.0:** referencias locales con nombre `#/parameters/...` y `#/responses/...`, con alias y parámetros body.
 - [ ] `securityDefinitions` OAuth2 y scopes.
 - [ ] Validación y metadatos específicos del dialecto.
 - [ ] Manejo completo de `host`, `basePath`, `schemes`.
@@ -445,3 +457,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-05 | Publicados los avances de contrato/diagnóstico y enrutamiento: generador v0.4.0 + runtime v0.5.0, dependencia estable ^0.5.0. Se adopta integración/publicación de cada avance terminado; no finalizar con PRs en borrador. | [Generator v0.4.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.0), [Runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0) |
 
 | 2026-11-06 | Actualizada la rama existente `release/0.2.0` con la base publicada; v0.4.1 amplía auditoría anidada y localización de seguridad, manteniendo runtime ^0.5.0 y abiertos los límites generales de P0. | [Generator v0.4.1](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.1) |
+
+| 2026-11-06 | Generador v0.5.0: referencias HTTP locales OpenAPI/Swagger, alias acotados, reglas de hermanos de Reference Objects, diagnóstico de origen y dependencias de aceptación; runtime estable ^0.5.0 sin cambios. | [Generator v0.5.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.5.0) |

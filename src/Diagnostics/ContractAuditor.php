@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Dmorenof\SdkGenerator\Diagnostics;
 
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
+use Dmorenof\SdkGenerator\Parsing\LocalObjectResolver;
+use Dmorenof\SdkGenerator\Parsing\LocalReferenceException;
 
 /** Audit HTTP-affecting options which the current executable pipeline would ignore. */
 final class ContractAuditor
@@ -14,6 +16,8 @@ final class ContractAuditor
     private array $diagnostics = [];
     private array $document = [];
     private string $source = '<input>';
+    /** @var list<string> */
+    private array $referenceChain = [];
 
     /** @return list<Diagnostic> */
     public function audit(array $document, string $source = '<input>'): array
@@ -21,6 +25,7 @@ final class ContractAuditor
         $this->diagnostics = [];
         $this->document = $document;
         $this->source = $source;
+        $this->referenceChain = [];
         $this->keys($document, ['openapi', 'swagger', 'info', 'servers', 'host', 'basePath', 'schemes', 'paths', 'components', 'definitions', 'security', 'securityDefinitions', 'consumes', 'produces',
             ...(($document['swagger'] ?? null) === '2.0' ? ['parameters', 'responses'] : [])], '');
         $this->servers($document['servers'] ?? [], '/servers', null, null);
@@ -35,11 +40,11 @@ final class ContractAuditor
         }
         $unique = [];
         foreach ($this->diagnostics as $diagnostic) {
-            $key = $diagnostic->pointer . ':' . $diagnostic->code . ':' . $diagnostic->operationId;
+            $key = json_encode([$diagnostic->pointer, $diagnostic->code, $diagnostic->operationId, $diagnostic->referenceChain], JSON_THROW_ON_ERROR);
             $unique[$key] = $diagnostic;
         }
         $result = array_values($unique);
-        usort($result, static fn (Diagnostic $a, Diagnostic $b): int => [$a->pointer, $a->code, $a->operationId] <=> [$b->pointer, $b->code, $b->operationId]);
+        usort($result, static fn (Diagnostic $a, Diagnostic $b): int => [$a->pointer, $a->code, $a->operationId, $a->referenceChain] <=> [$b->pointer, $b->code, $b->operationId, $b->referenceChain]);
         return $result;
     }
 
@@ -93,13 +98,13 @@ final class ContractAuditor
                 }
                 $overrides = [];
                 foreach ($operation['parameters'] ?? [] as $parameter) {
-                    if (is_array($parameter) && isset($parameter['in'], $parameter['name'])) {
-                        $overrides[$parameter['in'] . ':' . $parameter['name']] = true;
+                    $identity = $this->parameterIdentity($parameter);
+                    if ($identity !== null) {
+                        $overrides[$identity] = true;
                     }
                 }
-                $pathParameters = array_filter($item['parameters'] ?? [], static fn ($parameter): bool =>
-                    !is_array($parameter) || !isset($parameter['in'], $parameter['name'])
-                    || !isset($overrides[$parameter['in'] . ':' . $parameter['name']]));
+                $pathParameters = array_filter($item['parameters'] ?? [], fn ($parameter): bool =>
+                    !isset($overrides[$this->parameterIdentity($parameter) ?? '']));
                 $this->parameters($pathParameters, "$pointer/parameters", $id);
                 $this->parameters($operation['parameters'] ?? [], "$where/parameters", $id);
                 $this->requestBody($operation['requestBody'] ?? null, "$where/requestBody", $id);
@@ -108,7 +113,8 @@ final class ContractAuditor
                     $this->response($response, $at, $id);
                     // Error media types do not negotiate success representations.
                     if (is_array($response) && preg_match('/^2[0-9]{2}$/', (string) $status) === 1) {
-                        $this->selectedMedia($response['content'] ?? [], "$at/content", $id, false);
+                        $this->resolvedObject($response, 'responses', $at, $id,
+                            fn (array $value, string $source) => $this->selectedMedia($value['content'] ?? [], "$source/content", $id, false));
                     }
                 }
             }
@@ -145,22 +151,30 @@ final class ContractAuditor
 
     private function requestBody(mixed $body, string $pointer, ?string $operation): void
     {
-        if (!is_array($body)) {
-            return;
+        if (is_array($body)) {
+            $this->resolvedObject($body, 'requestBodies', $pointer, $operation,
+                fn (array $value, string $at) => $this->auditRequestBody($value, $at, $operation));
         }
+    }
+
+    private function auditRequestBody(array $body, string $pointer, ?string $operation): void
+    {
         $this->keys($body, ['required', 'content', '$ref'], $pointer, $operation);
-        $this->objectReference($body, $pointer, $operation);
         $this->content($body['content'] ?? [], "$pointer/content", $operation);
         $this->selectedMedia($body['content'] ?? [], "$pointer/content", $operation, true);
     }
 
     private function response(mixed $response, string $pointer, ?string $operation): void
     {
-        if (!is_array($response)) {
-            return;
+        if (is_array($response)) {
+            $this->resolvedObject($response, 'responses', $pointer, $operation,
+                fn (array $value, string $at) => $this->auditResponse($value, $at, $operation));
         }
+    }
+
+    private function auditResponse(array $response, string $pointer, ?string $operation): void
+    {
         $this->keys($response, ['content', 'schema', 'headers', 'links', '$ref', 'examples'], $pointer, $operation);
-        $this->objectReference($response, $pointer, $operation);
         foreach (['headers', 'links'] as $keyword) {
             if (!empty($response[$keyword])) {
                 $this->add('response_' . $keyword, "$pointer/$keyword", "Response $keyword are preserved but not exposed by the runtime.", $operation);
@@ -281,6 +295,37 @@ final class ContractAuditor
         }
     }
 
+    private function parameterIdentity(mixed $node): ?string
+    {
+        if (!is_array($node)) {
+            return null;
+        }
+        try {
+            $value = (new LocalObjectResolver($this->document))->resolve($node, 'parameters', '')['value'];
+            return isset($value['in'], $value['name']) ? $value['in'] . ':' . $value['name'] : null;
+        } catch (LocalReferenceException) {
+            return null; // The parameter audit reports the failure with its source pointer.
+        }
+    }
+
+    /** @param callable(array, string): void $audit */
+    private function resolvedObject(array $node, string $kind, string $pointer, ?string $operation, callable $audit): void
+    {
+        try {
+            $resolved = (new LocalObjectResolver($this->document))->resolve($node, $kind, $pointer);
+        } catch (LocalReferenceException $exception) {
+            $this->add($exception->diagnosticCode, "$pointer/\$ref", $exception->getMessage(), $operation, 'error', $exception->referenceChain);
+            return;
+        }
+        $previous = $this->referenceChain;
+        $this->referenceChain = [...$previous, ...$resolved['chain']];
+        try {
+            $audit($resolved['value'], $resolved['pointer']);
+        } finally {
+            $this->referenceChain = $previous;
+        }
+    }
+
     private function objectReference(array $node, string $pointer, ?string $operation): void
     {
         if (array_key_exists('$ref', $node)) {
@@ -340,49 +385,51 @@ final class ContractAuditor
             if (!is_array($parameter)) {
                 continue;
             }
-            $at = JsonPointer::append($pointer, $index);
-            $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
-            if (isset($parameter['$ref'])) {
-                $this->reference($parameter['$ref'], "$at/\$ref", $operation, false);
+            $this->resolvedObject($parameter, 'parameters', JsonPointer::append($pointer, $index), $operation,
+                fn (array $value, string $at) => $this->parameter($value, $at, $operation));
+        }
+    }
+
+    private function parameter(array $parameter, string $at, ?string $operation): void
+    {
+        $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
+        foreach (['explode', 'allowReserved', 'allowEmptyValue'] as $flag) {
+            if (array_key_exists($flag, $parameter) && !is_bool($parameter[$flag])) {
+                $this->add('invalid_parameter_option', "$at/$flag", "Parameter $flag must be boolean.", $operation);
             }
-            foreach (['explode', 'allowReserved', 'allowEmptyValue'] as $flag) {
-                if (array_key_exists($flag, $parameter) && !is_bool($parameter[$flag])) {
-                    $this->add('invalid_parameter_option', "$at/$flag", "Parameter $flag must be boolean.", $operation);
-                }
+        }
+        $location = $parameter['in'] ?? null;
+        if ($location === 'cookie') {
+            $this->add('cookie_parameter', "$at/in", 'Cookie parameter serialization is not implemented.', $operation);
+        }
+        $default = in_array($location, ['query', 'cookie'], true) ? 'form' : 'simple';
+        if (isset($parameter['style']) && $parameter['style'] !== $default) {
+            $this->add('parameter_style', "$at/style", 'This parameter style is not executed by the scalar serializer.', $operation);
+        }
+        foreach (['allowReserved', 'allowEmptyValue'] as $flag) {
+            if (($parameter[$flag] ?? false) !== false) {
+                $this->add('parameter_' . $flag, "$at/$flag", "Parameter $flag is not executed.", $operation);
             }
-            $location = $parameter['in'] ?? null;
-            if ($location === 'cookie') {
-                $this->add('cookie_parameter', "$at/in", 'Cookie parameter serialization is not implemented.', $operation);
-            }
-            $default = in_array($location, ['query', 'cookie'], true) ? 'form' : 'simple';
-            if (isset($parameter['style']) && $parameter['style'] !== $default) {
-                $this->add('parameter_style', "$at/style", 'This parameter style is not executed by the scalar serializer.', $operation);
-            }
-            foreach (['allowReserved', 'allowEmptyValue'] as $flag) {
-                if (($parameter[$flag] ?? false) !== false) {
-                    $this->add('parameter_' . $flag, "$at/$flag", "Parameter $flag is not executed.", $operation);
-                }
-            }
-            if (isset($parameter['schema'], $parameter['content'])) {
-                $this->add('conflicting_parameter_schema', "$at/content", 'A parameter must declare either schema or content, not both.', $operation);
-            }
-            if (isset($parameter['content'])) {
-                $this->add('parameter_content', "$at/content", 'Content-based parameter serialization is not implemented.', $operation);
-            }
-            if (isset($parameter['collectionFormat'])) {
-                $this->add('parameter_collectionFormat', "$at/collectionFormat", 'Swagger collection formats are not executed.', $operation);
-            }
-            if (isset($parameter['schema'])) {
-                $this->schema($parameter['schema'], "$at/schema", $operation);
-            } elseif (($this->document['swagger'] ?? null) === '2.0') {
-                $schema = array_intersect_key($parameter, array_flip(SpecificationNormalizer::SCHEMA_KEYWORDS));
-                $this->schema($schema, $at, $operation);
-            }
-            $this->content($parameter['content'] ?? [], "$at/content", $operation);
-            $type = $parameter['schema']['type'] ?? $parameter['type'] ?? null;
-            if (in_array($type, ['array', 'object'], true)) {
-                $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Array/object parameter serialization is not implemented.', $operation);
-            }
+        }
+        if (isset($parameter['schema'], $parameter['content'])) {
+            $this->add('conflicting_parameter_schema', "$at/content", 'A parameter must declare either schema or content, not both.', $operation);
+        }
+        if (isset($parameter['content'])) {
+            $this->add('parameter_content', "$at/content", 'Content-based parameter serialization is not implemented.', $operation);
+        }
+        if (isset($parameter['collectionFormat'])) {
+            $this->add('parameter_collectionFormat', "$at/collectionFormat", 'Swagger collection formats are not executed.', $operation);
+        }
+        if (isset($parameter['schema'])) {
+            $this->schema($parameter['schema'], "$at/schema", $operation);
+        } elseif (($this->document['swagger'] ?? null) === '2.0') {
+            $schema = array_intersect_key($parameter, array_flip(SpecificationNormalizer::SCHEMA_KEYWORDS));
+            $this->schema($schema, $at, $operation);
+        }
+        $this->content($parameter['content'] ?? [], "$at/content", $operation);
+        $type = $parameter['schema']['type'] ?? $parameter['type'] ?? null;
+        if (in_array($type, ['array', 'object'], true)) {
+            $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Array/object parameter serialization is not implemented.', $operation);
         }
     }
 
@@ -495,6 +542,6 @@ final class ContractAuditor
 
     private function add(string $code, string $pointer, string $message, ?string $operation = null, string $severity = 'error', array $chain = []): void
     {
-        $this->diagnostics[] = new Diagnostic($code, $severity, $pointer, $message, $this->source, $operation, $chain);
+        $this->diagnostics[] = new Diagnostic($code, $severity, $pointer, $message, $this->source, $operation, [...$this->referenceChain, ...$chain]);
     }
 }
