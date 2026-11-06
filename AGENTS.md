@@ -1,6 +1,7 @@
 # Flujo de trabajo acordado
 
 - Trabajar desde GitHub en el entorno cloud, sin depender del ordenador del usuario.
+- Continuar el desarrollo en la rama existente `release/0.2.0`, manteniéndola al día con lo publicado. No crear ramas por funcionalidad. El nombre histórico de la rama no fija la versión de las entregas siguientes ni permite modificar tags ya publicados.
 - Cada avance terminado y validado debe integrarse y publicarse como versión estable dentro de la misma tarea. No dar por terminado el trabajo dejando solo una rama o un PR en borrador.
 - Preferir commits y push a `main` cuando sus protecciones lo permitan. No abrir PRs como flujo habitual. Si GitHub exige un PR, resolverlo como trámite técnico y completar integración y publicación sin pedir otra confirmación.
 - Las tareas futuras de la hoja de ruta no deben retrasar la publicación de funcionalidad ya terminada. Mantener explícitos los límites reales y actualizar `pendientes.md` cuando corresponda.

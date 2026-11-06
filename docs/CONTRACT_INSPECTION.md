@@ -1,4 +1,4 @@
-# Contract inspection (v0.4.0)
+# Contract inspection (v0.4.1)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -34,7 +34,7 @@ interpreted as full contract acceptance. Programmatic users can call
 calling the emitter.
 
 Current audit coverage is bounded. General schema/dialect validation, source line
-numbers, external URI resolution and complete auditing of nested components remain
+numbers, external URI resolution and complete structural/dialect validation remain
 pending. JSON Pointer inspection does not expand the normalizer's reference support.
 Literal Casafari path server overrides execute through stable
 [runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0).
@@ -110,3 +110,26 @@ credentials, query or fragment remain explicitly unsupported. This work does not
 choose dynamically between several declared servers. [Generator v0.4.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.0)
 and runtime v0.5.0 contain the completed implementation. Future roadmap items
 remain tracked separately from these published capabilities.
+
+## Nested declaration audit (v0.4.1)
+
+Inspection now applies the same HTTP audit to reusable OpenAPI parameters, request
+bodies, responses, headers, links and Path Items, and to Swagger root parameters
+and responses. It checks declarations even when no operation uses them. For
+example, `allowReserved: true` on `components.parameters.Filter` now produces
+`parameter_allowReserved` at `/components/parameters/Filter/allowReserved` and
+blocks strict acceptance; non-strict normalization retains its compatibility API.
+
+Encoding headers and header content schemas are inspected recursively. Callback
+operations are audited and explicitly reported as unsupported incoming contracts.
+Unsupported security types, HTTP schemes, API-key locations, nonempty scopes and
+undefined security requirements receive precise source pointers. Declaration
+issues have no operation ID unless they belong to an actual operation; a reused
+Path Item's declared operation IDs remain available. Reference chains terminate
+on cycles without fetching external documents.
+
+Example payloads and link parameter/request-body expressions or literal values
+are not traversed as schemas or references. A literal `$ref` in those payloads
+never triggers a fetch or unresolved-reference error. General reference execution,
+OAuth, typed response headers and callback generation remain separate roadmap
+work. Unlocalized legacy normalization/emission errors still use the root pointer.
