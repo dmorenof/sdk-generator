@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.4.0** y `dmorenof/sdk-runtime` **v0.5.0** (ramas de desarrollo integradas; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.4.1** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -62,11 +62,20 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. El enrutamiento de servidores literales HTTP(S) está implementado con sustituciones por entorno en el runtime compartido; relativos, plantillas y variables siguen pendientes.
 - [ ] **Parcial — Conservar encabezados, cookies y respuestas diferenciadas.** Hecho: conservar los objetos originales de headers/links; mantener códigos y esquemas de respuesta ya soportados. Falta: normalización tipada general de headers/cookies y todas las formas de respuesta. Conservar headers en el contrato todavía no los expone desde el runtime.
 - [ ] **Parcial — Separar ejecución/validación de anotaciones.** Hecho: conservar anotaciones de documento, operación, parámetros y media types; distinguir las opciones HTTP auditadas y tratar los ejemplos como datos. Falta: completar esa clasificación en todos los componentes anidados y dialectos.
-- [ ] **Parcial — Auditar opciones ignoradas.** Hecho: detectar opciones conocidas de documento, ruta, operación y parámetros; estilos no ejecutados, overrides de servidor, headers/links, encoding y keywords no soportadas. Respetar sobrescrituras para evitar falsos errores. Falta: auditoría exhaustiva de componentes anidados y semántica HTTP restante.
+- [ ] **Parcial — Auditar opciones ignoradas.** Hecho: detectar opciones conocidas de documento, ruta, operación y parámetros; estilos no ejecutados, overrides de servidor, headers/links, encoding y keywords no soportadas. Respetar sobrescrituras para evitar falsos errores. Hecho adicional en v0.4.1: auditar declaraciones reutilizables de parámetros, requestBodies, respuestas, headers, links y Path Items; cabeceras anidadas en encoding, callbacks y esquemas/requisitos de seguridad. Falta: validación estructural por dialecto y cobertura exhaustiva de la semántica HTTP restante.
 - [x] **Publicado en v0.4.0 — Modo de compatibilidad por documento.** `--inspect` informa `supported` / `partial` / `unsupported`, motivo y JSON Pointer para el subconjunto auditado. La clasificación no equivale a conformidad completa con OpenAPI.
 - [x] **Publicado en v0.4.0 — Modo estricto.** `--strict` rechaza los errores detectados antes de crear archivos; `fromJson()` / `fromYaml()` admiten `strict: true`. El analizador de aceptación usa `compatibility_failed` cuando emitir PHP ocultaría una opción HTTP no ejecutada. La cobertura depende de la auditoría, que sigue parcial en la tarea anterior.
 - [x] **Publicado en v0.4.0 — Inspección/dry-run sin generar archivos.** `--inspect` / `--dry-run` funcionan con JSON y YAML, conservan el hash del origen y no escriben el SDK ni consultan referencias externas.
-- [ ] **Parcial — Diagnósticos completos.** Hecho: archivo, operación cuando está identificada, JSON Pointer escapado, código estable y cadena local de referencias para los casos auditados. Falta: localizar con precisión todos los errores antiguos del parser/emisor; algunos aún se informan en la raíz del documento.
+- [ ] **Parcial — Diagnósticos completos.** Hecho: archivo, operación cuando está identificada, JSON Pointer escapado, código estable y cadena local de referencias para los casos auditados. Hecho adicional en v0.4.1: localizar opciones no ejecutadas en componentes, encoding y seguridad con punteros escapados y cadenas locales acotadas. Falta: localizar con precisión todos los errores antiguos del parser/emisor; algunos aún se informan en la raíz del documento.
+
+### Avance de auditoría anidada — v0.4.1
+
+- [x] Auditar declaraciones reutilizables OpenAPI y parámetros/respuestas reutilizables de Swagger, incluidos schemas de cabeceras. Las declaraciones se revisan aunque no se usen; las referencias a esos objetos todavía no se ejecutan.
+- [x] Revisar cabeceras de `encoding`, contenido de headers, links y operaciones de callbacks. Los callbacks siguen sin generar contratos entrantes.
+- [x] Localizar tipos de seguridad no ejecutados, scopes y requisitos desconocidos; conservar JSON Pointer escapado, operación cuando existe y cadenas de referencias, incluso con ciclos.
+- [x] Mantener ejemplos y valores/expresiones de links como datos; no consultar referencias externas durante la inspección.
+- **Validación:** 13 regresiones nuevas; suite cloud PHP 8.4: 229 pruebas / 2.097 aserciones; cinco SDKs sin errores PHPStan max. CI multiversión de la entrega. Smoke de instalación comprueba el diagnóstico de un parámetro reutilizable desde el generador publicado.
+- **Límites:** no cierra las seis tareas parciales del paquete 01, la validación general de documentos ni el paquete 02 de referencias. Runtime estable `^0.5.0`, sin cambios en este avance.
 
 ### Qué cambia para quien usa el generador
 
@@ -402,6 +411,8 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 
 ### Reglas de entrega para cada paquete
 
+Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla alineada con las integraciones y versiones publicadas; su nombre no limita los números de versión.
+
 - [ ] Nueva funcionalidad en el contrato canónico cuando corresponda.
 - [ ] Implementación en un solo lugar del runtime; evitar replicarla por operación.
 - [ ] Fixtures positivos, negativos y casos límite.
@@ -432,3 +443,5 @@ JSON Schema y seguridad pueden avanzar en paralelo una vez estabilizado el contr
 | 2026-11-05 | Entrega coordinada v0.3.0 del generador + v0.4.0 del runtime; dependencia estable `^0.4.0`, cierre del subconjunto de herencia/discriminadores y mantenimiento de los límites generales pendientes. | [Generator v0.3.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.3.0), [Runtime v0.4.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.4.0) |
 
 | 2026-11-05 | Publicados los avances de contrato/diagnóstico y enrutamiento: generador v0.4.0 + runtime v0.5.0, dependencia estable ^0.5.0. Se adopta integración/publicación de cada avance terminado; no finalizar con PRs en borrador. | [Generator v0.4.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.0), [Runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0) |
+
+| 2026-11-06 | Actualizada la rama existente `release/0.2.0` con la base publicada; v0.4.1 amplía auditoría anidada y localización de seguridad, manteniendo runtime ^0.5.0 y abiertos los límites generales de P0. | [Generator v0.4.1](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.1) |

@@ -67,4 +67,15 @@ echo "PUBLISHED_SERVER_ROUTING_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/server-consumer.php']);
 runPublished([PHP_BINARY, $binary, '--inspect', $package . '/tests/fixtures/casafari-openapi31.json']);
+$nested = json_decode(file_get_contents($package . '/tests/fixtures/accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+$nested['components']['parameters']['Filter/~'] = [
+    'name' => 'filter', 'in' => 'query', 'schema' => ['type' => 'string'], 'allowReserved' => true,
+];
+$report = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspect(json_encode($nested, JSON_THROW_ON_ERROR));
+$issues = array_values(array_filter($report['diagnostics'], static fn ($issue): bool => $issue->code === 'parameter_allowReserved'));
+if ($report['strictlyAccepted'] || !$report['generatable']
+    || ($issues[0]->pointer ?? null) !== '/components/parameters/Filter~1~0/allowReserved') {
+    throw new RuntimeException('Published generator did not audit reusable parameter declarations.');
+}
+echo "PUBLISHED_NESTED_AUDIT_OK", PHP_EOL;
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

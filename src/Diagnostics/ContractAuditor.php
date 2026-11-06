@@ -21,14 +21,40 @@ final class ContractAuditor
         $this->diagnostics = [];
         $this->document = $document;
         $this->source = $source;
-        $this->keys($document, ['openapi', 'swagger', 'info', 'servers', 'host', 'basePath', 'schemes', 'paths', 'components', 'definitions', 'security', 'securityDefinitions', 'consumes', 'produces'], '');
+        $this->keys($document, ['openapi', 'swagger', 'info', 'servers', 'host', 'basePath', 'schemes', 'paths', 'components', 'definitions', 'security', 'securityDefinitions', 'consumes', 'produces',
+            ...(($document['swagger'] ?? null) === '2.0' ? ['parameters', 'responses'] : [])], '');
+        $this->servers($document['servers'] ?? [], '/servers', null, null);
+        $this->securityRequirements($document['security'] ?? [], '/security', null);
+        $this->pathItems($document['paths'] ?? [], '/paths');
+        $this->components();
+        foreach ($document['components']['schemas'] ?? [] as $name => $schema) {
+            $this->schema($schema, JsonPointer::append('/components/schemas', $name), null);
+        }
+        foreach ($document['definitions'] ?? [] as $name => $schema) {
+            $this->schema($schema, JsonPointer::append('/definitions', $name), null);
+        }
+        $unique = [];
+        foreach ($this->diagnostics as $diagnostic) {
+            $key = $diagnostic->pointer . ':' . $diagnostic->code . ':' . $diagnostic->operationId;
+            $unique[$key] = $diagnostic;
+        }
+        $result = array_values($unique);
+        usort($result, static fn (Diagnostic $a, Diagnostic $b): int => [$a->pointer, $a->code, $a->operationId] <=> [$b->pointer, $b->code, $b->operationId]);
+        return $result;
+    }
+
+    private function pathItems(mixed $paths, string $base): void
+    {
+        if (!is_array($paths)) {
+            return;
+        }
+        $document = $this->document;
         $rootServers = $document['servers'] ?? [];
-        $this->servers($rootServers, '/servers', null, null);
-        foreach ($document['paths'] ?? [] as $path => $item) {
+        foreach ($paths as $path => $item) {
             if (!is_array($item)) {
                 continue;
             }
-            $pointer = JsonPointer::append('/paths', $path);
+            $pointer = JsonPointer::append($base, $path);
             $this->keys($item, [...self::METHODS, 'parameters', 'servers', '$ref'], $pointer);
             $this->servers($item['servers'] ?? null, "$pointer/servers", null, null);
             if (isset($item['$ref'])) {
@@ -41,7 +67,9 @@ final class ContractAuditor
                 }
                 $where = "$pointer/$method";
                 $id = is_string($operation['operationId'] ?? null) ? $operation['operationId'] : strtoupper($method) . ' ' . $path;
-                $this->keys($operation, ['operationId', 'parameters', 'requestBody', 'responses', 'security', 'servers', 'consumes', 'produces', 'schemes'], $where, $id);
+                $this->keys($operation, ['operationId', 'parameters', 'requestBody', 'responses', 'security', 'servers', 'consumes', 'produces', 'schemes', 'callbacks'], $where, $id);
+                $this->securityRequirements($operation['security'] ?? [], "$where/security", $id);
+                $this->callbacks($operation['callbacks'] ?? [], "$where/callbacks", $id);
                 if (($document['swagger'] ?? null) === '2.0') {
                     foreach (['consumes' => true, 'produces' => false] as $keyword => $request) {
                         if ($request && array_filter(array_merge($item['parameters'] ?? [], $operation['parameters'] ?? []),
@@ -74,67 +102,190 @@ final class ContractAuditor
                     || !isset($overrides[$parameter['in'] . ':' . $parameter['name']]));
                 $this->parameters($pathParameters, "$pointer/parameters", $id);
                 $this->parameters($operation['parameters'] ?? [], "$where/parameters", $id);
-                if (is_array($operation['requestBody'] ?? null)) {
-                    $body = $operation['requestBody'];
-                    $this->keys($body, ['required', 'content', '$ref'], "$where/requestBody", $id);
-                    if (isset($body['$ref'])) {
-                        $this->reference($body['$ref'], "$where/requestBody/\$ref", $id, false);
-                    }
-                    $this->content($body['content'] ?? [], "$where/requestBody/content", $id);
-                    $this->selectedMedia($body['content'] ?? [], "$where/requestBody/content", $id, true);
-                }
+                $this->requestBody($operation['requestBody'] ?? null, "$where/requestBody", $id);
                 foreach ($operation['responses'] ?? [] as $status => $response) {
-                    if (!is_array($response)) {
-                        continue;
-                    }
                     $at = JsonPointer::append("$where/responses", $status);
-                    $this->keys($response, ['content', 'schema', 'headers', 'links', '$ref'], $at, $id);
-                    if (isset($response['$ref'])) {
-                        $this->reference($response['$ref'], "$at/\$ref", $id, false);
-                    }
-                    foreach (['headers', 'links'] as $keyword) {
-                        if (!empty($response[$keyword])) {
-                            $this->add('response_' . $keyword, "$at/$keyword", "Response $keyword are preserved but not exposed by the runtime.", $id);
-                        }
-                    }
-                    $this->content($response['content'] ?? [], "$at/content", $id);
-                    // Error representations (e.g. RFC 9457 problem+json) may be
-                    // returned independently of success-content negotiation.
-                    if (preg_match('/^2[0-9]{2}$/', (string) $status) === 1) {
+                    $this->response($response, $at, $id);
+                    // Error media types do not negotiate success representations.
+                    if (is_array($response) && preg_match('/^2[0-9]{2}$/', (string) $status) === 1) {
                         $this->selectedMedia($response['content'] ?? [], "$at/content", $id, false);
-                    }
-                    if (isset($response['schema'])) {
-                        $this->schema($response['schema'], "$at/schema", $id);
-                    }
-                    foreach ($response['headers'] ?? [] as $name => $header) {
-                        if (!is_array($header)) {
-                            continue;
-                        }
-                        $headerAt = JsonPointer::append("$at/headers", $name);
-                        if (isset($header['$ref'])) {
-                            $this->reference($header['$ref'], "$headerAt/\$ref", $id, false);
-                        }
-                        if (isset($header['schema'])) {
-                            $this->schema($header['schema'], "$headerAt/schema", $id);
-                        }
                     }
                 }
             }
         }
-        foreach ($document['components']['schemas'] ?? [] as $name => $schema) {
-            $this->schema($schema, JsonPointer::append('/components/schemas', $name), null);
+    }
+
+    /** Audit declarations too; declaration coverage does not implement reference execution. */
+    private function components(): void
+    {
+        $components = $this->document['components'] ?? [];
+        if (is_array($components)) {
+            $this->keys($components, ['schemas', 'parameters', 'requestBodies', 'responses', 'headers', 'links', 'examples', 'callbacks', 'pathItems', 'securitySchemes'], '/components');
+            $this->parameters($components['parameters'] ?? [], '/components/parameters', null);
+            foreach (['requestBodies' => 'requestBody', 'responses' => 'response', 'headers' => 'header', 'links' => 'link'] as $collection => $handler) {
+                foreach ($components[$collection] ?? [] as $name => $node) {
+                    $this->$handler($node, JsonPointer::append("/components/$collection", $name), null);
+                }
+            }
+            $this->pathItems($components['pathItems'] ?? [], '/components/pathItems');
+            $this->callbacks($components['callbacks'] ?? [], '/components/callbacks', null);
         }
-        foreach ($document['definitions'] ?? [] as $name => $schema) {
-            $this->schema($schema, JsonPointer::append('/definitions', $name), null);
+        if (($this->document['swagger'] ?? null) === '2.0') {
+            $this->parameters($this->document['parameters'] ?? [], '/parameters', null);
+            foreach ($this->document['responses'] ?? [] as $name => $response) {
+                $this->response($response, JsonPointer::append('/responses', $name), null);
+            }
         }
-        $unique = [];
-        foreach ($this->diagnostics as $diagnostic) {
-            $key = $diagnostic->pointer . ':' . $diagnostic->code . ':' . $diagnostic->operationId;
-            $unique[$key] = $diagnostic;
+        $swagger = ($this->document['swagger'] ?? null) === '2.0';
+        $schemes = $swagger ? ($this->document['securityDefinitions'] ?? []) : ($components['securitySchemes'] ?? []);
+        foreach ($schemes as $name => $scheme) {
+            $this->securityScheme($scheme, JsonPointer::append($swagger ? '/securityDefinitions' : '/components/securitySchemes', $name));
         }
-        $result = array_values($unique);
-        usort($result, static fn (Diagnostic $a, Diagnostic $b): int => [$a->pointer, $a->code, $a->operationId] <=> [$b->pointer, $b->code, $b->operationId]);
-        return $result;
+    }
+
+    private function requestBody(mixed $body, string $pointer, ?string $operation): void
+    {
+        if (!is_array($body)) {
+            return;
+        }
+        $this->keys($body, ['required', 'content', '$ref'], $pointer, $operation);
+        $this->objectReference($body, $pointer, $operation);
+        $this->content($body['content'] ?? [], "$pointer/content", $operation);
+        $this->selectedMedia($body['content'] ?? [], "$pointer/content", $operation, true);
+    }
+
+    private function response(mixed $response, string $pointer, ?string $operation): void
+    {
+        if (!is_array($response)) {
+            return;
+        }
+        $this->keys($response, ['content', 'schema', 'headers', 'links', '$ref', 'examples'], $pointer, $operation);
+        $this->objectReference($response, $pointer, $operation);
+        foreach (['headers', 'links'] as $keyword) {
+            if (!empty($response[$keyword])) {
+                $this->add('response_' . $keyword, "$pointer/$keyword", "Response $keyword are preserved but not exposed by the runtime.", $operation);
+            }
+        }
+        $this->content($response['content'] ?? [], "$pointer/content", $operation);
+        if (isset($response['schema'])) {
+            $this->schema($response['schema'], "$pointer/schema", $operation);
+        }
+        $this->headers($response['headers'] ?? [], "$pointer/headers", $operation);
+        foreach ($response['links'] ?? [] as $name => $link) {
+            $this->link($link, JsonPointer::append("$pointer/links", $name), $operation);
+        }
+    }
+
+    private function headers(mixed $headers, string $pointer, ?string $operation): void
+    {
+        if (!is_array($headers)) {
+            return;
+        }
+        foreach ($headers as $name => $header) {
+            $this->header($header, JsonPointer::append($pointer, $name), $operation);
+        }
+    }
+
+    private function header(mixed $header, string $pointer, ?string $operation): void
+    {
+        if (!is_array($header)) {
+            return;
+        }
+        if (($this->document['swagger'] ?? null) === '2.0') {
+            // Swagger Header Objects carry the schema directly, without schema:.
+            $this->schema(array_diff_key($header, array_flip(['description', 'collectionFormat', 'example', 'examples'])), $pointer, $operation);
+            return;
+        }
+        $this->keys($header, ['required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', '$ref'], $pointer, $operation);
+        $this->objectReference($header, $pointer, $operation);
+        if (isset($header['schema'])) {
+            $this->schema($header['schema'], "$pointer/schema", $operation);
+        }
+        $this->content($header['content'] ?? [], "$pointer/content", $operation);
+    }
+
+    private function link(mixed $link, string $pointer, ?string $operation): void
+    {
+        if (!is_array($link)) {
+            return;
+        }
+        $this->keys($link, ['operationRef', 'operationId', 'parameters', 'requestBody', 'server', '$ref'], $pointer, $operation);
+        $this->objectReference($link, $pointer, $operation);
+        // parameters/requestBody contain runtime expressions or literal values,
+        // not Schema Objects or Reference Objects.
+        if (isset($link['server'])) {
+            $this->server($link['server'], "$pointer/server", $operation);
+        }
+    }
+
+    private function callbacks(mixed $callbacks, string $pointer, ?string $operation): void
+    {
+        if (!is_array($callbacks)) {
+            return;
+        }
+        foreach ($callbacks as $name => $callback) {
+            $at = JsonPointer::append($pointer, $name);
+            $this->add('unsupported_callback', $at, 'Callback operations are not generated as incoming contracts.', $operation);
+            if (!is_array($callback)) {
+                continue;
+            }
+            $this->objectReference($callback, $at, $operation);
+            $this->pathItems(array_diff_key($callback, ['$ref' => true]), $at);
+        }
+    }
+
+    private function securityScheme(mixed $scheme, string $pointer): void
+    {
+        if (!is_array($scheme)) {
+            return;
+        }
+        $this->keys($scheme, ['type', 'name', 'in', 'scheme', 'bearerFormat', 'flows', 'openIdConnectUrl', 'flow', 'authorizationUrl', 'tokenUrl', 'scopes', '$ref'], $pointer);
+        $this->objectReference($scheme, $pointer, null);
+        if (array_key_exists('$ref', $scheme)) {
+            return;
+        }
+        $type = $scheme['type'] ?? null;
+        if ($type === 'apiKey') {
+            if (!in_array($scheme['in'] ?? null, ['header', 'query'], true)) {
+                $this->add('unsupported_security_scheme', "$pointer/in", 'API keys are executable only in headers or query parameters.');
+            }
+        } elseif ($type === 'http') {
+            if (!in_array(strtolower((string) ($scheme['scheme'] ?? '')), ['basic', 'bearer'], true)) {
+                $this->add('unsupported_security_scheme', "$pointer/scheme", 'Only HTTP Basic and Bearer schemes are executable.');
+            }
+        } elseif ($type !== 'basic' || ($this->document['swagger'] ?? null) !== '2.0') {
+            $this->add('unsupported_security_scheme', "$pointer/type", 'This security scheme is not executable.');
+        }
+    }
+
+    private function securityRequirements(mixed $requirements, string $pointer, ?string $operation): void
+    {
+        if (!is_array($requirements)) {
+            return;
+        }
+        $schemes = ($this->document['swagger'] ?? null) === '2.0'
+            ? ($this->document['securityDefinitions'] ?? []) : ($this->document['components']['securitySchemes'] ?? []);
+        foreach ($requirements as $index => $requirement) {
+            if (!is_array($requirement)) {
+                continue;
+            }
+            foreach ($requirement as $name => $scopes) {
+                $at = JsonPointer::append(JsonPointer::append($pointer, $index), $name);
+                if (!array_key_exists($name, $schemes)) {
+                    $this->add('unknown_security_scheme', $at, 'Security requirement names an undefined scheme.', $operation);
+                }
+                if (is_array($scopes) && $scopes !== []) {
+                    $this->add('unsupported_security_scopes', $at, 'OAuth security scopes are not executed.', $operation);
+                }
+            }
+        }
+    }
+
+    private function objectReference(array $node, string $pointer, ?string $operation): void
+    {
+        if (array_key_exists('$ref', $node)) {
+            $this->reference($node['$ref'], "$pointer/\$ref", $operation, false);
+        }
     }
 
     private function keys(array $node, array $allowed, string $pointer, ?string $operation = null): void
@@ -162,13 +313,21 @@ final class ContractAuditor
             $this->add('unsupported_server_override', $pointer, 'An empty server override requires relative default-server resolution, which is not implemented.', $operation);
         }
         foreach ($servers as $index => $server) {
-            $url = is_array($server) ? ($server['url'] ?? null) : null;
-            if (!is_string($url) || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($url)) {
-                $this->add('unsupported_server_url', "$pointer/$index/url", 'Only literal absolute HTTP(S) server URLs without credentials, query or fragment are executable.', $operation);
-            }
-            if (is_array($server) && isset($server['variables'])) {
-                $this->add('server_variables', "$pointer/$index/variables", 'Server variables are not expanded.', $operation);
-            }
+            $this->server($server, JsonPointer::append($pointer, $index), $operation);
+        }
+    }
+
+    private function server(mixed $server, string $pointer, ?string $operation): void
+    {
+        if (is_array($server)) {
+            $this->keys($server, ['url', 'variables'], $pointer, $operation);
+        }
+        $url = is_array($server) ? ($server['url'] ?? null) : null;
+        if (!is_string($url) || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($url)) {
+            $this->add('unsupported_server_url', "$pointer/url", 'Only literal absolute HTTP(S) server URLs without credentials, query or fragment are executable.', $operation);
+        }
+        if (is_array($server) && isset($server['variables'])) {
+            $this->add('server_variables', "$pointer/variables", 'Server variables are not expanded.', $operation);
         }
     }
 
@@ -181,7 +340,7 @@ final class ContractAuditor
             if (!is_array($parameter)) {
                 continue;
             }
-            $at = "$pointer/$index";
+            $at = JsonPointer::append($pointer, $index);
             $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
             if (isset($parameter['$ref'])) {
                 $this->reference($parameter['$ref'], "$at/\$ref", $operation, false);
@@ -246,6 +405,14 @@ final class ContractAuditor
             }
             if (!empty($definition['encoding'])) {
                 $this->add('media_encoding', "$at/encoding", 'Per-property media encoding is not executed.', $operation);
+            }
+            foreach ($definition['encoding'] ?? [] as $name => $encoding) {
+                if (!is_array($encoding)) {
+                    continue;
+                }
+                $encodingAt = JsonPointer::append("$at/encoding", $name);
+                $this->keys($encoding, ['contentType', 'headers', 'style', 'explode', 'allowReserved'], $encodingAt, $operation);
+                $this->headers($encoding['headers'] ?? [], "$encodingAt/headers", $operation);
             }
         }
     }

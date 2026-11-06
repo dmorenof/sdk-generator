@@ -4,6 +4,8 @@
 
 The agreed workflow is to publish each completed, validated increment. Do not stop at a draft PR or wait for the entire roadmap. See [AGENTS.md](AGENTS.md).
 
+Develop on the existing `release/0.2.0` branch, without creating feature branches. Integrate that branch into `main` for the publication workflow below, then bring the same release branch up to the integrated commit. Its historical name is independent of `VERSION`.
+
 1. Run Composer validation, appropriate tests/static analysis and advisory checks. Use cloud execution and remote GitHub state.
 2. Update `VERSION`, versioned release notes and the actual supported scope. Integrate into `main` directly when protections permit it. If GitHub requires a PR, complete that technical step and continue through publication in the same task.
 3. The existing `.github/workflows/release.yml` runs on a `VERSION` change on `main`. It checks dependencies, PHP/tests and advisories, then creates the immutable tag and GitHub Release. Never bypass protections or force-update a tag.
