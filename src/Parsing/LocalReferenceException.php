@@ -10,6 +10,7 @@ final class LocalReferenceException extends \InvalidArgumentException
         public readonly string $diagnosticCode,
         string $message,
         public readonly array $referenceChain,
+        public readonly ?string $pointer = null,
     ) {
         parent::__construct($message . ($referenceChain === [] ? '' : ' [' . implode(' -> ', $referenceChain) . ']'));
     }

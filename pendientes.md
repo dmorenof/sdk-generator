@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.5.0** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.6.0** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -106,9 +106,9 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] **Parcial — JSON Pointer completo.** v0.5.0 decodifica escapes URI y `~0`/`~1` en las referencias HTTP locales soportadas. Faltan ubicaciones arbitrarias, URIs relativas y la aplicación general al resto de referencias.
 - [x] **v0.5.0 — Referencias locales con nombre a `components/parameters`, `responses` y `requestBodies`**, con alias, parámetros en Path Item/operación y precedencia tras resolver `in`/`name`.
 - [x] **v0.5.0 — Referencias locales Swagger `#/parameters/...` y `#/responses/...`**, incluidos parámetros de body.
-- [ ] Referencias a `components/headers`; su normalización/ejecución tipada sigue pendiente.
-- [ ] Referencias a `components/examples`, `links`, `callbacks`, `pathItems` y `securitySchemes` cuando proceda.
-- [ ] Referencias a `Path Item` completos y su reutilización.
+- [x] **v0.6.0 — Referencias locales a `components/headers`**, con alias y anotaciones de Reference Objects, en metadatos de respuestas y encoding. Su exposición/validación tipada en el runtime sigue pendiente en el paquete 04.
+- [ ] Referencias a `components/examples`, `links`, `callbacks` y `securitySchemes` cuando proceda. Los Path Items locales están resueltos en la tarea siguiente.
+- [x] **v0.6.0 — Referencias locales a Path Items completos:** `#/paths/...` en Swagger/OpenAPI y `components/pathItems` en OAS 3.1; alias, operaciones, parámetros y servidores efectivos. Combinar hermanos independientes y rechazar solapamientos indefinidos conservando el origen de cada campo. Ubicaciones arbitrarias y documentos externos quedan en sus tareas generales.
 - [ ] Referencias a archivos JSON/YAML externos, relativos al documento raíz.
 - [ ] Referencias HTTP(S) externas con caché, timeouts, límites de tamaño y restricciones de acceso.
 - [ ] Resolución de ciclos, incluidos modelos recursivos y dependencias entre documentos.
@@ -126,7 +126,17 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] Mantener las dependencias de modelos al aislar operaciones con requestBody/response referenciados; no interpretar payloads de ejemplos/links como referencias de schemas.
 - [x] SDK Accounts con referencias ejecutado por HTTP simulado y añadido al análisis PHPStan max y al smoke de instalación de la versión publicada.
 - **Validación:** cloud PHP 8.4: 245 pruebas / 2.149 aserciones; seis SDKs sin errores PHPStan max; Casafari conserva 46/46 operaciones aceptadas. La publicación comprueba instalación independiente y ejecución HTTP simulada del SDK con referencias.
-- **Límite:** este avance local no cierra el paquete 02. Las referencias a documentos divididos, headers, Path Items y las restantes categorías permanecen abiertas. Runtime estable `^0.5.0`.
+- **Límite:** este avance local no cierra el paquete 02. Las referencias a documentos divididos y otras categorías permanecen abiertas; headers y Path Items locales se completan en v0.6.0, en el apartado siguiente. Runtime estable `^0.5.0`.
+
+### Entrega local de Path Items y cabeceras — v0.6.0
+
+- [x] Generar operaciones heredadas de Path Items referenciados sin perder parámetros, servidores ni detección de IDs duplicados.
+- [x] Distinguir los hermanos de Path Item de los Reference Objects: combinar campos independientes y diagnosticar solapamientos en el origen real.
+- [x] Conservar punteros/cadenas por campo en inspección y aceptación aislada. Contar operaciones resueltas e informar `unresolvedPathCount` sin aceptar rutas inválidas como SDK vacío.
+- [x] Resolver alias locales de cabeceras de respuesta y encoding como metadatos; conservar diagnósticos de exposición/ejecución aún no implementada.
+- [x] Acotar grafos recursivos de metadatos HTTP, sin expandir recursivamente schemas ni interpretar ejemplos como referencias.
+- **Validación:** cloud PHP 8.4: 264 pruebas / 2.218 aserciones; siete SDKs con PHPStan max. Smoke de publicación: SDKs con rutas referenciadas, HTTP simulado con servidores heredados y metadatos de headers resueltos.
+- **Límites:** runtime estable `^0.5.0`; referencias externas/arbitrarias, otros Reference Objects, encabezados tipados y encoding HTTP siguen pendientes.
 
 **Aceptación:** un OpenAPI dividido en varios archivos debe generar un SDK equivalente al de su versión consolidada; casos cíclicos válidos deben resolverse de forma segura.
 
@@ -321,7 +331,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 - [ ] Servidores relativos y resolución frente al documento o base URL.
 - [x] **Publicado en v0.4.0 / v0.5.0:** servidores literales HTTP(S) por Path Item y operación, precedencia operación → ruta → raíz y `serverOverrides` por conexión para otros entornos. Relativos/variables siguen en sus tareas separadas.
 - [ ] Manejo de operaciones con varios servidores disponibles.
-- [ ] Soporte completo de referencias a `Path Item`.
+- [ ] **Parcial — Referencias a Path Item:** referencias locales completas en v0.6.0 (ver paquete 02); faltan documentos externos y ubicaciones arbitrarias.
 - [ ] Detección de rutas ambiguas, placeholders inconsistentes y nombres PHP en conflicto.
 - [ ] Semántica de `HEAD`, `OPTIONS` y `TRACE` más allá de reconocer el verbo.
 - [ ] Metadatos de ruta/operación: `summary`, `description`, `tags`, `deprecated`, `externalDocs`.
@@ -459,3 +469,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-06 | Actualizada la rama existente `release/0.2.0` con la base publicada; v0.4.1 amplía auditoría anidada y localización de seguridad, manteniendo runtime ^0.5.0 y abiertos los límites generales de P0. | [Generator v0.4.1](https://github.com/dmorenof/sdk-generator/releases/tag/v0.4.1) |
 
 | 2026-11-06 | Generador v0.5.0: referencias HTTP locales OpenAPI/Swagger, alias acotados, reglas de hermanos de Reference Objects, diagnóstico de origen y dependencias de aceptación; runtime estable ^0.5.0 sin cambios. | [Generator v0.5.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.5.0) |
+
+| 2026-11-06 | Generador v0.6.0: Path Items y headers locales, hermanos independientes/solapamientos explícitos, procedencia por campo y aceptación con operaciones resueltas; runtime estable ^0.5.0 sin cambios. | [Generator v0.6.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.6.0) |

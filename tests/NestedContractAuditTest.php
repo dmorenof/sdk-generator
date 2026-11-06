@@ -70,7 +70,7 @@ final class NestedContractAuditTest extends TestCase
         self::assertSame(['#/components/headers/Alias', '#/components/headers/Missing'], $issue->referenceChain);
     }
 
-    public function testReusablePathItemsAreAuditedWithoutClaimingReferenceExecution(): void
+    public function testReusablePathItemsAreAuditedWithReferenceProvenance(): void
     {
         $document = self::document();
         $document['components']['pathItems']['Shared/~'] = ['get' => [
@@ -81,7 +81,8 @@ final class NestedContractAuditTest extends TestCase
         $issues = self::issues($document, 'unsupported_keyword');
         self::assertSame('/components/pathItems/Shared~1~0/get/imaginaryTransportOption', $issues[0]->pointer);
         self::assertSame('sharedRead', $issues[0]->operationId);
-        self::assertSame('/paths/~1shared/$ref', self::issues($document, 'unsupported_reference')[0]->pointer);
+        self::assertSame(['#/components/pathItems/Shared~1~0'], $issues[1]->referenceChain);
+        self::assertSame([], self::issues($document, 'unsupported_reference'));
     }
 
     public function testSecurityFailuresAreLocatedAtTheSchemeAndRequirement(): void
@@ -169,9 +170,9 @@ final class NestedContractAuditTest extends TestCase
         $document = self::document();
         $document['components']['headers']['A'] = ['$ref' => '#/components/headers/B'];
         $document['components']['headers']['B'] = ['$ref' => '#/components/headers/A'];
-        $issues = self::issues($document, 'unsupported_reference');
+        $issues = self::issues($document, 'reference_cycle');
         self::assertCount(2, $issues);
-        self::assertSame(['#/components/headers/B', '#/components/headers/A'], $issues[0]->referenceChain);
+        self::assertSame(['#/components/headers/B', '#/components/headers/A', '#/components/headers/B'], $issues[0]->referenceChain);
         $auditor = new ContractAuditor();
         self::assertNotEmpty($auditor->audit($document, 'first.json'));
         self::assertSame([], $auditor->audit(self::document(), 'second.json'));

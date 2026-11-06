@@ -1,4 +1,4 @@
-# Contract inspection (v0.5.0)
+# Contract inspection (v0.6.0)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -153,3 +153,24 @@ that every option inside its target can execute: for example a referenced
 
 See [supported scope](SUPPORTED_SCOPE.md#local-http-reference-objects-050) for
 sibling rules, the 128-alias limit and the reference categories still pending.
+
+
+## Path Item and Header Object resolution (v0.6.0)
+
+The normalizer, inspector and acceptance analyzer now resolve local Path Items
+and local OpenAPI headers. Path Item fields carry their own source pointer and
+reference chain, including disjoint siblings beside `$ref`. Overlaps are errors
+rather than implicit overrides. This distinction also applies to descriptions:
+Path Items do not use Reference Object annotation override rules.
+
+The acceptance report includes `unresolvedPathCount` and counts operations after
+Path Item resolution. Derived operation subsets materialize supported Path Items
+in memory and carry original field origins into the audit, preserving actionable
+diagnostics and the untouched full-source acceptance gate. No external references
+are fetched and the report hash remains that of the original input.
+
+Resolving response headers and encoding headers preserves metadata; strict mode
+continues to reject unimplemented header exposure or media encoding. Alias cycles,
+invalid targets and unsupported recursive HTTP-metadata graphs are explicit
+failures. See [supported scope](SUPPORTED_SCOPE.md#path-item-and-header-references-060)
+for exact target locations and dialect limits.

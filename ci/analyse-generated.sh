@@ -26,3 +26,5 @@ analyse pets pets-discriminator-openapi30.json 'Example\PetsSdk'
 analyse operation-servers operation-servers-openapi30.json 'Example\OperationServersSdk'
 
 analyse referenced-accounts accounts-references-openapi31.json 'Example\ReferencedAccountsSdk'
+
+analyse path-item-accounts accounts-path-items-openapi31.json 'Example\PathItemAccountsSdk'

@@ -1,4 +1,4 @@
-# v0.5.0 supported scope and known limitations
+# v0.6.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -111,8 +111,41 @@ The referenced Accounts fixture produces the same canonical contract and SDK
 sources as its inline equivalent. Its generated SDK is independently installed
 and exercises mock GET/POST, enums, collections and DTO hydration in release smoke.
 
-Only the named local HTTP reference categories above are added. Arbitrary target
-locations, header/Path Item/security/example/link/callback references, external
+The named local HTTP reference categories above were added in v0.5.0; v0.6.0
+adds Path Item and header resolution as described below. Arbitrary target
+locations, security/example/link/callback Reference Objects, external
 JSON/YAML/HTTP documents, anchors, dialect resolution and full JSON Schema remain
 pending. `content` parameters, structured HTTP parameters and non-JSON transports
 retain their existing diagnostics until their serializers are implemented.
+
+
+## Path Item and header references (0.6.0)
+
+Local Path Item references can target `#/paths/<escaped-path>` in Swagger 2.0,
+OpenAPI 3.0 and 3.1, or named `#/components/pathItems/<name>` in OpenAPI 3.1.
+Alias chains use the existing 128-hop bound and cycle checks. Reused operations
+keep their declared operation IDs; duplicate IDs fail rather than being renamed.
+Effective parameters and operation/path/root server precedence survive resolution.
+
+A Path Item `$ref` is a fixed field, not a Reference Object. Disjoint sibling
+fields are combined; the specification leaves overlapping fields undefined, so
+these produce `conflicting_path_item` at the actual conflicting source field.
+This includes repeated summary/description, parameters and methods. Per-field
+provenance keeps local operations at their local pointer and inherited fields at
+their declaration, with the applicable alias chain. Isolated acceptance preserves
+these origins, enumerates resolved operations and reports `unresolvedPathCount`.
+An unresolved route cannot pass acceptance as a zero-operation SDK.
+
+OpenAPI `components/headers` references resolve through aliases in response
+headers and media encoding headers, with the Reference Object annotation rules
+already used for parameters/bodies/responses. Their raw schema/content metadata
+is retained. This does **not** expose typed response headers from the runtime or
+execute encoding rules; inspection still diagnoses those limitations. Recursive
+HTTP-metadata graphs terminate with an explicit diagnostic, while supported
+recursive Schema Objects keep their existing identity.
+
+Accounts and server-routing fixtures verify byte-identical generated SDK output
+against inline equivalents, including JSON/YAML, independent installation and
+mock HTTP. Relative/external documents, arbitrary target positions and remaining
+reference categories stay outside this release. No runtime change is required;
+generated packages continue using stable `^0.5.0`.

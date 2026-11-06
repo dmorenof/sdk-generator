@@ -18,14 +18,21 @@ final class ContractAuditor
     private string $source = '<input>';
     /** @var list<string> */
     private array $referenceChain = [];
+    private array $pathItemOrigins = [];
+    private array $activeObjects = [];
 
-    /** @return list<Diagnostic> */
-    public function audit(array $document, string $source = '<input>'): array
+    /**
+     * @param array<string, array<string, array{pointer:string,chain:list<string>}>> $pathItemOrigins Original field locations for derived operation subsets.
+     * @return list<Diagnostic>
+     */
+    public function audit(array $document, string $source = '<input>', array $pathItemOrigins = []): array
     {
         $this->diagnostics = [];
         $this->document = $document;
         $this->source = $source;
         $this->referenceChain = [];
+        $this->pathItemOrigins = $pathItemOrigins;
+        $this->activeObjects = [];
         $this->keys($document, ['openapi', 'swagger', 'info', 'servers', 'host', 'basePath', 'schemes', 'paths', 'components', 'definitions', 'security', 'securityDefinitions', 'consumes', 'produces',
             ...(($document['swagger'] ?? null) === '2.0' ? ['parameters', 'responses'] : [])], '');
         $this->servers($document['servers'] ?? [], '/servers', null, null);
@@ -48,75 +55,121 @@ final class ContractAuditor
         return $result;
     }
 
+    /** Source origins are supplied only when auditing a derived operation subset. */
     private function pathItems(mixed $paths, string $base): void
     {
         if (!is_array($paths)) {
             return;
         }
-        $document = $this->document;
-        $rootServers = $document['servers'] ?? [];
         foreach ($paths as $path => $item) {
             if (!is_array($item)) {
                 continue;
             }
             $pointer = JsonPointer::append($base, $path);
-            $this->keys($item, [...self::METHODS, 'parameters', 'servers', '$ref'], $pointer);
-            $this->servers($item['servers'] ?? null, "$pointer/servers", null, null);
-            if (isset($item['$ref'])) {
-                $this->reference($item['$ref'], "$pointer/\$ref", null, false);
+            try {
+                $resolved = (new LocalObjectResolver($this->document))->resolve($item, 'pathItems', $pointer);
+            } catch (LocalReferenceException $exception) {
+                $this->add($exception->diagnosticCode, $exception->pointer ?? "$pointer/\$ref", $exception->getMessage(), null, 'error', $exception->referenceChain);
+                continue;
             }
-            foreach (self::METHODS as $method) {
-                $operation = $item[$method] ?? null;
-                if (!is_array($operation)) {
+            $active = 'pathItems:' . $resolved['pointer'];
+            if (isset($this->activeObjects[$active])) {
+                $this->add('recursive_http_reference', "$pointer/\$ref", 'Recursive HTTP metadata is not expanded.', null, 'error', $resolved['chain']);
+                continue;
+            }
+            $this->activeObjects[$active] = true;
+            try {
+                $origins = $this->pathItemOrigins[$pointer] ?? $resolved['origins'];
+                $this->auditPathItem($resolved['value'], $origins, $pointer, (string) $path);
+            } finally {
+                unset($this->activeObjects[$active]);
+            }
+        }
+    }
+
+    private function auditPathItem(array $item, array $origins, string $pointer, string $path): void
+    {
+        $outer = $this->referenceChain;
+        $fallback = ['pointer' => $pointer, 'chain' => []];
+        foreach ($item as $key => $value) {
+            $origin = $origins[$key] ?? $fallback;
+            $this->withOrigin($outer, $origin, fn () => $this->keys([$key => $value], [...self::METHODS, 'parameters', 'servers'], $origin['pointer']));
+        }
+        $serverOrigin = $origins['servers'] ?? $fallback;
+        $this->withOrigin($outer, $serverOrigin, fn () => $this->servers($item['servers'] ?? null, $serverOrigin['pointer'] . '/servers', null, null));
+        foreach (self::METHODS as $method) {
+            $operation = $item[$method] ?? null;
+            if (!is_array($operation)) {
+                continue;
+            }
+            $origin = $origins[$method] ?? $fallback;
+            $where = $origin['pointer'] . '/' . $method;
+            $id = is_string($operation['operationId'] ?? null) ? $operation['operationId'] : strtoupper($method) . ' ' . $path;
+            $this->withOrigin($outer, $origin, fn () => $this->pathOperation($item, $operation, $where, $id,
+                $origins['parameters'] ?? $fallback, $serverOrigin, $outer));
+        }
+    }
+
+    private function withOrigin(array $outer, array $origin, callable $audit): void
+    {
+        $previous = $this->referenceChain;
+        $this->referenceChain = [...$outer, ...$origin['chain']];
+        try {
+            $audit();
+        } finally {
+            $this->referenceChain = $previous;
+        }
+    }
+
+    private function pathOperation(array $item, array $operation, string $where, string $id,
+        array $parameterOrigin, array $serverOrigin, array $outer): void
+    {
+        $document = $this->document;
+        $rootServers = $document['servers'] ?? [];
+        $serverPointer = $serverOrigin['pointer'];
+        $this->keys($operation, ['operationId', 'parameters', 'requestBody', 'responses', 'security', 'servers', 'consumes', 'produces', 'schemes', 'callbacks'], $where, $id);
+        $this->securityRequirements($operation['security'] ?? [], "$where/security", $id);
+        $this->callbacks($operation['callbacks'] ?? [], "$where/callbacks", $id);
+        if (($document['swagger'] ?? null) === '2.0') {
+            foreach (['consumes' => true, 'produces' => false] as $keyword => $request) {
+                if ($request && array_filter(array_merge($item['parameters'] ?? [], $operation['parameters'] ?? []),
+                    static fn ($parameter): bool => is_array($parameter) && ($parameter['in'] ?? null) === 'body') === []) {
                     continue;
                 }
-                $where = "$pointer/$method";
-                $id = is_string($operation['operationId'] ?? null) ? $operation['operationId'] : strtoupper($method) . ' ' . $path;
-                $this->keys($operation, ['operationId', 'parameters', 'requestBody', 'responses', 'security', 'servers', 'consumes', 'produces', 'schemes', 'callbacks'], $where, $id);
-                $this->securityRequirements($operation['security'] ?? [], "$where/security", $id);
-                $this->callbacks($operation['callbacks'] ?? [], "$where/callbacks", $id);
-                if (($document['swagger'] ?? null) === '2.0') {
-                    foreach (['consumes' => true, 'produces' => false] as $keyword => $request) {
-                        if ($request && array_filter(array_merge($item['parameters'] ?? [], $operation['parameters'] ?? []),
-                            static fn ($parameter): bool => is_array($parameter) && ($parameter['in'] ?? null) === 'body') === []) {
-                            continue;
-                        }
-                        $mediaTypes = $operation[$keyword] ?? $document[$keyword] ?? ['application/json'];
-                        if (is_array($mediaTypes)) {
-                            $declared = array_fill_keys(array_filter($mediaTypes, 'is_string'), []);
-                            $this->selectedMedia($declared, isset($operation[$keyword]) ? "$where/$keyword" : "/$keyword", $id, $request);
-                        }
-                    }
+                $mediaTypes = $operation[$keyword] ?? $document[$keyword] ?? ['application/json'];
+                if (is_array($mediaTypes)) {
+                    $declared = array_fill_keys(array_filter($mediaTypes, 'is_string'), []);
+                    $this->selectedMedia($declared, isset($operation[$keyword]) ? "$where/$keyword" : "/$keyword", $id, $request);
                 }
-                if (array_key_exists('servers', $operation)) {
-                    $this->servers($operation['servers'], "$where/servers", $id, $rootServers);
-                } elseif (array_key_exists('servers', $item)) {
-                    $this->servers($item['servers'], "$pointer/servers", $id, $rootServers);
-                }
-                if (isset($operation['schemes']) && $operation['schemes'] !== ($document['schemes'] ?? [])) {
-                    $this->add('operation_schemes', "$where/schemes", 'Operation-specific Swagger schemes are not executed.', $id);
-                }
-                $overrides = [];
-                foreach ($operation['parameters'] ?? [] as $parameter) {
-                    $identity = $this->parameterIdentity($parameter);
-                    if ($identity !== null) {
-                        $overrides[$identity] = true;
-                    }
-                }
-                $pathParameters = array_filter($item['parameters'] ?? [], fn ($parameter): bool =>
-                    !isset($overrides[$this->parameterIdentity($parameter) ?? '']));
-                $this->parameters($pathParameters, "$pointer/parameters", $id);
-                $this->parameters($operation['parameters'] ?? [], "$where/parameters", $id);
-                $this->requestBody($operation['requestBody'] ?? null, "$where/requestBody", $id);
-                foreach ($operation['responses'] ?? [] as $status => $response) {
-                    $at = JsonPointer::append("$where/responses", $status);
-                    $this->response($response, $at, $id);
-                    // Error media types do not negotiate success representations.
-                    if (is_array($response) && preg_match('/^2[0-9]{2}$/', (string) $status) === 1) {
-                        $this->resolvedObject($response, 'responses', $at, $id,
-                            fn (array $value, string $source) => $this->selectedMedia($value['content'] ?? [], "$source/content", $id, false));
-                    }
-                }
+            }
+        }
+        if (array_key_exists('servers', $operation)) {
+            $this->servers($operation['servers'], "$where/servers", $id, $rootServers);
+        } elseif (array_key_exists('servers', $item)) {
+            $this->withOrigin($outer, $serverOrigin, fn () => $this->servers($item['servers'], "$serverPointer/servers", $id, $rootServers));
+        }
+        if (isset($operation['schemes']) && $operation['schemes'] !== ($document['schemes'] ?? [])) {
+            $this->add('operation_schemes', "$where/schemes", 'Operation-specific Swagger schemes are not executed.', $id);
+        }
+        $overrides = [];
+        foreach ($operation['parameters'] ?? [] as $parameter) {
+            $identity = $this->parameterIdentity($parameter);
+            if ($identity !== null) {
+                $overrides[$identity] = true;
+            }
+        }
+        $pathParameters = array_filter($item['parameters'] ?? [], fn ($parameter): bool =>
+            !isset($overrides[$this->parameterIdentity($parameter) ?? '']));
+        $this->withOrigin($outer, $parameterOrigin, fn () => $this->parameters($pathParameters, $parameterOrigin['pointer'] . '/parameters', $id));
+        $this->parameters($operation['parameters'] ?? [], "$where/parameters", $id);
+        $this->requestBody($operation['requestBody'] ?? null, "$where/requestBody", $id);
+        foreach ($operation['responses'] ?? [] as $status => $response) {
+            $at = JsonPointer::append("$where/responses", $status);
+            $this->response($response, $at, $id);
+            // Error media types do not negotiate success representations.
+            if (is_array($response) && preg_match('/^2[0-9]{2}$/', (string) $status) === 1) {
+                $this->resolvedObject($response, 'responses', $at, $id,
+                    fn (array $value, string $source) => $this->selectedMedia($value['content'] ?? [], "$source/content", $id, false));
             }
         }
     }
@@ -210,8 +263,13 @@ final class ContractAuditor
             $this->schema(array_diff_key($header, array_flip(['description', 'collectionFormat', 'example', 'examples'])), $pointer, $operation);
             return;
         }
+        $this->resolvedObject($header, 'headers', $pointer, $operation,
+            fn (array $value, string $at) => $this->auditHeader($value, $at, $operation));
+    }
+
+    private function auditHeader(array $header, string $pointer, ?string $operation): void
+    {
         $this->keys($header, ['required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', '$ref'], $pointer, $operation);
-        $this->objectReference($header, $pointer, $operation);
         if (isset($header['schema'])) {
             $this->schema($header['schema'], "$pointer/schema", $operation);
         }
@@ -314,14 +372,21 @@ final class ContractAuditor
         try {
             $resolved = (new LocalObjectResolver($this->document))->resolve($node, $kind, $pointer);
         } catch (LocalReferenceException $exception) {
-            $this->add($exception->diagnosticCode, "$pointer/\$ref", $exception->getMessage(), $operation, 'error', $exception->referenceChain);
+            $this->add($exception->diagnosticCode, $exception->pointer ?? "$pointer/\$ref", $exception->getMessage(), $operation, 'error', $exception->referenceChain);
             return;
         }
+        $active = $kind . ':' . $resolved['pointer'];
+        if (isset($this->activeObjects[$active])) {
+            $this->add('recursive_http_reference', "$pointer/\$ref", 'Recursive HTTP metadata is not expanded.', $operation, 'error', $resolved['chain']);
+            return;
+        }
+        $this->activeObjects[$active] = true;
         $previous = $this->referenceChain;
         $this->referenceChain = [...$previous, ...$resolved['chain']];
         try {
             $audit($resolved['value'], $resolved['pointer']);
         } finally {
+            unset($this->activeObjects[$active]);
             $this->referenceChain = $previous;
         }
     }
