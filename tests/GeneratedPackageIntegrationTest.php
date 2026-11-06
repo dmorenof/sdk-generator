@@ -35,10 +35,16 @@ final class GeneratedPackageIntegrationTest extends TestCase
         rmdir($path);
     }
 
-    public function testCliCreatesARealLoadableSDKAndConsumerRunsInSeparatePhpProcess(): void
+    public static function accountDocuments(): array
+    {
+        return [['accounts-openapi31.json'], ['accounts-references-openapi31.json']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('accountDocuments')]
+    public function testCliCreatesARealLoadableSDKAndConsumerRunsInSeparatePhpProcess(string $document): void
     {
         $generator = dirname(__DIR__) . '/bin/generate-sdk.php';
-        $fixture = __DIR__ . '/fixtures/accounts-openapi31.json';
+        $fixture = __DIR__ . '/fixtures/' . $document;
         $dest = $this->directory . '/client';
         $cmd = implode(' ', array_map('escapeshellarg', [
             PHP_BINARY, $generator, $fixture, $dest, 'Acme\\PublicSdk', 'acme/public-sdk',

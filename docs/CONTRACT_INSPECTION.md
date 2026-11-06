@@ -1,4 +1,4 @@
-# Contract inspection (v0.4.1)
+# Contract inspection (v0.5.0)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -133,3 +133,23 @@ are not traversed as schemas or references. A literal `$ref` in those payloads
 never triggers a fetch or unresolved-reference error. General reference execution,
 OAuth, typed response headers and callback generation remain separate roadmap
 work. Unlocalized legacy normalization/emission errors still use the root pointer.
+
+
+## Executable local HTTP references (v0.5.0)
+
+Inspection and normalization now share the resolver for named local OpenAPI
+parameters, request bodies and responses, plus Swagger reusable parameters and
+responses. Diagnostics inside a resolved object point to its declaration while
+retaining the using operation and alias chain. Distinct alias provenance is kept
+and sorted deterministically. Missing references report the usage `$ref` pointer
+and the attempted chain; strict normalization returns structured compatibility
+errors before trying to parse an unresolved executable object.
+
+The original JSON/YAML remains unchanged. Only HTTP Reference Object positions
+are expanded; schemas, defaults, examples and literal link values are not
+expanded. Inspection remains offline. A supported reference is not a promise
+that every option inside its target can execute: for example a referenced
+`content` parameter still fails strict acceptance until its serializer exists.
+
+See [supported scope](SUPPORTED_SCOPE.md#local-http-reference-objects-050) for
+sibling rules, the 128-alias limit and the reference categories still pending.

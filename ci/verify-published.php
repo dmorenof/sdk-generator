@@ -32,9 +32,10 @@ if (\Composer\InstalledVersions::getReference('dmorenof/sdk-generator') !== $exp
 $package = $directory . '/vendor/dmorenof/sdk-generator';
 $binary = $directory . '/vendor/bin/generate-sdk.php';
 $accounts = $directory . '/accounts';
-runPublished([PHP_BINARY, $binary, $package . '/tests/fixtures/accounts-openapi31.json', $accounts, 'Preview\\AccountsSdk', 'example/published-accounts']);
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/accounts-references-openapi31.json', $accounts, 'Preview\\AccountsSdk', 'example/published-accounts']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $accounts]);
 runPublished([PHP_BINARY, $package . '/tests/preview-smoke.php', 'accounts'], $accounts);
+echo "PUBLISHED_LOCAL_REFERENCES_OK", PHP_EOL;
 $servers = $directory . '/servers';
 runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/operation-servers-openapi30.json', $servers, 'Example\\PublishedServers', 'example/published-servers']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $servers]);
