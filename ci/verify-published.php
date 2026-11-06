@@ -32,11 +32,17 @@ if (\Composer\InstalledVersions::getReference('dmorenof/sdk-generator') !== $exp
 $package = $directory . '/vendor/dmorenof/sdk-generator';
 $binary = $directory . '/vendor/bin/generate-sdk.php';
 $accounts = $directory . '/accounts';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/accounts-path-items-openapi31.json', $accounts, 'Preview\\AccountsSdk', 'example/published-accounts']);
+runPublished([PHP_BINARY, $binary, '--strict', '--resolve-local-references', $package . '/tests/fixtures/multifile-accounts/api.json', $accounts, 'Preview\\AccountsSdk', 'example/published-accounts']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $accounts]);
 runPublished([PHP_BINARY, $package . '/tests/preview-smoke.php', 'accounts'], $accounts);
 echo "PUBLISHED_LOCAL_REFERENCES_OK", PHP_EOL;
 echo "PUBLISHED_PATH_ITEM_REFERENCES_OK", PHP_EOL;
+echo "PUBLISHED_MULTIFILE_REFERENCES_OK", PHP_EOL;
+$fileReport = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspectFile($package . '/tests/fixtures/multifile-accounts/api.json');
+if (!$fileReport['strictlyAccepted'] || count($fileReport['sources'] ?? []) !== 8
+    || $fileReport['sourceSha256'] !== hash_file('sha256', $package . '/tests/fixtures/multifile-accounts/api.json')) {
+    throw new RuntimeException('Published generator did not fingerprint its local file graph.');
+}
 $servers = $directory . '/servers';
 runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/operation-servers-path-items-openapi31.json', $servers, 'Example\\PublishedServers', 'example/published-servers']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $servers]);

@@ -10,8 +10,12 @@ rm -rf "$OUT"
 
 analyse() {
   local name="$1" spec="$2" namespace="$3"
+  local -a options=()
+  if [[ "${4:-}" == 'resolve-local' ]]; then
+    options=(--resolve-local-references)
+  fi
   echo "== $name"
-  php bin/generate-sdk.php "tests/fixtures/$spec" "$OUT/$name" "$namespace" "example/$name" > /dev/null
+  php bin/generate-sdk.php "${options[@]}" "tests/fixtures/$spec" "$OUT/$name" "$namespace" "example/$name" > /dev/null
   composer install --working-dir="$OUT/$name" --no-interaction --prefer-dist --no-progress --quiet
   vendor/bin/phpstan analyse "$OUT/$name/src" --level=max \
     --autoload-file="$OUT/$name/vendor/autoload.php" --no-progress --memory-limit=2G
@@ -28,3 +32,5 @@ analyse operation-servers operation-servers-openapi30.json 'Example\OperationSer
 analyse referenced-accounts accounts-references-openapi31.json 'Example\ReferencedAccountsSdk'
 
 analyse path-item-accounts accounts-path-items-openapi31.json 'Example\PathItemAccountsSdk'
+
+analyse multifile-accounts multifile-accounts/api.json 'Example\MultifileAccountsSdk' resolve-local

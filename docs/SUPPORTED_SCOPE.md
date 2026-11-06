@@ -1,4 +1,4 @@
-# v0.6.0 supported scope and known limitations
+# v0.7.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -149,3 +149,45 @@ against inline equivalents, including JSON/YAML, independent installation and
 mock HTTP. Relative/external documents, arbitrary target positions and remaining
 reference categories stay outside this release. No runtime change is required;
 generated packages continue using stable `^0.5.0`.
+
+
+## Explicit local file graphs (0.7.0)
+
+`--resolve-local-references` and the new file APIs load supported local JSON/YAML
+schema and HTTP fragments relative to each referring document. The default root
+is the canonical input file's directory; `--reference-root=...` can explicitly
+allow a shared parent. String-based APIs and CLI commands without this flag keep
+their existing behavior. No HTTP(S), absolute URI or stream transport is added.
+
+The loader preserves public root model names for pure external schema aliases,
+collapses pure schema alias chains, retains recursive object references and
+names otherwise colliding imported schemas deterministically. Supported HTTP
+fragments cover parameters, request bodies, responses, header metadata and OAS
+3.1 Path Items. Swagger 2.0 supports its existing schema/parameter/response subset;
+external Path Items for Swagger/OAS 3.0 remain unsupported. Fragment pointers may
+address objects in their source file; this does not expand all direct root-local
+reference positions supported by the normalizer.
+
+Reports keep the original root SHA-256 and add dependency hashes plus the bundle
+hash. Known diagnostics map back to the original source and JSON Pointer with
+qualified reference chains. Unlocalized legacy parser/emitter failures still use
+a root diagnostic. File caches keep a single snapshot per canonical source.
+
+Limits: 2 MiB/file, 16 MiB total source bytes, 64 documents, 100,000 semantic and
+100,000 decoded/materialized payload nodes, depth 256, 64 MiB accounted payload,
+and 128 pure schema alias hops (HTTP alias bounds remain unchanged). Root paths,
+parent traversal and symlinks must remain inside the configured root. Examples
+and literal values are retained as data; decoded payload accounting includes them.
+
+Root external schema aliases and imported pure alias nodes must contain only
+`$ref`; conflicting public names for the same target are explicit errors.
+Resource IDs, anchors, custom/mixed dialect scopes and general JSON Schema remain
+pending. Across multiple documents discriminators require explicit mapping; local
+single-document discriminator behavior is unchanged. Schema fragments may come
+from a compatible complete API document, but HTTP fragments from another full
+API document are rejected until server/security namespace inheritance is handled.
+The existing emitter's schema/model-type restrictions continue to apply.
+
+See [file reference usage and limits](FILE_REFERENCES.md). The eight-file Accounts
+fixture emits the same SDK as the consolidated fixture and executes mock HTTP
+through an independently installed SDK; generated SDKs never read the source files.

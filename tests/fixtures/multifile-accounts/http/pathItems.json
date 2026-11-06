@@ -1,0 +1,38 @@
+{
+  "ReadUser": {
+    "get": {
+      "operationId": "getUser",
+      "parameters": [
+        {
+          "$ref": "./parameters.json#/D%C3%A9tail"
+        }
+      ],
+      "responses": {
+        "200": {
+          "$ref": "./responses.json#/ReadAlias"
+        }
+      }
+    },
+    "parameters": [
+      {
+        "$ref": "./parameters.json#/Identifier"
+      }
+    ]
+  },
+  "CreateUser": {
+    "post": {
+      "operationId": "createUser",
+      "requestBody": {
+        "$ref": "./requestBodies.json#/CreateAlias"
+      },
+      "responses": {
+        "201": {
+          "$ref": "./responses.json#/Created"
+        }
+      }
+    }
+  },
+  "ReadAlias": {
+    "$ref": "./pathItems.json#/ReadUser"
+  }
+}

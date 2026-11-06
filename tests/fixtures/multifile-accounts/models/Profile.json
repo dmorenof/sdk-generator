@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": [
+    "city"
+  ],
+  "properties": {
+    "city": {
+      "type": "string"
+    },
+    "visits": {
+      "type": "integer",
+      "format": "int32"
+    }
+  }
+}

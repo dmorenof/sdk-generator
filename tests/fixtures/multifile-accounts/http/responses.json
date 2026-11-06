@@ -1,0 +1,25 @@
+{
+  "User/~": {
+    "description": "ok",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "../models/User.json"
+        }
+      }
+    }
+  },
+  "Created": {
+    "description": "created",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "../models/User.json"
+        }
+      }
+    }
+  },
+  "ReadAlias": {
+    "$ref": "./responses.json#/User~1~0"
+  }
+}

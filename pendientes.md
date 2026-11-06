@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.6.0** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.7.0** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -109,10 +109,10 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.6.0 — Referencias locales a `components/headers`**, con alias y anotaciones de Reference Objects, en metadatos de respuestas y encoding. Su exposición/validación tipada en el runtime sigue pendiente en el paquete 04.
 - [ ] Referencias a `components/examples`, `links`, `callbacks` y `securitySchemes` cuando proceda. Los Path Items locales están resueltos en la tarea siguiente.
 - [x] **v0.6.0 — Referencias locales a Path Items completos:** `#/paths/...` en Swagger/OpenAPI y `components/pathItems` en OAS 3.1; alias, operaciones, parámetros y servidores efectivos. Combinar hermanos independientes y rechazar solapamientos indefinidos conservando el origen de cada campo. Ubicaciones arbitrarias y documentos externos quedan en sus tareas generales.
-- [ ] Referencias a archivos JSON/YAML externos, relativos al documento raíz.
+- [ ] **Parcial — Archivos JSON/YAML externos.** v0.7.0 carga explícitamente archivos locales relativos a cada documento, con raíz configurable, caché y límites. Incluye schemas y fragmentos HTTP soportados; faltan otras categorías/contextos, Path Items externos en Swagger/OAS 3.0 y alias de schemas con hermanos.
 - [ ] Referencias HTTP(S) externas con caché, timeouts, límites de tamaño y restricciones de acceso.
-- [ ] Resolución de ciclos, incluidos modelos recursivos y dependencias entre documentos.
-- [ ] Referencias válidas entre distintos espacios de nombres de documentos.
+- [ ] **Parcial — Ciclos.** v0.7.0 conserva referencias de modelos recursivos entre archivos y rechaza ciclos puros de alias; quedan grafos/dialectos dinámicos y otras categorías.
+- [ ] **Parcial — Espacios de nombres.** v0.7.0 rebasa referencias locales al documento de origen, conserva nombres públicos de modelos raíz y distingue importaciones homónimas. Quedan ámbitos de IDs/anchors, discriminadores implícitos entre archivos y servidores/seguridad de otros documentos API completos.
 - [ ] Soporte JSON Schema: `$id`, `$anchor`, `$dynamicAnchor`, `$dynamicRef` y `$defs`.
 - [ ] `jsonSchemaDialect`, `$schema` y dialectos diferentes según el documento/recurso.
 - [ ] **Parcial — Reglas de hermanos de `$ref`.** v0.5.0 ignora hermanos de Reference Objects HTTP en OAS 3.0/Swagger y aplica description/summary en OAS 3.1 sin cambiar required/schema del destino. Faltan reglas generales de Schema Objects y otros dialectos.
@@ -137,6 +137,18 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] Acotar grafos recursivos de metadatos HTTP, sin expandir recursivamente schemas ni interpretar ejemplos como referencias.
 - **Validación:** cloud PHP 8.4: 264 pruebas / 2.218 aserciones; siete SDKs con PHPStan max. Smoke de publicación: SDKs con rutas referenciadas, HTTP simulado con servidores heredados y metadatos de headers resueltos.
 - **Límites:** runtime estable `^0.5.0`; referencias externas/arbitrarias, otros Reference Objects, encabezados tipados y encoding HTTP siguen pendientes.
+
+### Entrega de archivos locales JSON/YAML — v0.7.0
+
+- [x] Carga explícita mediante `--resolve-local-references`, `--reference-root=...` y APIs `fromFile`/`inspectFile`/`analyzeFile`; APIs de texto conservan su comportamiento en memoria.
+- [x] Resolver archivos relativos a cada origen y fragments JSON Pointer, incluidos nombres URI-encoded; caché por ruta real y huellas del raíz, dependencias y bundle.
+- [x] Preservar identidades públicas de schemas raíz, colapsar alias puros y mantener modelos recursivos entre archivos sin expansión infinita; distinguir nombres importados en colisión.
+- [x] Mantener archivo/puntero/cadena de referencias en los diagnósticos auditados. Comprobar el hash raíz fijado antes de leer dependencias.
+- [x] Restringir rutas/symlinks a la raíz elegida; acotar archivos, bytes, nodos, profundidad y alias; no abrir HTTP(S) ni URI streams.
+- [x] Equivalencia del SDK Accounts de ocho archivos frente al consolidado, JSON/YAML mezclados, ciclos, mappings explícitos Pet, HTTP simulado e instalación independiente.
+- **Validación:** cloud PHP 8.4: 291 pruebas / 2.310 aserciones; ocho SDKs con PHPStan max; Casafari conserva aceptación estricta 46/46. Smoke de publicación instala el generador exacto, genera el SDK multifichero y comprueba ejecución/huellas de entrada.
+- **Límites:** HTTP(S), IDs/anchors/dialects, otras categorías, alias de schemas con hermanos, mappings implícitos entre archivos y namespaces HTTP de otros documentos completos siguen pendientes. Runtime estable `^0.5.0`.
+- Uso y límites exactos: [referencias de archivos locales](docs/FILE_REFERENCES.md).
 
 **Aceptación:** un OpenAPI dividido en varios archivos debe generar un SDK equivalente al de su versión consolidada; casos cíclicos válidos deben resolverse de forma segura.
 
@@ -471,3 +483,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-06 | Generador v0.5.0: referencias HTTP locales OpenAPI/Swagger, alias acotados, reglas de hermanos de Reference Objects, diagnóstico de origen y dependencias de aceptación; runtime estable ^0.5.0 sin cambios. | [Generator v0.5.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.5.0) |
 
 | 2026-11-06 | Generador v0.6.0: Path Items y headers locales, hermanos independientes/solapamientos explícitos, procedencia por campo y aceptación con operaciones resueltas; runtime estable ^0.5.0 sin cambios. | [Generator v0.6.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.6.0) |
+
+| 2026-11-06 | Generador v0.7.0: archivos locales JSON/YAML explícitos, bundling de fragmentos soportados, identidades/ciclos de schemas, huellas y diagnóstico de origen; límites generales y HTTP(S) siguen abiertos. Runtime estable ^0.5.0. | [Generator v0.7.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.7.0) |

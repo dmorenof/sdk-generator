@@ -1,0 +1,22 @@
+{
+  "ID/~": {
+    "name": "id",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "integer",
+      "format": "int64"
+    }
+  },
+  "Identifier": {
+    "$ref": "./parameters.json#/ID~1~0"
+  },
+  "Détail": {
+    "name": "verbose",
+    "in": "query",
+    "required": false,
+    "schema": {
+      "type": "boolean"
+    }
+  }
+}

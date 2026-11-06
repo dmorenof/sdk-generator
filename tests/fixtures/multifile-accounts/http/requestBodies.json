@@ -1,0 +1,15 @@
+{
+  "NewUser": {
+    "required": true,
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "../models/NewUser.json"
+        }
+      }
+    }
+  },
+  "CreateAlias": {
+    "$ref": "./requestBodies.json#/NewUser"
+  }
+}
