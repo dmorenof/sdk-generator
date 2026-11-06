@@ -1,4 +1,4 @@
-# v0.7.0 supported scope and known limitations
+# v0.8.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -191,3 +191,25 @@ The existing emitter's schema/model-type restrictions continue to apply.
 See [file reference usage and limits](FILE_REFERENCES.md). The eight-file Accounts
 fixture emits the same SDK as the consolidated fixture and executes mock HTTP
 through an independently installed SDK; generated SDKs never read the source files.
+
+
+## Local security-scheme references (0.8.0)
+
+OpenAPI 3.0/3.1 security-scheme definitions may reference named local
+`components/securitySchemes`, including multi-level aliases. The shared resolver
+applies existing Reference Object annotation rules and bounded cycle/missing-target
+checks. Inspection audits the actual definition and preserves its source chain.
+
+The declaring key stays the public credential name: an alias `Bearer` referring
+to `BearerBase` requires credentials named `Bearer` when the operation requires
+that alias. Credentials named only `BearerBase` do not satisfy it. Existing root
+inheritance, operation overrides (including empty security), AND groups and OR
+alternatives retain their semantics.
+
+Only the existing HTTP Basic/Bearer and header/query API-key types execute.
+Unsupported target types, nonempty scopes and cookie API keys remain diagnosed;
+Reference Object siblings cannot turn OAuth into a supported HTTP scheme. Swagger
+2.0 security-definition references and external file/network scheme imports remain
+outside this release. The local aliases also work when other supported parts of
+the document are loaded through the v0.7.0 file API; the file bundler does not
+fetch external security definitions. Runtime stays at stable `^0.5.0`.

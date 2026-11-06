@@ -16,19 +16,8 @@ final class SecurityGenerationTest extends TestCase
     /** @return array<string, string> */
     private static function generatedFiles(): array
     {
-        $source = (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json');
+        $source = (string) file_get_contents(__DIR__ . '/fixtures/accounts-security-references-openapi31.json');
         $spec = json_decode($source, true, 512, JSON_THROW_ON_ERROR);
-        $spec['components']['securitySchemes'] = [
-            'Bearer' => ['type' => 'http', 'scheme' => 'bearer'],
-            'HeaderKey' => ['type' => 'apiKey', 'in' => 'header', 'name' => 'X-API-Key'],
-            'QueryKey' => ['type' => 'apiKey', 'in' => 'query', 'name' => 'api_key'],
-            'Basic' => ['type' => 'http', 'scheme' => 'basic'],
-        ];
-        $spec['paths']['/users/{id}']['get']['security'] = [
-            ['Bearer' => [], 'HeaderKey' => []],
-            ['QueryKey' => []],
-            ['Basic' => []],
-        ];
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($spec, JSON_THROW_ON_ERROR));
         return (new PhpExecutableEmitter('Example\\SecuritySdk', 'example/security-sdk'))->emit($contract);
     }
@@ -119,6 +108,16 @@ final class SecurityGenerationTest extends TestCase
             new Client(['handler' => HandlerStack::create(new MockHandler([]))]),
         );
 
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('No configured credentials satisfy');
+        $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);
+    }
+
+    public function testBaseDefinitionCredentialsDoNotReplaceTheRequiredAliasCredentials(): void
+    {
+        $client = \Example\SecuritySdk\Client::connect('https://api.example.test/v1',
+            new Client(['handler' => HandlerStack::create(new MockHandler([]))]), [],
+            new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['BearerBase' => 'base-token', 'HeaderKeyBase' => 'base-key']));
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('No configured credentials satisfy');
         $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);

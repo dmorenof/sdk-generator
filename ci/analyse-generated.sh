@@ -34,3 +34,5 @@ analyse referenced-accounts accounts-references-openapi31.json 'Example\Referenc
 analyse path-item-accounts accounts-path-items-openapi31.json 'Example\PathItemAccountsSdk'
 
 analyse multifile-accounts multifile-accounts/api.json 'Example\MultifileAccountsSdk' resolve-local
+
+analyse security-alias-accounts accounts-security-references-openapi31.json 'Example\SecurityAliasAccountsSdk'

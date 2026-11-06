@@ -87,7 +87,7 @@ final class LocalObjectResolver
                     && count($tokens) === 3 && array_slice($tokens, 0, 2) === ['components', 'pathItems']);
         }
         $prefix = $swagger ? [$kind] : ['components', $kind];
-        return in_array($kind, $swagger ? ['parameters', 'responses'] : ['parameters', 'requestBodies', 'responses', 'headers'], true)
+        return in_array($kind, $swagger ? ['parameters', 'responses'] : ['parameters', 'requestBodies', 'responses', 'headers', 'securitySchemes'], true)
             && count($tokens) === count($prefix) + 1 && array_slice($tokens, 0, -1) === $prefix;
     }
 
@@ -111,6 +111,15 @@ final class LocalObjectResolver
     public function expandOperations(): array
     {
         $document = $this->document;
+        if (($document['swagger'] ?? null) !== '2.0') {
+            foreach ($document['components']['securitySchemes'] ?? [] as $name => $scheme) {
+                if (is_array($scheme)) {
+                    // The declaring key remains the public credential name.
+                    $document['components']['securitySchemes'][$name] = $this->resolve($scheme, 'securitySchemes',
+                        JsonPointer::append('/components/securitySchemes', $name))['value'];
+                }
+            }
+        }
         foreach ($document['paths'] ?? [] as $path => $item) {
             if (!is_array($item)) {
                 continue;

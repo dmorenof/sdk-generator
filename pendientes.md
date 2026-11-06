@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.7.0** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.8.0** y `dmorenof/sdk-runtime` **v0.5.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -107,7 +107,8 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.5.0 — Referencias locales con nombre a `components/parameters`, `responses` y `requestBodies`**, con alias, parámetros en Path Item/operación y precedencia tras resolver `in`/`name`.
 - [x] **v0.5.0 — Referencias locales Swagger `#/parameters/...` y `#/responses/...`**, incluidos parámetros de body.
 - [x] **v0.6.0 — Referencias locales a `components/headers`**, con alias y anotaciones de Reference Objects, en metadatos de respuestas y encoding. Su exposición/validación tipada en el runtime sigue pendiente en el paquete 04.
-- [ ] Referencias a `components/examples`, `links`, `callbacks` y `securitySchemes` cuando proceda. Los Path Items locales están resueltos en la tarea siguiente.
+- [ ] Referencias a `components/examples`, `links` y `callbacks` cuando proceda.
+- [x] **v0.8.0 — Referencias locales OpenAPI a `components/securitySchemes`**, con alias, diagnóstico de origen y conservación de los nombres públicos de credenciales. Importaciones externas de seguridad y flujos OAuth siguen pendientes.
 - [x] **v0.6.0 — Referencias locales a Path Items completos:** `#/paths/...` en Swagger/OpenAPI y `components/pathItems` en OAS 3.1; alias, operaciones, parámetros y servidores efectivos. Combinar hermanos independientes y rechazar solapamientos indefinidos conservando el origen de cada campo. Ubicaciones arbitrarias y documentos externos quedan en sus tareas generales.
 - [ ] **Parcial — Archivos JSON/YAML externos.** v0.7.0 carga explícitamente archivos locales relativos a cada documento, con raíz configurable, caché y límites. Incluye schemas y fragmentos HTTP soportados; faltan otras categorías/contextos, Path Items externos en Swagger/OAS 3.0 y alias de schemas con hermanos.
 - [ ] Referencias HTTP(S) externas con caché, timeouts, límites de tamaño y restricciones de acceso.
@@ -149,6 +150,15 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - **Validación:** cloud PHP 8.4: 291 pruebas / 2.310 aserciones; ocho SDKs con PHPStan max; Casafari conserva aceptación estricta 46/46. Smoke de publicación instala el generador exacto, genera el SDK multifichero y comprueba ejecución/huellas de entrada.
 - **Límites:** HTTP(S), IDs/anchors/dialects, otras categorías, alias de schemas con hermanos, mappings implícitos entre archivos y namespaces HTTP de otros documentos completos siguen pendientes. Runtime estable `^0.5.0`.
 - Uso y límites exactos: [referencias de archivos locales](docs/FILE_REFERENCES.md).
+
+### Entrega de referencias locales de seguridad — v0.8.0
+
+- [x] Resolver alias locales de esquemas de seguridad OAS 3.0/3.1 con las reglas compartidas de Reference Objects y cadenas acotadas.
+- [x] Conservar el nombre del alias para credenciales y requisitos; mantener herencia raíz/operación, override vacío y semántica AND/OR.
+- [x] Comprobar HTTP simulado: Bearer + API key, alternativa query, Basic, ausencia de credenciales y rechazo de credenciales dadas solo al nombre de la base.
+- [x] Localizar el tipo/ubicación del destino no soportado; impedir que hermanos del alias habiliten OAuth u otros tipos pendientes.
+- **Validación:** cloud PHP 8.4: 299 pruebas / 2.342 aserciones; nueve SDKs con PHPStan max; SDK de alias instalado y ejecutado independientemente. El smoke publicado incluye esa comprobación.
+- **Límites:** únicamente referencias locales OpenAPI y tipos de autenticación ya soportados; referencias externas de seguridad, Swagger 2.0 `$ref`, OAuth/scopes y cookies siguen pendientes. Runtime `^0.5.0`.
 
 **Aceptación:** un OpenAPI dividido en varios archivos debe generar un SDK equivalente al de su versión consolidada; casos cíclicos válidos deben resolverse de forma segura.
 
@@ -485,3 +495,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-06 | Generador v0.6.0: Path Items y headers locales, hermanos independientes/solapamientos explícitos, procedencia por campo y aceptación con operaciones resueltas; runtime estable ^0.5.0 sin cambios. | [Generator v0.6.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.6.0) |
 
 | 2026-11-06 | Generador v0.7.0: archivos locales JSON/YAML explícitos, bundling de fragmentos soportados, identidades/ciclos de schemas, huellas y diagnóstico de origen; límites generales y HTTP(S) siguen abiertos. Runtime estable ^0.5.0. | [Generator v0.7.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.7.0) |
+
+| 2026-11-06 | Generador v0.8.0: referencias locales de securitySchemes, claves públicas de credenciales conservadas y pruebas AND/OR/Basic/alias; importaciones externas y OAuth siguen abiertos. Runtime ^0.5.0 sin cambios. | [Generator v0.8.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.8.0) |

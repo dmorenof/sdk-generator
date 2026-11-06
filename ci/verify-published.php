@@ -94,4 +94,34 @@ if (($headerContract->operations[1]->responses[0]->headers['X-Page']['schema']['
     throw new RuntimeException('Published generator did not resolve header metadata.');
 }
 echo "PUBLISHED_HEADER_REFERENCES_OK", PHP_EOL;
+$security = $directory . '/security';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/accounts-security-references-openapi31.json',
+    $security, 'Example\\PublishedSecurity', 'example/published-security']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $security]);
+file_put_contents($directory . '/security-consumer.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+require __DIR__ . '/security/vendor/autoload.php';
+if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')) {
+    throw new RuntimeException('Security SDK must run independently.');
+}
+$transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+    public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+    {
+        if ($method !== 'GET' || $url !== 'https://api.example.test/v1/users/88'
+            || ($headers['Authorization'] ?? null) !== 'Bearer alias-token'
+            || ($headers['X-API-Key'] ?? null) !== 'alias-key') {
+            throw new RuntimeException('Published security aliases did not preserve credential names or headers.');
+        }
+        return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '{"id":88,"name":"Ada"}');
+    }
+};
+$client = \Example\PublishedSecurity\Client::connect('https://api.example.test/v1', transport: $transport,
+    securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['Bearer' => 'alias-token', 'HeaderKey' => 'alias-key']));
+if ($client->resource(\Example\PublishedSecurity\Resources\Users::class)->getById(88)->id !== 88) {
+    throw new RuntimeException('Published security SDK hydration failed.');
+}
+echo "PUBLISHED_SECURITY_REFERENCES_OK", PHP_EOL;
+PHP);
+runPublished([PHP_BINARY, $directory . '/security-consumer.php']);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

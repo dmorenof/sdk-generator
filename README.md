@@ -3,13 +3,15 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.7.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+**v0.8.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
 The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
 Version 0.4.0 adds contract inspection (`--inspect` / `--dry-run`), opt-in strict generation (`--strict`), and operation/path server routing with per-client environment substitutions. See [contract inspection and operation servers](docs/CONTRACT_INSPECTION.md). Completed changes are integrated and published following [AGENTS.md](AGENTS.md).
 
 Version 0.7.0 adds explicit local file graphs for supported JSON/YAML schema and HTTP fragments. Use `--resolve-local-references` and optionally `--reference-root=directory`; string inspection stays in memory and no HTTP references are fetched. See [local file references](docs/FILE_REFERENCES.md) for usage and limits.
+
+Version 0.8.0 adds local OpenAPI security-scheme aliases while preserving their public credential names and the existing authentication requirements. External security-scheme imports and OAuth flows remain pending.
 
 ## Quick start: generate Accounts SDK
 
