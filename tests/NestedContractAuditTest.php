@@ -132,7 +132,7 @@ final class NestedContractAuditTest extends TestCase
         $document['responses']['Paged'] = ['description' => 'Page', 'headers' => [
             'Pages' => ['type' => 'integer', 'multipleOf' => 2],
         ]];
-        self::assertSame('/parameters/IDs/collectionFormat', self::issues($document, 'parameter_collectionFormat')[0]->pointer);
+        self::assertSame([], self::issues($document, 'parameter_collectionFormat'));
         self::assertSame('/responses/Paged/headers/Pages/multipleOf', self::issues($document, 'unsupported_schema_keyword')[0]->pointer);
     }
 

@@ -10,8 +10,8 @@ use InvalidArgumentException;
 /** Resolve primitive HTTP parameters, including a nullable primitive anyOf. */
 final class PhpParameterTypeResolver
 {
-    /** @return array{type:string,nullable:bool,enumValues:list<string|int|float|bool>} */
-    public static function resolve(SchemaDefinition $schema, string $where): array
+    /** @return array{type:string,nullable:bool,enumValues:list<string|int|float|bool>,phpDoc?:string,validation?:array<string,mixed>} */
+    public static function resolve(SchemaDefinition $schema, string $where, bool $allowArrays = false): array
     {
         $enumValues = $schema->enumValues;
         if ($schema->kind === SchemaKind::AnyOf) {
@@ -31,6 +31,25 @@ final class PhpParameterTypeResolver
             $nullable = $schema->nullable;
         }
 
+        if ($allowArrays && $schema->kind === SchemaKind::Array) {
+            if ($schema->items === null || $schema->items->nullable || $schema->enumValues !== []) {
+                throw new InvalidArgumentException("Unsupported query array schema at $where.");
+            }
+            $item = self::resolve($schema->items, "$where.items");
+            if ($item['nullable']) {
+                throw new InvalidArgumentException("Nullable query items are not supported at $where.");
+            }
+            $itemRules = $schema->items->validation;
+            if ($schema->items->pattern !== null) {
+                $itemRules['pattern'] = $schema->items->pattern;
+            }
+            if ($item['enumValues'] !== []) {
+                $itemRules['enum'] = $item['enumValues'];
+            }
+            return ['type' => 'array', 'nullable' => $nullable, 'enumValues' => [],
+                'phpDoc' => 'list<' . ($item['type'] === 'float' ? 'int|float' : $item['type']) . '>',
+                'validation' => $schema->validation + ['items' => ['type' => $item['type'], 'rules' => $itemRules]]];
+        }
         $type = match ($schema->kind) {
             SchemaKind::String => 'string',
             SchemaKind::Integer => 'int',

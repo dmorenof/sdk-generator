@@ -6,6 +6,14 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.9.0] — 2026-11-07
+
+- Emit native PHP list properties for query arrays of non-null primitive items. Validate list shape, item types, supported item constraints and array bounds during construction and after mutations, before transport.
+- Execute OpenAPI `style: form` with repeated keys (`explode: true`, the default) or CSV (`explode: false`). Execute Swagger 2.0 `collectionFormat: multi` and `csv`, preserving its different implicit CSV default. Encode individual values without confusing embedded commas with CSV separators.
+- Require published stable runtime `^0.6.0`; serialization remains shared by all generated operations. Omit null/absent parameters and empty lists; preserve empty string items and scalar behavior, including API-key precedence.
+- Verify exact URLs with fake transports and PSR-18, JSON/YAML input, OpenAPI/Swagger output equivalence, invalid values and mutations. Analyse ten generated SDKs at PHPStan max and verify a separately installed query SDK in the publication smoke.
+- Other array locations, objects, nullable/nested items, content parameters and additional styles/flags remain unsupported and diagnosed. See `docs/QUERY_ARRAYS.md`; P0 serialization remains partial.
+
 ## [0.8.0] — 2026-11-06
 
 - Resolve local OpenAPI 3.0/3.1 `components/securitySchemes` Reference Objects through the shared resolver, including alias chains and existing annotation/cycle/missing-target rules.

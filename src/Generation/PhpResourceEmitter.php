@@ -21,6 +21,7 @@ final readonly class PhpResourceEmitter
         'noContentAllowed' => false,
         'validation' => [],
         'serverUrl' => null,
+        'querySerialization' => [],
     ];
 
     /**
@@ -132,7 +133,7 @@ final readonly class PhpResourceEmitter
      *
      * @return array{
      *   path:array<string,bool|float|int|string|null>,
-     *   query:array<string,bool|float|int|string|null>,
+     *   query:array<string,bool|float|int|string|list<bool|float|int|string>|null>,
      *   header:array<string,bool|float|int|string|null>,
      *   body:?\Dmorenof\SdkRuntime\DTO
      * }
@@ -144,7 +145,7 @@ final readonly class PhpResourceEmitter
         $bodyValue = $values['body'] ?? null;
         // An OpenAPI path parameter can itself be named "body".
         $body = $bodyValue instanceof \Dmorenof\SdkRuntime\DTO ? $bodyValue : null;
-        /** @var array{path:array<string,bool|float|int|string|null>,query:array<string,bool|float|int|string|null>,header:array<string,bool|float|int|string|null>,body:?\Dmorenof\SdkRuntime\DTO} $result */
+        /** @var array{path:array<string,bool|float|int|string|null>,query:array<string,bool|float|int|string|list<bool|float|int|string>|null>,header:array<string,bool|float|int|string|null>,body:?\Dmorenof\SdkRuntime\DTO} $result */
         $result = ['path' => [], 'query' => [], 'header' => [], 'body' => $body];
         /** @var array{path:array<string,string>,query:array<string,string>,header:array<string,string>} $locations */
         $locations = constant($dto::class . '::OPERATION_FIELDS');
@@ -154,6 +155,20 @@ final readonly class PhpResourceEmitter
                     continue;
                 }
                 $value = $values[$property];
+                if (is_array($value)) {
+                    if ($location !== 'query' || !array_is_list($value)) {
+                        throw new \UnexpectedValueException("Only query parameters can carry scalar lists: $wireName");
+                    }
+                    $items = [];
+                    foreach ($value as $item) {
+                        if (!is_scalar($item)) {
+                            throw new \UnexpectedValueException("Query array members must be scalars: $wireName");
+                        }
+                        $items[] = $item;
+                    }
+                    $result['query'][$wireName] = $items;
+                    continue;
+                }
                 if ($value !== null && !is_scalar($value)) {
                     throw new \UnexpectedValueException("Non-scalar operation parameter: $wireName");
                 }
@@ -181,7 +196,7 @@ final readonly class PhpResourceEmitter
         } elseif ($identifierName !== null) {
             $path[$identifierName] = $identifier;
         }
-        /** @var array<string,bool|float|int|string|null> $query */
+        /** @var array<string,bool|float|int|string|list<bool|float|int|string>|null> $query */
         $query = [];
         /** @var array<string,bool|float|int|string|null> $headers */
         $headers = [];
@@ -329,7 +344,18 @@ PHP;
         }
 
         $validation = [];
+        $querySerialization = [];
         foreach ($operation->parameters as $parameter) {
+            if ($parameter->location === 'query') {
+                $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true);
+                if ($resolved['type'] === 'array') {
+                    $format = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::format($parameter->serialization);
+                    if ($format === null || $parameter->content !== []) {
+                        throw new InvalidArgumentException("Unsupported query array serialization at $operation->operationId.$parameter->wireName.");
+                    }
+                    $querySerialization[$parameter->wireName] = $format;
+                }
+            }
             if ($parameter->location !== 'path') {
                 continue;
             }
@@ -360,6 +386,7 @@ PHP;
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $validation,
             'serverUrl' => $serverUrl,
+            'querySerialization' => $querySerialization,
         ];
         foreach (self::OPERATION_DEFAULTS as $key => $default) {
             if ($metadata[$key] === $default) {

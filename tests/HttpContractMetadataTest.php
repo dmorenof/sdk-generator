@@ -39,7 +39,7 @@ final class HttpContractMetadataTest extends TestCase
         $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));
         self::assertFalse($report['strictlyAccepted']);
         self::assertTrue($report['normalized']);
-        self::assertContains('structured_parameter', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
+        self::assertContains('parameter_allowEmptyValue', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
     }
 
     public function testContentParametersArePreservedButRemainStrictlyUnsupported(): void

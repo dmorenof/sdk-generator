@@ -467,6 +467,7 @@ final class ContractAuditor
 
     private function parameter(array $parameter, string $at, ?string $operation): void
     {
+        $queryArray = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::rawSupported($parameter, ($this->document['swagger'] ?? null) === '2.0');
         $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
         foreach (['explode', 'allowReserved', 'allowEmptyValue'] as $flag) {
             if (array_key_exists($flag, $parameter) && !is_bool($parameter[$flag])) {
@@ -492,7 +493,7 @@ final class ContractAuditor
         if (isset($parameter['content'])) {
             $this->add('parameter_content', "$at/content", 'Content-based parameter serialization is not implemented.', $operation);
         }
-        if (isset($parameter['collectionFormat'])) {
+        if (isset($parameter['collectionFormat']) && !$queryArray) {
             $this->add('parameter_collectionFormat', "$at/collectionFormat", 'Swagger collection formats are not executed.', $operation);
         }
         if (isset($parameter['schema'])) {
@@ -503,8 +504,10 @@ final class ContractAuditor
         }
         $this->content($parameter['content'] ?? [], "$at/content", $operation);
         $type = $parameter['schema']['type'] ?? $parameter['type'] ?? null;
-        if (in_array($type, ['array', 'object'], true)) {
-            $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Array/object parameter serialization is not implemented.', $operation);
+        $structured = in_array($type, ['array', 'object'], true)
+            || (is_array($type) && array_intersect($type, ['array', 'object']) !== []);
+        if ($structured && !$queryArray) {
+            $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Only primitive query lists with form or Swagger csv/multi serialization are executable; other structured parameters remain unsupported.', $operation);
         }
     }
 

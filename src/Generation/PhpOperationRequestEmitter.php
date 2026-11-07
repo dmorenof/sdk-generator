@@ -211,11 +211,14 @@ final readonly class PhpOperationRequestEmitter
                 $wirePropertyMap[$field] = $parameter->wireName;
             }
             $resolved = PhpParameterTypeResolver::resolve(
-                $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
+                $parameter->schema, $operation->operationId . '.' . $parameter->wireName, $parameter->location === 'query',
             );
             $nullable = !$parameter->required || $resolved['nullable'];
+            if (isset($resolved['phpDoc'])) {
+                $fields[] = '    /** @var ' . $resolved['phpDoc'] . ($nullable ? '|null' : '') . ' */';
+            }
             $fields[] = '    public ' . ($nullable ? '?' : '') . $resolved['type'] . ' $' . $field . ';';
-            $rules = $parameter->schema->validation;
+            $rules = $resolved['validation'] ?? $parameter->schema->validation;
             if ($resolved['enumValues'] !== []) {
                 $rules['enum'] = $resolved['enumValues'];
             }
