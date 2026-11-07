@@ -12,5 +12,7 @@ final readonly class ParameterSerialization
         public ?bool $allowReserved = null,
         public ?bool $allowEmptyValue = null,
         public ?string $collectionFormat = null,
+        /** Swagger's implicit array format, retained independently of an explicit option. */
+        public ?string $collectionFormatDefault = null,
     ) {}
 }

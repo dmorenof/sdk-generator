@@ -36,3 +36,5 @@ analyse path-item-accounts accounts-path-items-openapi31.json 'Example\PathItemA
 analyse multifile-accounts multifile-accounts/api.json 'Example\MultifileAccountsSdk' resolve-local
 
 analyse security-alias-accounts accounts-security-references-openapi31.json 'Example\SecurityAliasAccountsSdk'
+
+analyse query-arrays query-arrays-openapi31.json 'Example\QueryArraySdk'

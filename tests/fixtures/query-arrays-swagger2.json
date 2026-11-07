@@ -1,0 +1,78 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Query Arrays",
+    "version": "1"
+  },
+  "host": "api.example.test",
+  "basePath": "/v1",
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "listItems",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "codes",
+            "in": "query",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "a,b",
+                "x y",
+                "+&"
+              ],
+              "minLength": 1
+            }
+          },
+          {
+            "name": "flags",
+            "in": "query",
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "weights",
+            "in": "query",
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "type": "string",
+            "nullable": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  }
+}

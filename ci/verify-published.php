@@ -124,4 +124,31 @@ if ($client->resource(\Example\PublishedSecurity\Resources\Users::class)->getByI
 echo "PUBLISHED_SECURITY_REFERENCES_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/security-consumer.php']);
+$query = $directory . '/query';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/query-arrays-openapi31.json',
+    $query, 'Example\\PublishedQuery', 'example/published-query']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $query]);
+file_put_contents($directory . '/query-consumer.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+require __DIR__ . '/query/vendor/autoload.php';
+if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
+    || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
+    throw new RuntimeException('Query SDK must use only a stable independent runtime.');
+}
+$transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+    public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+    {
+        if ($url !== 'https://api.example.test/v1/items?codes=a%2Cb,x%20y&flags=true&flags=false&ids=1&ids=2') {
+            throw new RuntimeException('Installed query list SDK produced the wrong URL.');
+        }
+        return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
+    }
+};
+$client = \Example\PublishedQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+$params = new \Example\PublishedQuery\GetParams\Items((object) ['ids' => [1, 2], 'codes' => ['a,b', 'x y'], 'flags' => [true, false]]);
+$client->resource(\Example\PublishedQuery\Resources\Items::class)->get($params);
+echo "PUBLISHED_QUERY_ARRAY_SDK_OK", PHP_EOL;
+PHP);
+runPublished([PHP_BINARY, $directory . '/query-consumer.php']);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

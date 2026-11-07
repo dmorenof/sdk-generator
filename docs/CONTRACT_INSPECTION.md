@@ -1,4 +1,4 @@
-# Contract inspection (v0.8.0)
+# Contract inspection (v0.9.0)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -38,7 +38,7 @@ numbers, external URI resolution and complete structural/dialect validation rema
 pending. JSON Pointer inspection does not expand the normalizer's reference support.
 Literal Casafari path server overrides execute through stable
 [runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0).
-The generator and generated packages require `^0.5.0`; installation does not
+The generator and generated packages require `^0.6.0`; installation does not
 depend on a development branch.
 
 ## Preserved canonical metadata
@@ -205,3 +205,12 @@ retains multi-hop provenance. Missing, cyclic, wrong-category and external targe
 remain structured failures. Root/operation security requirements still refer to
 the declaring alias name; inspection does not rewrite them to the base definition.
 OAuth flows, scopes, cookie keys and external scheme imports remain unsupported.
+
+## Executable query arrays (v0.9.0 / runtime v0.6.0)
+
+Strict inspection accepts primitive query arrays serialized as OpenAPI form with
+`explode: true/false`, and Swagger `collectionFormat: multi/csv`. Omitted defaults
+are dialect-specific: repeated keys for OpenAPI, CSV for Swagger. Scalar nullable
+parameters remain accepted. Unsupported array locations, item shapes, styles,
+`allowReserved`, `allowEmptyValue` and content parameters still produce diagnostics.
+This does not close general HTTP serialization. See [query arrays](QUERY_ARRAYS.md).

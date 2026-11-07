@@ -407,12 +407,17 @@ final class SpecificationNormalizer
             if (!is_array($schema)) {
                 throw new InvalidArgumentException("Missing parameter schema at $where.");
             }
+            $normalizedSchema = $this->schema($schema, $dialect, "$where.parameters." . $raw['name']);
+            $arraySchema = $normalizedSchema->kind === SchemaKind::Array
+                || ($normalizedSchema->kind === SchemaKind::AnyOf && count(array_filter($normalizedSchema->branches,
+                    static fn (SchemaDefinition $branch): bool => $branch->kind === SchemaKind::Array)) > 0);
             $parameters[] = new ParameterDefinition(
                 $raw['name'], $loc,
-                $this->schema($schema, $dialect, "$where.parameters." . $raw['name']),
+                $normalizedSchema,
                 (bool) ($raw['required'] ?? false),
                 new ParameterSerialization($raw['style'] ?? null, $raw['explode'] ?? null,
-                    $raw['allowReserved'] ?? null, $raw['allowEmptyValue'] ?? null, $raw['collectionFormat'] ?? null),
+                    $raw['allowReserved'] ?? null, $raw['allowEmptyValue'] ?? null, $raw['collectionFormat'] ?? null,
+                    $dialect === 'swagger2' && $arraySchema ? 'csv' : null),
                 $this->mediaContent($raw['content'] ?? [], $dialect, "$where.parameters." . $raw['name']),
                 $this->annotations($raw),
             );
