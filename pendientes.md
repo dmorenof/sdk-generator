@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.9.0** y `dmorenof/sdk-runtime` **v0.6.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.10.0** y `dmorenof/sdk-runtime` **v0.7.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -58,7 +58,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 
 ### Lista de trabajo del paquete 01
 
-- [ ] **Parcial — Conservar toda la serialización de parámetros.** Hecho: conservar `style`, `explode`, `allowReserved`, `allowEmptyValue`, `collectionFormat`, valores `false` explícitos y representaciones de parámetros con `content` JSON. Falta: normalización general de `content` fuera de JSON y referencias. La ejecución general corresponde al paquete 03: v0.9.0 ejecuta arrays query primitivos form/multi/CSV; otros estilos y ubicaciones siguen pendientes.
+- [ ] **Parcial — Conservar toda la serialización de parámetros.** Hecho: conservar `style`, `explode`, `allowReserved`, `allowEmptyValue`, `collectionFormat`, valores `false` explícitos y representaciones de parámetros con `content` JSON. Falta: normalización general de `content` fuera de JSON y referencias. La ejecución general corresponde al paquete 03: v0.10.0 ejecuta arrays query primitivos form/multi/CSV y delimitados por espacio, tabulador o pipe; otros estilos y ubicaciones siguen pendientes.
 - [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. El enrutamiento de servidores literales HTTP(S) está implementado con sustituciones por entorno en el runtime compartido; relativos, plantillas y variables siguen pendientes.
 - [ ] **Parcial — Conservar encabezados, cookies y respuestas diferenciadas.** Hecho: conservar los objetos originales de headers/links; mantener códigos y esquemas de respuesta ya soportados. Falta: normalización tipada general de headers/cookies y todas las formas de respuesta. Conservar headers en el contrato todavía no los expone desde el runtime.
 - [ ] **Parcial — Separar ejecución/validación de anotaciones.** Hecho: conservar anotaciones de documento, operación, parámetros y media types; distinguir las opciones HTTP auditadas y tratar los ejemplos como datos. Falta: completar esa clasificación en todos los componentes anidados y dialectos.
@@ -164,7 +164,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.9.0 y runtime v0.6.0 ejecutan escalares y arrays query primitivos mediante claves repetidas o CSV. El paquete sigue parcial para objetos, otras ubicaciones y estilos.
+**Situación actual:** generador v0.10.0 y runtime v0.7.0 ejecutan escalares y arrays query primitivos mediante claves repetidas, CSV, espacios, tabuladores o pipes. El paquete sigue parcial para objetos, otras ubicaciones y estilos.
 
 ### OpenAPI 3.x
 
@@ -173,7 +173,8 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] `style: form` para objetos y cookies.
 - [ ] `style: simple` para path y headers.
 - [ ] `style: deepObject` para query.
-- [ ] `style: spaceDelimited` y `pipeDelimited`.
+- [x] **v0.10.0 — `style: spaceDelimited` y `pipeDelimited` para arrays query primitivos**, con explode ausente/false y rechazo de true (no definido).
+- [ ] Estilos delimitados para objetos.
 - [ ] `style: label` y `matrix`.
 - [ ] `allowReserved` con codificación correcta de caracteres reservados.
 - [ ] `allowEmptyValue` distinguiendo ausente, vacío y null.
@@ -187,8 +188,9 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 ### Swagger 2.0
 
 - [x] **v0.9.0 — Arrays query primitivos con `collectionFormat: csv/multi`**, incluido default CSV de Swagger.
-- [ ] `collectionFormat: ssv`, `tsv` y `pipes`; CSV en otras ubicaciones.
-- [ ] **Parcial — Arrays Swagger por ubicación.** Query primitivo csv/multi publicado; form/header/path pendientes.
+- [x] **v0.10.0 — Arrays query primitivos con `collectionFormat: ssv`, `tsv` y `pipes`.**
+- [ ] CSV/ssv/tsv/pipes en otras ubicaciones.
+- [ ] **Parcial — Arrays Swagger por ubicación.** Query primitivo csv/multi/ssv/tsv/pipes publicado; form/header/path pendientes.
 
 ### Entrega de arrays query — v0.9.0 / runtime v0.6.0
 
@@ -197,6 +199,14 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] Equivalencia de SDKs OpenAPI/Swagger y entrada JSON/YAML; URLs exactas con transporte simulado y PSR-18; SDK independiente instalado con runtime estable `^0.6.0`.
 - **Validación:** PHP 8.4 cloud: generador 306 pruebas / 2.372 aserciones, diez SDKs con PHPStan max; runtime 62 pruebas / 138 aserciones y PHPStan max. Casafari mantiene 46/46 operaciones aceptadas. CI multiversión e instalación de paquetes en los workflows de publicación.
 - **Límites:** no admite objetos, listas anidadas/elementos null, otras ubicaciones, content, allowReserved/allowEmptyValue ni otros estilos. Los casos no soportados conservan diagnóstico estricto. [Uso y límites](docs/QUERY_ARRAYS.md).
+
+### Entrega de listas delimitadas — v0.10.0 / runtime v0.7.0
+
+- [x] Serializar arrays query spaceDelimited/pipeDelimited OpenAPI y ssv/tsv/pipes Swagger con separadores legales `%20`, `%09` y `%7C` en el runtime común.
+- [x] Rechazar valores que contengan el separador de su formato, también tras mutaciones, sin enviar HTTP ambiguo. Mantener literales percent-encoded como datos y las reglas existentes de null/lista vacía/elementos vacíos.
+- [x] Conservar diagnóstico de explode true indefinido, objetos, ubicaciones no soportadas, content y flags pendientes. Cubrir JSON/YAML, OpenAPI 3.0/3.1/Swagger, parámetros referenciados y HTTP PSR-18.
+- **Validación:** generador 313 pruebas / 2.406 aserciones; once SDKs con PHPStan max; Casafari 46/46. Runtime 65 pruebas / 156 aserciones y PHPStan max. CI multiversión y smoke de instalación de las versiones publicadas.
+- **Límites:** las listas con espacio/tab/pipe dentro de un elemento se rechazan para su formato correspondiente; no hay convención de escape adicional. Otros tipos, ubicaciones y estilos siguen abiertos. Dependencia estable `^0.7.0`.
 
 **Aceptación:** tests con URLs y headers exactos para cada combinación `in/style/explode`. Ejemplo: `ids=1&ids=2` frente a `ids=1,2`.
 
@@ -393,10 +403,10 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 ## 9. [P2] Funcionalidades específicas de Swagger 2.0
 
 - [ ] Múltiples `consumes` y `produces`.
-- [ ] `collectionFormat` (vinculado al paquete de parámetros).
+- [ ] **Parcial — `collectionFormat`.** Query primitivo csv/multi/ssv/tsv/pipes publicado en v0.10.0; otras ubicaciones pendientes (paquete 03).
 - [ ] Parámetros `formData`.
 - [ ] Tipo `file` y transmisión de archivos.
-- [ ] Arrays en parámetros HTTP de Swagger 2.0.
+- [ ] **Parcial — Arrays HTTP Swagger.** Query primitivo publicado en v0.9.0/v0.10.0; otras ubicaciones pendientes.
 - [x] **v0.5.0:** referencias locales con nombre `#/parameters/...` y `#/responses/...`, con alias y parámetros body.
 - [ ] `securityDefinitions` OAuth2 y scopes.
 - [ ] Validación y metadatos específicos del dialecto.
@@ -509,3 +519,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-06 | Generador v0.8.0: referencias locales de securitySchemes, claves públicas de credenciales conservadas y pruebas AND/OR/Basic/alias; importaciones externas y OAuth siguen abiertos. Runtime ^0.5.0 sin cambios. | [Generator v0.8.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.8.0) |
 
 | 2026-11-07 | Entrega coordinada: generador v0.9.0 + runtime v0.6.0, arrays query nativos con claves repetidas/CSV y validación tras mutaciones. Dependencia estable ^0.6.0; el resto del paquete 03 sigue parcial. | [Generator v0.9.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.9.0), [Runtime v0.6.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.6.0) |
+
+| 2026-11-08 | Entrega coordinada: generador v0.10.0 + runtime v0.7.0, arrays query spaceDelimited/pipeDelimited y Swagger ssv/tsv/pipes con rechazo de valores ambiguos. Dependencia estable ^0.7.0; el paquete 03 sigue parcial. | [Generator v0.10.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.10.0), [Runtime v0.7.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.7.0) |

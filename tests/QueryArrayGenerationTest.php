@@ -123,7 +123,7 @@ final class QueryArrayGenerationTest extends TestCase
             self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
         }
         $document = self::document('query-arrays-swagger2.json');
-        $document['paths']['/items']['get']['parameters'][0]['collectionFormat'] = 'pipes';
+        $document['paths']['/items']['get']['parameters'][0]['collectionFormat'] = 'invalid';
         self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
     }
 

@@ -479,8 +479,8 @@ final class ContractAuditor
             $this->add('cookie_parameter', "$at/in", 'Cookie parameter serialization is not implemented.', $operation);
         }
         $default = in_array($location, ['query', 'cookie'], true) ? 'form' : 'simple';
-        if (isset($parameter['style']) && $parameter['style'] !== $default) {
-            $this->add('parameter_style', "$at/style", 'This parameter style is not executed by the scalar serializer.', $operation);
+        if (isset($parameter['style']) && $parameter['style'] !== $default && !$queryArray) {
+            $this->add('parameter_style', "$at/style", 'This parameter style/explode combination is not executable for the declared location and schema.', $operation);
         }
         foreach (['allowReserved', 'allowEmptyValue'] as $flag) {
             if (($parameter[$flag] ?? false) !== false) {
@@ -507,7 +507,7 @@ final class ContractAuditor
         $structured = in_array($type, ['array', 'object'], true)
             || (is_array($type) && array_intersect($type, ['array', 'object']) !== []);
         if ($structured && !$queryArray) {
-            $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Only primitive query lists with form or Swagger csv/multi serialization are executable; other structured parameters remain unsupported.', $operation);
+            $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Only primitive query lists with supported form/delimited serialization are executable; other structured parameters remain unsupported.', $operation);
         }
     }
 

@@ -38,3 +38,5 @@ analyse multifile-accounts multifile-accounts/api.json 'Example\MultifileAccount
 analyse security-alias-accounts accounts-security-references-openapi31.json 'Example\SecurityAliasAccountsSdk'
 
 analyse query-arrays query-arrays-openapi31.json 'Example\QueryArraySdk'
+
+analyse delimited-query query-delimited-openapi31.json 'Example\DelimitedQuerySdk'

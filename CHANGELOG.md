@@ -6,6 +6,13 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.10.0] — 2026-11-08
+
+- Execute primitive query lists using OpenAPI `spaceDelimited` and `pipeDelimited`, with omitted or false `explode`. Reject undefined `explode: true` combinations. Support Swagger query `collectionFormat: ssv`, `tsv` and `pipes` alongside existing CSV/multi.
+- Require stable runtime `^0.7.0`. Use shared serialization with RFC3986-compatible `%20`, `%09` and `%7C` delimiters, while encoding item data once. Reject data containing the format's own delimiter before transport, including mutations, because percent-decoding makes such values ambiguous.
+- Verify equivalent OpenAPI 3.0/3.1 and Swagger output, JSON/YAML, reusable parameters, exact URLs through PSR-18, omission/empty-item behavior and invalid values. Analyse eleven generated SDKs at PHPStan max and exercise an independently installed delimited SDK in release verification.
+- Preserve scalar, repeated-key and CSV behavior. Objects, other parameter locations, content parameters, reserved/empty-value flags and the remaining styles remain pending; update `pendientes.md` and the supported scope accordingly.
+
 ## [0.9.0] — 2026-11-07
 
 - Emit native PHP list properties for query arrays of non-null primitive items. Validate list shape, item types, supported item constraints and array bounds during construction and after mutations, before transport.
