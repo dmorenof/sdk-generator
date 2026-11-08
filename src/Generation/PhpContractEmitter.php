@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.14.0';
+    public const RUNTIME_CONSTRAINT = '^0.15.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -1162,6 +1162,14 @@ final class PhpContractEmitter
             $success,
             static fn ($response): bool => $response->schema !== null,
         ));
+        if ($withSchema !== [] && count(array_filter($withSchema, static fn ($response): bool =>
+            $response->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA)) === count($withSchema)) {
+            $type = '\\Psr\\Http\\Message\\ResponseInterface';
+            $this->operationSuccessTypes[$operation->operationId] = [
+                'type' => $type, 'nullable' => false, 'schemaNullable' => false, 'noContentAllowed' => false,
+            ];
+            return $type;
+        }
         if (count($withSchema) > 1) {
             throw new InvalidArgumentException(
                 "Expected at most one body-bearing successful response for $operation->operationId",

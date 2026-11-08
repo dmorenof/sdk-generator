@@ -257,10 +257,10 @@ final class ContractAuditor
         $this->keys($response, ['content', 'schema', 'headers', 'links', '$ref', 'examples'], $pointer, $operation);
         foreach (['headers', 'links'] as $keyword) {
             if (!empty($response[$keyword])) {
-                $this->add('response_' . $keyword, "$pointer/$keyword", "Response $keyword are preserved but not exposed by the runtime.", $operation);
+                $this->add('response_' . $keyword, "$pointer/$keyword", ($keyword === 'headers' ? 'Declared response header schemas are preserved but not validated by the runtime.' : 'Response links are preserved but not executed by the runtime.'), $operation);
             }
         }
-        $this->content($response['content'] ?? [], "$pointer/content", $operation);
+        $this->content($response['content'] ?? [], "$pointer/content", $operation, response: true);
         if (isset($response['schema'])) {
             $this->schema($response['schema'], "$pointer/schema", $operation);
         }
@@ -544,7 +544,7 @@ final class ContractAuditor
         }
     }
 
-    private function content(mixed $content, string $pointer, ?string $operation, bool $request = false): void
+    private function content(mixed $content, string $pointer, ?string $operation, bool $request = false, bool $response = false): void
     {
         if (!is_array($content)) {
             return;
@@ -560,7 +560,9 @@ final class ContractAuditor
             if (array_key_exists('schema', $definition)) {
                 $this->schema($definition['schema'], "$at/schema", $operation);
             }
-            if (!$form && !preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
+            $binary = $response && $media === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA
+                && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::supported($definition);
+            if (!$form && !$binary && !preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
                 $this->add('media_type', $at, 'This representation is preserved but has no supported serializer in this position.', $operation, 'warning');
             }
             if (!empty($definition['encoding']) && !$form) {
@@ -582,6 +584,9 @@ final class ContractAuditor
         if (!is_array($content) || $content === []) {
             return;
         }
+        if (!$request && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::selected($content)) {
+            return;
+        }
         $hasJson = $request && count(array_filter(array_keys($content), static fn ($media): bool => is_string($media)
             && preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media) === 1)) > 0;
         foreach (array_keys($content) as $media) {
@@ -597,7 +602,7 @@ final class ContractAuditor
         }
         $header = $request ? 'Content-Type' : 'Accept';
         $this->add($request ? 'request_media_type' : 'response_media_type', $pointer,
-            ($request ? "No declared request representation matches a supported selected Content-Type serializer." : "The shared runtime uses $header: application/json; none of the declared media types match that value."), $operation);
+            ($request ? "No declared request representation matches a supported selected Content-Type serializer." : "No declared success representation matches a supported selected $header codec (application/json or bounded application/octet-stream)."), $operation);
     }
 
     private function schema(mixed $schema, string $pointer, ?string $operation): void

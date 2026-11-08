@@ -357,4 +357,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/multi
     $fileLists, 'Example\\MultipartSdk', 'example/published-file-lists']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $fileLists]);
 runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $fileLists, '', 'list']);
+$downloads = $directory . '/downloads';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/downloads-openapi31.json',
+    $downloads, 'Example\\DownloadSdk', 'example/published-downloads']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $downloads]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/download-smoke.php', $downloads]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

@@ -306,18 +306,25 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - **Validación:** generador 366 pruebas / 2.741 aserciones; diecisiete SDKs con PHPStan máximo. Runtime 101 pruebas / 328 aserciones, CI/dependencias mínimas e instalación. Dos archivos de 16 MiB (32 MiB agregados) por request, dos envíos reales con Guzzle/cURL en runtime y SDK independiente bajo límite PHP 16 MiB, pico PHP 4 MiB y parser MIME independiente. Smoke de lista en CI y publicación desde tag inmutable.
 - **Límites:** solo OpenAPI 3.0/3.1, JSON/YAML, named/inline. Los arrays file de Swagger 2.0 no son válidos y siguen diagnosticados. Sin items null/nested/enum/pattern/límites Unicode, CSV/explode false ni headers por parte. Se mantienen límites de nombres/MIME/streams y memoria de clientes/middleware/transportes antiguos/respuestas. [Uso](docs/FORMS.md#openapi-binary-file-lists-v0190).
 
+### Entrega de descargas binarias OpenAPI — v0.20.0 / runtime v0.15.0
+
+- [x] Respuesta nativa PSR-7 con status, cabeceras multivalor y stream original; reutilizar adaptador PSR-18 y Guzzle copyToStream, sin wrapper/DTO de archivo ni ejecución duplicada en SDKs. Mantener TransportInterface/send() y JSON/errores compatibles.
+- [x] OpenAPI 3.0/3.1 JSON/YAML, alias components/responses, prioridad JSON, varios éxitos binarios 200/206 y 204 vacío. GetParams/PostParams, fachadas/instancias, query llamado body separado del DTO JSON, validación tras mutaciones y errores JSON tipados.
+- **Validación:** runtime 105 pruebas / 361 aserciones, PHPStan máximo y CI con versiones/dependencias mínimas. Generador: 371 pruebas / 2.781 aserciones y dieciocho SDKs instalados con PHPStan máximo; smoke de descarga en CI e instalación publicada. Runtime descarga dos archivos de 32 MiB; SDK repite GET/POST de 32 MiB bajo límite PHP 16 MiB. HTTP real Guzzle/cURL mide pico PHP 8 MiB en runtime y 6 MiB en SDK con hash/cabeceras completos.
+- **Límites:** solo application/octet-stream con esquema inline string/binary no nullable/sin constraints; sin Swagger, otros MIME ni mezcla de cuerpos JSON/binario por estado. PSR expone cabeceras pero sus esquemas siguen sin validarse. Guzzle puede almacenar temporalmente en disco; clientes/middleware/transportes antiguos y errores pueden bufferizar. No promete consumo de red progresivo, RSS universal ni cierra el paquete 04. [Uso y límites](docs/DOWNLOADS.md).
+
 ### Respuestas
 
 - [ ] Varios códigos `2xx` con cuerpos y tipos diferentes en la misma operación.
 - [ ] Selección del DTO de respuesta mediante el código HTTP real.
 - [ ] Contrato público de tipos unión PHP cuando haya varias respuestas de éxito compatibles.
 - [ ] Respuestas sin contenido: `204`, `205`, `HEAD`, otras combinaciones válidas.
-- [ ] Cabeceras de respuesta declaradas en `responses[*].headers`.
+- [ ] Cabeceras de respuesta declaradas en `responses[*].headers`: v0.20.0 permite leer cabeceras PSR de descargas, pero no valida sus esquemas declarados.
 - [ ] `Set-Cookie` y acceso tipado a metadatos HTTP.
 - [ ] Rangos de status `1XX`, `2XX`, `3XX`, `4XX`, `5XX` y `default`.
 - [ ] Política configurable de redirecciones `3xx`.
 - [ ] Errores con body escalar, array, mapa, no JSON y con media types alternativos.
-- [ ] Descarga de archivos (bytes/stream) y respuestas `application/octet-stream`.
+- [ ] **Parcial — Descargas binarias:** v0.20.0 devuelve ResponseInterface PSR-7 para éxitos application/octet-stream OpenAPI 3.0/3.1 sin materializar bytes completos en el runtime. Quedan Swagger, otros MIME, negociación y garantías generales de streaming. [Uso y medidas](docs/DOWNLOADS.md).
 - [ ] Respuestas texto, CSV, XML y otras representaciones cuando sea útil.
 - [ ] Negociación `Accept` y uso de `application/*+json` con diversos esquemas.
 - [ ] Referencias a `components/responses` y `components/headers`.
@@ -612,3 +619,4 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-08 | Generador v0.17.0 + runtime v0.12.0: archivos multipart PSR con nombres/MIME y streams seekables, unión nativa string|UploadedFileInterface, validación y protección JSON. Sin wrappers propios; el transporte sigue buffered y streaming HTTP/memoria acotada queda pendiente. | [Generator v0.17.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.17.0), [Runtime v0.12.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.12.0) |
 | 2026-11-08 | Generador v0.18.0 + runtime v0.13.0: multipart en streaming por el adaptador PSR-18 existente, compatibilidad legacy, rebobinado y smoke 32 MiB bajo límite PHP 16 MiB. HTTP real con Guzzle/cURL y archivo íntegro; límites de clientes/middleware/respuestas explícitos. | [Generator v0.18.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.18.0), [Runtime v0.13.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.13.0) |
 | 2026-11-08 | Generador v0.19.0 + runtime v0.14.0: listas de archivos binarios OpenAPI con PHP/PSR nativos, partes repetidas, metadatos individuales, validación e herencia; colecciones solo JSON conservadas. Dos archivos de 16 MiB por request bajo límite PHP 16 MiB, SDK instalado y parser MIME independiente. | [Generator v0.19.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.19.0), [Runtime v0.14.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.14.0) |
+| 2026-11-08 | Generador v0.20.0 + runtime v0.15.0: descargas OpenAPI application/octet-stream como ResponseInterface PSR nativa; GET/POST con query, headers y DTO JSON, errores tipados y memoria medida en 32 MiB. | [Generator v0.20.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.20.0), [Runtime v0.15.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.15.0) |
