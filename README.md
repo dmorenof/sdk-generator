@@ -3,7 +3,7 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.9.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+**v0.10.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
 The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
@@ -14,6 +14,8 @@ Version 0.7.0 adds explicit local file graphs for supported JSON/YAML schema and
 Version 0.8.0 adds local OpenAPI security-scheme aliases while preserving their public credential names and the existing authentication requirements. External security-scheme imports and OAuth flows remain pending.
 
 Version 0.9.0 adds native PHP query arrays: OpenAPI form repeated keys or CSV, and Swagger multi/CSV with its CSV default. Supported item constraints are checked again after mutations. See [query arrays](docs/QUERY_ARRAYS.md) for examples and limits.
+
+Version 0.10.0 adds OpenAPI space/pipe-delimited arrays and Swagger ssv/tsv/pipes, with legal encoded delimiters and rejection of ambiguous item values. Undefined explode combinations remain diagnosed.
 
 ## Quick start: generate Accounts SDK
 
@@ -144,11 +146,11 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 
 ## Supported features and deliberate boundaries
 
-| Area | v0.9.0 (supported subset) |
+| Area | v0.10.0 (supported subset) |
 |---|---|
 | Input dialects | Swagger 2.0, OpenAPI 3.0.x and 3.1.x in **JSON or YAML**, tested common subset |
 | Models | Object properties, common primitive types, local model references, backed enums, typed arrays, nested DTOs, compatible single-parent `allOf` inheritance, local discriminator mappings, and original-schema `anyOf`/`oneOf` validation |
-| Endpoints | Path/query/header scalar parameters, native primitive query lists with repeated-key/CSV serialization, JSON model request/response, bounded success response shapes |
+| Endpoints | Path/query/header scalar parameters, native primitive query lists with repeated-key, CSV, space, tab and pipe serialization, JSON model request/response, bounded success response shapes |
 | Runtime | Typed operation signatures, Guzzle-by-default, optional PSR-18 injection, JSON hydration and HTTP status check |
 | Testing | Synthetic independent Accounts and Catalog API contracts across three dialects, Composer installation + mock HTTP |
 | Not included yet | External/general references, arbitrary native unions, `not`/`const` and unsupported composition branches, OAuth2/OpenID Connect token flows, cookie/form/multipart payloads, broad media types, all response shapes, full OpenAPI compliance |
@@ -169,7 +171,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v0.9.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.9.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.6.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v0.10.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.10.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.7.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

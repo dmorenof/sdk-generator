@@ -1,4 +1,4 @@
-# Query arrays (generator v0.9.0 / runtime v0.6.0)
+# Query arrays (generator v0.10.0 / runtime v0.7.0)
 
 Query parameters with non-null primitive items generate native PHP `array`
 properties, documented as `list<string>`, `list<int>`, `list<bool>` or
@@ -10,6 +10,11 @@ properties, documented as `list<string>`, `list<int>`, `list<bool>` or
 | OpenAPI 3.x | `style: form`, `explode: false` | `ids=1,2` |
 | Swagger 2.0 | `collectionFormat: multi` | `ids=1&ids=2` |
 | Swagger 2.0 | omitted, or `collectionFormat: csv` | `ids=1,2` |
+| OpenAPI 3.x | `style: spaceDelimited`, omitted/false `explode` | `ids=1%202` |
+| OpenAPI 3.x | `style: pipeDelimited`, omitted/false `explode` | `ids=1%7C2` |
+| Swagger 2.0 | `collectionFormat: ssv` | `ids=1%202` |
+| Swagger 2.0 | `collectionFormat: tsv` | `ids=1%092` |
+| Swagger 2.0 | `collectionFormat: pipes` | `ids=1%7C2` |
 
 For the included `query-arrays-openapi31.json` fixture, generated with namespace
 `Example\QueryLists`, callers can pass:
@@ -38,4 +43,19 @@ Objects, nested arrays, nullable items, array-valued enums, other parameter
 locations, content-based parameters, reserved/empty-value flags and other styles
 remain unsupported and diagnosed. This release does not provide general HTTP
 parameter or JSON Schema validation. Generated SDKs require stable runtime
-`^0.6.0` and run independently of the generator.
+`^0.7.0` and run independently of the generator.
+
+## Delimiter limits
+
+Space, tab and pipe separators are percent-encoded because they are not legal
+literal RFC3986 query characters. These formats reject items containing their
+own delimiter (space, tab or pipe respectively) before sending, including after
+mutation: once percent-decoded, that data would be indistinguishable from a
+separator. Literal percent sequences remain data (`%7C` becomes `%257C`). Other
+characters retain normal item encoding. Repeated-key and CSV behavior is unchanged.
+
+OpenAPI marks `explode: true` undefined for space/pipe-delimited arrays; strict
+inspection rejects those combinations. This release covers primitive query lists
+only, including local reusable Parameter Objects. Objects and other locations are
+still pending. See [OpenAPI 3.1.2 style examples](https://spec.openapis.org/oas/v3.1.2.html#style-examples)
+for the serialization table and URI-encoding rules.

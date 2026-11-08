@@ -151,4 +151,43 @@ $client->resource(\Example\PublishedQuery\Resources\Items::class)->get($params);
 echo "PUBLISHED_QUERY_ARRAY_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/query-consumer.php']);
+$delimited = $directory . '/delimited';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/query-delimited-swagger2.json',
+    $delimited, 'Example\\PublishedDelimited', 'example/published-delimited']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $delimited]);
+file_put_contents($directory . '/delimited-consumer.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+require __DIR__ . '/delimited/vendor/autoload.php';
+if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
+    || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
+    throw new RuntimeException('Delimited SDK must run independently with a stable runtime.');
+}
+$transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+    public int $calls = 0;
+    public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+    {
+        if ($url !== 'https://api.example.test/v1/items?codes=a%2Cb%7C%C3%B1%2B%26&ids=1%202') {
+            throw new RuntimeException('Installed delimited SDK produced the wrong URL.');
+        }
+        ++$this->calls;
+        return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
+    }
+};
+$client = \Example\PublishedDelimited\Client::connect('https://api.example.test/v1', transport: $transport);
+$params = new \Example\PublishedDelimited\GetParams\Items((object) ['ids' => [1, 2], 'codes' => ['a,b', 'ñ+&']]);
+$resource = $client->resource(\Example\PublishedDelimited\Resources\Items::class);
+$resource->get($params);
+$params->codes[] = 'a|b';
+try {
+    $resource->get($params);
+    throw new RuntimeException('Installed SDK accepted an ambiguous delimiter.');
+} catch (UnexpectedValueException $exception) {
+    if ($transport->calls !== 1 || !str_contains($exception->getMessage(), 'list delimiter')) {
+        throw new RuntimeException('Installed SDK mutation validation failed.', previous: $exception);
+    }
+}
+echo "PUBLISHED_DELIMITED_QUERY_SDK_OK", PHP_EOL;
+PHP);
+runPublished([PHP_BINARY, $directory . '/delimited-consumer.php']);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

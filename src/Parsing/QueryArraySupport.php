@@ -14,12 +14,19 @@ final class QueryArraySupport
             if ($options->style !== null || $options->explode !== null) {
                 return null;
             }
-            return match ($options->collectionFormat ?? 'csv') { 'csv' => 'csv', 'multi' => 'multi', default => null };
+            return match ($options->collectionFormat ?? 'csv') {
+                'csv' => 'csv', 'multi' => 'multi', 'ssv' => 'ssv', 'tsv' => 'tsv', 'pipes' => 'pipes', default => null,
+            };
         }
-        if ($options->collectionFormat !== null || !in_array($options->style, [null, 'form'], true)) {
+        if ($options->collectionFormat !== null) {
             return null;
         }
-        return $options->explode === false ? 'csv' : 'multi';
+        return match ($options->style) {
+            null, 'form' => $options->explode === false ? 'csv' : 'multi',
+            'spaceDelimited' => $options->explode === true ? null : 'ssv',
+            'pipeDelimited' => $options->explode === true ? null : 'pipes',
+            default => null,
+        };
     }
 
     public static function rawSupported(array $parameter, bool $swagger): bool
