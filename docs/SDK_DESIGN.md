@@ -5,7 +5,7 @@ El objetivo es automatizar la forma de construir integraciones PHP del autor: cl
 ## Responsabilidades
 
 - `Dmorenof\SdkRuntime\ApiClient` mantiene clientes independientes que comparten explícitamente transporte, credenciales y middleware entre sus recursos.
-- `Client` hereda la ejecución HTTP del runtime. Las clases `Resources` contienen las operaciones ejecutables tipadas. Las fachadas estáticas reflejan exactamente los namespaces de las rutas y delegan en el cliente configurado.
+- `Client` hereda del runtime el mapeo de argumentos, preparación y ejecución HTTP. `Configuration` hereda las opciones comunes y declara únicamente el baseUrl de la API. Las clases `Resources` contienen las operaciones ejecutables tipadas. Las fachadas estáticas reflejan exactamente los namespaces de las rutas y delegan en el cliente configurado.
 - `Dmorenof\SdkRuntime\DTO` implementa conversión, validación y serialización reutilizables. El contexto HTTP determina la dirección de validación, conservando una sola clase base para todos los datos. La hidratación de respuestas, mapas y uniones reutiliza esa conversión.
 - Las clases generadas de modelo declaran campos y restricciones. Las colecciones heredan de `Dmorenof\SdkRuntime\TypedArray`, apoyado en la biblioteca TypedArray.
 
@@ -32,3 +32,7 @@ El uso estático mantiene una conexión activa por contexto de ejecución PHP y 
 La caché de reflexión guarda tipos por clase y campo, nunca instancias de DTO. No se cachea que un objeto mutable ya fue validado: cada nueva operación comprueba sus valores actuales. Una serialización valida el árbol completo y después convierte ese mismo árbol sin revalidar cada subárbol.
 
 Las mediciones reproducibles y sus límites se documentan en [benchmark/DTO_REFACTOR.md](../benchmark/DTO_REFACTOR.md). La revisión y las pruebas de esta entrega usan PHP 8.5.11; la matriz existente de CI sigue cubriendo PHP 8.3–8.5.
+
+## Reutilización y revisión
+
+Antes de añadir código se contrasta con PHP, Guzzle y PSR. El runtime mantiene una implementación común; los SDKs declaran sus datos y tipos. Se conserva la adaptación de contrato que las librerías no ofrecen, comprobándola con requests exactos. Evidencia y límites: [revisión de arquitectura](ARCHITECTURE_REVIEW.md).

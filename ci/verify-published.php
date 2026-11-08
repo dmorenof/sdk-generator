@@ -54,6 +54,12 @@ if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Generated SDK must run independently with a stable runtime.');
 }
+if (!(new \Example\PublishedServers\Configuration()) instanceof \Dmorenof\SdkRuntime\Configuration
+    || (new ReflectionMethod(\Example\PublishedServers\Client::class, 'executeArguments'))->getDeclaringClass()->getName()
+        !== \Dmorenof\SdkRuntime\ApiClient::class) {
+    throw new RuntimeException('Published SDK must inherit shared configuration and execution.');
+}
+echo "PUBLISHED_INHERITED_EXECUTOR_OK", PHP_EOL;
 $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
     public array $urls = [];
     public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse

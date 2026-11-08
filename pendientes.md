@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.13.0** y `dmorenof/sdk-runtime` **v0.9.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.14.0** y `dmorenof/sdk-runtime` **v0.10.1** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -44,6 +44,16 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 | OpenAPI 3.2.x | Pendiente | Requiere interpretar sus novedades, no solo ampliar la expresión regular. |
 
 ---
+
+## Revisión transversal de simplicidad — v0.14.0 / runtime v0.10.1
+
+- [x] Aplicar la regla expresa de reutilización/herencia a la preparación HTTP; conservarla en AGENTS.md de ambos repositorios junto con la guía de Gestycontrol.
+- [x] Eliminar la copia por SDK del ejecutor/mapeo de argumentos y de las opciones comunes de configuración: ahora se heredan del runtime.
+- [x] Reutilizar Query::build de Guzzle PSR-7 y percent-encoding nativo para query/forms, preservando la adaptación específica de OpenAPI y las firmas/DTOs existentes.
+- **Medición:** Accounts Client+Configuration pasa de 158 a 50 líneas generadas (-108; aproximadamente 68%). La conexión estática conserva su aislamiento por SDK.
+- **Límite:** esta revisión simplifica comportamiento existente; multipart, formatos pendientes y conformidad general conservan sus tareas abiertas. Los DTOs mantienen validación del contrato; los nombres/types de dominio no se fusionan por mera igualdad estructural.
+- **Validación:** generador 342 pruebas / 2.540 aserciones; runtime 80 / 207 y dependencias mínimas; catorce SDKs con PHPStan max, Casafari 46/46, instalación independiente y HTTP real cloud-local.
+- **Informe:** [revisión y evidencia](docs/ARCHITECTURE_REVIEW.md).
 
 ## 1. [P0] Fidelidad del contrato intermedio y diagnóstico
 
@@ -560,3 +570,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-08 | Entrega coordinada: generador v0.12.0 + runtime v0.9.0, forms URL-encoded escalares/listas, encoding form/explode y revisión GetParams/PostParams con query/headers/body. Multipart y Swagger formData siguen pendientes. | [Generator v0.12.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.12.0), [Runtime v0.9.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.9.0) |
 
 | 2026-11-08 | Generador v0.13.0: formData Swagger URL-encoded normalizado al contrato común, CSV por defecto/multi, alias y overrides, GetParams/PostParams y diagnóstico de media/conflictos. Runtime ^0.9.0 sin cambios; multipart y otros formatos form pendientes. | [Generator v0.13.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.13.0) |
+
+| 2026-11-08 | Entrega de simplificación: generador v0.14.0 + runtime v0.10.1, ejecutor/configuración comunes por herencia y Query::build/nativo para query/forms. Revisión de arquitectura y reglas de reutilización documentadas. | [Generator v0.14.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.14.0), [Runtime v0.10.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.10.1) |

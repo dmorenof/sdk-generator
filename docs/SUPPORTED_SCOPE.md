@@ -1,4 +1,4 @@
-# v0.13.0 supported scope and known limitations
+# v0.14.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -30,7 +30,7 @@
 - Multiple body-bearing success responses and some non-object inline error schemas are not supported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.9.0 or later compatible versions (`^0.9.0`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.10.1 or later compatible versions (`^0.10.1`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
@@ -45,7 +45,7 @@ Please report supported-schema failures through GitHub Issues with a small **red
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.9.0`;
+The current generator and generated Composer packages require stable runtime `^0.10.1`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -216,3 +216,7 @@ Reference Object siblings cannot turn OAuth into a supported HTTP scheme. Swagge
 outside this release. The local aliases also work when other supported parts of
 the document are loaded through the v0.7.0 file API; the file bundler does not
 fetch external security definitions. Runtime stays at stable `^0.5.0`.
+
+## Shared implementation (v0.14.0)
+
+SDK Client and Configuration inherit common execution/options from runtime ^0.10.1. SDK classes declare API-specific metadata and defaults; public request signatures and DTO types remain unchanged. Guzzle PSR-7 constructs the query; the runtime adapts OpenAPI styles and validates/serializes DTOs. See [architecture review](ARCHITECTURE_REVIEW.md).
