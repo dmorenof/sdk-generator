@@ -36,3 +36,5 @@ Las mediciones reproducibles y sus límites se documentan en [benchmark/DTO_REFA
 ## Reutilización y revisión
 
 Antes de añadir código se contrasta con PHP, Guzzle y PSR. El runtime mantiene una implementación común; los SDKs declaran sus datos y tipos. Se conserva la adaptación de contrato que las librerías no ofrecen, comprobándola con requests exactos. Evidencia y límites: [revisión de arquitectura](ARCHITECTURE_REVIEW.md).
+
+Multipart reutiliza `GuzzleHttp\Psr7\MultipartStream` para MIME y boundaries. Los campos binary siguen siendo strings PHP; no se añade una jerarquía propia de archivos. El transporte público conserva cuerpos string y, por tanto, buffering; streams, nombres de archivo configurables y encodings avanzados permanecen documentados como pendientes.

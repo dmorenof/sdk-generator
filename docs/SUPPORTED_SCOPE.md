@@ -1,4 +1,4 @@
-# v0.14.0 supported scope and known limitations
+# v0.15.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -12,7 +12,7 @@
 - `readOnly` properties are omitted from request serialization and are not required for requests; `writeOnly` properties are omitted from response serialization and are not required for responses. Directional filtering is recursive for nested DTOs.
 - Query arrays of non-null primitive items use native PHP lists, validated item constraints and bounds. OpenAPI form supports repeated keys (default) and CSV; Swagger supports multi and CSV (default). v0.10.0 adds OpenAPI spaceDelimited/pipeDelimited (omitted/false explode) and Swagger ssv/tsv/pipes. These formats reject items containing their own delimiter; separators are URI-encoded. Null/absent parameters and empty lists are omitted; empty string items are explicit. Other locations, objects, nested/nullable items and styles/flags remain pending. See [query arrays](QUERY_ARRAYS.md).
 - OpenAPI flat deepObject query objects use typed DTOs/Maps with explicit closed or scalar additional-property schemas. Inline/local references, request-direction fields, JSON names, enums and mutations are validated. GET and POST parameter DTOs keep query and JSON body separate, including a query named body. Nested/null properties, unconstrained extras and other object styles remain pending. See [query objects](QUERY_OBJECTS.md).
-- OpenAPI URL-encoded form bodies support explicit closed objects with scalar fields and primitive lists, inline/named schemas and local requestBody references. Per-field form/explode defaults, repeated-key/CSV arrays, required fields, enums, JSON names and directional mutation validation are verified. Query, headers and body remain separate in GetParams/PostParams. Swagger v0.13.0 formData normalizes scalar/list fields to the same runtime with CSV/multi formats and explicit URL-encoded consumes. Multipart/files, other Swagger formats, nested/open form schemas and other styles remain pending. See [forms](FORMS.md).
+- OpenAPI URL-encoded form bodies support explicit closed objects with scalar fields and primitive lists, inline/named schemas and local requestBody references. Per-field form/explode defaults, repeated-key/CSV arrays, required fields, enums, JSON names and directional mutation validation are verified. Query, headers and body remain separate in GetParams/PostParams. Swagger v0.13.0 formData normalizes scalar/list fields to the same runtime with CSV/multi formats and explicit URL-encoded consumes. OpenAPI multipart now supports the bounded binary-string subset below; Swagger multipart/files, other formats, nested/open form schemas and other styles remain pending. See [forms](FORMS.md).
 - Primitive HTTP parameters support nullable primitive `anyOf` and inline string/integer enums; enum membership is validated before request transmission.
 - Inline object and array success responses generate deterministic operation-derived model/collection classes. Inline object error responses generate operation/status-derived response DTOs. One body-bearing success response may coexist with no-content success statuses, in which case the operation return type is nullable.
 - HTTP Basic and token-based HTTP authentication, as well as API keys in headers or query parameters, are supported. Root security is inherited by operations; operation-level security overrides it, including `security: []`. Security requirement entries use OpenAPI's OR-between-alternatives and AND-within-an-alternative semantics. Supply credentials through the generated `Core\SecurityCredentials` object, keyed by the OpenAPI scheme name; Basic credentials use `Core\BasicAuthCredentials`.
@@ -25,12 +25,12 @@
 ## What is deliberately NOT guaranteed
 
 - YAML support does not expand the supported OpenAPI feature set: YAML input is subject to the same deliberate subset and explicit rejections as JSON.
-- Not a general OpenAPI 3.1 / JSON Schema implementation; external references/mappings, arbitrary native unions, `not`/`const`, general schema composition, advanced formats, OAuth2/OpenID Connect authorization flows, API keys in cookies, multipart/files and advanced form support are not implemented. Patterns using ECMA-regex features that differ from PCRE may not validate identically. For OAuth2, provide a previously obtained bearer token only when the security scheme is declared as HTTP bearer; the generator does not acquire or refresh tokens.
+- Not a general OpenAPI 3.1 / JSON Schema implementation; external references/mappings, arbitrary native unions, `not`/`const`, general schema composition, advanced formats, OAuth2/OpenID Connect authorization flows, API keys in cookies, streaming files and advanced form/multipart support are not implemented. Patterns using ECMA-regex features that differ from PCRE may not validate identically. For OAuth2, provide a previously obtained bearer token only when the security scheme is declared as HTTP bearer; the generator does not acquire or refresh tokens.
 - OAuth2/OpenID Connect authorization flows are not implemented; credentials must be supplied by the caller, and tokens are not acquired or refreshed by the SDK.
 - Multiple body-bearing success responses and some non-object inline error schemas are not supported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.10.1 or later compatible versions (`^0.10.1`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.11.1 or later compatible versions (`^0.11.1`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
@@ -45,7 +45,7 @@ Please report supported-schema failures through GitHub Issues with a small **red
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.10.1`;
+The current generator and generated Composer packages require stable runtime `^0.11.1`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -220,3 +220,9 @@ fetch external security definitions. Runtime stays at stable `^0.5.0`.
 ## Shared implementation (v0.14.0)
 
 SDK Client and Configuration inherit common execution/options from runtime ^0.10.1. SDK classes declare API-specific metadata and defaults; public request signatures and DTO types remain unchanged. Guzzle PSR-7 constructs the query; the runtime adapts OpenAPI styles and validates/serializes DTOs. See [architecture review](ARCHITECTURE_REVIEW.md).
+
+## Buffered OpenAPI multipart (v0.15.0)
+
+Closed flat object bodies support text scalars, repeated primitive lists and binary string file properties. Guzzle PSR-7 MultipartStream handles MIME/boundaries; generated SDKs only declare field metadata. JSON takes precedence over URL-encoded forms, which take precedence over multipart. Binary files use basename(field) + `.bin`; their default type is application/octet-stream and one explicit encoding.contentType MIME type is supported. Text parts use text/plain.
+
+Inline/local referenced schemas and request bodies, GetParams/PostParams, query/header/body separation, binary bytes, direction rules and mutation validation are verified. Bodies are buffered through the existing string transport contract. Streaming/large-file memory control, custom filenames, binary arrays, nested objects, per-part headers and advanced encoding remain pending. Binary enum/pattern/Unicode length constraints are rejected; they cannot faithfully validate arbitrary file bytes. See [usage and exact limits](FORMS.md#openapi-multipart-v0150--runtime-v0111).

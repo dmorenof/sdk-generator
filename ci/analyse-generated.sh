@@ -46,3 +46,5 @@ analyse query-objects query-objects-openapi31.json 'Example\QueryObjectSdk'
 analyse forms forms-openapi31.json 'Example\FormSdk'
 
 analyse swagger-forms forms-swagger2.json 'Example\SwaggerFormSdk'
+
+analyse multipart multipart-openapi31.json 'Example\MultipartSdk'

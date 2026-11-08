@@ -75,3 +75,7 @@ Resultado de la entrega: generador **342 pruebas / 2.540 aserciones**; runtime
 **14 SDKs** instalados pasan PHPStan máximo; Casafari conserva **46/46** operaciones
 aceptadas. Smokes independientes y HTTP real cloud-local conservan URL, headers,
 body, separación de parámetros y rechazo de mutaciones inválidas.
+
+## Aplicación a multipart — v0.15.0 / runtime v0.11.1
+
+El runtime adapta campos DTO a descriptores de `GuzzleHttp\Psr7\MultipartStream`; Guzzle resuelve MIME y boundaries. FormSupport comparte la comprobación de objetos planos entre urlencoded y multipart. Los archivos usan strings nativos para bytes y metadatos declarativos de nombre/tipo; no se introduce una clase de subida. Se conserva el contrato público de transporte y se declara el coste real: cuerpo completo en memoria, sin prometer streaming. Casos de encoding sin una adaptación fiel se diagnostican. [Uso y límites](FORMS.md).

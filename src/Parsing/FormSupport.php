@@ -9,10 +9,11 @@ use Dmorenof\SdkGenerator\Contract\SchemaDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaKind;
 use Dmorenof\SdkGenerator\Diagnostics\JsonPointer;
 
-/** A bounded URL-encoded form: closed object of scalars and primitive lists. */
+/** Bounded form bodies share closed, flat schemas and primitive field validation. */
 final class FormSupport
 {
     public const MEDIA = 'application/x-www-form-urlencoded';
+    public const MULTIPART = 'multipart/form-data';
 
     /** Supported Swagger Parameter Objects can be lowered to the same form body contract. */
     public static function swaggerField(array $field): bool
@@ -45,27 +46,18 @@ final class FormSupport
      */
     public static function formats(RequestBodyDefinition $body, array $models): ?array
     {
-        if ($body->mediaType !== self::MEDIA) {
+        if (!in_array($body->mediaType, [self::MEDIA, self::MULTIPART], true)) {
             return null;
         }
-        $schema = $body->schema;
-        if ($schema->kind === SchemaKind::Reference) {
-            $reference = $schema->reference;
-            $schema = null;
-            foreach ($models as $model) {
-                if ($model->name === $reference) {
-                    $schema = $model->schema;
-                    break;
-                }
-            }
-        }
+        $schema = self::schema($body, $models);
+        $multipart = $body->mediaType === self::MULTIPART;
         if ($schema === null || $schema->kind !== SchemaKind::Object || $schema->nullable
             || $schema->additionalProperties !== false || $schema->discriminator !== null) {
             return null;
         }
         $encoding = [];
         foreach ($body->content as $media) {
-            if ($media->mediaType === self::MEDIA) {
+            if ($media->mediaType === $body->mediaType) {
                 $encoding = $media->encoding;
             }
         }
@@ -78,7 +70,14 @@ final class FormSupport
             $field = $property->schema;
             $array = $field->kind === SchemaKind::Array;
             if (($array && ($field->enumValues !== [] || $field->items === null || $field->items->nullable || !self::scalar($field->items)))
-                || (!$array && !self::scalar($field)) || !self::encoding($encoding[$property->wireName] ?? [])) {
+                || (!$array && !self::scalar($field)) || !self::encoding($encoding[$property->wireName] ?? [], $multipart)) {
+                return null;
+            }
+            if ($multipart && (!self::name($property->wireName)
+                || ($array && $field->items?->format === 'binary')
+                || (!self::binary($field) && isset($encoding[$property->wireName]['contentType'])
+                    && $encoding[$property->wireName]['contentType'] !== 'text/plain')
+                || (self::binary($field) && ($field->enumValues !== [] || $field->validation !== [] || $field->pattern !== null)))) {
                 return null;
             }
             if ($array) {
@@ -88,21 +87,72 @@ final class FormSupport
         return $formats;
     }
 
+    /** @param list<ModelDefinition> $models */
+    private static function schema(RequestBodyDefinition $body, array $models): ?SchemaDefinition
+    {
+        if ($body->schema->kind !== SchemaKind::Reference) {
+            return $body->schema;
+        }
+        foreach ($models as $model) {
+            if ($model->name === $body->schema->reference) {
+                return $model->schema;
+            }
+        }
+        return null;
+    }
+
+    /** @param list<ModelDefinition> $models @return array<string,array{contentType:string,filename?:string}>|null */
+    public static function parts(RequestBodyDefinition $body, array $models): ?array
+    {
+        if ($body->mediaType !== self::MULTIPART || self::formats($body, $models) === null) {
+            return null;
+        }
+        $encoding = [];
+        foreach ($body->content as $media) {
+            if ($media->mediaType === self::MULTIPART) {
+                $encoding = $media->encoding;
+            }
+        }
+        $parts = [];
+        foreach (self::schema($body, $models)->properties as $property) {
+            $binary = self::binary($property->schema);
+            $part = ['contentType' => $encoding[$property->wireName]['contentType'] ?? ($binary ? 'application/octet-stream' : 'text/plain')];
+            if ($binary) {
+                $part['filename'] = basename($property->wireName) . '.bin';
+            }
+            $parts[$property->wireName] = $part;
+        }
+        return $parts;
+    }
+
+    private static function binary(SchemaDefinition $schema): bool
+    {
+        return $schema->kind === SchemaKind::String && $schema->format === 'binary';
+    }
+
+    private static function name(string $name): bool
+    {
+        return $name !== '' && preg_match('/^[\x20-\x21\x23-\x5B\x5D-\x7E]+$/D', $name) === 1
+            && basename($name) !== '' && !in_array(basename($name), ['.', '..'], true);
+    }
+
     private static function scalar(SchemaDefinition $schema): bool
     {
         return in_array($schema->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean], true)
             && ($schema->enumValues === [] || in_array($schema->kind, [SchemaKind::String, SchemaKind::Integer], true));
     }
 
-    private static function encoding(mixed $encoding): bool
+    private static function encoding(mixed $encoding, bool $multipart = false): bool
     {
-        return is_array($encoding) && array_diff(array_keys($encoding), ['style', 'explode', 'allowReserved']) === []
+        return is_array($encoding) && array_diff(array_keys($encoding), $multipart ? ['contentType', 'style', 'explode', 'allowReserved'] : ['style', 'explode', 'allowReserved']) === []
             && (!array_key_exists('style', $encoding) || $encoding['style'] === 'form')
-            && (!array_key_exists('explode', $encoding) || is_bool($encoding['explode']))
+            && (!array_key_exists('explode', $encoding) || ($multipart ? $encoding['explode'] === true : is_bool($encoding['explode'])))
+            && (!array_key_exists('contentType', $encoding) || (is_string($encoding['contentType'])
+                && preg_match('~^[a-zA-Z0-9!#$&^_.+\-]+/[a-zA-Z0-9!#$&^_.+\-]+$~D', $encoding['contentType']) === 1))
             && (!array_key_exists('allowReserved', $encoding) || $encoding['allowReserved'] === false);
     }
 
-    public static function rawSupported(array $definition, array $document): bool
+    public static function rawSupported(array $definition, array $document, bool $multipart = false): bool
     {
         $schema = $definition['schema'] ?? null;
         if (is_array($schema) && isset($schema['$ref'])) {
@@ -123,7 +173,7 @@ final class FormSupport
             return false;
         }
         foreach ($properties as $name => $field) {
-            if (!is_array($field) || !self::encoding($encoding[$name] ?? [])) {
+            if (!is_array($field) || !self::encoding($encoding[$name] ?? [], $multipart)) {
                 return false;
             }
             $type = $field['type'] ?? null;
@@ -139,6 +189,14 @@ final class FormSupport
                 }
             } elseif (!self::rawScalar($field)) {
                 return false;
+            }
+            if ($multipart) {
+                $binary = $types[0] === 'string' && ($field['format'] ?? null) === 'binary';
+                if (!self::name((string) $name) || ($types[0] === 'array' && ($field['items']['format'] ?? null) === 'binary')
+                    || (!$binary && isset($encoding[$name]['contentType']) && $encoding[$name]['contentType'] !== 'text/plain')
+                    || ($binary && array_intersect(array_keys($field), ['enum', 'minLength', 'maxLength', 'pattern']) !== [])) {
+                    return false;
+                }
             }
         }
         return true;

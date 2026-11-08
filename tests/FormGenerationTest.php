@@ -180,7 +180,9 @@ final class FormGenerationTest extends TestCase
             self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
         }
         $document = self::document();
-        $document['paths']['/items']['post']['requestBody']['content'] = ['multipart/form-data' => ['schema' => ['$ref' => '#/components/schemas/Form']]];
+        $document['paths']['/items']['post']['requestBody']['content'] = ['multipart/form-data' => [
+            'schema' => ['$ref' => '#/components/schemas/Form'], 'encoding' => ['codes' => ['explode' => false]],
+        ]];
         self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
     }
 

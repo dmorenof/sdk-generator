@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.14.0** y `dmorenof/sdk-runtime` **v0.10.1** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.15.0** y `dmorenof/sdk-runtime` **v0.11.1** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -178,9 +178,9 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ### Revisión acordada de getParameters y postParameters
 
-- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.13.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded OpenAPI/Swagger. No existen símbolos literales getParameters/postParameters en el emisor actual. Queda multipart.
-- [ ] **Parcial — Separar método y ubicación.** v0.13.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded OpenAPI/Swagger, y distingue un query llamado body del payload real. Quedan las combinaciones con multipart.
-- [ ] **Parcial — Pruebas GET/POST HTTP y forms.** v0.12.0 cubre GET query, POST query + headers + JSON/urlencoded, nombres coincidentes/body, arrays, ausente/null/vacío y mutaciones; URL, Content-Type y bytes exactos, PSR-18, HTTP real cloud-local e instalación independiente. Queda multipart.
+- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.13.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded OpenAPI/Swagger. No existen símbolos literales getParameters/postParameters en el emisor actual. v0.15.0 añade multipart OpenAPI con bytes binarios en memoria; quedan streaming, Swagger multipart y encoding avanzado.
+- [ ] **Parcial — Separar método y ubicación.** v0.13.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded OpenAPI/Swagger, y distingue un query llamado body del payload real. v0.15.0 verifica también el subconjunto multipart OpenAPI; quedan las combinaciones de sus formatos pendientes.
+- [ ] **Parcial — Pruebas GET/POST HTTP y forms.** v0.12.0 cubre GET query, POST query + headers + JSON/urlencoded, nombres coincidentes/body, arrays, ausente/null/vacío y mutaciones; URL, Content-Type y bytes exactos, PSR-18, HTTP real cloud-local e instalación independiente. v0.15.0 añade esas comprobaciones a multipart OpenAPI; las extensiones de multipart siguen abiertas.
 
 ### OpenAPI 3.x
 
@@ -231,7 +231,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] GetParams y PostParams, fachadas y recursos, query + body JSON y colisión de nombre body. Marcar explícitamente cuerpos de operación y conservar queryBody separado del campo body real.
 - [x] URLs y bytes de body exactos mediante transporte simulado/PSR-18, JSON/YAML, OpenAPI 3.0/3.1, parámetros reutilizables, valores ausentes/null/vacíos y mutaciones.
 - **Validación:** PHP 8.4 cloud: generador 322 pruebas / 2.444 aserciones, doce SDKs con PHPStan max y Casafari 46/46. Runtime: 70 pruebas / 177 aserciones y PHPStan max. Smoke independiente de instalación con query + JSON y mutaciones; CI multiversión de la entrega.
-- **Límites:** solo objetos planos cerrados o con valores adicionales escalares tipados; sin propiedades null/anidadas, extras sin tipo, composiciones ni otros estilos/ubicaciones. Forms urlencoded/multipart siguen pendientes. Dependencia estable `^0.8.0`. [Uso y revisión GetParams/PostParams](docs/QUERY_OBJECTS.md).
+- **Límites:** solo objetos planos cerrados o con valores adicionales escalares tipados; sin propiedades null/anidadas, extras sin tipo, composiciones ni otros estilos/ubicaciones. Forms urlencoded se añaden en v0.12.0 y multipart OpenAPI básico en v0.15.0; sus formatos avanzados siguen pendientes. Dependencia de esta entrega histórica `^0.8.0`. [Uso y revisión GetParams/PostParams](docs/QUERY_OBJECTS.md).
 
 **Aceptación:** tests con URLs y headers exactos para cada combinación `in/style/explode`. Ejemplo: `ids=1&ids=2` frente a `ids=1,2`.
 
@@ -239,15 +239,15 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ### Peticiones
 
-- [ ] **Parcial — Revisión HTTP/forms del paquete 03.** GetParams/PostParams con query + urlencoded completado en v0.12.0; queda la combinación con multipart.
+- [ ] **Parcial — Revisión HTTP/forms del paquete 03.** GetParams/PostParams con query + urlencoded en v0.12.0 y multipart OpenAPI básico en v0.15.0. Quedan streaming, Swagger multipart y encoding avanzado.
 - [x] **v0.12.0 — application/x-www-form-urlencoded:** objetos cerrados con campos escalares/listas primitivas, encoding form/explode, inline/referencias locales, DTOs y validación tras mutaciones.
 - [ ] Ampliar formularios a objetos/mapas abiertos, estructuras complejas, otros estilos y negociación de representaciones.
-- [ ] `multipart/form-data`, incluido `encoding` por propiedad y mezcla de texto/archivos.
-- [ ] Subida de archivos binarios; soporte de streams y manejo de memoria controlado.
+- [ ] **Parcial — multipart/form-data:** v0.15.0 ejecuta objetos cerrados planos con texto, listas repetidas y archivos binary en strings; contentType por campo binario y MIME mediante Guzzle. Quedan headers por parte, archivos múltiples, objetos y otros encoding.
+- [ ] **Parcial — Subida de archivos binarios:** v0.15.0 conserva bytes en memoria con nombres fijos derivados del campo; pendientes streams, memoria acotada y nombres configurables.
 - [ ] Body directo de array, mapa, escalar o binario sin envolverlo necesariamente en un DTO de objeto.
 - [ ] Selección explícita de `Content-Type` entre representaciones alternativas.
 - [ ] Múltiples representaciones JSON con esquemas distintos.
-- [ ] Referencias a `components/requestBodies`.
+- [ ] **Parcial — Referencias a components/requestBodies:** alias locales resueltos y verificados también en multipart; resolución general/remota sigue en el paquete 02.
 - [ ] Tratar correctamente cuerpos ausentes, `null`, vacíos y opcionales.
 
 ### Entrega de formularios URL-encoded — v0.12.0 / runtime v0.9.0
@@ -265,6 +265,14 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] GetParams/PostParams con query + headers + form y query llamado body; formularios opcionales/body-only, equivalencia byte a byte con OpenAPI, JSON/YAML, PSR-18, HTTP real cloud-local y mutaciones.
 - **Validación:** 341 pruebas / 2.537 aserciones; catorce SDKs con PHPStan max; Casafari 46/46; Composer e instalación independiente del SDK Swagger. CI multiversión e instalación de paquete publicado. Runtime estable `^0.9.0`, sin cambios.
 - **Límites:** un único consumes URL-encoded; no archivos/multipart, objetos/listas anidadas/items null, ssv/tsv/pipes en form, collectionFormat escalar ni mezcla body+formData. La revisión HTTP/forms sigue parcial para multipart. [Uso](docs/FORMS.md#swagger-20-formdata-v0130).
+
+### Entrega multipart OpenAPI — v0.15.0 / runtime v0.11.1
+
+- [x] Reutilizar FormSupport para objetos cerrados planos y Guzzle PSR-7 MultipartStream para MIME/boundaries. DTOs con strings nativos para binary, escalares/listas repetidas y metadatos estáticos de parte; sin un encoder MIME ni clase de subida propios.
+- [x] contentType binario explícito o application/octet-stream por defecto; texto text/plain. Nombres de archivo basename(campo) + .bin. JSON mantiene prioridad sobre urlencoded y multipart. Rechazar opciones que no se ejecutan fielmente, incluidos límites Unicode sobre bytes binarios.
+- [x] GetParams/PostParams con query + headers + multipart, query llamado body/nombres coincidentes, fachadas/instancias, JSON/YAML, OpenAPI 3.0/3.1, inline/referencias locales, required/enums/dirección y mutaciones. Body ausente, vacío, campos null/vacíos y archivos vacíos diferenciados.
+- **Validación:** 350 pruebas / 2.603 aserciones del generador; quince SDKs instalados con PHPStan máximo. Runtime: 85 pruebas / 239 aserciones, PHPStan máximo, CI con dependencias mínimas e instalación publicada. HTTP real cloud-local con parser MIME independiente e instalación de SDK multipart independiente del generador. La publicación comprueba el SDK instalado desde el tag inmutable.
+- **Límites:** transporte string y cuerpo completo en memoria; sin promesa de streaming/memoria acotada. Pendientes nombres configurables, Swagger multipart, listas binarias, objetos/maps/nesting, headers por parte, CSV/otros estilos y selección por llamada. No cierra los paquetes 03/04 generales. [Uso y límites](docs/FORMS.md#openapi-multipart-v0150--runtime-v0111).
 
 ### Respuestas
 
@@ -562,13 +570,9 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-06 | Generador v0.8.0: referencias locales de securitySchemes, claves públicas de credenciales conservadas y pruebas AND/OR/Basic/alias; importaciones externas y OAuth siguen abiertos. Runtime ^0.5.0 sin cambios. | [Generator v0.8.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.8.0) |
 
 | 2026-11-07 | Entrega coordinada: generador v0.9.0 + runtime v0.6.0, arrays query nativos con claves repetidas/CSV y validación tras mutaciones. Dependencia estable ^0.6.0; el resto del paquete 03 sigue parcial. | [Generator v0.9.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.9.0), [Runtime v0.6.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.6.0) |
-
 | 2026-11-08 | Entrega coordinada: generador v0.10.0 + runtime v0.7.0, arrays query spaceDelimited/pipeDelimited y Swagger ssv/tsv/pipes con rechazo de valores ambiguos. Dependencia estable ^0.7.0; el paquete 03 sigue parcial. | [Generator v0.10.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.10.0), [Runtime v0.7.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.7.0) |
-
 | 2026-11-08 | Entrega coordinada: generador v0.11.0 + runtime v0.8.0, deepObject query plano, DTOs/Maps y separación de query body frente a JSON body en GetParams/PostParams. Revisión de HTTP parcial; formularios pendientes. | [Generator v0.11.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.11.0), [Runtime v0.8.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.8.0) |
-
 | 2026-11-08 | Entrega coordinada: generador v0.12.0 + runtime v0.9.0, forms URL-encoded escalares/listas, encoding form/explode y revisión GetParams/PostParams con query/headers/body. Multipart y Swagger formData siguen pendientes. | [Generator v0.12.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.12.0), [Runtime v0.9.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.9.0) |
-
 | 2026-11-08 | Generador v0.13.0: formData Swagger URL-encoded normalizado al contrato común, CSV por defecto/multi, alias y overrides, GetParams/PostParams y diagnóstico de media/conflictos. Runtime ^0.9.0 sin cambios; multipart y otros formatos form pendientes. | [Generator v0.13.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.13.0) |
-
 | 2026-11-08 | Entrega de simplificación: generador v0.14.0 + runtime v0.10.1, ejecutor/configuración comunes por herencia y Query::build/nativo para query/forms. Revisión de arquitectura y reglas de reutilización documentadas. | [Generator v0.14.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.14.0), [Runtime v0.10.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.10.1) |
+| 2026-11-08 | Generador v0.15.0 y runtime v0.11.1: multipart OpenAPI acotado mediante Guzzle, strings binary, listas repetidas, GetParams/PostParams, validación/mutaciones e instalación independiente. Streaming y encoding general siguen pendientes. | [Generator v0.15.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.15.0), [Runtime v0.11.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.11.1) |
