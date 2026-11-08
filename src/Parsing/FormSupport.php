@@ -199,7 +199,7 @@ final class FormSupport
                 return false;
             }
             if ($types[0] === 'array') {
-                if (!empty($field['enum']) || !is_array($field['items'] ?? null)
+                if (array_key_exists('enum', $field) || !is_array($field['items'] ?? null)
                     || !self::rawScalar($field['items']) || ($field['items']['nullable'] ?? false)
                     || is_array($field['items']['type'] ?? null)) {
                     return false;

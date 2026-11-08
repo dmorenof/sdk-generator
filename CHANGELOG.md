@@ -10,7 +10,7 @@ No changes yet.
 
 - Generate native list<string|Psr\Http\Message\UploadedFileInterface> properties for OpenAPI multipart binary arrays, with nullable outer fields, minItems/maxItems and binary item validation. Scope the representation to multipart body models; JSON-only collection types remain unchanged and inherited native fields retain item validation. Require published stable runtime ^0.14.0.
 - Reuse the existing multipart encoder/PSR-18 stream for repeated exact wire names, per-item filenames/MIME, mixed string/PSR files and independent cursors. Preserve order, optional/null/empty behavior, query/header/body separation, mutations and explicit JSON rejection of upload objects.
-- Keep invalid Swagger 2.0 file-array forms diagnosed; only valid OpenAPI binary array schemas gain support. Reject nullable/nested/unsupported constrained items and unsupported encoding.
+- Reject array-level enum declarations in bounded form bodies, including empty enum, rather than dropping their semantics. Keep invalid Swagger 2.0 file-array forms diagnosed; only valid OpenAPI binary array schemas gain support. Reject nullable/nested/unsupported constrained items and unsupported encoding.
 - Verify JSON/YAML, OpenAPI 3.0/3.1, named/inline bodies, JSON-only compatibility and inheritance. Seventeen installed SDKs pass PHPStan maximum. Runtime and an independent SDK each send two 16 MiB files twice over real cloud-local HTTP under PHP memory_limit=16M with a 4 MiB PHP peak; an independent MIME parser verifies both files. Extend CI and immutable-package installation with the file-list memory smoke.
 
 ## [0.18.0] — 2026-11-08

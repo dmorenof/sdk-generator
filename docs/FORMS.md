@@ -346,7 +346,8 @@ and repeat-send rewinding apply to every item.
 
 Absent optional fields, null outer fields and empty lists produce no parts;
 empty strings produce empty file parts. minItems/maxItems still apply when the
-list is present. Nullable items, nested arrays/objects, item enum/pattern/Unicode
+list is present. Array-level enum restrictions (including empty enum) are rejected.
+Nullable items, nested arrays/objects, item enum/pattern/Unicode
 length constraints, CSV/explode:false and part headers remain unsupported and
 diagnosed. JSON serialization still rejects PSR uploads inside lists; ordinary
 string lists remain valid JSON data when their strings are JSON-compatible.

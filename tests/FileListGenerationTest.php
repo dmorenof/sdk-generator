@@ -159,6 +159,11 @@ final class FileListGenerationTest extends TestCase
             $document['paths']['/items']['post']['requestBody']['content']['multipart/form-data']['encoding']['attachments'] = $encoding;
             self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
         }
+        foreach ([[], [['bytes']]] as $enum) {
+            $document = self::document();
+            $document['components']['schemas']['Form']['properties']['attachments']['enum'] = $enum;
+            self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
+        }
         foreach ([['type' => 'file'], ['type' => 'string', 'format' => 'binary']] as $item) {
             $swagger = json_decode(file_get_contents(__DIR__ . '/fixtures/multipart-swagger2.json'), true, 512, JSON_THROW_ON_ERROR);
             $swagger['parameters']['Ids']['items'] = $item;
