@@ -166,6 +166,12 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 **Situación actual:** generador v0.10.0 y runtime v0.7.0 ejecutan escalares y arrays query primitivos mediante claves repetidas, CSV, espacios, tabuladores o pipes. El paquete sigue parcial para objetos, otras ubicaciones y estilos.
 
+### Revisión acordada de getParameters y postParameters
+
+- [ ] Revisar expresamente `getParameters` y `postParameters` al ampliar HTTP y formularios, junto con los DTOs públicos actuales `GetParams`/`PostParams` y las firmas de fachadas/recursos. Identificar su correspondencia real antes de cambiar nombres o compatibilidad.
+- [ ] Comprobar por separado método HTTP y ubicación del dato: parámetros query también en POST; query, headers y body/formulario coexistiendo en una operación. El método por sí solo no determina dónde se serializa un campo.
+- [ ] Cubrir GET con query y POST con query + body JSON, urlencoded o multipart, incluidos nombres coincidentes en query/body, arrays, valores ausentes/null/vacíos y mutaciones. Verificar URL, headers, Content-Type y bytes del cuerpo desde la API pública generada y el runtime común.
+
 ### OpenAPI 3.x
 
 - [ ] **Parcial — Arrays y objetos por ubicación.** Arrays query primitivos publicados en v0.9.0; objetos y arrays path/header/cookie pendientes.
@@ -214,6 +220,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ### Peticiones
 
+- [ ] Al implementar formularios, completar la revisión de `getParameters`/`postParameters` del paquete 03 y comprobar compatibilidad de `GetParams`/`PostParams` con query + formulario en la misma operación.
 - [ ] `application/x-www-form-urlencoded`.
 - [ ] `multipart/form-data`, incluido `encoding` por propiedad y mezcla de texto/archivos.
 - [ ] Subida de archivos binarios; soporte de streams y manejo de memoria controlado.
