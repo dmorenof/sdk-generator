@@ -6,6 +6,13 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.15.0] — 2026-11-08
+
+- Add bounded OpenAPI 3.0/3.1 multipart/form-data bodies with text scalar fields, repeated primitive lists and binary string file properties. Reuse form schema checks, DTOs and the shared Guzzle MultipartStream runtime; no upload wrapper or MIME encoder is generated. Require stable runtime ^0.11.1.
+- Declare static part MIME types and schema-field-derived .bin filenames; support binary encoding.contentType. Preserve JSON then URL-encoded precedence, inline/local referenced bodies, GetParams/PostParams separation, direction rules, empty/absent/null policies and mutation validation.
+- Verify exact binary bytes and boundary matching through PSR-18 and real cloud-local HTTP with an independent MIME parser, fifteen installed SDKs at PHPStan max and an independent installed multipart SDK during release verification.
+- Document buffering through the compatible string transport interface and remaining streaming/custom filename/encoding/Swagger multipart limits. Unsupported shapes and binary Unicode constraints fail explicitly.
+
 ## [0.14.0] — 2026-11-08
 
 - Stop emitting generic operationFields/executeArguments methods in every SDK Client; inherit the shared implementation from stable runtime ^0.10.1. Generated Configuration inherits shared connection options and supplies its API-specific baseUrl.

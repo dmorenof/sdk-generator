@@ -339,4 +339,9 @@ try {
 echo "PUBLISHED_SWAGGER_FORM_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/swagger-forms-consumer.php']);
+$multipart = $directory . '/multipart';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/multipart-openapi31.json',
+    $multipart, 'Example\\MultipartSdk', 'example/published-multipart']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $multipart]);
+runPublished([PHP_BINARY, $package . '/tests/multipart-smoke.php', $multipart]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

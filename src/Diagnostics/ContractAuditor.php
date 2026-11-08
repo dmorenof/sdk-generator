@@ -552,8 +552,8 @@ final class ContractAuditor
             if (!is_array($definition)) {
                 continue;
             }
-            $form = $request && $media === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA
-                && \Dmorenof\SdkGenerator\Parsing\FormSupport::rawSupported($definition, $this->document);
+            $form = $request && in_array($media, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)
+                && \Dmorenof\SdkGenerator\Parsing\FormSupport::rawSupported($definition, $this->document, $media === \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART);
             $this->keys($definition, ['schema', 'encoding'], $at, $operation);
             if (array_key_exists('schema', $definition)) {
                 $this->schema($definition['schema'], "$at/schema", $operation);
@@ -586,8 +586,10 @@ final class ContractAuditor
             if (is_string($media) && strtolower(trim($request ? $media : explode(';', $media, 2)[0])) === 'application/json') {
                 return;
             }
-            if ($request && !$hasJson && $media === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA
-                && is_array($content[$media]) && \Dmorenof\SdkGenerator\Parsing\FormSupport::rawSupported($content[$media], $this->document)) {
+            $formMedia = isset($content[\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA]['schema'])
+                ? \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA : \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART;
+            if ($request && !$hasJson && $media === $formMedia
+                && is_array($content[$media]) && \Dmorenof\SdkGenerator\Parsing\FormSupport::rawSupported($content[$media], $this->document, $media === \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART)) {
                 return;
             }
         }

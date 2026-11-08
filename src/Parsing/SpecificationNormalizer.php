@@ -466,8 +466,9 @@ final class SpecificationNormalizer
             }
             $content = $raw['content'] ?? [];
             $hasJson = count(array_filter(array_keys($content), fn ($media): bool => is_string($media) && $this->isJsonMediaType($media))) > 0;
-            $bodyContent = !$hasJson && isset($content[FormSupport::MEDIA]['schema'])
-                ? ['mediaType' => FormSupport::MEDIA, 'schema' => $content[FormSupport::MEDIA]['schema']]
+            $formMedia = isset($content[FormSupport::MEDIA]['schema']) ? FormSupport::MEDIA : FormSupport::MULTIPART;
+            $bodyContent = !$hasJson && isset($content[$formMedia]['schema'])
+                ? ['mediaType' => $formMedia, 'schema' => $content[$formMedia]['schema']]
                 : $this->jsonContent($content, "$where.requestBody");
             if ($bodyContent === null) {
                 throw new InvalidArgumentException("Missing supported request body at $where.");

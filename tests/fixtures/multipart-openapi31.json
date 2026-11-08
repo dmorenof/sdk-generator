@@ -1,0 +1,206 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Multipart API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test/v1"
+    }
+  ],
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "getItems",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postItems",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Form"
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "image/png"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/optional": {
+      "post": {
+        "operationId": "optionalForm",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/OptionalForm"
+              },
+              "encoding": {}
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/body-only": {
+      "post": {
+        "operationId": "bodyOnly",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Form"
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "image/png"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Form": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "city-name": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string"
+          },
+          "ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "a,b",
+                "x y"
+              ]
+            }
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "internal": {
+            "type": "string",
+            "readOnly": true
+          },
+          "secret": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ]
+          },
+          "file": {
+            "type": "string",
+            "format": "binary"
+          }
+        }
+      },
+      "OptionalForm": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

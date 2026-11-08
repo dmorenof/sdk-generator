@@ -1,4 +1,4 @@
-# URL-encoded HTTP forms (v0.13.0 / runtime v0.9.0)
+# HTTP forms and multipart (v0.15.0 / runtime v0.11.1)
 
 OpenAPI 3.0/3.1 request bodies declared as application/x-www-form-urlencoded can
 use an object with explicit `additionalProperties: false`, scalar properties and
@@ -48,9 +48,9 @@ A cloud-local HTTP server verifies real request bytes; release verification
 installs the generated SDK separately from the generator.
 
 Nested objects/lists, nullable list items, open/map bodies, other styles,
-contentType/headers in encoding, allowReserved true, multipart and files remain
-unsupported and diagnosed. Swagger 2.0 URL-encoded formData is supported as described below. The multipart
-portion of the getParameters/postParameters review therefore remains open.
+contentType/headers in URL-encoded encoding and allowReserved true remain
+unsupported and diagnosed. Swagger 2.0 URL-encoded formData and the bounded OpenAPI
+multipart subset are described below.
 
 ## Swagger 2.0 formData (v0.13.0)
 
@@ -68,8 +68,8 @@ with the same in/name identity. Swagger body and formData parameters cannot coex
 | Swagger collectionFormat multi | `ids=1&ids=2` |
 
 The generator emits explicit metadata for Swagger's different CSV default.
-Equivalent OpenAPI and Swagger fixtures produce byte-identical SDKs. No new HTTP
-serializer or runtime version is required; the dependency remains stable ^0.9.0.
+Equivalent OpenAPI and Swagger fixtures produce byte-identical SDKs. This adapter introduced no new HTTP
+serializer in v0.13.0; current generated SDKs require stable runtime ^0.11.1.
 
 With `forms-swagger2.json` and namespace `Example\SwaggerForms`:
 
@@ -93,5 +93,67 @@ supported nullable extensions are retained. Defaults are not materialized.
 Files, multipart, objects/nested lists, nullable list items, ssv/tsv/pipes form
 arrays, scalar collectionFormat, malformed flags/options and multiple consumes
 representations remain unsupported and diagnosed. Query ssv/tsv/pipes support is
-unchanged. The multipart portion of the getParameters/postParameters review
-remains open.
+unchanged. OpenAPI multipart support is described below; Swagger multipart remains pending.
+
+
+## OpenAPI multipart (v0.15.0 / runtime v0.11.1)
+
+A multipart/form-data body accepts the same explicitly closed, flat object shape
+as forms. Text scalars and primitive non-null list items become text/plain parts;
+lists repeat the field name. Nullable fields are omitted when null, empty lists
+produce no parts and empty strings produce empty parts. Binary fields declare
+`type: string, format: binary` and accept raw bytes in their native PHP string
+property. No file DTO or upload wrapper is added. Guzzle PSR-7 MultipartStream
+constructs boundaries, headers and MIME bytes in the shared runtime.
+
+For the shipped multipart-openapi31.json fixture, namespace Example\MultipartSdk:
+
+```php
+$params = new \Example\MultipartSdk\PostParams\Items((object) [
+    'name' => 'query name',
+    'queryBody' => 'query-body',
+    'X-Trace' => 'trace',
+    'body' => (object) ['name' => 'body name', 'active' => false, 'ids' => [1, 2]],
+]);
+$bytes = file_get_contents('/path/to/photo.png');
+if ($bytes === false) {
+    throw new \RuntimeException('Cannot read upload.');
+}
+$params->body->file = $bytes;
+$client->resource(\Example\MultipartSdk\Resources\Items::class)->post($params);
+```
+
+The URL query is body=query-body&name=query%20name. The file part has wire name
+file, filename file.bin and Content-Type image/png (from encoding.file.contentType).
+Without an explicit contentType, binary parts use application/octet-stream.
+Filenames are fixed as basename(wire field) + `.bin`; MIME type remains independent
+of that extension. Original filenames and caller-defined filenames are pending.
+A single concrete MIME type without parameters or alternatives is accepted.
+Text contentType may only be text/plain. Encoding style must be omitted/form,
+explode omitted/true and allowReserved omitted/false. Headers and other encoding
+options fail explicitly. Field names must be nonempty printable ASCII without
+quotes/backslashes; path-like names ending in an empty/dot basename are rejected.
+
+GetParams stays query-only. PostParams keeps query, headers and the actual typed
+body separate, including coincident names and a query named body. Body-only
+operations reuse the named DTO. Inline objects and local schema/requestBody
+references work in JSON/YAML, OpenAPI 3.0/3.1. Required fields, enums, request
+direction, constraints and mutations follow the existing DTO validation. A missing
+optional body sends no Content-Type or bytes; a present empty body sends a closing
+MIME boundary with the matching multipart Content-Type. JSON representations take
+priority, then URL-encoded forms, then multipart; per-call negotiation is pending.
+
+**Memory limit:** the existing public transport interface accepts a complete string.
+Multipart bodies are buffered; there is no streaming or bounded-memory guarantee
+for large files. Read only files whose size your application can hold in memory.
+Native streams/resources, file lists, nested objects, open maps, null list items,
+CSV multipart arrays, per-part headers, Swagger multipart and arbitrary filenames
+remain pending. Binary enum/pattern/minLength/maxLength constraints are rejected
+because their current Unicode string semantics do not validate arbitrary bytes.
+Binary DTOs are sent through multipart; JSON encoding arbitrary byte strings can
+fail when they are not UTF-8.
+
+Verification covers PSR-18 wire bytes and boundary agreement, a real cloud-local
+HTTP POST parsed independently with Python's MIME parser, fifteen installed SDKs
+at PHPStan maximum, mutations and an independent installed multipart SDK in the
+immutable release workflow. The general HTTP/forms roadmap remains partial.

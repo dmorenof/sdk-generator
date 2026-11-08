@@ -24,6 +24,7 @@ final readonly class PhpResourceEmitter
         'querySerialization' => [],
         'requestMediaType' => 'application/json',
         'bodySerialization' => [],
+        'bodyParts' => [],
     ];
 
     /**
@@ -246,10 +247,17 @@ PHP;
         $validation = [];
         $querySerialization = [];
         $bodySerialization = [];
+        $bodyParts = [];
         if ($operation->requestBody?->mediaType === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA) {
             $bodySerialization = \Dmorenof\SdkGenerator\Parsing\FormSupport::formats($operation->requestBody, $this->formModels);
             if ($bodySerialization === null) {
                 throw new InvalidArgumentException("Unsupported form body schema or encoding at $operation->operationId.");
+            }
+        }
+        if ($operation->requestBody?->mediaType === \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART) {
+            $bodyParts = \Dmorenof\SdkGenerator\Parsing\FormSupport::parts($operation->requestBody, $this->formModels);
+            if ($bodyParts === null) {
+                throw new InvalidArgumentException("Unsupported multipart body schema or encoding at $operation->operationId.");
             }
         }
         foreach ($operation->parameters as $parameter) {
@@ -298,9 +306,10 @@ PHP;
             'validation' => $validation,
             'serverUrl' => $serverUrl,
             'querySerialization' => $querySerialization,
-            'requestMediaType' => $operation->requestBody?->mediaType === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA
-                ? \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA : 'application/json',
+            'requestMediaType' => in_array($operation->requestBody?->mediaType, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)
+                ? $operation->requestBody->mediaType : 'application/json',
             'bodySerialization' => $bodySerialization,
+            'bodyParts' => $bodyParts,
         ];
         foreach (self::OPERATION_DEFAULTS as $key => $default) {
             if ($metadata[$key] === $default) {
