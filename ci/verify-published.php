@@ -190,4 +190,51 @@ try {
 echo "PUBLISHED_DELIMITED_QUERY_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/delimited-consumer.php']);
+$objects = $directory . '/objects';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/query-objects-openapi31.json',
+    $objects, 'Example\\PublishedObjects', 'example/published-objects']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $objects]);
+file_put_contents($directory . '/objects-consumer.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+require __DIR__ . '/objects/vendor/autoload.php';
+if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
+    || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
+    throw new RuntimeException('Object SDK must run independently with a stable runtime.');
+}
+$transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+    public array $calls = [];
+    public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+    {
+        $this->calls[] = compact('method', 'url', 'headers', 'body');
+        return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
+    }
+};
+$client = \Example\PublishedObjects\Client::connect('https://api.example.test/v1', transport: $transport);
+$resource = $client->resource(\Example\PublishedObjects\Resources\Items::class);
+$resource->get(new \Example\PublishedObjects\GetParams\Items((object) ['body' => (object) ['city-name' => 'Madrid']]));
+$params = new \Example\PublishedObjects\PostParams\Items((object) [
+    'queryBody' => (object) ['city-name' => 'Barcelona'],
+    'filter' => (object) ['city-name' => 'Madrid'], 'body' => (object) ['filter' => 'json'],
+]);
+$resource->post($params);
+if ($transport->calls[0]['url'] !== 'https://api.example.test/v1/items?body%5Bcity-name%5D=Madrid'
+    || $transport->calls[0]['body'] !== null
+    || $transport->calls[1]['url'] !== 'https://api.example.test/v1/items?body%5Bcity-name%5D=Barcelona&filter%5Bcity-name%5D=Madrid'
+    || $transport->calls[1]['body'] !== '{"filter":"json"}'
+    || $transport->calls[1]['headers']['Content-Type'] !== 'application/json') {
+    throw new RuntimeException('Installed SDK confused query objects with request body.');
+}
+$params->filter->cityName = '';
+try {
+    $resource->post($params);
+    throw new RuntimeException('Installed SDK accepted invalid query object mutation.');
+} catch (UnexpectedValueException) {
+    if (count($transport->calls) !== 2) {
+        throw new RuntimeException('Invalid query mutation reached transport.');
+    }
+}
+echo "PUBLISHED_DEEP_OBJECT_SDK_OK", PHP_EOL;
+PHP);
+runPublished([PHP_BINARY, $directory . '/objects-consumer.php']);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

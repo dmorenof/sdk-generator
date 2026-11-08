@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.7.0';
+    public const RUNTIME_CONSTRAINT = '^0.8.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -39,6 +39,8 @@ final class PhpContractEmitter
     private array $operationErrorTypes = [];
     /** @var array<string,string> Operation ID => fully-qualified request body DTO. */
     private array $operationBodyTypes = [];
+    /** @var array<string,array<string,string>> Operation ID / wire name => query object type. */
+    private array $operationQueryTypes = [];
     /** @var array<string, string> Collection item type and rules => generated FQCN. */
     private array $collectionTypes = [];
     private const IDENTIFIER = '/^[A-Za-z_][A-Za-z0-9_]*$/D';
@@ -80,6 +82,7 @@ final class PhpContractEmitter
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
         $this->operationBodyTypes = [];
+        $this->operationQueryTypes = [];
         $this->collectionTypes = [];
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
@@ -139,7 +142,7 @@ final class PhpContractEmitter
 
         $files['src/Api/Operations.php'] = $this->renderOperations($contract, $files);
         $files = array_replace($files,
-            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes))->emit($contract));
+            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes, $this->operationQueryTypes))->emit($contract));
         $files['src/Api/OperationCatalog.php'] = $this->renderCatalog($contract);
         $manifest = [
             'name' => $this->packageName,
@@ -176,6 +179,12 @@ final class PhpContractEmitter
     public function operationBodyTypes(): array
     {
         return $this->operationBodyTypes;
+    }
+
+    /** @return array<string,array<string,string>> */
+    public function operationQueryTypes(): array
+    {
+        return $this->operationQueryTypes;
     }
 
 
@@ -967,6 +976,13 @@ final class PhpContractEmitter
         $methods = [];
         $seen = [];
         foreach ($contract->operations as $operation) {
+            foreach ($operation->parameters as $parameter) {
+                if (\Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::supported($parameter, $contract->models)) {
+                    $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
+                    $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), 'Query', ucfirst($parameter->wireName)]);
+                    $this->operationQueryTypes[$operation->operationId][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
+                }
+            }
             if ($operation->requestBody !== null) {
                 $this->operationBodyTypes[$operation->operationId] = $this->requestBodyType($operation, $files);
             }

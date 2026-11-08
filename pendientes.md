@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.10.0** y `dmorenof/sdk-runtime` **v0.7.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.11.0** y `dmorenof/sdk-runtime` **v0.8.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -164,12 +164,12 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.10.0 y runtime v0.7.0 ejecutan escalares y arrays query primitivos mediante claves repetidas, CSV, espacios, tabuladores o pipes. El paquete sigue parcial para objetos, otras ubicaciones y estilos.
+**Situación actual:** generador v0.11.0 y runtime v0.8.0 ejecutan escalares, arrays query primitivos y objetos query planos deepObject con schema cerrado o valores adicionales escalares tipados. El paquete sigue parcial para otros objetos, ubicaciones y estilos.
 
 ### Revisión acordada de getParameters y postParameters
 
-- [ ] Revisar expresamente `getParameters` y `postParameters` al ampliar HTTP y formularios, junto con los DTOs públicos actuales `GetParams`/`PostParams` y las firmas de fachadas/recursos. Identificar su correspondencia real antes de cambiar nombres o compatibilidad.
-- [ ] Comprobar por separado método HTTP y ubicación del dato: parámetros query también en POST; query, headers y body/formulario coexistiendo en una operación. El método por sí solo no determina dónde se serializa un campo.
+- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.11.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON. No existen símbolos literales getParameters/postParameters en el emisor actual. Quedan formularios urlencoded/multipart.
+- [ ] **Parcial — Separar método y ubicación.** v0.11.0 comprueba query en GET/POST junto con body JSON y distingue un query llamado body del payload real. Quedan las combinaciones con formularios.
 - [ ] Cubrir GET con query y POST con query + body JSON, urlencoded o multipart, incluidos nombres coincidentes en query/body, arrays, valores ausentes/null/vacíos y mutaciones. Verificar URL, headers, Content-Type y bytes del cuerpo desde la API pública generada y el runtime común.
 
 ### OpenAPI 3.x
@@ -178,7 +178,8 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.9.0 — Arrays query primitivos con `style: form` y `explode: true/false`**, incluidos defaults OpenAPI.
 - [ ] `style: form` para objetos y cookies.
 - [ ] `style: simple` para path y headers.
-- [ ] `style: deepObject` para query.
+- [x] **v0.11.0 — `deepObject` query plano** con explode true, propiedades escalares no null y additionalProperties false o schema escalar tipado; referencias locales e inline, DTOs/Maps y mutaciones.
+- [ ] Ampliar objetos query abiertos sin schema escalar de valores y composiciones compatibles. La serialización anidada de deepObject no está definida por OpenAPI y no se asume.
 - [x] **v0.10.0 — `style: spaceDelimited` y `pipeDelimited` para arrays query primitivos**, con explode ausente/false y rechazo de true (no definido).
 - [ ] Estilos delimitados para objetos.
 - [ ] `style: label` y `matrix`.
@@ -213,6 +214,14 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] Conservar diagnóstico de explode true indefinido, objetos, ubicaciones no soportadas, content y flags pendientes. Cubrir JSON/YAML, OpenAPI 3.0/3.1/Swagger, parámetros referenciados y HTTP PSR-18.
 - **Validación:** generador 313 pruebas / 2.406 aserciones; once SDKs con PHPStan max; Casafari 46/46. Runtime 65 pruebas / 156 aserciones y PHPStan max. CI multiversión y smoke de instalación de las versiones publicadas.
 - **Límites:** las listas con espacio/tab/pipe dentro de un elemento se rechazan para su formato correspondiente; no hay convención de escape adicional. Otros tipos, ubicaciones y estilos siguen abiertos. Dependencia estable `^0.7.0`.
+
+### Entrega de objetos query planos — v0.11.0 / runtime v0.8.0
+
+- [x] Modelos reutilizados e inline y mapas escalares tipados para deepObject con explode true; nombres JSON, enums, required, reglas escalares y readOnly/writeOnly.
+- [x] GetParams y PostParams, fachadas y recursos, query + body JSON y colisión de nombre body. Marcar explícitamente cuerpos de operación y conservar queryBody separado del campo body real.
+- [x] URLs y bytes de body exactos mediante transporte simulado/PSR-18, JSON/YAML, OpenAPI 3.0/3.1, parámetros reutilizables, valores ausentes/null/vacíos y mutaciones.
+- **Validación:** PHP 8.4 cloud: generador 322 pruebas / 2.444 aserciones, doce SDKs con PHPStan max y Casafari 46/46. Runtime: 70 pruebas / 177 aserciones y PHPStan max. Smoke independiente de instalación con query + JSON y mutaciones; CI multiversión de la entrega.
+- **Límites:** solo objetos planos cerrados o con valores adicionales escalares tipados; sin propiedades null/anidadas, extras sin tipo, composiciones ni otros estilos/ubicaciones. Forms urlencoded/multipart siguen pendientes. Dependencia estable `^0.8.0`. [Uso y revisión GetParams/PostParams](docs/QUERY_OBJECTS.md).
 
 **Aceptación:** tests con URLs y headers exactos para cada combinación `in/style/explode`. Ejemplo: `ids=1&ids=2` frente a `ids=1,2`.
 
@@ -528,3 +537,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-07 | Entrega coordinada: generador v0.9.0 + runtime v0.6.0, arrays query nativos con claves repetidas/CSV y validación tras mutaciones. Dependencia estable ^0.6.0; el resto del paquete 03 sigue parcial. | [Generator v0.9.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.9.0), [Runtime v0.6.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.6.0) |
 
 | 2026-11-08 | Entrega coordinada: generador v0.10.0 + runtime v0.7.0, arrays query spaceDelimited/pipeDelimited y Swagger ssv/tsv/pipes con rechazo de valores ambiguos. Dependencia estable ^0.7.0; el paquete 03 sigue parcial. | [Generator v0.10.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.10.0), [Runtime v0.7.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.7.0) |
+
+| 2026-11-08 | Entrega coordinada: generador v0.11.0 + runtime v0.8.0, deepObject query plano, DTOs/Maps y separación de query body frente a JSON body en GetParams/PostParams. Revisión de HTTP parcial; formularios pendientes. | [Generator v0.11.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.11.0), [Runtime v0.8.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.8.0) |

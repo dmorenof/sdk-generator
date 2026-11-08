@@ -44,7 +44,7 @@ final class PhpExecutableEmitter
         $this->operationSuccessTypes = $contractEmitter->operationSuccessTypes();
         $this->operationErrorTypes = $contractEmitter->operationErrorTypes();
         $requests = (new PhpOperationRequestEmitter(
-            $this->namespace, $this->modelNames, $contractEmitter->operationBodyTypes(),
+            $this->namespace, $this->modelNames, $contractEmitter->operationBodyTypes(), $contractEmitter->operationQueryTypes(),
         ))->emitExecutable($contract);
         foreach ($requests['files'] as $path => $_source) {
             if (isset($files[$path])) {
@@ -71,6 +71,7 @@ final class PhpExecutableEmitter
                 $this->modelNames,
                 $this->apiGroups,
                 $requests['types'],
+                $contractEmitter->operationQueryTypes(),
             ))->emit($contract),
         );
         ksort($files, SORT_STRING);

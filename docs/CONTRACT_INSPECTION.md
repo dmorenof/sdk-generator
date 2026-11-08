@@ -1,4 +1,4 @@
-# Contract inspection (v0.10.0)
+# Contract inspection (v0.11.0)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -38,7 +38,7 @@ numbers, external URI resolution and complete structural/dialect validation rema
 pending. JSON Pointer inspection does not expand the normalizer's reference support.
 Literal Casafari path server overrides execute through stable
 [runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0).
-The generator and generated packages require `^0.7.0`; installation does not
+The generator and generated packages require `^0.8.0`; installation does not
 depend on a development branch.
 
 ## Preserved canonical metadata
@@ -223,3 +223,18 @@ Undefined `explode: true`, objects and other locations remain diagnosed. Runtime
 serialization percent-encodes delimiters and rejects item values containing that
 format's own delimiter before transport, including after mutation. These data
 checks occur when executing the SDK, rather than during document inspection.
+
+## Flat deepObject query schemas (v0.11.0 / runtime v0.8.0)
+
+Inspection accepts OpenAPI query objects with `style: deepObject`, explicit
+`explode: true`, non-null primitive properties and explicit `additionalProperties:
+false` or a supported scalar value schema. Inline and local named schemas and
+reusable parameters are supported. Nested/null members, omitted/false explode,
+unconstrained extra properties, ambiguous bracketed/empty names and other
+locations/styles remain unsupported. Runtime also rejects collisions between
+expanded deep keys and explicit query parameters before sending.
+
+Generated GetParams and PostParams use typed query DTOs/Maps; query objects may
+coexist with a JSON body. A query named body has a distinct operation field;
+actual bodies are marked explicitly. Forms and multipart remain pending.
+See [query objects](QUERY_OBJECTS.md).
