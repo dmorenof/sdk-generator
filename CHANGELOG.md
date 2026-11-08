@@ -6,6 +6,14 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.13.0] — 2026-11-08
+
+- Normalize Swagger 2.0 formData parameters into the existing URL-encoded request-body contract. Aggregate scalar fields and primitive lists, required flags, constraints, descriptions and nullable extensions; reuse the stable runtime ^0.9.0 without changing it.
+- Preserve Swagger's default CSV list format and explicit csv/multi options by lowering them to form/explode encoding. Resolve reusable parameter aliases and apply operation-over-path overrides before building the body; any required form field makes the aggregate body required.
+- Keep GetParams query-only when consumes is inherited without form fields. PostParams separates query, headers and the typed form body, including coincident names and a query named body. Optional/body-only forms retain the existing absent/empty/null rules.
+- Audit effective referenced parameters before media checks. Require one explicit URL-encoded consumes representation, with operation-over-root precedence; reject files, multipart, unsupported formats/options and body+formData conflicts with source diagnostics.
+- Verify byte-identical SDK output for equivalent Swagger/OpenAPI forms, JSON/YAML, PSR-18 and real cloud-local HTTP requests, mutations, 14 SDKs at PHPStan max and an independent installed Swagger form SDK in release verification. Update the remaining HTTP/forms limits.
+
 ## [0.12.0] — 2026-11-08
 
 - Generate OpenAPI 3.0/3.1 application/x-www-form-urlencoded request bodies for closed object schemas with scalar fields and primitive lists. Reuse named body DTOs, generate inline bodies and preserve local requestBody references. JSON retains precedence when both representations are declared; per-call media negotiation remains pending.

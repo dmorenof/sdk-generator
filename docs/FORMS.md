@@ -1,4 +1,4 @@
-# URL-encoded HTTP forms (v0.12.0 / runtime v0.9.0)
+# URL-encoded HTTP forms (v0.13.0 / runtime v0.9.0)
 
 OpenAPI 3.0/3.1 request bodies declared as application/x-www-form-urlencoded can
 use an object with explicit `additionalProperties: false`, scalar properties and
@@ -49,5 +49,49 @@ installs the generated SDK separately from the generator.
 
 Nested objects/lists, nullable list items, open/map bodies, other styles,
 contentType/headers in encoding, allowReserved true, multipart and files remain
-unsupported and diagnosed. Swagger 2.0 formData remains pending. The multipart
+unsupported and diagnosed. Swagger 2.0 URL-encoded formData is supported as described below. The multipart
 portion of the getParameters/postParameters review therefore remains open.
+
+## Swagger 2.0 formData (v0.13.0)
+
+Swagger scalar and primitive-list formData Parameter Objects normalize to the same
+form body contract. Declare exactly one `consumes: [application/x-www-form-urlencoded]`
+at root or operation; operation consumes replaces root consumes. Parameters may be
+inline or reusable local aliases. Operation parameters replace Path Item parameters
+with the same in/name identity. Swagger body and formData parameters cannot coexist.
+
+| Array declaration | Body for `[1, 2]` |
+| --- | --- |
+| OpenAPI form, omitted/true explode | `ids=1&ids=2` |
+| OpenAPI form, false explode | `ids=1,2` |
+| Swagger omitted collectionFormat or explicit csv | `ids=1,2` |
+| Swagger collectionFormat multi | `ids=1&ids=2` |
+
+The generator emits explicit metadata for Swagger's different CSV default.
+Equivalent OpenAPI and Swagger fixtures produce byte-identical SDKs. No new HTTP
+serializer or runtime version is required; the dependency remains stable ^0.9.0.
+
+With `forms-swagger2.json` and namespace `Example\SwaggerForms`:
+
+```php
+$params = new \Example\SwaggerForms\PostParams\Items((object) [
+    'name' => 'query name',
+    'queryBody' => 'query-body',
+    'X-Trace' => 'trace',
+    'body' => (object) ['name' => 'body name', 'codes' => ['a,b', 'x y'], 'ids' => [1, 2]],
+]);
+$client->resource(\Example\SwaggerForms\Resources\Items::class)->post($params);
+```
+
+Query and headers stay separate. The form body is
+`codes=a%2Cb,x+y&ids=1&ids=2&name=body+name`. The typed body lives under Requests;
+body-only operations accept that DTO directly. The aggregate body is required
+when any form field is required; all-optional forms can omit the body entirely.
+Scalar constraints, string/integer enums, descriptions/default metadata and the
+supported nullable extensions are retained. Defaults are not materialized.
+
+Files, multipart, objects/nested lists, nullable list items, ssv/tsv/pipes form
+arrays, scalar collectionFormat, malformed flags/options and multiple consumes
+representations remain unsupported and diagnosed. Query ssv/tsv/pipes support is
+unchanged. The multipart portion of the getParameters/postParameters review
+remains open.

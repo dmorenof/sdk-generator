@@ -44,3 +44,5 @@ analyse delimited-query query-delimited-openapi31.json 'Example\DelimitedQuerySd
 analyse query-objects query-objects-openapi31.json 'Example\QueryObjectSdk'
 
 analyse forms forms-openapi31.json 'Example\FormSdk'
+
+analyse swagger-forms forms-swagger2.json 'Example\SwaggerFormSdk'
