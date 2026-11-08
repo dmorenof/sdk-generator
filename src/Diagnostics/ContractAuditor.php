@@ -213,7 +213,7 @@ final class ContractAuditor
     private function auditRequestBody(array $body, string $pointer, ?string $operation): void
     {
         $this->keys($body, ['required', 'content', '$ref'], $pointer, $operation);
-        $this->content($body['content'] ?? [], "$pointer/content", $operation);
+        $this->content($body['content'] ?? [], "$pointer/content", $operation, true);
         $this->selectedMedia($body['content'] ?? [], "$pointer/content", $operation, true);
     }
 
@@ -512,7 +512,7 @@ final class ContractAuditor
         }
     }
 
-    private function content(mixed $content, string $pointer, ?string $operation): void
+    private function content(mixed $content, string $pointer, ?string $operation, bool $request = false): void
     {
         if (!is_array($content)) {
             return;
@@ -522,14 +522,16 @@ final class ContractAuditor
             if (!is_array($definition)) {
                 continue;
             }
+            $form = $request && $media === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA
+                && \Dmorenof\SdkGenerator\Parsing\FormSupport::rawSupported($definition, $this->document);
             $this->keys($definition, ['schema', 'encoding'], $at, $operation);
             if (array_key_exists('schema', $definition)) {
                 $this->schema($definition['schema'], "$at/schema", $operation);
             }
-            if (!preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
-                $this->add('media_type', $at, 'This representation is preserved but the SDK sends/accepts JSON only.', $operation, 'warning');
+            if (!$form && !preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
+                $this->add('media_type', $at, 'This representation is preserved but has no supported serializer in this position.', $operation, 'warning');
             }
-            if (!empty($definition['encoding'])) {
+            if (!empty($definition['encoding']) && !$form) {
                 $this->add('media_encoding', "$at/encoding", 'Per-property media encoding is not executed.', $operation);
             }
             foreach ($definition['encoding'] ?? [] as $name => $encoding) {
@@ -548,14 +550,20 @@ final class ContractAuditor
         if (!is_array($content) || $content === []) {
             return;
         }
+        $hasJson = $request && count(array_filter(array_keys($content), static fn ($media): bool => is_string($media)
+            && preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media) === 1)) > 0;
         foreach (array_keys($content) as $media) {
             if (is_string($media) && strtolower(trim($request ? $media : explode(';', $media, 2)[0])) === 'application/json') {
+                return;
+            }
+            if ($request && !$hasJson && $media === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA
+                && is_array($content[$media]) && \Dmorenof\SdkGenerator\Parsing\FormSupport::rawSupported($content[$media], $this->document)) {
                 return;
             }
         }
         $header = $request ? 'Content-Type' : 'Accept';
         $this->add($request ? 'request_media_type' : 'response_media_type', $pointer,
-            "The shared runtime uses $header: application/json; none of the declared media types match that value.", $operation);
+            ($request ? "No declared request representation matches a supported selected Content-Type serializer." : "The shared runtime uses $header: application/json; none of the declared media types match that value."), $operation);
     }
 
     private function schema(mixed $schema, string $pointer, ?string $operation): void

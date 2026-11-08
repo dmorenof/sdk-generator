@@ -72,6 +72,7 @@ final class PhpExecutableEmitter
                 $this->apiGroups,
                 $requests['types'],
                 $contractEmitter->operationQueryTypes(),
+                $contract->models,
             ))->emit($contract),
         );
         ksort($files, SORT_STRING);

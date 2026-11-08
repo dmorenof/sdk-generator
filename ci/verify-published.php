@@ -237,4 +237,52 @@ try {
 echo "PUBLISHED_DEEP_OBJECT_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/objects-consumer.php']);
+$forms = $directory . '/forms';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/forms-openapi31.json',
+    $forms, 'Example\\PublishedForms', 'example/published-forms']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $forms]);
+file_put_contents($directory . '/forms-consumer.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+require __DIR__ . '/forms/vendor/autoload.php';
+if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
+    || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
+    throw new RuntimeException('Form SDK must run independently with a stable runtime.');
+}
+$transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+    public array $calls = [];
+    public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+    {
+        $this->calls[] = compact('method', 'url', 'headers', 'body');
+        return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
+    }
+};
+$client = \Example\PublishedForms\Client::connect('https://api.example.test/v1', transport: $transport);
+$items = $client->resource(\Example\PublishedForms\Resources\Items::class);
+$items->get(new \Example\PublishedForms\GetParams\Items((object) ['name' => 'query name']));
+$params = new \Example\PublishedForms\PostParams\Items((object) [
+    'name' => 'query name', 'queryBody' => 'query-body', 'X-Trace' => 'trace',
+    'body' => (object) ['name' => 'body name', 'codes' => ['a,b', 'x y'], 'ids' => [1, 2]],
+]);
+$items->post($params);
+if ($transport->calls[0]['url'] !== 'https://api.example.test/v1/items?name=query%20name'
+    || $transport->calls[0]['body'] !== null
+    || $transport->calls[1]['url'] !== 'https://api.example.test/v1/items?body=query-body&name=query%20name'
+    || $transport->calls[1]['body'] !== 'codes=a%2Cb,x+y&ids=1&ids=2&name=body+name'
+    || $transport->calls[1]['headers']['Content-Type'] !== 'application/x-www-form-urlencoded'
+    || $transport->calls[1]['headers']['X-Trace'] !== 'trace') {
+    throw new RuntimeException('Published GetParams/PostParams form serialization failed.');
+}
+$params->body->name = '';
+try {
+    $items->post($params);
+    throw new RuntimeException('Invalid form mutation was accepted.');
+} catch (UnexpectedValueException) {
+    if (count($transport->calls) !== 2) {
+        throw new RuntimeException('Invalid form mutation reached transport.');
+    }
+}
+echo "PUBLISHED_FORM_SDK_OK", PHP_EOL;
+PHP);
+runPublished([PHP_BINARY, $directory . '/forms-consumer.php']);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;
