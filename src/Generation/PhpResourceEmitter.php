@@ -132,103 +132,9 @@ final readonly class PhpResourceEmitter
             'Configure the SDK with Client::configure(Configuration) first.',
         );
     }
-
-    /**
-     * Transfer only initialized properties, preserving OpenAPI wire names.
-     * Shared runtime DTO validation checks required and nested fields.
-     *
-     * @return array{
-     *   path:array<string,bool|float|int|string|null>,
-     *   query:array<string,bool|float|int|string|list<bool|float|int|string>|\Dmorenof\SdkRuntime\DTO|\Dmorenof\SdkRuntime\Map|null>,
-     *   header:array<string,bool|float|int|string|null>,
-     *   body:?\Dmorenof\SdkRuntime\DTO
-     * }
-     */
-    private static function operationFields(\Dmorenof\SdkRuntime\DTO $dto): array
-    {
-        $dto->validateForRequest();
-        $values = get_object_vars($dto);
-        $bodyValue = $values['body'] ?? null;
-        // A query or path parameter may also be named "body"; only an explicit operation body is a payload.
-        $hasBody = defined($dto::class . '::OPERATION_BODY') && constant($dto::class . '::OPERATION_BODY') === true;
-        $body = $hasBody && $bodyValue instanceof \Dmorenof\SdkRuntime\DTO ? $bodyValue : null;
-        /** @var array{path:array<string,bool|float|int|string|null>,query:array<string,bool|float|int|string|list<bool|float|int|string>|\Dmorenof\SdkRuntime\DTO|\Dmorenof\SdkRuntime\Map|null>,header:array<string,bool|float|int|string|null>,body:?\Dmorenof\SdkRuntime\DTO} $result */
-        $result = ['path' => [], 'query' => [], 'header' => [], 'body' => $body];
-        /** @var array{path:array<string,string>,query:array<string,string>,header:array<string,string>} $locations */
-        $locations = constant($dto::class . '::OPERATION_FIELDS');
-        foreach ($locations as $location => $fields) {
-            foreach ($fields as $wireName => $property) {
-                if (!array_key_exists($property, $values)) {
-                    continue;
-                }
-                $value = $values[$property];
-                if ($location === 'query' && ($value instanceof \Dmorenof\SdkRuntime\DTO || $value instanceof \Dmorenof\SdkRuntime\Map)) {
-                    $result['query'][$wireName] = $value;
-                    continue;
-                }
-                if (is_array($value)) {
-                    if ($location !== 'query' || !array_is_list($value)) {
-                        throw new \UnexpectedValueException("Only query parameters can carry scalar lists: $wireName");
-                    }
-                    $items = [];
-                    foreach ($value as $item) {
-                        if (!is_scalar($item)) {
-                            throw new \UnexpectedValueException("Query array members must be scalars: $wireName");
-                        }
-                        $items[] = $item;
-                    }
-                    $result['query'][$wireName] = $items;
-                    continue;
-                }
-                if ($value !== null && !is_scalar($value)) {
-                    throw new \UnexpectedValueException("Non-scalar operation parameter: $wireName");
-                }
-                $result[$location][$wireName] = $value;
-            }
-        }
-        return $result;
-    }
-
-    /**
-     * Map identifier + payload to the shared sdk-runtime executor.
-     * @param OperationSpec $operation
-     */
-    protected function executeArguments(
-        array $operation,
-        string|int|float|bool|\Dmorenof\SdkRuntime\DTO|null $identifier = null,
-        ?string $identifierName = null,
-        ?\Dmorenof\SdkRuntime\DTO $payload = null,
-        ?\Dmorenof\SdkRuntime\DTO $body = null,
-    ): mixed {
-        /** @var array<string,bool|float|int|string|null> $path */
-        $path = [];
-        if ($identifier instanceof \Dmorenof\SdkRuntime\DTO) {
-            $path = self::operationFields($identifier)['path'];
-        } elseif ($identifierName !== null) {
-            $path[$identifierName] = $identifier;
-        }
-        /** @var array<string,bool|float|int|string|list<bool|float|int|string>|\Dmorenof\SdkRuntime\DTO|\Dmorenof\SdkRuntime\Map|null> $query */
-        $query = [];
-        /** @var array<string,bool|float|int|string|null> $headers */
-        $headers = [];
-        if ($payload !== null) {
-            $fields = self::operationFields($payload);
-            $query = $fields['query'];
-            $headers = $fields['header'];
-            $body = $fields['body'];
-        }
-        return $this->executeOperation(
-            $operation,
-            pathParameters: $path,
-            queryParameters: $query,
-            headerParameters: $headers,
-            body: $body,
-        );
-    }
 PHP;
 
         return $this->header($this->namespace)
-            . '/** @phpstan-import-type OperationSpec from \\Dmorenof\\SdkRuntime\\Operation */' . "\n"
             . 'class Client extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE . "\\ApiClient\n{\n"
             . '    protected const array SECURITY_SCHEMES = ' . PhpLiteral::export($schemes) . ";\n"
             . $methods . "\n}\n";
@@ -237,26 +143,9 @@ PHP;
     private function renderConfiguration(ApiContract $contract): string
     {
         $baseUrl = PhpLiteral::export($contract->servers[0] ?? '');
-        $body = <<<'PHP'
-    public ?\Psr\Http\Client\ClientInterface $httpClient = null;
-
-    /** @var array<string, string> */
-    public array $headers = [];
-
-    public ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null;
-    public ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null;
-
-    /** @var array<string, string> Declared operation server URL => environment base URL. */
-    public array $serverOverrides = [];
-
-    /** @var list<\Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface> */
-    public array $middleware = [];
-PHP;
-
         return $this->header($this->namespace)
-            . "final class Configuration\n{\n"
-            . "    public string \$baseUrl = $baseUrl;\n\n"
-            . $body . "\n}\n";
+            . "final class Configuration extends \\Dmorenof\\SdkRuntime\\Configuration\n{\n"
+            . "    public string \$baseUrl = $baseUrl;\n}\n";
     }
 
     /**

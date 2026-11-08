@@ -6,6 +6,13 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.14.0] — 2026-11-08
+
+- Stop emitting generic operationFields/executeArguments methods in every SDK Client; inherit the shared implementation from stable runtime ^0.10.1. Generated Configuration inherits shared connection options and supplies its API-specific baseUrl.
+- Keep the public parameter DTOs, signatures, per-SDK connection isolation, middleware and JSON/form/query semantics. Accounts Client+Configuration decreases from 158 to 50 generated lines; generic behavior exists once in the runtime.
+- Reuse Guzzle PSR-7 query assembly and native query/form percent-encoding through the shared runtime. Preserve the OpenAPI-specific style adaptation that generic indexed query/form_params options cannot replace.
+- Record the code review, measured reduction, remaining contract adaptation and user reuse/inheritance rules in docs/ARCHITECTURE_REVIEW.md and AGENTS.md. Verify inherited runtime declarations alongside all existing generated-SDK behavior and installation smoke.
+
 ## [0.13.0] — 2026-11-08
 
 - Normalize Swagger 2.0 formData parameters into the existing URL-encoded request-body contract. Aggregate scalar fields and primitive lists, required flags, constraints, descriptions and nullable extensions; reuse the stable runtime ^0.9.0 without changing it.
