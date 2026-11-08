@@ -115,7 +115,7 @@ final class FormSupport
         return null;
     }
 
-    /** @param list<ModelDefinition> $models @return array<string,array{contentType:string,filename?:string}>|null */
+    /** @param list<ModelDefinition> $models @return array<string,array{contentType:?string,filename?:string}>|null */
     public static function parts(RequestBodyDefinition $body, array $models): ?array
     {
         if ($body->mediaType !== self::MULTIPART || self::formats($body, $models) === null) {
@@ -130,7 +130,7 @@ final class FormSupport
         $parts = [];
         foreach (self::schema($body, $models)->properties as $property) {
             $binary = self::binary($property->schema);
-            $part = ['contentType' => $encoding[$property->wireName]['contentType'] ?? ($binary ? 'application/octet-stream' : 'text/plain')];
+            $part = ['contentType' => $encoding[$property->wireName]['contentType'] ?? ($binary ? null : 'text/plain')];
             if ($binary) {
                 $part['filename'] = basename($property->wireName) . '.bin';
             }

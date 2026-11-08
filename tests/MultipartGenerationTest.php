@@ -61,7 +61,7 @@ final class MultipartGenerationTest extends TestCase
             $document['components']['schemas'][$name]['properties']['note'] = ['type' => 'string', 'nullable' => true];
         }
         self::assertSame($expected, self::files($document));
-        self::assertStringContainsString('public string $file;', $expected['src/DTOs/Form.php']);
+        self::assertStringContainsString('public string|\\Psr\\Http\\Message\\UploadedFileInterface $file;', $expected['src/DTOs/Form.php']);
     }
 
     public function testGetPostParamsKeepQueryHeadersAndMultipartSeparate(): void
@@ -205,8 +205,51 @@ final class MultipartGenerationTest extends TestCase
         $body['content']['multipart/form-data']['schema'] = $document['components']['schemas']['Form'];
         $document['paths']['/items']['post']['requestBody'] = $body;
         $files = self::files($document);
-        self::assertStringContainsString('public string $file;', $files['src/Requests/Items/Post.php']);
+        self::assertStringContainsString('public string|\\Psr\\Http\\Message\\UploadedFileInterface $file;', $files['src/Requests/Items/Post.php']);
         self::assertStringContainsString("'contentType' => 'image/png'", $files['src/Resources/Items.php']);
         self::assertStringContainsString('\\Example\\Multipart\\Requests\\Items\\Post $body;', $files['src/PostParams/Items.php']);
+    }
+
+    public function testPsrUploadsPreserveMetadataBytesAndRepeatSendsThroughPsr18(): void
+    {
+        $history = [];
+        $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([
+            new \GuzzleHttp\Psr7\Response(204), new \GuzzleHttp\Psr7\Response(204), new \GuzzleHttp\Psr7\Response(204),
+        ]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+        $client = \Example\Multipart\Client::connect('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack]));
+        $items = $client->resource(\Example\Multipart\Resources\Items::class);
+        $upload = new \GuzzleHttp\Psr7\UploadedFile(\GuzzleHttp\Psr7\Utils::streamFor("\x00\xff\r\n"), 4, UPLOAD_ERR_OK, 'original.png', 'image/png');
+        $params = new \Example\Multipart\PostParams\Items((object) [
+            'queryBody' => 'query +', 'X-Trace' => 'trace', 'body' => (object) ['name' => 'Ada', 'file' => $upload],
+        ]);
+        self::assertSame($upload, $params->body->file);
+        $items->post($params);
+        $items->post($params);
+        foreach ($history as $call) {
+            self::assertSame('https://api.example.test/v1/items?body=query%20%2B', (string) $call['request']->getUri());
+            self::assertSame('trace', $call['request']->getHeaderLine('X-Trace'));
+            self::assertStringContainsString('filename="original.png"', (string) $call['request']->getBody());
+            self::assertStringContainsString('Content-Type: image/png', (string) $call['request']->getBody());
+            self::assertStringContainsString("\r\n\r\n\x00\xff\r\n\r\n", (string) $call['request']->getBody());
+        }
+        $params->body->file = new \GuzzleHttp\Psr7\UploadedFile(\GuzzleHttp\Psr7\Utils::streamFor('jpeg'), 4, UPLOAD_ERR_OK, 'next.jpg', 'image/jpeg');
+        try {
+            $items->post($params);
+            self::fail('Conflicting upload MIME type accepted.');
+        } catch (\UnexpectedValueException) {
+            self::assertCount(2, $history);
+        }
+        $params->body->file = 'legacy bytes';
+        $items->post($params);
+        self::assertStringContainsString('filename="file.bin"', (string) $history[2]['request']->getBody());
+    }
+
+    public function testGeneratedBinaryDtosRejectUploadedObjectsInJson(): void
+    {
+        $body = new \Example\Multipart\DTOs\Form((object) ['name' => 'Ada', 'file' => new \GuzzleHttp\Psr7\UploadedFile(
+            \GuzzleHttp\Psr7\Utils::streamFor('bytes'), 5, UPLOAD_ERR_OK, 'original.png', 'image/png')]);
+        $this->expectException(\UnexpectedValueException::class);
+        json_encode($body, JSON_THROW_ON_ERROR);
     }
 }

@@ -6,6 +6,13 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.17.0] — 2026-11-08
+
+- Widen native binary DTO properties to string|Psr\Http\Message\UploadedFileInterface (plus null when nullable), retaining string inputs and the existing operation/transport signatures. Reuse Guzzle UploadedFile and PSR streams rather than introducing upload wrappers or factories. Require published stable runtime ^0.12.0.
+- Accept uploaded filenames and MIME types for OpenAPI/Swagger multipart bodies. Omitted binary encoding.contentType permits the uploaded MIME or application/octet-stream fallback; explicitly declared MIME types remain enforced. Strings preserve fixed field-derived filenames and fallback types.
+- Verify constructor hydration, required/nullable fields, original bytes, request direction, seekable stream replay, metadata/value mutations and MIME conflicts. JSON serialization rejects uploaded objects explicitly. Extend both independent installed multipart SDK smokes; verify PSR uploads through PSR-18 and real cloud-local HTTP with an independent MIME parser. Sixteen installed SDKs pass PHPStan max.
+- Document readable/seekable input requirements and remaining buffering: accepting a PSR input stream does not implement streaming HTTP or bounded-memory uploads. General native schema unions, file lists and advanced encoding remain pending.
+
 ## [0.16.0] — 2026-11-08
 
 - Normalize Swagger 2.0 multipart/form-data formData and type:file parameters into the existing closed request-body contract, using native string binary properties and the unchanged stable runtime ^0.11.1. No new transport, serializer or upload class.

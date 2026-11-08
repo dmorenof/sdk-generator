@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.11.1';
+    public const RUNTIME_CONSTRAINT = '^0.12.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -260,7 +260,10 @@ final class PhpContractEmitter
                     $files,
                     $baseClass,
                 );
-                if ($property->schema->nullable || $nullableBranch !== null || $propertySchema->nullable) {
+                $nullable = $property->schema->nullable || $nullableBranch !== null || $propertySchema->nullable;
+                if ($type === 'string' && $propertySchema->format === 'binary') {
+                    $type .= '|\\Psr\\Http\\Message\\UploadedFileInterface' . ($nullable ? '|null' : '');
+                } elseif ($nullable) {
                     $type = '?' . $type;
                 }
                 // Deliberately uninitialized when absent, including optional fields.

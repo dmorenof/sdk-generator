@@ -1,4 +1,4 @@
-# v0.16.0 supported scope and known limitations
+# v0.17.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -30,7 +30,7 @@
 - Multiple body-bearing success responses and some non-object inline error schemas are not supported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.11.1 or later compatible versions (`^0.11.1`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.12.0 or later compatible versions (`^0.12.0`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
@@ -45,7 +45,7 @@ Please report supported-schema failures through GitHub Issues with a small **red
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.11.1`;
+The current generator and generated Composer packages require stable runtime `^0.12.0`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -225,8 +225,12 @@ SDK Client and Configuration inherit common execution/options from runtime ^0.10
 
 Closed flat object bodies support text scalars, repeated primitive lists and binary string file properties. Guzzle PSR-7 MultipartStream handles MIME/boundaries; generated SDKs only declare field metadata. JSON takes precedence over URL-encoded forms, which take precedence over multipart. Binary files use basename(field) + `.bin`; their default type is application/octet-stream and one explicit encoding.contentType MIME type is supported. Text parts use text/plain.
 
-Inline/local referenced schemas and request bodies, GetParams/PostParams, query/header/body separation, binary bytes, direction rules and mutation validation are verified. Bodies are buffered through the existing string transport contract. Streaming/large-file memory control, custom filenames, binary arrays, nested objects, per-part headers and advanced encoding remain pending. Binary enum/pattern/Unicode length constraints are rejected; they cannot faithfully validate arbitrary file bytes. See [usage and exact limits](FORMS.md#openapi-multipart-v0150--runtime-v0111).
+Inline/local referenced schemas and request bodies, GetParams/PostParams, query/header/body separation, binary bytes, direction rules and mutation validation are verified. Bodies are buffered through the existing string transport contract. PSR uploads add configurable filenames/MIME and seekable input streams in v0.17.0. Streaming HTTP/large-file memory control, binary arrays, nested objects, per-part headers and advanced encoding remain pending. Binary enum/pattern/Unicode length constraints are rejected; they cannot faithfully validate arbitrary file bytes. See [usage and exact limits](FORMS.md#openapi-multipart-v0150--runtime-v0111).
 
 ## Swagger multipart (v0.16.0)
 
-Swagger type:file formData parameters become string binary fields in the same request-body contract. Require a single multipart/form-data consumes representation; operation consumes and field overrides take precedence. Primitive multipart lists require explicit collectionFormat: multi; default/explicit CSV remains rejected. Reusable declarations are checked independently of media selection, then each usage is checked in its operation context. URL-encoded files, body/formData mixtures, file-list/nested shapes and unsupported file constraints fail explicitly. SDK output is byte-identical to the equivalent OpenAPI fixture, reuses runtime ^0.11.1, and retains buffering and fixed filenames. See [forms](FORMS.md#swagger-20-multipart-v0160).
+Swagger type:file formData parameters become string binary fields in the same request-body contract. Require a single multipart/form-data consumes representation; operation consumes and field overrides take precedence. Primitive multipart lists require explicit collectionFormat: multi; default/explicit CSV remains rejected. Reusable declarations are checked independently of media selection, then each usage is checked in its operation context. URL-encoded files, body/formData mixtures, file-list/nested shapes and unsupported file constraints fail explicitly. SDK output is byte-identical to the equivalent OpenAPI fixture, uses the common runtime and retains buffering. v0.17.0 extends inputs with PSR filenames/MIME and seekable streams; strings keep fixed fallback filenames. See [forms](FORMS.md#swagger-20-multipart-v0160).
+
+## PSR upload inputs (v0.17.0)
+
+Native binary model fields accept string|Psr\Http\Message\UploadedFileInterface, plus null when nullable. Reuse existing PSR/Guzzle uploaded files for filenames, MIME types and readable seekable input streams. Explicit OpenAPI part contentType is enforced; unspecified types accept the upload MIME or octet-stream fallback. Strings preserve existing behavior. Failed/unsafe uploads, unsupported streams and JSON serialization of uploaded objects fail before transport; repeat sends rewind through Guzzle. This requires stable runtime ^0.12.0. No general schema-union support or streaming HTTP is implied: complete multipart bodies remain buffered. See [usage and limits](FORMS.md#psr-uploaded-files-v0170--runtime-v0120).
