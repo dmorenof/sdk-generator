@@ -130,6 +130,7 @@ final class ContractAuditor
         $this->keys($operation, ['operationId', 'parameters', 'requestBody', 'responses', 'security', 'servers', 'consumes', 'produces', 'schemes', 'callbacks'], $where, $id);
         $this->securityRequirements($operation['security'] ?? [], "$where/security", $id);
         $this->callbacks($operation['callbacks'] ?? [], "$where/callbacks", $id);
+        $formMedia = null;
         if (($document['swagger'] ?? null) === '2.0') {
             $effective = [];
             foreach (array_merge($item['parameters'] ?? [], $operation['parameters'] ?? []) as $parameter) {
@@ -147,14 +148,15 @@ final class ContractAuditor
             }
             $hasForm = array_filter($effective, static fn ($field): bool => ($field['in'] ?? null) === 'formData') !== [];
             $hasBody = array_filter($effective, static fn ($field): bool => ($field['in'] ?? null) === 'body') !== [];
+            $formMedia = \Dmorenof\SdkGenerator\Parsing\FormSupport::swaggerMedia(
+                array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []));
             if ($hasForm) {
                 if ($hasBody) {
                     $this->add('swagger_form_body_conflict', "$where/parameters", 'Swagger body and formData parameters cannot coexist.', $id);
                 }
-                $consumes = array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []);
-                if ($consumes !== [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA]) {
+                if ($formMedia === null) {
                     $this->add('swagger_form_media', array_key_exists('consumes', $operation) ? "$where/consumes" : '/consumes',
-                        'Swagger formData requires one application/x-www-form-urlencoded representation; multipart/files and media negotiation remain unsupported.', $id);
+                        'Swagger formData requires one application/x-www-form-urlencoded or multipart/form-data representation; media negotiation remains unsupported.', $id);
                 }
             }
             foreach (['consumes' => true, 'produces' => false] as $keyword => $request) {
@@ -185,8 +187,8 @@ final class ContractAuditor
         }
         $pathParameters = array_filter($item['parameters'] ?? [], fn ($parameter): bool =>
             !isset($overrides[$this->parameterIdentity($parameter) ?? '']));
-        $this->withOrigin($outer, $parameterOrigin, fn () => $this->parameters($pathParameters, $parameterOrigin['pointer'] . '/parameters', $id));
-        $this->parameters($operation['parameters'] ?? [], "$where/parameters", $id);
+        $this->withOrigin($outer, $parameterOrigin, fn () => $this->parameters($pathParameters, $parameterOrigin['pointer'] . '/parameters', $id, $formMedia));
+        $this->parameters($operation['parameters'] ?? [], "$where/parameters", $id, $formMedia);
         $this->requestBody($operation['requestBody'] ?? null, "$where/requestBody", $id);
         foreach ($operation['responses'] ?? [] as $status => $response) {
             $at = JsonPointer::append("$where/responses", $status);
@@ -476,7 +478,7 @@ final class ContractAuditor
         }
     }
 
-    private function parameters(mixed $parameters, string $pointer, ?string $operation): void
+    private function parameters(mixed $parameters, string $pointer, ?string $operation, ?string $formMedia = null): void
     {
         if (!is_array($parameters)) {
             return;
@@ -486,16 +488,16 @@ final class ContractAuditor
                 continue;
             }
             $this->resolvedObject($parameter, 'parameters', JsonPointer::append($pointer, $index), $operation,
-                fn (array $value, string $at) => $this->parameter($value, $at, $operation));
+                fn (array $value, string $at) => $this->parameter($value, $at, $operation, $formMedia));
         }
     }
 
-    private function parameter(array $parameter, string $at, ?string $operation): void
+    private function parameter(array $parameter, string $at, ?string $operation, ?string $formMedia): void
     {
         $formField = ($this->document['swagger'] ?? null) === '2.0' && ($parameter['in'] ?? null) === 'formData';
-        $swaggerForm = $formField && \Dmorenof\SdkGenerator\Parsing\FormSupport::swaggerField($parameter);
+        $swaggerForm = $formField && \Dmorenof\SdkGenerator\Parsing\FormSupport::swaggerField($parameter, $formMedia);
         if ($formField && !$swaggerForm) {
-            $this->add('swagger_form_field', "$at/type", 'Only scalar formData fields and primitive CSV/multi lists are executable; files and other form shapes remain unsupported.', $operation);
+            $this->add('swagger_form_field', "$at/type", 'Only scalar formData fields and primitive lists matching consumes are executable; files require multipart and multipart lists require explicit multi.', $operation);
         }
         $queryObject = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::rawSupported($parameter, $this->document);
         $queryArray = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::rawSupported($parameter, ($this->document['swagger'] ?? null) === '2.0');

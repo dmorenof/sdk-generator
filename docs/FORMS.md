@@ -1,4 +1,4 @@
-# HTTP forms and multipart (v0.15.0 / runtime v0.11.1)
+# HTTP forms and multipart (v0.16.0 / runtime v0.11.1)
 
 OpenAPI 3.0/3.1 request bodies declared as application/x-www-form-urlencoded can
 use an object with explicit `additionalProperties: false`, scalar properties and
@@ -90,10 +90,10 @@ when any form field is required; all-optional forms can omit the body entirely.
 Scalar constraints, string/integer enums, descriptions/default metadata and the
 supported nullable extensions are retained. Defaults are not materialized.
 
-Files, multipart, objects/nested lists, nullable list items, ssv/tsv/pipes form
+Files in URL-encoded bodies, objects/nested lists, nullable list items, ssv/tsv/pipes form
 arrays, scalar collectionFormat, malformed flags/options and multiple consumes
 representations remain unsupported and diagnosed. Query ssv/tsv/pipes support is
-unchanged. OpenAPI multipart support is described below; Swagger multipart remains pending.
+unchanged. Multipart support for both dialects is described below.
 
 
 ## OpenAPI multipart (v0.15.0 / runtime v0.11.1)
@@ -147,13 +147,62 @@ priority, then URL-encoded forms, then multipart; per-call negotiation is pendin
 Multipart bodies are buffered; there is no streaming or bounded-memory guarantee
 for large files. Read only files whose size your application can hold in memory.
 Native streams/resources, file lists, nested objects, open maps, null list items,
-CSV multipart arrays, per-part headers, Swagger multipart and arbitrary filenames
+CSV multipart arrays, per-part headers and arbitrary filenames
 remain pending. Binary enum/pattern/minLength/maxLength constraints are rejected
 because their current Unicode string semantics do not validate arbitrary bytes.
 Binary DTOs are sent through multipart; JSON encoding arbitrary byte strings can
 fail when they are not UTF-8.
 
 Verification covers PSR-18 wire bytes and boundary agreement, a real cloud-local
-HTTP POST parsed independently with Python's MIME parser, fifteen installed SDKs
+HTTP POST parsed independently with Python's MIME parser, sixteen installed SDKs
 at PHPStan maximum, mutations and an independent installed multipart SDK in the
 immutable release workflow. The general HTTP/forms roadmap remains partial.
+
+
+## Swagger 2.0 multipart (v0.16.0)
+
+Declare `consumes: [multipart/form-data]` with formData fields. Scalar fields and
+primitive lists use the same shared multipart serializer as OpenAPI. File
+parameters declare `type: file` and become native PHP string properties with
+binary format metadata; no upload wrapper is required. List fields must declare
+`collectionFormat: multi`. Swagger's omitted collectionFormat means CSV, which
+is rejected for multipart until its semantics are implemented. URL-encoded
+forms retain CSV by default and explicit csv/multi support.
+
+```yaml
+consumes: [multipart/form-data]
+parameters:
+  - name: file
+    in: formData
+    type: file
+    required: true
+  - name: ids
+    in: formData
+    type: array
+    items: { type: integer }
+    collectionFormat: multi
+```
+
+The file's content is assigned as bytes to the generated body DTO, exactly as in
+the OpenAPI example. Files use application/octet-stream and fixed
+basename(field) + `.bin` filenames. Swagger does not declare per-property
+encoding; caller-configurable filenames and MIME types remain pending.
+
+One consumes representation is required. Operation consumes overrides root
+consumes; an operation declaring null/empty consumes is rejected. A GET with no
+form fields stays query-only even when it inherits multipart consumes. Local
+parameter aliases and operation-over-path overrides apply before body assembly;
+a required file makes the aggregate body required. Reusable file declarations
+are allowed even when only some operations select multipart, but each usage must
+match its media type. Files in URL-encoded bodies and body/formData mixtures
+are rejected with source diagnostics.
+
+Required, optional, empty and nullable-extension files use the existing DTO
+policies: required absence fails, empty strings send empty file parts, optional
+absence/null is omitted, and mutations are checked before HTTP. File enum,
+pattern/Unicode length/numeric/item constraints, default, explicit format and
+collectionFormat are rejected rather than reinterpreted as file-size rules.
+File lists and nested structures remain unsupported. The same buffering and
+advanced-encoding limits documented above apply. Equivalent Swagger/OpenAPI
+fixtures produce byte-identical SDK source and share the independent installed
+SDK smoke in release verification.

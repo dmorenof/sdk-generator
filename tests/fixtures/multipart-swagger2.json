@@ -1,0 +1,282 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Swagger Multipart",
+    "version": "1"
+  },
+  "host": "api.example.test",
+  "basePath": "/v1",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "multipart/form-data"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "parameters": {
+    "Name": {
+      "name": "name",
+      "in": "formData",
+      "type": "string",
+      "required": true,
+      "minLength": 1,
+      "description": "Person name"
+    },
+    "NameAlias": {
+      "$ref": "#/parameters/Name"
+    },
+    "Ids": {
+      "name": "ids",
+      "in": "formData",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "collectionFormat": "multi",
+      "minItems": 1
+    },
+    "File": {
+      "name": "file",
+      "in": "formData",
+      "type": "file",
+      "required": true,
+      "description": "File bytes"
+    },
+    "FileAlias": {
+      "$ref": "#/parameters/File"
+    }
+  },
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "getItems",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postItems",
+        "parameters": [
+          {
+            "$ref": "#/parameters/NameAlias"
+          },
+          {
+            "$ref": "#/parameters/Ids"
+          },
+          {
+            "name": "codes",
+            "in": "formData",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "a,b",
+                "x y"
+              ]
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "active",
+            "in": "formData",
+            "type": "boolean"
+          },
+          {
+            "name": "body",
+            "in": "formData",
+            "type": "string"
+          },
+          {
+            "name": "city-name",
+            "in": "formData",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "formData",
+            "type": "string",
+            "enum": [
+              "new",
+              "done"
+            ]
+          },
+          {
+            "name": "note",
+            "in": "formData",
+            "type": "string",
+            "x-nullable": true
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "$ref": "#/parameters/FileAlias"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/body-only": {
+      "post": {
+        "operationId": "bodyOnly",
+        "parameters": [
+          {
+            "$ref": "#/parameters/NameAlias"
+          },
+          {
+            "$ref": "#/parameters/Ids"
+          },
+          {
+            "name": "codes",
+            "in": "formData",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "a,b",
+                "x y"
+              ]
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "active",
+            "in": "formData",
+            "type": "boolean"
+          },
+          {
+            "name": "body",
+            "in": "formData",
+            "type": "string"
+          },
+          {
+            "name": "city-name",
+            "in": "formData",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "formData",
+            "type": "string",
+            "enum": [
+              "new",
+              "done"
+            ]
+          },
+          {
+            "name": "note",
+            "in": "formData",
+            "type": "string",
+            "x-nullable": true
+          },
+          {
+            "$ref": "#/parameters/FileAlias"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/optional": {
+      "post": {
+        "operationId": "optionalForm",
+        "parameters": [
+          {
+            "name": "note",
+            "in": "formData",
+            "type": "string",
+            "x-nullable": true
+          },
+          {
+            "name": "labels",
+            "in": "formData",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "type": "file",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/overrides": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "formData",
+          "type": "string",
+          "required": true,
+          "minLength": 3
+        },
+        {
+          "$ref": "#/parameters/FileAlias"
+        }
+      ],
+      "post": {
+        "operationId": "overrideForm",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "formData",
+            "type": "string",
+            "required": false,
+            "minLength": 1
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "type": "file",
+            "required": false
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  }
+}

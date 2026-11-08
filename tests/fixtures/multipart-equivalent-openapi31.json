@@ -1,0 +1,307 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Swagger Multipart",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test/v1"
+    }
+  ],
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "getItems",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "postItems",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Person name"
+                  },
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "minItems": 1
+                  },
+                  "codes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "a,b",
+                        "x y"
+                      ]
+                    }
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "body": {
+                    "type": "string"
+                  },
+                  "city-name": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "done"
+                    ]
+                  },
+                  "note": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File bytes"
+                  }
+                },
+                "required": [
+                  "name",
+                  "file"
+                ]
+              },
+              "encoding": {
+                "ids": {
+                  "style": "form",
+                  "explode": true
+                },
+                "codes": {
+                  "style": "form",
+                  "explode": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/body-only": {
+      "post": {
+        "operationId": "bodyOnly",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Person name"
+                  },
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "minItems": 1
+                  },
+                  "codes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "a,b",
+                        "x y"
+                      ]
+                    }
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "body": {
+                    "type": "string"
+                  },
+                  "city-name": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "done"
+                    ]
+                  },
+                  "note": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "File bytes"
+                  }
+                },
+                "required": [
+                  "name",
+                  "file"
+                ]
+              },
+              "encoding": {
+                "ids": {
+                  "style": "form",
+                  "explode": true
+                },
+                "codes": {
+                  "style": "form",
+                  "explode": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/optional": {
+      "post": {
+        "operationId": "optionalForm",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "note": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "labels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "file": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "labels": {
+                  "style": "form",
+                  "explode": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/overrides": {
+      "post": {
+        "operationId": "overrideForm",
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

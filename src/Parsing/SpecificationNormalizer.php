@@ -383,15 +383,19 @@ final class SpecificationNormalizer
         $requestBody = null;
         $formFields = [];
         $formEncoding = [];
-        if ($dialect === 'swagger2'
-            && array_filter($merged, static fn ($field): bool => $field['in'] === 'formData') !== []
+        $hasForm = $dialect === 'swagger2' && array_filter($merged, static fn ($field): bool => $field['in'] === 'formData') !== [];
+        $formMedia = FormSupport::swaggerMedia(array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []));
+        if ($hasForm
             && array_filter($merged, static fn ($field): bool => $field['in'] === 'body') !== []) {
             throw new InvalidArgumentException("Swagger body and formData cannot coexist at $where.");
+        }
+        if ($hasForm && $formMedia === null) {
+            throw new InvalidArgumentException("Swagger formData requires a single URL-encoded or multipart consumes representation at $where.");
         }
         foreach ($merged as $raw) {
             $loc = $raw['in'];
             if ($loc === 'formData' && $dialect === 'swagger2') {
-                if (!FormSupport::swaggerField($raw)) {
+                if (!FormSupport::swaggerField($raw, $formMedia)) {
                     throw new InvalidArgumentException("Unsupported Swagger formData field {$raw['name']} at $where.");
                 }
                 $fieldSchema = array_diff_key($raw, array_flip(['name', 'in', 'required', 'collectionFormat', 'allowEmptyValue']), $this->annotations($raw));
@@ -400,6 +404,10 @@ final class SpecificationNormalizer
                 }
                 if (array_key_exists('x-nullable', $raw)) {
                     $fieldSchema['x-nullable'] = $raw['x-nullable'];
+                }
+                if ($raw['type'] === 'file') {
+                    $fieldSchema['type'] = 'string';
+                    $fieldSchema['format'] = 'binary';
                 }
                 $formFields[] = new PropertyDefinition($raw['name'],
                     $this->schema($fieldSchema, $dialect, "$where.formData." . $raw['name']), $raw['required'] ?? false);
@@ -449,14 +457,10 @@ final class SpecificationNormalizer
         }
 
         if ($formFields !== []) {
-            $consumes = array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []);
-            if ($consumes !== [FormSupport::MEDIA]) {
-                throw new InvalidArgumentException("Swagger formData requires a single URL-encoded consumes representation at $where.");
-            }
             $formSchema = new SchemaDefinition(SchemaKind::Object, properties: $formFields, additionalProperties: false);
-            $requestBody = new RequestBodyDefinition(FormSupport::MEDIA, $formSchema,
+            $requestBody = new RequestBodyDefinition($formMedia, $formSchema,
                 count(array_filter($formFields, static fn ($field): bool => $field->required)) > 0,
-                [new MediaTypeDefinition(FormSupport::MEDIA, $formSchema, $formEncoding)]);
+                [new MediaTypeDefinition($formMedia, $formSchema, $formEncoding)]);
         }
 
         if ($dialect !== 'swagger2' && isset($operation['requestBody'])) {

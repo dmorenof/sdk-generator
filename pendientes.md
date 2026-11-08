@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.15.0** y `dmorenof/sdk-runtime` **v0.11.1** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.16.0** y `dmorenof/sdk-runtime` **v0.11.1** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -174,13 +174,13 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.11.0 y runtime v0.8.0 ejecutan escalares, arrays query primitivos y objetos query planos deepObject con schema cerrado o valores adicionales escalares tipados. El paquete sigue parcial para otros objetos, ubicaciones y estilos.
+**Situación actual:** generador v0.16.0 y runtime v0.11.1 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. El paquete sigue parcial para otros objetos, ubicaciones, estilos y streaming.
 
 ### Revisión acordada de getParameters y postParameters
 
-- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.13.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded OpenAPI/Swagger. No existen símbolos literales getParameters/postParameters en el emisor actual. v0.15.0 añade multipart OpenAPI con bytes binarios en memoria; quedan streaming, Swagger multipart y encoding avanzado.
-- [ ] **Parcial — Separar método y ubicación.** v0.13.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded OpenAPI/Swagger, y distingue un query llamado body del payload real. v0.15.0 verifica también el subconjunto multipart OpenAPI; quedan las combinaciones de sus formatos pendientes.
-- [ ] **Parcial — Pruebas GET/POST HTTP y forms.** v0.12.0 cubre GET query, POST query + headers + JSON/urlencoded, nombres coincidentes/body, arrays, ausente/null/vacío y mutaciones; URL, Content-Type y bytes exactos, PSR-18, HTTP real cloud-local e instalación independiente. v0.15.0 añade esas comprobaciones a multipart OpenAPI; las extensiones de multipart siguen abiertas.
+- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.13.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded OpenAPI/Swagger. No existen símbolos literales getParameters/postParameters en el emisor actual. v0.15.0 añade multipart OpenAPI y v0.16.0 Swagger con bytes binarios en memoria; quedan streaming y encoding avanzado.
+- [ ] **Parcial — Separar método y ubicación.** v0.13.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded OpenAPI/Swagger, y distingue un query llamado body del payload real. v0.15.0/v0.16.0 verifican también el subconjunto multipart OpenAPI/Swagger; quedan las combinaciones de sus formatos pendientes.
+- [ ] **Parcial — Pruebas GET/POST HTTP y forms.** v0.12.0 cubre GET query, POST query + headers + JSON/urlencoded, nombres coincidentes/body, arrays, ausente/null/vacío y mutaciones; URL, Content-Type y bytes exactos, PSR-18, HTTP real cloud-local e instalación independiente. v0.15.0/v0.16.0 añaden esas comprobaciones a multipart OpenAPI/Swagger; las extensiones de multipart siguen abiertas.
 
 ### OpenAPI 3.x
 
@@ -239,10 +239,10 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ### Peticiones
 
-- [ ] **Parcial — Revisión HTTP/forms del paquete 03.** GetParams/PostParams con query + urlencoded en v0.12.0 y multipart OpenAPI básico en v0.15.0. Quedan streaming, Swagger multipart y encoding avanzado.
+- [ ] **Parcial — Revisión HTTP/forms del paquete 03.** GetParams/PostParams con query + urlencoded en v0.12.0 y multipart básico OpenAPI en v0.15.0/Swagger en v0.16.0. Quedan streaming y encoding avanzado.
 - [x] **v0.12.0 — application/x-www-form-urlencoded:** objetos cerrados con campos escalares/listas primitivas, encoding form/explode, inline/referencias locales, DTOs y validación tras mutaciones.
 - [ ] Ampliar formularios a objetos/mapas abiertos, estructuras complejas, otros estilos y negociación de representaciones.
-- [ ] **Parcial — multipart/form-data:** v0.15.0 ejecuta objetos cerrados planos con texto, listas repetidas y archivos binary en strings; contentType por campo binario y MIME mediante Guzzle. Quedan headers por parte, archivos múltiples, objetos y otros encoding.
+- [ ] **Parcial — multipart/form-data:** v0.15.0 ejecuta objetos cerrados planos con texto, listas repetidas y archivos binary en strings; contentType por campo binario y MIME mediante Guzzle. v0.16.0 incorpora Swagger type:file y listas multi. Quedan headers por parte, listas de archivos, objetos y otros encoding.
 - [ ] **Parcial — Subida de archivos binarios:** v0.15.0 conserva bytes en memoria con nombres fijos derivados del campo; pendientes streams, memoria acotada y nombres configurables.
 - [ ] Body directo de array, mapa, escalar o binario sin envolverlo necesariamente en un DTO de objeto.
 - [ ] Selección explícita de `Content-Type` entre representaciones alternativas.
@@ -272,7 +272,15 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] contentType binario explícito o application/octet-stream por defecto; texto text/plain. Nombres de archivo basename(campo) + .bin. JSON mantiene prioridad sobre urlencoded y multipart. Rechazar opciones que no se ejecutan fielmente, incluidos límites Unicode sobre bytes binarios.
 - [x] GetParams/PostParams con query + headers + multipart, query llamado body/nombres coincidentes, fachadas/instancias, JSON/YAML, OpenAPI 3.0/3.1, inline/referencias locales, required/enums/dirección y mutaciones. Body ausente, vacío, campos null/vacíos y archivos vacíos diferenciados.
 - **Validación:** 350 pruebas / 2.603 aserciones del generador; quince SDKs instalados con PHPStan máximo. Runtime: 85 pruebas / 239 aserciones, PHPStan máximo, CI con dependencias mínimas e instalación publicada. HTTP real cloud-local con parser MIME independiente e instalación de SDK multipart independiente del generador. La publicación comprueba el SDK instalado desde el tag inmutable.
-- **Límites:** transporte string y cuerpo completo en memoria; sin promesa de streaming/memoria acotada. Pendientes nombres configurables, Swagger multipart, listas binarias, objetos/maps/nesting, headers por parte, CSV/otros estilos y selección por llamada. No cierra los paquetes 03/04 generales. [Uso y límites](docs/FORMS.md#openapi-multipart-v0150--runtime-v0111).
+- **Límites:** transporte string y cuerpo completo en memoria; sin promesa de streaming/memoria acotada. Swagger multipart llega en v0.16.0. Pendientes nombres configurables, listas binarias, objetos/maps/nesting, headers por parte, CSV/otros estilos y selección por llamada. No cierra los paquetes 03/04 generales. [Uso y límites](docs/FORMS.md#openapi-multipart-v0150--runtime-v0111).
+
+### Entrega multipart Swagger — v0.16.0, runtime v0.11.1 sin cambios
+
+- [x] Normalizar formData type:file a string binary y listas multipart multi al contrato común. Reutilizar el serializador Guzzle existente y el smoke de SDK independiente; sin clases de subida ni transporte/encoder adicionales.
+- [x] Un consumes explícito, precedencia de operación, alias locales, overrides de campos path/operación y diagnóstico por uso efectivo. Las declaraciones reutilizables de archivos no heredan indebidamente el media type global; cada uso de archivo requiere multipart.
+- [x] SDK idéntico byte a byte al OpenAPI equivalente, JSON/YAML, GetParams/PostParams, query + headers + body con nombres coincidentes/body, archivos required/opcionales/vacíos/null y mutaciones. Rechazar CSV por defecto/expreso, listas de archivos, constraints impropios de archivo y body+formData.
+- **Validación:** 356 pruebas / 2.671 aserciones; dieciséis SDKs instalados con PHPStan máximo. HTTP real cloud-local con parser MIME independiente, SDK instalado sin generador y smoke publicado específico. Runtime estable ^0.11.1 sin cambios.
+- **Límites:** cuerpo completo en memoria, filenames fijos basename(campo) + .bin y application/octet-stream para archivos Swagger. Siguen pendientes streaming/memoria acotada, nombres/tipos por llamada, CSV multipart, estructuras anidadas y headers por parte. No cierra el paquete 04. [Uso](docs/FORMS.md#swagger-20-multipart-v0160).
 
 ### Respuestas
 
@@ -576,3 +584,4 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-08 | Generador v0.13.0: formData Swagger URL-encoded normalizado al contrato común, CSV por defecto/multi, alias y overrides, GetParams/PostParams y diagnóstico de media/conflictos. Runtime ^0.9.0 sin cambios; multipart y otros formatos form pendientes. | [Generator v0.13.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.13.0) |
 | 2026-11-08 | Entrega de simplificación: generador v0.14.0 + runtime v0.10.1, ejecutor/configuración comunes por herencia y Query::build/nativo para query/forms. Revisión de arquitectura y reglas de reutilización documentadas. | [Generator v0.14.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.14.0), [Runtime v0.10.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.10.1) |
 | 2026-11-08 | Generador v0.15.0 y runtime v0.11.1: multipart OpenAPI acotado mediante Guzzle, strings binary, listas repetidas, GetParams/PostParams, validación/mutaciones e instalación independiente. Streaming y encoding general siguen pendientes. | [Generator v0.15.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.15.0), [Runtime v0.11.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.11.1) |
+| 2026-11-08 | Generador v0.16.0: multipart Swagger type:file/formData normalizado al contrato común, multi explícito, consumes/alias/overrides y diagnóstico contextual; mismo SDK que OpenAPI y runtime estable ^0.11.1 sin cambios. | [Generator v0.16.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.16.0) |

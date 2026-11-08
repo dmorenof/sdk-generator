@@ -6,6 +6,13 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.16.0] — 2026-11-08
+
+- Normalize Swagger 2.0 multipart/form-data formData and type:file parameters into the existing closed request-body contract, using native string binary properties and the unchanged stable runtime ^0.11.1. No new transport, serializer or upload class.
+- Select one explicit consumes representation with operation precedence; validate reusable declarations separately from each effective usage. Files require multipart; multipart lists require explicit collectionFormat: multi. Reject default/explicit CSV, file constraints/options that cannot be preserved, file lists, media alternatives and body/formData conflicts.
+- Verify byte-identical SDK output for equivalent Swagger/OpenAPI contracts, JSON/YAML, aliases, path/operation overrides, required/optional/empty/null files, GetParams/PostParams query/header/body separation and mutations. Sixteen independently installed SDKs pass PHPStan max; real cloud-local HTTP is decoded with an independent MIME parser. Extend immutable release verification by reusing the installed multipart SDK smoke.
+- Update pendientes.md and supported limits: bodies are still buffered with fixed field-derived .bin filenames; streaming, configurable filenames and advanced multipart encoding remain pending.
+
 ## [0.15.0] — 2026-11-08
 
 - Add bounded OpenAPI 3.0/3.1 multipart/form-data bodies with text scalar fields, repeated primitive lists and binary string file properties. Reuse form schema checks, DTOs and the shared Guzzle MultipartStream runtime; no upload wrapper or MIME encoder is generated. Require stable runtime ^0.11.1.

@@ -15,15 +15,17 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
         return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
     }
 };
-$client = \Example\MultipartSdk\Client::connect($argv[2] ?? 'https://api.example.test/v1',
-    transport: isset($argv[2]) ? null : $transport);
+$realHttp = isset($argv[2]) && $argv[2] !== '';
+$fileContentType = $argv[3] ?? 'image/png';
+$client = \Example\MultipartSdk\Client::connect($realHttp ? $argv[2] : 'https://api.example.test/v1',
+    transport: $realHttp ? null : $transport);
 $items = $client->resource(\Example\MultipartSdk\Resources\Items::class);
 $params = new \Example\MultipartSdk\PostParams\Items((object) [
     'name' => 'query name', 'queryBody' => 'query-body', 'X-Trace' => 'trace',
     'body' => (object) ['name' => 'body name', 'active' => false, 'file' => "\x00\xff\r\n", 'ids' => [1, 2]],
 ]);
 $items->post($params);
-if (isset($argv[2])) {
+if ($realHttp) {
     echo "MULTIPART_REAL_HTTP_OK", PHP_EOL;
     exit;
 }
@@ -35,7 +37,7 @@ if ($call['url'] !== 'https://api.example.test/v1/items?body=query-body&name=que
     || !str_ends_with($call['body'], '--' . $boundary . "--\r\n")
     || !str_contains($call['body'], "\r\n\r\n\x00\xff\r\n\r\n")
     || !str_contains($call['body'], 'filename="file.bin"')
-    || !str_contains($call['body'], 'Content-Type: image/png')
+    || !str_contains($call['body'], 'Content-Type: ' . $fileContentType)
     || !str_contains($call['body'], "\r\n\r\nfalse\r\n")
     || substr_count($call['body'], 'name="ids"') !== 2) {
     throw new RuntimeException('Installed multipart SDK did not preserve its HTTP contract.');
