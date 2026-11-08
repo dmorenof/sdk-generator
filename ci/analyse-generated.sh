@@ -50,3 +50,6 @@ analyse swagger-forms forms-swagger2.json 'Example\SwaggerFormSdk'
 analyse multipart multipart-openapi31.json 'Example\MultipartSdk'
 
 analyse swagger-multipart multipart-swagger2.json 'Example\MultipartSdk'
+
+php -d memory_limit=16M tests/streaming-smoke.php "$OUT/multipart"
+php -d memory_limit=16M tests/streaming-smoke.php "$OUT/swagger-multipart"

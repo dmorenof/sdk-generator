@@ -350,4 +350,6 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/multi
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $swaggerMultipart]);
 runPublished([PHP_BINARY, $package . '/tests/multipart-smoke.php', $swaggerMultipart, '', 'application/octet-stream']);
 echo "PUBLISHED_SWAGGER_MULTIPART_SDK_OK", PHP_EOL;
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $multipart]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $swaggerMultipart]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

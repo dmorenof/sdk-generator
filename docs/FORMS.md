@@ -1,4 +1,4 @@
-# HTTP forms and multipart (v0.17.0 / runtime v0.12.0)
+# HTTP forms and multipart (v0.18.0 / runtime v0.13.0)
 
 OpenAPI 3.0/3.1 request bodies declared as application/x-www-form-urlencoded can
 use an object with explicit `additionalProperties: false`, scalar properties and
@@ -69,7 +69,7 @@ with the same in/name identity. Swagger body and formData parameters cannot coex
 
 The generator emits explicit metadata for Swagger's different CSV default.
 Equivalent OpenAPI and Swagger fixtures produce byte-identical SDKs. This adapter introduced no new HTTP
-serializer in v0.13.0; current generated SDKs require stable runtime ^0.12.0.
+serializer in v0.13.0; current generated SDKs require stable runtime ^0.13.0.
 
 With `forms-swagger2.json` and namespace `Example\SwaggerForms`:
 
@@ -144,9 +144,9 @@ optional body sends no Content-Type or bytes; a present empty body sends a closi
 MIME boundary with the matching multipart Content-Type. JSON representations take
 priority, then URL-encoded forms, then multipart; per-call negotiation is pending.
 
-**Memory limit:** the existing public transport interface accepts a complete string.
-Multipart bodies are buffered; there is no streaming or bounded-memory guarantee
-for large files. Read only files whose size your application can hold in memory.
+**Memory:** since v0.18.0 the standard PSR-18 adapter preserves the multipart
+stream. Legacy custom transports still accept complete strings and therefore
+buffer. Use file-backed PSR uploads for large files; see measured limits below.
 Readable, seekable streams are accepted through PSR UploadedFileInterface since
 v0.17.0, with configurable filenames. Direct stream/resource properties, file lists,
 nested objects, open maps, null list items, CSV multipart arrays and per-part
@@ -254,8 +254,43 @@ fail before transport. JSON and URL-encoded serialization reject uploaded object
 explicitly; they cannot silently turn into empty JSON objects. Request-direction
 filtering, wire names, required/nullable fields and mutation validation still apply.
 
-**Buffering remains:** accepting a file path or input stream does not mean the
-HTTP transport streams the upload. The existing public transport receives the
-complete body string. Streaming HTTP and bounded-memory uploads, file lists,
+Since v0.18.0, the standard PSR-18 path streams multipart to the HTTP client.
+Legacy custom transports still receive the complete body string. File lists,
 nested file data and advanced part encoding remain pending. Both OpenAPI and
-Swagger installed-SDK publication smokes exercise string and PSR uploads.
+Swagger installed-SDK publication smokes exercise string and PSR uploads, plus
+the measured streaming case below.
+
+
+## Streaming multipart (v0.18.0 / runtime v0.13.0)
+
+The normal Client::connect path passes Guzzle MultipartStream to Psr18Transport
+and the PSR-18 HTTP client, without converting the complete multipart to a string.
+Use the file-backed UploadedFile example above; operation signatures and DTOs do
+not change. Guzzle handles MIME and the HTTP transfer. No new transport interface,
+stream wrapper or per-SDK implementation is added.
+
+Legacy custom TransportInterface implementations keep their `?string` body and
+buffering behavior. For custom streaming behavior, inject a PSR-18 ClientInterface
+through the existing httpClient argument/configuration. Psr18Transport's wider
+send parameter accepts strings, streams and null while remaining compatible with
+the legacy interface. The same default headers and middleware still apply.
+
+The adapter rewinds seekable request bodies after middleware inspection or
+replacement, and before each send. Reusing a DTO/file across sequential requests
+therefore sends the full file each time. Each part needs its own independent
+stream cursor; sharing the same PSR stream object between parts is rejected
+before HTTP rather than silently truncating a later file part. Existing MIME,
+filename, required/directional field and mutation validation still runs.
+
+The runtime sent a 32 MiB file twice with the default Guzzle/cURL client to a real
+cloud-local server under PHP memory_limit=16M. Measured PHP peak was 4 MiB; an
+independent MIME parser checked the complete file bytes, filename, MIME, query and
+header. Independent OpenAPI/Swagger SDK smokes repeat the 32 MiB/16 MiB case in CI
+and after installation from the immutable published generator tag.
+
+This is an upload-path measurement, not a universal whole-process/RSS bound.
+String inputs already occupy memory; legacy transports buffer. An injected client,
+middleware or options can buffer, and response bodies are still collected as
+strings. The SDK preserves the request stream and default Guzzle/cURL streams the
+tested large file. Non-seekable inputs, unknown-size transport guarantees, file
+lists/nesting and streaming response/download support remain pending.
