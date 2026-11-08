@@ -165,7 +165,7 @@ final class SwaggerFormGenerationTest extends TestCase
             self::assertFalse($report['strictlyAccepted']);
             self::assertContains('/parameters/Name/type', array_map(static fn ($issue): string => $issue->pointer, $report['diagnostics']));
         }
-        foreach ([[], ['application/json'], ['multipart/form-data'], ['application/x-www-form-urlencoded', 'application/json']] as $media) {
+        foreach ([[], ['application/json'], ['application/x-www-form-urlencoded', 'application/json']] as $media) {
             $document = self::document();
             $document['consumes'] = $media;
             $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));

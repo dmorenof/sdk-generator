@@ -15,8 +15,14 @@ final class FormSupport
     public const MEDIA = 'application/x-www-form-urlencoded';
     public const MULTIPART = 'multipart/form-data';
 
-    /** Supported Swagger Parameter Objects can be lowered to the same form body contract. */
-    public static function swaggerField(array $field): bool
+    /** A single explicit media type, without silently selecting between alternatives. */
+    public static function swaggerMedia(mixed $consumes): ?string
+    {
+        return in_array($consumes, [[self::MEDIA], [self::MULTIPART]], true) ? $consumes[0] : null;
+    }
+
+    /** Null media audits reusable declarations; each usage is checked with its effective consumes. */
+    public static function swaggerField(array $field, ?string $media = self::MEDIA): bool
     {
         if (($field['in'] ?? null) !== 'formData' || !is_string($field['name'] ?? null) || $field['name'] === ''
             || (array_key_exists('required', $field) && !is_bool($field['required']))
@@ -30,11 +36,19 @@ final class FormSupport
                 return false;
             }
         }
+        if ($media === self::MULTIPART && !self::name($field['name'])) {
+            return false;
+        }
+        if (($field['type'] ?? null) === 'file') {
+            return $media !== self::MEDIA && self::name($field['name'])
+                && array_intersect(array_keys($field), ['format', 'items', 'enum', 'default', 'minimum', 'maximum',
+                    'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'collectionFormat']) === [];
+        }
         if (($field['type'] ?? null) === 'array') {
             return is_array($field['items'] ?? null) && self::rawScalar($field['items'])
                 && !($field['items']['nullable'] ?? $field['items']['x-nullable'] ?? false)
                 && !is_array($field['items']['type'] ?? null) && empty($field['enum'])
-                && in_array($field['collectionFormat'] ?? 'csv', ['csv', 'multi'], true);
+                && in_array($field['collectionFormat'] ?? 'csv', $media === self::MULTIPART ? ['multi'] : ['csv', 'multi'], true);
         }
         return !array_key_exists('collectionFormat', $field) && self::rawScalar($field)
             && is_string($field['type'] ?? null);
