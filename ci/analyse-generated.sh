@@ -56,3 +56,6 @@ analyse file-lists multipart-file-lists-openapi31.json 'Example\MultipartSdk'
 php -d memory_limit=16M tests/streaming-smoke.php "$OUT/multipart"
 php -d memory_limit=16M tests/streaming-smoke.php "$OUT/swagger-multipart"
 php -d memory_limit=16M tests/streaming-smoke.php "$OUT/file-lists" '' list
+
+analyse downloads downloads-openapi31.json 'Example\DownloadSdk'
+php -d memory_limit=16M tests/download-smoke.php "$OUT/downloads"

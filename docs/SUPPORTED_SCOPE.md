@@ -27,10 +27,10 @@
 - YAML support does not expand the supported OpenAPI feature set: YAML input is subject to the same deliberate subset and explicit rejections as JSON.
 - Not a general OpenAPI 3.1 / JSON Schema implementation; external references/mappings, arbitrary native unions, `not`/`const`, general schema composition, advanced formats, OAuth2/OpenID Connect authorization flows, API keys in cookies, streaming downloads/non-seekable files and advanced form/multipart support are not implemented. Patterns using ECMA-regex features that differ from PCRE may not validate identically. For OAuth2, provide a previously obtained bearer token only when the security scheme is declared as HTTP bearer; the generator does not acquire or refresh tokens.
 - OAuth2/OpenID Connect authorization flows are not implemented; credentials must be supplied by the caller, and tokens are not acquired or refreshed by the SDK.
-- Multiple body-bearing success responses and some non-object inline error schemas are not supported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
+- Heterogeneous body-bearing success responses and some non-object inline error schemas are not supported; v0.20.0 permits multiple statuses sharing its bounded binary response codec. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.14.0 or later compatible versions (`^0.14.0`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.15.0 or later compatible versions (`^0.15.0`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
@@ -45,7 +45,7 @@ Please report supported-schema failures through GitHub Issues with a small **red
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.14.0`;
+The current generator and generated Composer packages require stable runtime `^0.15.0`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -242,3 +242,23 @@ Stable runtime ^0.13.0 passes MultipartStream directly through the existing PSR-
 ## OpenAPI binary file lists (v0.19.0)
 
 Multipart body properties with type:array and non-null string/binary items use native PHP lists of strings or UploadedFileInterface, validated for item types, bounds, required/nullable fields and mutations. Existing Guzzle multipart expansion repeats exact field names in order and preserves per-file filename/MIME; explicit contract MIME applies to every item. JSON-only collections keep their types; inherited native lists keep item validation. No file-list wrapper is generated. Runtime ^0.14.0 and an independently installed SDK each pass two 16 MiB-file HTTP requests under a 16 MiB PHP limit (4 MiB PHP peak), with independent MIME parsing. Seventeen SDKs pass maximum analysis. Swagger 2.0 file arrays, nullable/nested/constrained binary items and advanced encoding remain rejected. [Usage](FORMS.md#openapi-binary-file-lists-v0190).
+
+
+## OpenAPI binary downloads (v0.20.0)
+
+Successful application/octet-stream with inline nonnullable string/binary schemas
+returns native PSR-7 ResponseInterface, including status, multi-value headers and
+body stream. Local response aliases, JSON/YAML, OpenAPI 3.0/3.1, compatible 200/206
+plus empty 204 and GET/POST JSON export requests are supported. JSON retains
+representation priority. Runtime ^0.15.0 preserves the PSR response; Guzzle
+copyToStream saves bytes without a full PHP string. JSON/typed errors and custom
+legacy transports retain their buffered compatibility path.
+
+Real HTTP copies/hashes 32 MiB per download under PHP memory_limit=16M; measured
+PHP peaks are 8 MiB in the runtime and 6 MiB in the independent SDK (GET/POST
+repeated). Eighteen independently installed SDKs pass PHPStan maximum. This is
+not a promise of progressive network reads, no disk storage, universal RSS or
+arbitrary client/middleware memory behavior. Swagger, other MIME types,
+constraints/nullable binary schemas, binary errors, mixed success codecs,
+negotiation and declared response-header schema validation remain pending.
+See [downloads](DOWNLOADS.md) for usage and precise limits.

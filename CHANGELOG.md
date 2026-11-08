@@ -6,6 +6,12 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.20.0] — 2026-11-08
+
+- Emit native PSR-7 ResponseInterface returns for bounded OpenAPI 3.0/3.1 application/octet-stream string/binary successes. Preserve JSON representation priority, local response aliases, compatible binary status codes, empty responses, raw headers and original bytes without download DTOs or per-SDK transport logic.
+- Require published stable runtime ^0.15.0. Preserve GET/POST query/header separation, JSON export DTOs, typed JSON errors, mutation validation and legacy custom transports. Keep unsupported binary constraints/MIME/error schemas, mixed success codecs, declared header schemas and Swagger diagnosed.
+- Add JSON/YAML and behavior coverage, an eighteenth independently installed SDK with PHPStan maximum, and CI/immutable-publication download smokes. Real default Guzzle/cURL downloads verified 32 MiB files under PHP memory_limit=16M with an 8 MiB PHP peak; document disk-backed buffering and client/middleware/error limits in docs/DOWNLOADS.md.
+
 ## [0.19.0] — 2026-11-08
 
 - Generate native list<string|Psr\Http\Message\UploadedFileInterface> properties for OpenAPI multipart binary arrays, with nullable outer fields, minItems/maxItems and binary item validation. Scope the representation to multipart body models; JSON-only collection types remain unchanged and inherited native fields retain item validation. Require published stable runtime ^0.14.0.

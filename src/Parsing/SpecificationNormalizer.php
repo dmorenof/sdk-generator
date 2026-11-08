@@ -513,7 +513,14 @@ final class SpecificationNormalizer
                 }
                 $mediaType = $schema === null ? null : ($operation['produces'] ?? $document['produces'] ?? ['application/json'])[0];
             } else {
-                $content = $this->jsonContent($raw['content'] ?? [], "$where.responses.$status");
+                $representations = $raw['content'] ?? [];
+                $binary = BinaryResponseSupport::selected($representations);
+                if ($binary && preg_match('/^2[0-9]{2}$/', $status) !== 1) {
+                    throw new InvalidArgumentException("Binary error responses are unsupported at $where.responses.$status.");
+                }
+                $content = $binary
+                    ? ['mediaType' => BinaryResponseSupport::MEDIA, 'schema' => $representations[BinaryResponseSupport::MEDIA]['schema']]
+                    : $this->jsonContent($representations, "$where.responses.$status");
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
             }
