@@ -131,9 +131,34 @@ final class ContractAuditor
         $this->securityRequirements($operation['security'] ?? [], "$where/security", $id);
         $this->callbacks($operation['callbacks'] ?? [], "$where/callbacks", $id);
         if (($document['swagger'] ?? null) === '2.0') {
+            $effective = [];
+            foreach (array_merge($item['parameters'] ?? [], $operation['parameters'] ?? []) as $parameter) {
+                if (!is_array($parameter)) {
+                    continue;
+                }
+                try {
+                    $value = (new LocalObjectResolver($document))->resolve($parameter, 'parameters', "$where/parameters")['value'];
+                    if (isset($value['in'], $value['name'])) {
+                        $effective[$value['in'] . ':' . $value['name']] = $value;
+                    }
+                } catch (LocalReferenceException) {
+                    // The parameter audit below retains the exact usage/declaration diagnostic.
+                }
+            }
+            $hasForm = array_filter($effective, static fn ($field): bool => ($field['in'] ?? null) === 'formData') !== [];
+            $hasBody = array_filter($effective, static fn ($field): bool => ($field['in'] ?? null) === 'body') !== [];
+            if ($hasForm) {
+                if ($hasBody) {
+                    $this->add('swagger_form_body_conflict', "$where/parameters", 'Swagger body and formData parameters cannot coexist.', $id);
+                }
+                $consumes = array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []);
+                if ($consumes !== [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA]) {
+                    $this->add('swagger_form_media', array_key_exists('consumes', $operation) ? "$where/consumes" : '/consumes',
+                        'Swagger formData requires one application/x-www-form-urlencoded representation; multipart/files and media negotiation remain unsupported.', $id);
+                }
+            }
             foreach (['consumes' => true, 'produces' => false] as $keyword => $request) {
-                if ($request && array_filter(array_merge($item['parameters'] ?? [], $operation['parameters'] ?? []),
-                    static fn ($parameter): bool => is_array($parameter) && ($parameter['in'] ?? null) === 'body') === []) {
+                if ($request && ($hasForm || !$hasBody)) {
                     continue;
                 }
                 $mediaTypes = $operation[$keyword] ?? $document[$keyword] ?? ['application/json'];
@@ -467,6 +492,11 @@ final class ContractAuditor
 
     private function parameter(array $parameter, string $at, ?string $operation): void
     {
+        $formField = ($this->document['swagger'] ?? null) === '2.0' && ($parameter['in'] ?? null) === 'formData';
+        $swaggerForm = $formField && \Dmorenof\SdkGenerator\Parsing\FormSupport::swaggerField($parameter);
+        if ($formField && !$swaggerForm) {
+            $this->add('swagger_form_field', "$at/type", 'Only scalar formData fields and primitive CSV/multi lists are executable; files and other form shapes remain unsupported.', $operation);
+        }
         $queryObject = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::rawSupported($parameter, $this->document);
         $queryArray = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::rawSupported($parameter, ($this->document['swagger'] ?? null) === '2.0');
         $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
@@ -494,7 +524,7 @@ final class ContractAuditor
         if (isset($parameter['content'])) {
             $this->add('parameter_content', "$at/content", 'Content-based parameter serialization is not implemented.', $operation);
         }
-        if (isset($parameter['collectionFormat']) && !$queryArray && !$queryObject) {
+        if (isset($parameter['collectionFormat']) && !$queryArray && !$queryObject && !$swaggerForm) {
             $this->add('parameter_collectionFormat', "$at/collectionFormat", 'Swagger collection formats are not executed.', $operation);
         }
         if (isset($parameter['schema'])) {
@@ -507,7 +537,7 @@ final class ContractAuditor
         $type = $parameter['schema']['type'] ?? $parameter['type'] ?? null;
         $structured = in_array($type, ['array', 'object'], true)
             || (is_array($type) && array_intersect($type, ['array', 'object']) !== []);
-        if ($structured && !$queryArray && !$queryObject) {
+        if ($structured && !$queryArray && !$queryObject && !$swaggerForm) {
             $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Only supported primitive query lists and flat deepObject query schemas are executable; other structured parameters remain unsupported.', $operation);
         }
     }

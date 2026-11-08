@@ -1,4 +1,4 @@
-# Contract inspection (v0.12.0)
+# Contract inspection (v0.13.0)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -252,3 +252,14 @@ Multipart, files, Swagger formData, nested/open fields, contentType/headers in
 encoding, reserved expansion and other styles remain pending. These boundaries
 are diagnosed; the implementation does not claim general form support.
 See [forms and parameter DTOs](FORMS.md).
+
+## Swagger URL-encoded formData (v0.13.0)
+
+Inspection accepts scalar/primitive-list formData fields with default/explicit
+CSV or explicit multi. Reusable local parameter aliases and operation overrides
+are resolved before checking effective consumes and body/form conflicts.
+`swagger_form_media` reports missing, incompatible or multiple consumes values;
+`swagger_form_body_conflict` blocks simultaneous body and formData; unsupported
+fields produce `swagger_form_field` at their declaration, with reference chains
+preserved. Files, multipart and other form collection formats remain pending.
+No runtime change is required; generated SDKs retain stable ^0.9.0.

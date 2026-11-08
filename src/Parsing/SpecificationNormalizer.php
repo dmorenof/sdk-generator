@@ -381,8 +381,33 @@ final class SpecificationNormalizer
 
         $parameters = [];
         $requestBody = null;
+        $formFields = [];
+        $formEncoding = [];
+        if ($dialect === 'swagger2'
+            && array_filter($merged, static fn ($field): bool => $field['in'] === 'formData') !== []
+            && array_filter($merged, static fn ($field): bool => $field['in'] === 'body') !== []) {
+            throw new InvalidArgumentException("Swagger body and formData cannot coexist at $where.");
+        }
         foreach ($merged as $raw) {
             $loc = $raw['in'];
+            if ($loc === 'formData' && $dialect === 'swagger2') {
+                if (!FormSupport::swaggerField($raw)) {
+                    throw new InvalidArgumentException("Unsupported Swagger formData field {$raw['name']} at $where.");
+                }
+                $fieldSchema = array_diff_key($raw, array_flip(['name', 'in', 'required', 'collectionFormat', 'allowEmptyValue']), $this->annotations($raw));
+                if (isset($raw['description'])) {
+                    $fieldSchema['description'] = $raw['description'];
+                }
+                if (array_key_exists('x-nullable', $raw)) {
+                    $fieldSchema['x-nullable'] = $raw['x-nullable'];
+                }
+                $formFields[] = new PropertyDefinition($raw['name'],
+                    $this->schema($fieldSchema, $dialect, "$where.formData." . $raw['name']), $raw['required'] ?? false);
+                if ($raw['type'] === 'array') {
+                    $formEncoding[$raw['name']] = ['style' => 'form', 'explode' => ($raw['collectionFormat'] ?? 'csv') === 'multi'];
+                }
+                continue;
+            }
             if ($loc === 'body' && $dialect === 'swagger2') {
                 if ($requestBody !== null || !is_array($raw['schema'] ?? null)) {
                     throw new InvalidArgumentException("Invalid or duplicated body at $where.");
@@ -421,6 +446,17 @@ final class SpecificationNormalizer
                 $this->mediaContent($raw['content'] ?? [], $dialect, "$where.parameters." . $raw['name']),
                 $this->annotations($raw),
             );
+        }
+
+        if ($formFields !== []) {
+            $consumes = array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []);
+            if ($consumes !== [FormSupport::MEDIA]) {
+                throw new InvalidArgumentException("Swagger formData requires a single URL-encoded consumes representation at $where.");
+            }
+            $formSchema = new SchemaDefinition(SchemaKind::Object, properties: $formFields, additionalProperties: false);
+            $requestBody = new RequestBodyDefinition(FormSupport::MEDIA, $formSchema,
+                count(array_filter($formFields, static fn ($field): bool => $field->required)) > 0,
+                [new MediaTypeDefinition(FormSupport::MEDIA, $formSchema, $formEncoding)]);
         }
 
         if ($dialect !== 'swagger2' && isset($operation['requestBody'])) {

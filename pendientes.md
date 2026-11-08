@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.12.0** y `dmorenof/sdk-runtime` **v0.9.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.13.0** y `dmorenof/sdk-runtime` **v0.9.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -168,8 +168,8 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ### Revisión acordada de getParameters y postParameters
 
-- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.12.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded. No existen símbolos literales getParameters/postParameters en el emisor actual. Queda multipart.
-- [ ] **Parcial — Separar método y ubicación.** v0.12.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded, y distingue un query llamado body del payload real. Quedan las combinaciones con multipart.
+- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.13.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded OpenAPI/Swagger. No existen símbolos literales getParameters/postParameters en el emisor actual. Queda multipart.
+- [ ] **Parcial — Separar método y ubicación.** v0.13.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded OpenAPI/Swagger, y distingue un query llamado body del payload real. Quedan las combinaciones con multipart.
 - [ ] **Parcial — Pruebas GET/POST HTTP y forms.** v0.12.0 cubre GET query, POST query + headers + JSON/urlencoded, nombres coincidentes/body, arrays, ausente/null/vacío y mutaciones; URL, Content-Type y bytes exactos, PSR-18, HTTP real cloud-local e instalación independiente. Queda multipart.
 
 ### OpenAPI 3.x
@@ -197,7 +197,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.9.0 — Arrays query primitivos con `collectionFormat: csv/multi`**, incluido default CSV de Swagger.
 - [x] **v0.10.0 — Arrays query primitivos con `collectionFormat: ssv`, `tsv` y `pipes`.**
 - [ ] CSV/ssv/tsv/pipes en otras ubicaciones.
-- [ ] **Parcial — Arrays Swagger por ubicación.** Query primitivo csv/multi/ssv/tsv/pipes publicado; form/header/path pendientes.
+- [ ] **Parcial — Arrays Swagger por ubicación.** Query primitivo csv/multi/ssv/tsv/pipes y formData csv/multi publicados; otros formatos de form, header/path pendientes.
 
 ### Entrega de arrays query — v0.9.0 / runtime v0.6.0
 
@@ -247,6 +247,14 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] GetParams/PostParams y body-only, query + headers + body/form con nombres coincidentes y query llamado body, API estática y por instancia. JSON/YAML, OpenAPI 3.0/3.1, requestBody reutilizado e inline.
 - **Validación:** generador 332 pruebas / 2.486 aserciones; trece SDKs con PHPStan max y Casafari 46/46. Runtime: 77 pruebas / 196 aserciones y PHPStan max. HTTP real cloud-local comprueba URL, headers y bytes; publicación comprueba SDK instalado independiente y mutaciones.
 - **Límites:** objetos form cerrados con campos escalares/listas primitivas; sin items null/nesting, mapas abiertos, encoding de contentType/headers, allowReserved true, multipart/archivos ni Swagger formData. No cierra el paquete 04 ni toda la revisión de forms. [Uso y límites](docs/FORMS.md).
+
+### Entrega Swagger formData — v0.13.0, runtime v0.9.0 sin cambios
+
+- [x] Agregar parámetros formData escalares/listas a un body tipado canónico, conservando required, límites, enums, nombres y extensiones nullable soportadas. Defaults conservados sin materializar.
+- [x] CSV por defecto de Swagger y csv/multi explícitos; consumes de operación sobre raíz, alias locales y override por in/name. No crear body solo por heredar consumes en un GET sin formData.
+- [x] GetParams/PostParams con query + headers + form y query llamado body; formularios opcionales/body-only, equivalencia byte a byte con OpenAPI, JSON/YAML, PSR-18, HTTP real cloud-local y mutaciones.
+- **Validación:** 341 pruebas / 2.537 aserciones; catorce SDKs con PHPStan max; Casafari 46/46; Composer e instalación independiente del SDK Swagger. CI multiversión e instalación de paquete publicado. Runtime estable `^0.9.0`, sin cambios.
+- **Límites:** un único consumes URL-encoded; no archivos/multipart, objetos/listas anidadas/items null, ssv/tsv/pipes en form, collectionFormat escalar ni mezcla body+formData. La revisión HTTP/forms sigue parcial para multipart. [Uso](docs/FORMS.md#swagger-20-formdata-v0130).
 
 ### Respuestas
 
@@ -428,10 +436,10 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 ## 9. [P2] Funcionalidades específicas de Swagger 2.0
 
 - [ ] Múltiples `consumes` y `produces`.
-- [ ] **Parcial — `collectionFormat`.** Query primitivo csv/multi/ssv/tsv/pipes publicado en v0.10.0; otras ubicaciones pendientes (paquete 03).
-- [ ] Parámetros `formData`.
+- [ ] **Parcial — `collectionFormat`.** Query primitivo csv/multi/ssv/tsv/pipes y formData csv/multi publicados; otros formatos/ubicaciones pendientes (paquete 03).
+- [x] **v0.13.0 — formData URL-encoded Swagger:** escalares/listas primitivas csv (default)/multi, required/validación, alias locales y overrides. Multipart/archivos y otros formatos quedan abiertos.
 - [ ] Tipo `file` y transmisión de archivos.
-- [ ] **Parcial — Arrays HTTP Swagger.** Query primitivo publicado en v0.9.0/v0.10.0; otras ubicaciones pendientes.
+- [ ] **Parcial — Arrays HTTP Swagger.** Query primitivo y formData csv/multi publicados; otras ubicaciones y formatos form pendientes.
 - [x] **v0.5.0:** referencias locales con nombre `#/parameters/...` y `#/responses/...`, con alias y parámetros body.
 - [ ] `securityDefinitions` OAuth2 y scopes.
 - [ ] Validación y metadatos específicos del dialecto.
@@ -550,3 +558,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-08 | Entrega coordinada: generador v0.11.0 + runtime v0.8.0, deepObject query plano, DTOs/Maps y separación de query body frente a JSON body en GetParams/PostParams. Revisión de HTTP parcial; formularios pendientes. | [Generator v0.11.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.11.0), [Runtime v0.8.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.8.0) |
 
 | 2026-11-08 | Entrega coordinada: generador v0.12.0 + runtime v0.9.0, forms URL-encoded escalares/listas, encoding form/explode y revisión GetParams/PostParams con query/headers/body. Multipart y Swagger formData siguen pendientes. | [Generator v0.12.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.12.0), [Runtime v0.9.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.9.0) |
+
+| 2026-11-08 | Generador v0.13.0: formData Swagger URL-encoded normalizado al contrato común, CSV por defecto/multi, alias y overrides, GetParams/PostParams y diagnóstico de media/conflictos. Runtime ^0.9.0 sin cambios; multipart y otros formatos form pendientes. | [Generator v0.13.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.13.0) |

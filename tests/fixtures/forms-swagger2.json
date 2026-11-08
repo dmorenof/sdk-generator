@@ -1,0 +1,248 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Swagger Forms",
+    "version": "1"
+  },
+  "host": "api.example.test",
+  "basePath": "/v1",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/x-www-form-urlencoded"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "parameters": {
+    "Name": {
+      "name": "name",
+      "in": "formData",
+      "type": "string",
+      "required": true,
+      "minLength": 1,
+      "description": "Person name"
+    },
+    "NameAlias": {
+      "$ref": "#/parameters/Name"
+    },
+    "Ids": {
+      "name": "ids",
+      "in": "formData",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "collectionFormat": "multi",
+      "minItems": 1
+    }
+  },
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "getItems",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postItems",
+        "parameters": [
+          {
+            "$ref": "#/parameters/NameAlias"
+          },
+          {
+            "$ref": "#/parameters/Ids"
+          },
+          {
+            "name": "codes",
+            "in": "formData",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "a,b",
+                "x y"
+              ]
+            }
+          },
+          {
+            "name": "active",
+            "in": "formData",
+            "type": "boolean"
+          },
+          {
+            "name": "body",
+            "in": "formData",
+            "type": "string"
+          },
+          {
+            "name": "city-name",
+            "in": "formData",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "formData",
+            "type": "string",
+            "enum": [
+              "new",
+              "done"
+            ]
+          },
+          {
+            "name": "note",
+            "in": "formData",
+            "type": "string",
+            "x-nullable": true
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/body-only": {
+      "post": {
+        "operationId": "bodyOnly",
+        "parameters": [
+          {
+            "$ref": "#/parameters/NameAlias"
+          },
+          {
+            "$ref": "#/parameters/Ids"
+          },
+          {
+            "name": "codes",
+            "in": "formData",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "a,b",
+                "x y"
+              ]
+            }
+          },
+          {
+            "name": "active",
+            "in": "formData",
+            "type": "boolean"
+          },
+          {
+            "name": "body",
+            "in": "formData",
+            "type": "string"
+          },
+          {
+            "name": "city-name",
+            "in": "formData",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "formData",
+            "type": "string",
+            "enum": [
+              "new",
+              "done"
+            ]
+          },
+          {
+            "name": "note",
+            "in": "formData",
+            "type": "string",
+            "x-nullable": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/optional": {
+      "post": {
+        "operationId": "optionalForm",
+        "parameters": [
+          {
+            "name": "note",
+            "in": "formData",
+            "type": "string",
+            "x-nullable": true
+          },
+          {
+            "name": "labels",
+            "in": "formData",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/overrides": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "formData",
+          "type": "string",
+          "required": true,
+          "minLength": 3
+        }
+      ],
+      "post": {
+        "operationId": "overrideForm",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "formData",
+            "type": "string",
+            "required": false,
+            "minLength": 1
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  }
+}

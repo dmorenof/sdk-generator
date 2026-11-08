@@ -14,6 +14,31 @@ final class FormSupport
 {
     public const MEDIA = 'application/x-www-form-urlencoded';
 
+    /** Supported Swagger Parameter Objects can be lowered to the same form body contract. */
+    public static function swaggerField(array $field): bool
+    {
+        if (($field['in'] ?? null) !== 'formData' || !is_string($field['name'] ?? null) || $field['name'] === ''
+            || (array_key_exists('required', $field) && !is_bool($field['required']))
+            || array_intersect(array_keys($field), ['schema', 'content', 'style', 'explode', 'allowReserved']) !== []
+            || ($field['allowEmptyValue'] ?? false) !== false
+            || (array_key_exists('collectionFormat', $field) && !is_string($field['collectionFormat']))) {
+            return false;
+        }
+        foreach (['nullable', 'x-nullable'] as $flag) {
+            if (array_key_exists($flag, $field) && !is_bool($field[$flag])) {
+                return false;
+            }
+        }
+        if (($field['type'] ?? null) === 'array') {
+            return is_array($field['items'] ?? null) && self::rawScalar($field['items'])
+                && !($field['items']['nullable'] ?? $field['items']['x-nullable'] ?? false)
+                && !is_array($field['items']['type'] ?? null) && empty($field['enum'])
+                && in_array($field['collectionFormat'] ?? 'csv', ['csv', 'multi'], true);
+        }
+        return !array_key_exists('collectionFormat', $field) && self::rawScalar($field)
+            && is_string($field['type'] ?? null);
+    }
+
     /**
      * @param list<ModelDefinition> $models
      * @return array<string,'multi'|'csv'>|null
