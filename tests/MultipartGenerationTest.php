@@ -175,7 +175,7 @@ final class MultipartGenerationTest extends TestCase
                 self::assertTrue(true);
             }
         }
-        foreach ([['type' => 'object'], ['type' => 'array', 'items' => ['type' => 'string', 'format' => 'binary']],
+        foreach ([['type' => 'object'], ['type' => 'array', 'items' => ['type' => 'array', 'items' => ['type' => 'string', 'format' => 'binary']]],
             ['type' => 'string', 'format' => 'binary', 'minLength' => 1],
             ['type' => 'array', 'items' => ['type' => ['string', 'null']]]] as $field) {
             $document = self::document();

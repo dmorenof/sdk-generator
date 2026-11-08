@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.18.0** y `dmorenof/sdk-runtime` **v0.13.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.19.0** y `dmorenof/sdk-runtime` **v0.14.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -174,7 +174,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.18.0 y runtime v0.13.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
+**Situación actual:** generador v0.19.0 y runtime v0.14.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
 
 ### Revisión acordada de getParameters y postParameters
 
@@ -242,8 +242,9 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] **Parcial — Revisión HTTP/forms del paquete 03.** GetParams/PostParams con query + urlencoded en v0.12.0 y multipart básico OpenAPI en v0.15.0/Swagger en v0.16.0. Streaming PSR-18 se añade en v0.18.0; quedan encoding avanzado y otros escenarios de streaming.
 - [x] **v0.12.0 — application/x-www-form-urlencoded:** objetos cerrados con campos escalares/listas primitivas, encoding form/explode, inline/referencias locales, DTOs y validación tras mutaciones.
 - [ ] Ampliar formularios a objetos/mapas abiertos, estructuras complejas, otros estilos y negociación de representaciones.
-- [ ] **Parcial — multipart/form-data:** v0.15.0 ejecuta objetos cerrados planos con texto, listas repetidas y archivos binary en strings; contentType por campo binario y MIME mediante Guzzle. v0.16.0 incorpora Swagger type:file y listas multi. Quedan headers por parte, listas de archivos, objetos y otros encoding.
-- [ ] **Parcial — Subida de archivos binarios:** v0.17.0 acepta strings o UploadedFileInterface con nombres/MIME configurables y streams de entrada readable/seekable. v0.18.0 preserva streams por PSR-18 y verifica 32 MiB bajo límite PHP 16 MiB; solo los transportes personalizados antiguos mantienen el string completo. Quedan listas/nesting, entradas no seekables y garantías generales para otros clientes/middleware/respuestas.
+- [ ] **Parcial — multipart/form-data:** v0.15.0 ejecuta objetos cerrados planos con texto, listas repetidas y archivos binary en strings; contentType por campo binario y MIME mediante Guzzle. v0.16.0 incorpora Swagger type:file y listas multi. v0.19.0 añade listas de archivos binarias OpenAPI. Quedan headers por parte, objetos/nesting y otros encoding.
+- [ ] **Parcial — Subida de archivos binarios:** v0.17.0 acepta strings o UploadedFileInterface con nombres/MIME configurables y streams de entrada readable/seekable. v0.18.0 preserva streams por PSR-18 y verifica 32 MiB bajo límite PHP 16 MiB; solo los transportes personalizados antiguos mantienen el string completo. v0.19.0 añade listas OpenAPI. Quedan nesting, entradas no seekables y garantías generales para otros clientes/middleware/respuestas.
+- [x] **v0.19.0 — Listas de archivos OpenAPI:** arrays nativos string|UploadedFileInterface, nombres de parte repetidos, MIME/nombre por archivo, validación/mutaciones/herencia y memoria comprobada. Swagger 2.0 no define arrays de file válidos.
 - [x] **v0.18.0 — Streaming multipart PSR-18:** adaptador existente, archivos seekables, rebobinado tras middleware y repetición; compatibilidad de transportes antiguos y prueba de memoria en instalación independiente.
 - [ ] Body directo de array, mapa, escalar o binario sin envolverlo necesariamente en un DTO de objeto.
 - [ ] Selección explícita de `Content-Type` entre representaciones alternativas.
@@ -297,6 +298,13 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] Rebobinar cuerpos seekables tras inspección/reemplazo de middleware y antes de cada envío. Repetición completa de archivos; rechazar partes con el mismo cursor PSR para no truncar archivos posteriores. Mantener validación, metadatos, query/headers/body y ausente/vacío.
 - **Validación:** generador 359 pruebas / 2.692 aserciones; dieciséis SDKs con PHPStan máximo. Runtime 96 pruebas / 298 aserciones, PHPStan máximo, dependencias mínimas y smoke instalado. Dos envíos de 32 MiB con Guzzle/cURL y HTTP real bajo límite PHP de 16 MiB, pico PHP 4 MiB y parser MIME independiente. SDKs OpenAPI/Swagger instalados repiten dos envíos de 32 MiB bajo 16 MiB en CI y publicación.
 - **Límites:** subida desde archivo/stream seekable por PSR-18; legacy TransportInterface y strings siguen usando memoria, y otros clientes/middleware/opciones pueden bufferizar. Las respuestas siguen como strings. No equivale a una cota de RSS universal: pendientes garantías para no seekable/tamaño desconocido, listas/nesting, descarga streaming y encoding avanzado. [Uso y medida](docs/FORMS.md#streaming-multipart-v0180--runtime-v0130).
+
+### Entrega de listas binarias OpenAPI — v0.19.0 / runtime v0.14.0
+
+- [x] Arrays de string/binary en cuerpos multipart planos/cerrados como listas PHP string|UploadedFileInterface, sin colección de archivos propia. Reutilizar hidratación, validación y expansión Guzzle; preservar colecciones solo JSON y validación en hijos sin redeclarar campos heredados.
+- [x] Partes con nombre exacto repetido, orden, metadatos por archivo, mezcla de strings/PSR, minItems/maxItems, required, lista nullable exterior y mutaciones. Ausente/null/lista vacía sin partes; string vacío como archivo vacío. Mantener query + headers + body y rechazo JSON de objetos PSR en listas.
+- **Validación:** generador 366 pruebas / 2.741 aserciones; diecisiete SDKs con PHPStan máximo. Runtime 101 pruebas / 328 aserciones, CI/dependencias mínimas e instalación. Dos archivos de 16 MiB (32 MiB agregados) por request, dos envíos reales con Guzzle/cURL en runtime y SDK independiente bajo límite PHP 16 MiB, pico PHP 4 MiB y parser MIME independiente. Smoke de lista en CI y publicación desde tag inmutable.
+- **Límites:** solo OpenAPI 3.0/3.1, JSON/YAML, named/inline. Los arrays file de Swagger 2.0 no son válidos y siguen diagnosticados. Sin items null/nested/enum/pattern/límites Unicode, CSV/explode false ni headers por parte. Se mantienen límites de nombres/MIME/streams y memoria de clientes/middleware/transportes antiguos/respuestas. [Uso](docs/FORMS.md#openapi-binary-file-lists-v0190).
 
 ### Respuestas
 
@@ -603,3 +611,4 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-08 | Generador v0.16.0: multipart Swagger type:file/formData normalizado al contrato común, multi explícito, consumes/alias/overrides y diagnóstico contextual; mismo SDK que OpenAPI y runtime estable ^0.11.1 sin cambios. | [Generator v0.16.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.16.0) |
 | 2026-11-08 | Generador v0.17.0 + runtime v0.12.0: archivos multipart PSR con nombres/MIME y streams seekables, unión nativa string|UploadedFileInterface, validación y protección JSON. Sin wrappers propios; el transporte sigue buffered y streaming HTTP/memoria acotada queda pendiente. | [Generator v0.17.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.17.0), [Runtime v0.12.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.12.0) |
 | 2026-11-08 | Generador v0.18.0 + runtime v0.13.0: multipart en streaming por el adaptador PSR-18 existente, compatibilidad legacy, rebobinado y smoke 32 MiB bajo límite PHP 16 MiB. HTTP real con Guzzle/cURL y archivo íntegro; límites de clientes/middleware/respuestas explícitos. | [Generator v0.18.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.18.0), [Runtime v0.13.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.13.0) |
+| 2026-11-08 | Generador v0.19.0 + runtime v0.14.0: listas de archivos binarios OpenAPI con PHP/PSR nativos, partes repetidas, metadatos individuales, validación e herencia; colecciones solo JSON conservadas. Dos archivos de 16 MiB por request bajo límite PHP 16 MiB, SDK instalado y parser MIME independiente. | [Generator v0.19.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.19.0), [Runtime v0.14.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.14.0) |

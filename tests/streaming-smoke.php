@@ -8,11 +8,9 @@ if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     throw new RuntimeException('Streaming SDK must run independently with a stable runtime.');
 }
 $bytes = 32 * 1024 * 1024;
-$file = tmpfile();
-if ($file === false || !ftruncate($file, $bytes)) {
-    throw new RuntimeException('Cannot prepare streaming fixture.');
-}
-$http = isset($argv[2]) ? null : new class($bytes) implements \Psr\Http\Client\ClientInterface {
+$list = ($argv[3] ?? '') === 'list';
+$realHttp = isset($argv[2]) && $argv[2] !== '';
+$http = $realHttp ? null : new class($bytes) implements \Psr\Http\Client\ClientInterface {
     public function __construct(private int $fileBytes) {}
     public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface
     {
@@ -34,20 +32,39 @@ $http = isset($argv[2]) ? null : new class($bytes) implements \Psr\Http\Client\C
         return new \GuzzleHttp\Psr7\Response(204);
     }
 };
+$files = [];
 try {
-    $client = \Example\MultipartSdk\Client::connect($argv[2] ?? 'https://api.example.test/v1', $http);
+    $uploads = [];
+    $count = $list ? 2 : 1;
+    for ($index = 0; $index < $count; ++$index) {
+        $file = tmpfile();
+        if ($file === false) {
+            throw new RuntimeException('Cannot prepare streaming fixture.');
+        }
+        $files[] = $file;
+        if (!ftruncate($file, intdiv($bytes, $count))) {
+            throw new RuntimeException('Cannot size streaming fixture.');
+        }
+        $uploads[] = new \GuzzleHttp\Psr7\UploadedFile($file, intdiv($bytes, $count), UPLOAD_ERR_OK,
+            $list ? ['first.png', 'second.pdf'][$index] : 'large.png', $index === 1 ? 'application/pdf' : 'image/png');
+    }
+    $body = (object) ['name' => 'body name'];
+    $body->{$list ? 'attachments' : 'file'} = $list ? $uploads : $uploads[0];
+    $client = \Example\MultipartSdk\Client::connect($realHttp ? $argv[2] : 'https://api.example.test/v1', $http);
     $items = $client->resource(\Example\MultipartSdk\Resources\Items::class);
     $params = new \Example\MultipartSdk\PostParams\Items((object) [
         'name' => 'query name', 'queryBody' => 'query-body', 'X-Trace' => 'trace',
-        'body' => (object) ['name' => 'body name', 'file' => new \GuzzleHttp\Psr7\UploadedFile(
-            $file, $bytes, UPLOAD_ERR_OK, 'large.png', 'image/png')],
+        'body' => $body,
     ]);
     $items->post($params);
     $items->post($params);
     if (memory_get_peak_usage(true) >= 16 * 1024 * 1024) {
         throw new RuntimeException('Streaming SDK exceeded its PHP memory bound.');
     }
-    echo 'PUBLISHED_STREAMING_SDK_OK size=', $bytes, ' peak=', memory_get_peak_usage(true), PHP_EOL;
+    echo $list ? 'PUBLISHED_FILE_LIST_SDK_OK' : 'PUBLISHED_STREAMING_SDK_OK';
+    echo ' size=', $bytes, ' peak=', memory_get_peak_usage(true), PHP_EOL;
 } finally {
-    fclose($file);
+    foreach ($files as $file) {
+        fclose($file);
+    }
 }

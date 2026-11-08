@@ -1,4 +1,4 @@
-# HTTP forms and multipart (v0.18.0 / runtime v0.13.0)
+# HTTP forms and multipart (v0.19.0 / runtime v0.14.0)
 
 OpenAPI 3.0/3.1 request bodies declared as application/x-www-form-urlencoded can
 use an object with explicit `additionalProperties: false`, scalar properties and
@@ -69,7 +69,7 @@ with the same in/name identity. Swagger body and formData parameters cannot coex
 
 The generator emits explicit metadata for Swagger's different CSV default.
 Equivalent OpenAPI and Swagger fixtures produce byte-identical SDKs. This adapter introduced no new HTTP
-serializer in v0.13.0; current generated SDKs require stable runtime ^0.13.0.
+serializer in v0.13.0; current generated SDKs require stable runtime ^0.14.0.
 
 With `forms-swagger2.json` and namespace `Example\SwaggerForms`:
 
@@ -148,8 +148,9 @@ priority, then URL-encoded forms, then multipart; per-call negotiation is pendin
 stream. Legacy custom transports still accept complete strings and therefore
 buffer. Use file-backed PSR uploads for large files; see measured limits below.
 Readable, seekable streams are accepted through PSR UploadedFileInterface since
-v0.17.0, with configurable filenames. Direct stream/resource properties, file lists,
-nested objects, open maps, null list items, CSV multipart arrays and per-part
+v0.17.0, with configurable filenames; OpenAPI binary lists are added in v0.19.0.
+Direct stream/resource properties, nested objects, open maps, null list items,
+CSV multipart arrays and per-part
 headers remain pending. Binary enum/pattern/minLength/maxLength constraints are rejected
 because their current Unicode string semantics do not validate arbitrary bytes.
 Binary DTOs are sent through multipart; JSON encoding arbitrary byte strings can
@@ -204,7 +205,7 @@ policies: required absence fails, empty strings send empty file parts, optional
 absence/null is omitted, and mutations are checked before HTTP. File enum,
 pattern/Unicode length/numeric/item constraints, default, explicit format and
 collectionFormat are rejected rather than reinterpreted as file-size rules.
-File lists and nested structures remain unsupported. The same buffering and
+Swagger file arrays remain unsupported because they are not valid Swagger 2.0; nested structures also remain unsupported. The same buffering and
 advanced-encoding limits documented above apply. Equivalent Swagger/OpenAPI
 fixtures produce byte-identical SDK source and share the independent installed
 SDK smoke in release verification.
@@ -255,8 +256,8 @@ explicitly; they cannot silently turn into empty JSON objects. Request-direction
 filtering, wire names, required/nullable fields and mutation validation still apply.
 
 Since v0.18.0, the standard PSR-18 path streams multipart to the HTTP client.
-Legacy custom transports still receive the complete body string. File lists,
-nested file data and advanced part encoding remain pending. Both OpenAPI and
+Legacy custom transports still receive the complete body string. OpenAPI file
+lists are added in v0.19.0; nested file data and advanced part encoding remain pending. Both OpenAPI and
 Swagger installed-SDK publication smokes exercise string and PSR uploads, plus
 the measured streaming case below.
 
@@ -292,5 +293,73 @@ This is an upload-path measurement, not a universal whole-process/RSS bound.
 String inputs already occupy memory; legacy transports buffer. An injected client,
 middleware or options can buffer, and response bodies are still collected as
 strings. The SDK preserves the request stream and default Guzzle/cURL streams the
-tested large file. Non-seekable inputs, unknown-size transport guarantees, file
-lists/nesting and streaming response/download support remain pending.
+tested large file. OpenAPI file lists are added below. Non-seekable inputs,
+unknown-size transport guarantees, nesting and streaming response/download
+support remain pending.
+
+
+## OpenAPI binary file lists (v0.19.0 / runtime v0.14.0)
+
+An explicitly closed, flat multipart object can declare a binary array property:
+
+```yaml
+attachments:
+  type: array
+  minItems: 1
+  maxItems: 2
+  items: { type: string, format: binary }
+```
+
+The multipart body DTO declares `array $attachments` with PHPDoc
+`list<string|\Psr\Http\Message\UploadedFileInterface>`, plus null when the outer
+field is nullable. Constructor hydration and every request validate list shape,
+item types, bounds and required fields. Inherited native array fields retain
+these rules without redeclaration. Models used only by JSON operations keep their
+existing TypedArray collection representation. No file-list wrapper is added.
+
+With multipart-file-lists-openapi31.json and namespace Example\FileLists:
+
+```php
+$params = new \Example\FileLists\PostParams\Items((object) [
+    'name' => 'query name',
+    'queryBody' => 'query-body',
+    'X-Trace' => 'trace',
+    'body' => (object) [
+        'name' => 'body name',
+        'attachments' => [
+            new \GuzzleHttp\Psr7\UploadedFile('/path/first.png', null, UPLOAD_ERR_OK, 'first.png', 'image/png'),
+            new \GuzzleHttp\Psr7\UploadedFile('/path/second.pdf', null, UPLOAD_ERR_OK, 'second.pdf', 'application/pdf'),
+        ],
+    ],
+]);
+$client->resource(\Example\FileLists\Resources\Items::class)->post($params);
+```
+
+The files become two parts named attachments, in input order, with each PSR
+filename and MIME. There are no automatically added [] or index suffixes.
+Strings and PSR uploads can be mixed. String items use the static
+basename(field) + `.bin` filename and declared MIME/octet-stream fallback.
+An explicit encoding.contentType restricts every file in that field; omitted
+contentType permits each upload's own MIME. Each file must use an independent,
+readable, seekable stream cursor. Existing failed-upload/unsafe-metadata checks
+and repeat-send rewinding apply to every item.
+
+Absent optional fields, null outer fields and empty lists produce no parts;
+empty strings produce empty file parts. minItems/maxItems still apply when the
+list is present. Array-level enum restrictions (including empty enum) are rejected.
+Nullable items, nested arrays/objects, item enum/pattern/Unicode
+length constraints, CSV/explode:false and part headers remain unsupported and
+diagnosed. JSON serialization still rejects PSR uploads inside lists; ordinary
+string lists remain valid JSON data when their strings are JSON-compatible.
+
+This feature supports OpenAPI 3.0/3.1 JSON and YAML, named/inline request bodies,
+GetParams/PostParams and independent query/header/body values. Swagger 2.0 type:file
+parameters remain supported individually; file arrays are not a valid Swagger
+Items Object and are rejected, including nonstandard binary-array substitutes.
+
+The runtime and an independently installed generated SDK each sent two independent
+16 MiB files (32 MiB aggregate), twice, using default Guzzle/cURL under a 16 MiB
+PHP limit. Measured PHP peak was 4 MiB; an independent MIME parser checked both
+complete files, their repeated names, filenames/MIME, URL query and header. CI and
+immutable-release installation repeat the bounded-memory list smoke. The existing
+client/middleware/legacy transport/response memory limits still apply.
