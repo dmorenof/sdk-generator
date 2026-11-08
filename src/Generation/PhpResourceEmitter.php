@@ -22,6 +22,8 @@ final readonly class PhpResourceEmitter
         'validation' => [],
         'serverUrl' => null,
         'querySerialization' => [],
+        'requestMediaType' => 'application/json',
+        'bodySerialization' => [],
     ];
 
     /**
@@ -40,6 +42,8 @@ final readonly class PhpResourceEmitter
         private array $requestTypes = [],
         /** @var array<string,array<string,string>> */
         private array $queryTypes = [],
+        /** @var list<\Dmorenof\SdkGenerator\Contract\ModelDefinition> */
+        private array $formModels = [],
     ) {}
 
     /** @return array<string,string> */
@@ -352,6 +356,13 @@ PHP;
 
         $validation = [];
         $querySerialization = [];
+        $bodySerialization = [];
+        if ($operation->requestBody?->mediaType === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA) {
+            $bodySerialization = \Dmorenof\SdkGenerator\Parsing\FormSupport::formats($operation->requestBody, $this->formModels);
+            if ($bodySerialization === null) {
+                throw new InvalidArgumentException("Unsupported form body schema or encoding at $operation->operationId.");
+            }
+        }
         foreach ($operation->parameters as $parameter) {
             if ($parameter->location === 'query') {
                 if (isset($this->queryTypes[$operation->operationId][$parameter->wireName])) {
@@ -398,6 +409,9 @@ PHP;
             'validation' => $validation,
             'serverUrl' => $serverUrl,
             'querySerialization' => $querySerialization,
+            'requestMediaType' => $operation->requestBody?->mediaType === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA
+                ? \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA : 'application/json',
+            'bodySerialization' => $bodySerialization,
         ];
         foreach (self::OPERATION_DEFAULTS as $key => $default) {
             if ($metadata[$key] === $default) {

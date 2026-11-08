@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.11.0** y `dmorenof/sdk-runtime` **v0.8.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.12.0** y `dmorenof/sdk-runtime` **v0.9.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -168,9 +168,9 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ### Revisión acordada de getParameters y postParameters
 
-- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.11.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON. No existen símbolos literales getParameters/postParameters en el emisor actual. Quedan formularios urlencoded/multipart.
-- [ ] **Parcial — Separar método y ubicación.** v0.11.0 comprueba query en GET/POST junto con body JSON y distingue un query llamado body del payload real. Quedan las combinaciones con formularios.
-- [ ] Cubrir GET con query y POST con query + body JSON, urlencoded o multipart, incluidos nombres coincidentes en query/body, arrays, valores ausentes/null/vacíos y mutaciones. Verificar URL, headers, Content-Type y bytes del cuerpo desde la API pública generada y el runtime común.
+- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.12.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded. No existen símbolos literales getParameters/postParameters en el emisor actual. Queda multipart.
+- [ ] **Parcial — Separar método y ubicación.** v0.12.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded, y distingue un query llamado body del payload real. Quedan las combinaciones con multipart.
+- [ ] **Parcial — Pruebas GET/POST HTTP y forms.** v0.12.0 cubre GET query, POST query + headers + JSON/urlencoded, nombres coincidentes/body, arrays, ausente/null/vacío y mutaciones; URL, Content-Type y bytes exactos, PSR-18, HTTP real cloud-local e instalación independiente. Queda multipart.
 
 ### OpenAPI 3.x
 
@@ -229,8 +229,9 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ### Peticiones
 
-- [ ] Al implementar formularios, completar la revisión de `getParameters`/`postParameters` del paquete 03 y comprobar compatibilidad de `GetParams`/`PostParams` con query + formulario en la misma operación.
-- [ ] `application/x-www-form-urlencoded`.
+- [ ] **Parcial — Revisión HTTP/forms del paquete 03.** GetParams/PostParams con query + urlencoded completado en v0.12.0; queda la combinación con multipart.
+- [x] **v0.12.0 — application/x-www-form-urlencoded:** objetos cerrados con campos escalares/listas primitivas, encoding form/explode, inline/referencias locales, DTOs y validación tras mutaciones.
+- [ ] Ampliar formularios a objetos/mapas abiertos, estructuras complejas, otros estilos y negociación de representaciones.
 - [ ] `multipart/form-data`, incluido `encoding` por propiedad y mezcla de texto/archivos.
 - [ ] Subida de archivos binarios; soporte de streams y manejo de memoria controlado.
 - [ ] Body directo de array, mapa, escalar o binario sin envolverlo necesariamente en un DTO de objeto.
@@ -238,6 +239,14 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] Múltiples representaciones JSON con esquemas distintos.
 - [ ] Referencias a `components/requestBodies`.
 - [ ] Tratar correctamente cuerpos ausentes, `null`, vacíos y opcionales.
+
+### Entrega de formularios URL-encoded — v0.12.0 / runtime v0.9.0
+
+- [x] Selección de form cuando no hay JSON; mantener prioridad JSON existente y diagnosticar alternativas incompatibles. Contrato y ejecución comparten schema/encoding; runtime estable `^0.9.0`.
+- [x] Campos escalares y arrays primitivos multi/CSV, JSON names/enums, required/reglas/dirección y mutaciones. Distinguir body ausente de formulario vacío, omitir campos null/listas vacías y conservar strings vacíos.
+- [x] GetParams/PostParams y body-only, query + headers + body/form con nombres coincidentes y query llamado body, API estática y por instancia. JSON/YAML, OpenAPI 3.0/3.1, requestBody reutilizado e inline.
+- **Validación:** generador 332 pruebas / 2.486 aserciones; trece SDKs con PHPStan max y Casafari 46/46. Runtime: 77 pruebas / 196 aserciones y PHPStan max. HTTP real cloud-local comprueba URL, headers y bytes; publicación comprueba SDK instalado independiente y mutaciones.
+- **Límites:** objetos form cerrados con campos escalares/listas primitivas; sin items null/nesting, mapas abiertos, encoding de contentType/headers, allowReserved true, multipart/archivos ni Swagger formData. No cierra el paquete 04 ni toda la revisión de forms. [Uso y límites](docs/FORMS.md).
 
 ### Respuestas
 
@@ -539,3 +548,5 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-08 | Entrega coordinada: generador v0.10.0 + runtime v0.7.0, arrays query spaceDelimited/pipeDelimited y Swagger ssv/tsv/pipes con rechazo de valores ambiguos. Dependencia estable ^0.7.0; el paquete 03 sigue parcial. | [Generator v0.10.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.10.0), [Runtime v0.7.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.7.0) |
 
 | 2026-11-08 | Entrega coordinada: generador v0.11.0 + runtime v0.8.0, deepObject query plano, DTOs/Maps y separación de query body frente a JSON body en GetParams/PostParams. Revisión de HTTP parcial; formularios pendientes. | [Generator v0.11.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.11.0), [Runtime v0.8.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.8.0) |
+
+| 2026-11-08 | Entrega coordinada: generador v0.12.0 + runtime v0.9.0, forms URL-encoded escalares/listas, encoding form/explode y revisión GetParams/PostParams con query/headers/body. Multipart y Swagger formData siguen pendientes. | [Generator v0.12.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.12.0), [Runtime v0.9.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.9.0) |

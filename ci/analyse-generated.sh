@@ -42,3 +42,5 @@ analyse query-arrays query-arrays-openapi31.json 'Example\QueryArraySdk'
 analyse delimited-query query-delimited-openapi31.json 'Example\DelimitedQuerySdk'
 
 analyse query-objects query-objects-openapi31.json 'Example\QueryObjectSdk'
+
+analyse forms forms-openapi31.json 'Example\FormSdk'

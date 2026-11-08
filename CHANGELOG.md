@@ -6,6 +6,14 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.12.0] — 2026-11-08
+
+- Generate OpenAPI 3.0/3.1 application/x-www-form-urlencoded request bodies for closed object schemas with scalar fields and primitive lists. Reuse named body DTOs, generate inline bodies and preserve local requestBody references. JSON retains precedence when both representations are declared; per-call media negotiation remains pending.
+- Execute per-field form encoding with default/explicit form style and explode true (repeated keys) or false (CSV); require stable runtime ^0.9.0. Encode spaces as +, literal plus/tilde/percent as data, preserve backed enums and JSON names, apply request-direction fields and revalidate mutations.
+- Verify GetParams remains query-only and PostParams separates query, headers and form body even for coincident names and a query named body. Distinguish absent body, present empty form, null fields, empty strings and lists. Body-only operations reuse the original DTO.
+- Extend strict inspection to supported form schemas/encoding and reject unsupported options, nested fields, unconstrained objects, nullable list items, multipart and files. Swagger formData and other form styles remain pending.
+- Validate 13 SDKs at PHPStan max, exact PSR-18 URL/header/body bytes, a real HTTP POST to a cloud-local server and a separately installed form SDK in immutable-release verification. Update the HTTP/forms roadmap and actual limits.
+
 ## [0.11.0] — 2026-11-08
 
 - Generate typed query objects for OpenAPI `style: deepObject`, `explode: true`: inline or local referenced flat scalar object schemas with explicit `additionalProperties: false` or a supported scalar value schema. Reuse named DTOs and existing typed Maps; reject undefined nested/null properties, unconstrained extras and other object styles.

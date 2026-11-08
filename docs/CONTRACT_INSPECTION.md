@@ -1,4 +1,4 @@
-# Contract inspection (v0.11.0)
+# Contract inspection (v0.12.0)
 
 SDK Generator v0.4.0 adds an HTTP-contract audit before generation and executes literal
 absolute HTTP(S) operation servers. General serializers, relative/template server
@@ -38,7 +38,7 @@ numbers, external URI resolution and complete structural/dialect validation rema
 pending. JSON Pointer inspection does not expand the normalizer's reference support.
 Literal Casafari path server overrides execute through stable
 [runtime v0.5.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.5.0).
-The generator and generated packages require `^0.8.0`; installation does not
+The generator and generated packages require `^0.9.0`; installation does not
 depend on a development branch.
 
 ## Preserved canonical metadata
@@ -238,3 +238,17 @@ Generated GetParams and PostParams use typed query DTOs/Maps; query objects may
 coexist with a JSON body. A query named body has a distinct operation field;
 actual bodies are marked explicitly. Forms and multipart remain pending.
 See [query objects](QUERY_OBJECTS.md).
+
+## URL-encoded form requests (v0.12.0 / runtime v0.9.0)
+
+Inspection accepts OpenAPI application/x-www-form-urlencoded bodies with closed
+object schemas, scalar fields/primitive lists and supported per-field form/explode
+encoding. Unsupported form schemas or encoding options fail strict acceptance.
+Local named schemas, reusable request bodies, JSON/YAML and OpenAPI 3.0/3.1 share
+one executable pipeline. JSON retains selection precedence when available;
+adding a form alternative does not make an incompatible JSON media choice valid.
+
+Multipart, files, Swagger formData, nested/open fields, contentType/headers in
+encoding, reserved expansion and other styles remain pending. These boundaries
+are diagnosed; the implementation does not claim general form support.
+See [forms and parameter DTOs](FORMS.md).

@@ -428,9 +428,13 @@ final class SpecificationNormalizer
             if (!is_array($raw) || isset($raw['$ref'])) {
                 throw new InvalidArgumentException("Unsupported requestBody reference at $where.");
             }
-            $bodyContent = $this->jsonContent($raw['content'] ?? [], "$where.requestBody");
+            $content = $raw['content'] ?? [];
+            $hasJson = count(array_filter(array_keys($content), fn ($media): bool => is_string($media) && $this->isJsonMediaType($media))) > 0;
+            $bodyContent = !$hasJson && isset($content[FormSupport::MEDIA]['schema'])
+                ? ['mediaType' => FormSupport::MEDIA, 'schema' => $content[FormSupport::MEDIA]['schema']]
+                : $this->jsonContent($content, "$where.requestBody");
             if ($bodyContent === null) {
-                throw new InvalidArgumentException("Missing JSON request body at $where.");
+                throw new InvalidArgumentException("Missing supported request body at $where.");
             }
             $requestBody = new RequestBodyDefinition(
                 $bodyContent['mediaType'],

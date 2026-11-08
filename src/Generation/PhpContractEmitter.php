@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.8.0';
+    public const RUNTIME_CONSTRAINT = '^0.9.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -976,6 +976,10 @@ final class PhpContractEmitter
         $methods = [];
         $seen = [];
         foreach ($contract->operations as $operation) {
+            if ($operation->requestBody?->mediaType === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA
+                && \Dmorenof\SdkGenerator\Parsing\FormSupport::formats($operation->requestBody, $contract->models) === null) {
+                throw new InvalidArgumentException("Unsupported form body schema or encoding at $operation->operationId.");
+            }
             foreach ($operation->parameters as $parameter) {
                 if (\Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::supported($parameter, $contract->models)) {
                     $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
@@ -1074,7 +1078,7 @@ final class PhpContractEmitter
         }
         if ($body->schema->kind !== SchemaKind::Object) {
             throw new InvalidArgumentException(
-                "Unsupported inline request body at $operation->operationId: expected JSON object."
+                "Unsupported inline request body at $operation->operationId: expected object."
             );
         }
         $segments = [];
