@@ -6,6 +6,13 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.18.0] — 2026-11-08
+
+- Require published stable runtime ^0.13.0 for streaming multipart through the existing PSR-18 adapter. Generated classes inherit the behavior; no new per-SDK streaming implementation, transport interface or upload wrapper. Legacy custom transports continue receiving strings.
+- Preserve query/header/body separation, file metadata, validation and repeat sends. The adapter rewinds seekable bodies after middleware; file parts with a shared PSR stream cursor fail before truncating a later part.
+- Extend CI and immutable-release verification with independent OpenAPI/Swagger SDK consumers sending two 32 MiB bodies under PHP memory_limit=16M. Verify MultipartStream at the PSR-18 boundary and run real cloud-local HTTP against an independent MIME parser. Sixteen installed SDKs pass PHPStan maximum.
+- Update pendientes.md and measured limits: streaming works for file-backed seekable uploads through the tested PSR-18/Guzzle path; strings, legacy transports, client/middleware configuration and response bodies may still use buffering. Non-seekable/file-list/nested uploads and streaming downloads remain pending.
+
 ## [0.17.0] — 2026-11-08
 
 - Widen native binary DTO properties to string|Psr\Http\Message\UploadedFileInterface (plus null when nullable), retaining string inputs and the existing operation/transport signatures. Reuse Guzzle UploadedFile and PSR streams rather than introducing upload wrappers or factories. Require published stable runtime ^0.12.0.

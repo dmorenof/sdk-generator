@@ -227,6 +227,7 @@ final class MultipartGenerationTest extends TestCase
         $items->post($params);
         $items->post($params);
         foreach ($history as $call) {
+            self::assertInstanceOf(\GuzzleHttp\Psr7\MultipartStream::class, $call['request']->getBody());
             self::assertSame('https://api.example.test/v1/items?body=query%20%2B', (string) $call['request']->getUri());
             self::assertSame('trace', $call['request']->getHeaderLine('X-Trace'));
             self::assertStringContainsString('filename="original.png"', (string) $call['request']->getBody());
