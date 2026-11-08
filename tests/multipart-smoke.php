@@ -24,6 +24,9 @@ $params = new \Example\MultipartSdk\PostParams\Items((object) [
     'name' => 'query name', 'queryBody' => 'query-body', 'X-Trace' => 'trace',
     'body' => (object) ['name' => 'body name', 'active' => false, 'file' => "\x00\xff\r\n", 'ids' => [1, 2]],
 ]);
+if (($argv[4] ?? '') === 'psr') {
+    $params->body->file = new \GuzzleHttp\Psr7\UploadedFile(\GuzzleHttp\Psr7\Utils::streamFor("\x00\xff\r\n"), 4, UPLOAD_ERR_OK, 'original.png', 'image/png');
+}
 $items->post($params);
 if ($realHttp) {
     echo "MULTIPART_REAL_HTTP_OK", PHP_EOL;
@@ -42,13 +45,21 @@ if ($call['url'] !== 'https://api.example.test/v1/items?body=query-body&name=que
     || substr_count($call['body'], 'name="ids"') !== 2) {
     throw new RuntimeException('Installed multipart SDK did not preserve its HTTP contract.');
 }
+$params->body->file = new \GuzzleHttp\Psr7\UploadedFile(\GuzzleHttp\Psr7\Utils::streamFor("\x00\xff\r\n"), 4, UPLOAD_ERR_OK, 'original.png', 'image/png');
+$items->post($params);
+if (!str_contains($transport->calls[1]['body'], 'filename="original.png"')
+    || !str_contains($transport->calls[1]['body'], 'Content-Type: image/png')
+    || !str_contains($transport->calls[1]['body'], "\r\n\r\n\x00\xff\r\n\r\n")) {
+    throw new RuntimeException('Installed SDK did not preserve PSR uploaded file metadata/bytes.');
+}
 try {
     $params->body->name = '';
     $items->post($params);
     throw new RuntimeException('Invalid multipart mutation accepted.');
 } catch (UnexpectedValueException) {
-    if (count($transport->calls) !== 1) {
+    if (count($transport->calls) !== 2) {
         throw new RuntimeException('Invalid multipart mutation reached transport.');
     }
 }
 echo "PUBLISHED_MULTIPART_SDK_OK", PHP_EOL;
+echo "PUBLISHED_PSR_UPLOAD_SDK_OK", PHP_EOL;

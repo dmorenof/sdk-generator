@@ -1,4 +1,4 @@
-# HTTP forms and multipart (v0.16.0 / runtime v0.11.1)
+# HTTP forms and multipart (v0.17.0 / runtime v0.12.0)
 
 OpenAPI 3.0/3.1 request bodies declared as application/x-www-form-urlencoded can
 use an object with explicit `additionalProperties: false`, scalar properties and
@@ -69,7 +69,7 @@ with the same in/name identity. Swagger body and formData parameters cannot coex
 
 The generator emits explicit metadata for Swagger's different CSV default.
 Equivalent OpenAPI and Swagger fixtures produce byte-identical SDKs. This adapter introduced no new HTTP
-serializer in v0.13.0; current generated SDKs require stable runtime ^0.11.1.
+serializer in v0.13.0; current generated SDKs require stable runtime ^0.12.0.
 
 With `forms-swagger2.json` and namespace `Example\SwaggerForms`:
 
@@ -103,7 +103,7 @@ as forms. Text scalars and primitive non-null list items become text/plain parts
 lists repeat the field name. Nullable fields are omitted when null, empty lists
 produce no parts and empty strings produce empty parts. Binary fields declare
 `type: string, format: binary` and accept raw bytes in their native PHP string
-property. No file DTO or upload wrapper is added. Guzzle PSR-7 MultipartStream
+property, or a PSR UploadedFileInterface since v0.17.0 (see below). No file DTO or upload wrapper is added. Guzzle PSR-7 MultipartStream
 constructs boundaries, headers and MIME bytes in the shared runtime.
 
 For the shipped multipart-openapi31.json fixture, namespace Example\MultipartSdk:
@@ -125,9 +125,10 @@ $client->resource(\Example\MultipartSdk\Resources\Items::class)->post($params);
 
 The URL query is body=query-body&name=query%20name. The file part has wire name
 file, filename file.bin and Content-Type image/png (from encoding.file.contentType).
-Without an explicit contentType, binary parts use application/octet-stream.
-Filenames are fixed as basename(wire field) + `.bin`; MIME type remains independent
-of that extension. Original filenames and caller-defined filenames are pending.
+Without an explicit contentType, string files use application/octet-stream; PSR
+uploads can supply their MIME type. Strings use basename(wire field) + `.bin`
+filenames; PSR uploads can supply their filename. MIME type remains independent
+of the filename extension. Explicit contentType remains a contract restriction.
 A single concrete MIME type without parameters or alternatives is accepted.
 Text contentType may only be text/plain. Encoding style must be omitted/form,
 explode omitted/true and allowReserved omitted/false. Headers and other encoding
@@ -146,9 +147,10 @@ priority, then URL-encoded forms, then multipart; per-call negotiation is pendin
 **Memory limit:** the existing public transport interface accepts a complete string.
 Multipart bodies are buffered; there is no streaming or bounded-memory guarantee
 for large files. Read only files whose size your application can hold in memory.
-Native streams/resources, file lists, nested objects, open maps, null list items,
-CSV multipart arrays, per-part headers and arbitrary filenames
-remain pending. Binary enum/pattern/minLength/maxLength constraints are rejected
+Readable, seekable streams are accepted through PSR UploadedFileInterface since
+v0.17.0, with configurable filenames. Direct stream/resource properties, file lists,
+nested objects, open maps, null list items, CSV multipart arrays and per-part
+headers remain pending. Binary enum/pattern/minLength/maxLength constraints are rejected
 because their current Unicode string semantics do not validate arbitrary bytes.
 Binary DTOs are sent through multipart; JSON encoding arbitrary byte strings can
 fail when they are not UTF-8.
@@ -183,10 +185,10 @@ parameters:
     collectionFormat: multi
 ```
 
-The file's content is assigned as bytes to the generated body DTO, exactly as in
-the OpenAPI example. Files use application/octet-stream and fixed
+The file's content is assigned as bytes or a PSR uploaded file to the body DTO,
+exactly as in the OpenAPI example. String files use application/octet-stream and
 basename(field) + `.bin` filenames. Swagger does not declare per-property
-encoding; caller-configurable filenames and MIME types remain pending.
+encoding; PSR uploads can supply their filename and MIME type since v0.17.0.
 
 One consumes representation is required. Operation consumes overrides root
 consumes; an operation declaring null/empty consumes is rejected. A GET with no
@@ -206,3 +208,54 @@ File lists and nested structures remain unsupported. The same buffering and
 advanced-encoding limits documented above apply. Equivalent Swagger/OpenAPI
 fixtures produce byte-identical SDK source and share the independent installed
 SDK smoke in release verification.
+
+
+## PSR uploaded files (v0.17.0 / runtime v0.12.0)
+
+Binary DTO properties now declare `string|\Psr\Http\Message\UploadedFileInterface`,
+with `|null` for nullable fields. Existing string assignments keep working. Callers
+reading the property should account for both types. This explicit input union
+is separate from pending general native OpenAPI oneOf/anyOf union support.
+
+Use the already installed Guzzle PSR-7 implementation, or any compatible PSR
+implementation; no generator-specific file class or factory is required:
+
+```php
+$params->body->file = new \GuzzleHttp\Psr7\UploadedFile(
+    '/path/to/photo.png',
+    null, // size may be unknown
+    UPLOAD_ERR_OK,
+    'original.png',
+    'image/png',
+);
+$client->resource(\Example\MultipartSdk\Resources\Items::class)->post($params);
+```
+
+Guzzle accepts a local path, PHP resource or PSR stream in UploadedFile's first
+argument. The body property itself accepts the PSR uploaded file, rather than a
+bare stream/resource. Its readable, seekable stream is passed to Guzzle's existing
+MultipartStream; Guzzle rewinds it for complete repeat sends. Changing the DTO's
+file before the next request changes the transmitted content and metadata.
+
+The upload's client filename takes precedence over the static field-derived
+fallback; null keeps the fallback. Guzzle sends its basename. Names must be
+printable ASCII without quotes/backslashes; empty names and filename `0` are
+rejected. The latter avoids an ambiguity in older supported PSR-7 versions.
+
+If OpenAPI declares encoding.contentType, the uploaded MIME must match it
+(case-insensitively), or be absent. A mismatch fails before HTTP. Without an
+explicit type, the client MIME is accepted, with application/octet-stream as the
+fallback. This also permits MIME selection for Swagger uploads. Only a single
+concrete MIME type without parameters is supported; no MIME sniffing or content
+inspection is implied. Text part rules do not change.
+
+Failed uploads, moved/unreadable streams, non-seekable streams and unsafe metadata
+fail before transport. JSON and URL-encoded serialization reject uploaded objects
+explicitly; they cannot silently turn into empty JSON objects. Request-direction
+filtering, wire names, required/nullable fields and mutation validation still apply.
+
+**Buffering remains:** accepting a file path or input stream does not mean the
+HTTP transport streams the upload. The existing public transport receives the
+complete body string. Streaming HTTP and bounded-memory uploads, file lists,
+nested file data and advanced part encoding remain pending. Both OpenAPI and
+Swagger installed-SDK publication smokes exercise string and PSR uploads.

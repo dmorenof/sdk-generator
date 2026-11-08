@@ -54,7 +54,7 @@ final class SwaggerMultipartGenerationTest extends TestCase
         self::assertSame($expected, self::files(self::document()));
         $contract = (new SpecificationNormalizer())->fromYaml(Yaml::dump(self::document(), 40), strict: true);
         self::assertSame($expected, (new PhpExecutableEmitter('Example\\SwaggerMultipart', 'example/swagger-multipart'))->emit($contract));
-        self::assertStringContainsString('public string $file;', $expected['src/Requests/Items/Post.php']);
+        self::assertStringContainsString('public string|\\Psr\\Http\\Message\\UploadedFileInterface $file;', $expected['src/Requests/Items/Post.php']);
     }
 
     public function testGetPostParamsAndBinaryFilesUseExistingMultipartExecutor(): void
@@ -194,5 +194,21 @@ final class SwaggerMultipartGenerationTest extends TestCase
         $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));
         self::assertFalse($report['strictlyAccepted']);
         self::assertContains('swagger_form_body_conflict', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
+    }
+
+    public function testSwaggerUsesPsrFilenameAndMimeWithoutInventingAnUploadClass(): void
+    {
+        $transport = new SwaggerMultipartTransport();
+        $client = \Example\SwaggerMultipart\Client::connect('https://api.example.test/v1', transport: $transport);
+        $upload = new \GuzzleHttp\Psr7\UploadedFile(\GuzzleHttp\Psr7\Utils::streamFor("\x00\xff"), 2, UPLOAD_ERR_OK, 'report.pdf', 'application/pdf');
+        $optional = new \Example\SwaggerMultipart\Requests\Optional\Post((object) ['file' => $upload]);
+        self::assertSame($upload, $optional->file);
+        $client->resource(\Example\SwaggerMultipart\Resources\Optional::class)->post($optional);
+        self::assertStringContainsString('filename="report.pdf"', $transport->calls[0]['body']);
+        self::assertStringContainsString('Content-Type: application/pdf', $transport->calls[0]['body']);
+        self::assertStringContainsString("\r\n\r\n\x00\xff\r\n", $transport->calls[0]['body']);
+        $optional->file = null;
+        $client->resource(\Example\SwaggerMultipart\Resources\Optional::class)->post($optional);
+        self::assertStringNotContainsString('name="file"', $transport->calls[1]['body']);
     }
 }
