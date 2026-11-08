@@ -352,4 +352,9 @@ runPublished([PHP_BINARY, $package . '/tests/multipart-smoke.php', $swaggerMulti
 echo "PUBLISHED_SWAGGER_MULTIPART_SDK_OK", PHP_EOL;
 runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $multipart]);
 runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $swaggerMultipart]);
+$fileLists = $directory . '/file-lists';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/multipart-file-lists-openapi31.json',
+    $fileLists, 'Example\\MultipartSdk', 'example/published-file-lists']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $fileLists]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $fileLists, '', 'list']);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

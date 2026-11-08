@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.13.0';
+    public const RUNTIME_CONSTRAINT = '^0.14.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -43,6 +43,8 @@ final class PhpContractEmitter
     private array $operationQueryTypes = [];
     /** @var array<string, string> Collection item type and rules => generated FQCN. */
     private array $collectionTypes = [];
+    /** @var array<int,true> Body schema identities requiring native multipart file lists. */
+    private array $multipartSchemas = [];
     private const IDENTIFIER = '/^[A-Za-z_][A-Za-z0-9_]*$/D';
     private const PHP_KEYWORDS = [
         'abstract', 'and', 'array', 'as', 'break', 'callable', 'case', 'catch',
@@ -86,6 +88,17 @@ final class PhpContractEmitter
         $this->collectionTypes = [];
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
+        }
+        $this->multipartSchemas = [];
+        foreach ($contract->operations as $operation) {
+            if ($operation->requestBody?->mediaType !== \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART) {
+                continue;
+            }
+            $bodySchema = $operation->requestBody->schema;
+            if ($bodySchema->kind === SchemaKind::Reference) {
+                $bodySchema = $this->modelDefinitions[$bodySchema->reference]->schema ?? $bodySchema;
+            }
+            $this->multipartSchemas[spl_object_id($bodySchema)] = true;
         }
         $this->modelParents = [];
         foreach ($contract->models as $model) {
@@ -253,8 +266,11 @@ final class PhpContractEmitter
             }
             $nullableBranch = self::nullableCompositionBranch($property->schema);
             $propertySchema = $nullableBranch ?? $property->schema;
+            $fileList = $propertySchema->kind === SchemaKind::Array
+                && \Dmorenof\SdkGenerator\Parsing\FormSupport::fileItem($propertySchema) !== null
+                && (isset($this->multipartSchemas[spl_object_id($schema)]) || $this->inheritsMultipartFileList($parent, $property->wireName));
             if (!isset($inherited[$property->wireName])) {
-                $type = $this->typeFor(
+                $type = $fileList ? 'array' : $this->typeFor(
                     $propertySchema,
                     $hint . '.' . ucfirst($propertyName),
                     $files,
@@ -268,9 +284,13 @@ final class PhpContractEmitter
                 }
                 // Deliberately uninitialized when absent, including optional fields.
                 // Calling get_object_vars() preserves the absent-vs-null distinction.
-                $fields[] = '    public ' . $type . ' $' . $propertyName . ';';
+                $fields[] = ($fileList ? '    /** @var list<string|\\Psr\\Http\\Message\\UploadedFileInterface>' . ($nullable ? '|null' : '') . " */\n" : '')
+                    . '    public ' . $type . ' $' . $propertyName . ';';
             }
             $propertyValidation = $property->schema->validation;
+            if ($fileList) {
+                $propertyValidation['items'] = ['type' => 'binary', 'rules' => []];
+            }
             if ($propertySchema->enumValues !== []) {
                 $propertyValidation['enum'] = $propertySchema->enumValues;
             }
@@ -361,6 +381,25 @@ final class PhpContractEmitter
         }
         $source .= "}\n";
         return $source;
+    }
+
+    private function inheritsMultipartFileList(?string $parent, string $wireName): bool
+    {
+        $seen = [];
+        while ($parent !== null && !isset($seen[$parent])) {
+            $seen[$parent] = true;
+            $schema = $this->modelDefinitions[$parent]->schema;
+            if (isset($this->multipartSchemas[spl_object_id($schema)])) {
+                foreach ($schema->properties as $property) {
+                    if ($property->wireName === $wireName && $property->schema->kind === SchemaKind::Array
+                        && \Dmorenof\SdkGenerator\Parsing\FormSupport::fileItem($property->schema) !== null) {
+                        return true;
+                    }
+                }
+            }
+            $parent = $this->modelParents[$parent] ?? null;
+        }
+        return false;
     }
 
     /** @param array<string,string> $files */

@@ -46,6 +46,7 @@ final class FormSupport
         }
         if (($field['type'] ?? null) === 'array') {
             return is_array($field['items'] ?? null) && self::rawScalar($field['items'])
+                && ($media !== self::MULTIPART || ($field['items']['format'] ?? null) !== 'binary')
                 && !($field['items']['nullable'] ?? $field['items']['x-nullable'] ?? false)
                 && !is_array($field['items']['type'] ?? null) && empty($field['enum'])
                 && in_array($field['collectionFormat'] ?? 'csv', $media === self::MULTIPART ? ['multi'] : ['csv', 'multi'], true);
@@ -83,15 +84,16 @@ final class FormSupport
         foreach ($schema->properties as $property) {
             $field = $property->schema;
             $array = $field->kind === SchemaKind::Array;
+            $binary = self::fileItem($field);
             if (($array && ($field->enumValues !== [] || $field->items === null || $field->items->nullable || !self::scalar($field->items)))
                 || (!$array && !self::scalar($field)) || !self::encoding($encoding[$property->wireName] ?? [], $multipart)) {
                 return null;
             }
             if ($multipart && (!self::name($property->wireName)
-                || ($array && $field->items?->format === 'binary')
-                || (!self::binary($field) && isset($encoding[$property->wireName]['contentType'])
+                || ($array && $field->items?->format === 'binary' && $binary === null)
+                || ($binary === null && isset($encoding[$property->wireName]['contentType'])
                     && $encoding[$property->wireName]['contentType'] !== 'text/plain')
-                || (self::binary($field) && ($field->enumValues !== [] || $field->validation !== [] || $field->pattern !== null)))) {
+                || ($binary !== null && ($binary->enumValues !== [] || $binary->validation !== [] || $binary->pattern !== null)))) {
                 return null;
             }
             if ($array) {
@@ -129,7 +131,7 @@ final class FormSupport
         }
         $parts = [];
         foreach (self::schema($body, $models)->properties as $property) {
-            $binary = self::binary($property->schema);
+            $binary = self::fileItem($property->schema) !== null;
             $part = ['contentType' => $encoding[$property->wireName]['contentType'] ?? ($binary ? null : 'text/plain')];
             if ($binary) {
                 $part['filename'] = basename($property->wireName) . '.bin';
@@ -139,9 +141,10 @@ final class FormSupport
         return $parts;
     }
 
-    private static function binary(SchemaDefinition $schema): bool
+    public static function fileItem(SchemaDefinition $schema): ?SchemaDefinition
     {
-        return $schema->kind === SchemaKind::String && $schema->format === 'binary';
+        $item = $schema->kind === SchemaKind::Array ? $schema->items : $schema;
+        return $item?->kind === SchemaKind::String && $item->format === 'binary' ? $item : null;
     }
 
     private static function name(string $name): bool
@@ -205,10 +208,11 @@ final class FormSupport
                 return false;
             }
             if ($multipart) {
-                $binary = $types[0] === 'string' && ($field['format'] ?? null) === 'binary';
-                if (!self::name((string) $name) || ($types[0] === 'array' && ($field['items']['format'] ?? null) === 'binary')
+                $item = $types[0] === 'array' ? $field['items'] : $field;
+                $binary = ($item['type'] ?? null) === 'string' && ($item['format'] ?? null) === 'binary';
+                if (!self::name((string) $name) || ($types[0] === 'array' && ($item['format'] ?? null) === 'binary' && !$binary)
                     || (!$binary && isset($encoding[$name]['contentType']) && $encoding[$name]['contentType'] !== 'text/plain')
-                    || ($binary && array_intersect(array_keys($field), ['enum', 'minLength', 'maxLength', 'pattern']) !== [])) {
+                    || ($binary && array_intersect(array_keys($item), ['enum', 'minLength', 'maxLength', 'pattern']) !== [])) {
                     return false;
                 }
             }
