@@ -38,6 +38,8 @@ final readonly class PhpResourceEmitter
         private array $groupOverrides = [],
         /** @var array<string,array{identifier:?array,payload:?array}> operationId => public arguments */
         private array $requestTypes = [],
+        /** @var array<string,array<string,string>> */
+        private array $queryTypes = [],
     ) {}
 
     /** @return array<string,string> */
@@ -133,7 +135,7 @@ final readonly class PhpResourceEmitter
      *
      * @return array{
      *   path:array<string,bool|float|int|string|null>,
-     *   query:array<string,bool|float|int|string|list<bool|float|int|string>|null>,
+     *   query:array<string,bool|float|int|string|list<bool|float|int|string>|\Dmorenof\SdkRuntime\DTO|\Dmorenof\SdkRuntime\Map|null>,
      *   header:array<string,bool|float|int|string|null>,
      *   body:?\Dmorenof\SdkRuntime\DTO
      * }
@@ -143,9 +145,10 @@ final readonly class PhpResourceEmitter
         $dto->validateForRequest();
         $values = get_object_vars($dto);
         $bodyValue = $values['body'] ?? null;
-        // An OpenAPI path parameter can itself be named "body".
-        $body = $bodyValue instanceof \Dmorenof\SdkRuntime\DTO ? $bodyValue : null;
-        /** @var array{path:array<string,bool|float|int|string|null>,query:array<string,bool|float|int|string|list<bool|float|int|string>|null>,header:array<string,bool|float|int|string|null>,body:?\Dmorenof\SdkRuntime\DTO} $result */
+        // A query or path parameter may also be named "body"; only an explicit operation body is a payload.
+        $hasBody = defined($dto::class . '::OPERATION_BODY') && constant($dto::class . '::OPERATION_BODY') === true;
+        $body = $hasBody && $bodyValue instanceof \Dmorenof\SdkRuntime\DTO ? $bodyValue : null;
+        /** @var array{path:array<string,bool|float|int|string|null>,query:array<string,bool|float|int|string|list<bool|float|int|string>|\Dmorenof\SdkRuntime\DTO|\Dmorenof\SdkRuntime\Map|null>,header:array<string,bool|float|int|string|null>,body:?\Dmorenof\SdkRuntime\DTO} $result */
         $result = ['path' => [], 'query' => [], 'header' => [], 'body' => $body];
         /** @var array{path:array<string,string>,query:array<string,string>,header:array<string,string>} $locations */
         $locations = constant($dto::class . '::OPERATION_FIELDS');
@@ -155,6 +158,10 @@ final readonly class PhpResourceEmitter
                     continue;
                 }
                 $value = $values[$property];
+                if ($location === 'query' && ($value instanceof \Dmorenof\SdkRuntime\DTO || $value instanceof \Dmorenof\SdkRuntime\Map)) {
+                    $result['query'][$wireName] = $value;
+                    continue;
+                }
                 if (is_array($value)) {
                     if ($location !== 'query' || !array_is_list($value)) {
                         throw new \UnexpectedValueException("Only query parameters can carry scalar lists: $wireName");
@@ -196,7 +203,7 @@ final readonly class PhpResourceEmitter
         } elseif ($identifierName !== null) {
             $path[$identifierName] = $identifier;
         }
-        /** @var array<string,bool|float|int|string|list<bool|float|int|string>|null> $query */
+        /** @var array<string,bool|float|int|string|list<bool|float|int|string>|\Dmorenof\SdkRuntime\DTO|\Dmorenof\SdkRuntime\Map|null> $query */
         $query = [];
         /** @var array<string,bool|float|int|string|null> $headers */
         $headers = [];
@@ -347,6 +354,10 @@ PHP;
         $querySerialization = [];
         foreach ($operation->parameters as $parameter) {
             if ($parameter->location === 'query') {
+                if (isset($this->queryTypes[$operation->operationId][$parameter->wireName])) {
+                    $querySerialization[$parameter->wireName] = 'deepObject';
+                    continue;
+                }
                 $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true);
                 if ($resolved['type'] === 'array') {
                     $format = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::format($parameter->serialization);

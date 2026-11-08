@@ -1,4 +1,4 @@
-# Query arrays (generator v0.10.0 / runtime v0.7.0)
+# Query arrays (generator v0.11.0 / runtime v0.8.0)
 
 Query parameters with non-null primitive items generate native PHP `array`
 properties, documented as `list<string>`, `list<int>`, `list<bool>` or
@@ -39,11 +39,11 @@ items produce `name=`. A required list with `minItems: 1` rejects an empty value
 A nullable outer array may be represented by the supported nullable schema forms;
 items themselves must be non-null.
 
-Objects, nested arrays, nullable items, array-valued enums, other parameter
+Other object styles (see [flat deepObject support](QUERY_OBJECTS.md)), nested arrays, nullable items, array-valued enums, other parameter
 locations, content-based parameters, reserved/empty-value flags and other styles
 remain unsupported and diagnosed. This release does not provide general HTTP
 parameter or JSON Schema validation. Generated SDKs require stable runtime
-`^0.7.0` and run independently of the generator.
+`^0.8.0` and run independently of the generator.
 
 ## Delimiter limits
 

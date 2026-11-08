@@ -21,6 +21,8 @@ final readonly class PhpOperationRequestEmitter
         private ?PhpModelNameResolver $modelNames = null,
         /** @var array<string,string> */
         private array $bodyTypes = [],
+        /** @var array<string,array<string,string>> */
+        private array $queryTypes = [],
     ) {}
 
     /** @return array<string,string> */
@@ -206,13 +208,17 @@ final readonly class PhpOperationRequestEmitter
             }
             $occupied[strtolower($field)] = true;
             $locations[$parameter->location][$parameter->wireName] = $field;
-            if ($field !== $parameter->wireName && $wireOccurrences[$parameter->wireName] === 1) {
+            if ($field !== $parameter->wireName && $wireOccurrences[$parameter->wireName] === 1
+                && !($includeBody && $operation->requestBody !== null && $parameter->wireName === 'body')) {
                 $propertyMap[$parameter->wireName] = $field;
                 $wirePropertyMap[$field] = $parameter->wireName;
             }
-            $resolved = PhpParameterTypeResolver::resolve(
-                $parameter->schema, $operation->operationId . '.' . $parameter->wireName, $parameter->location === 'query',
-            );
+            $queryType = $this->queryTypes[$operation->operationId][$parameter->wireName] ?? null;
+            $resolved = $queryType !== null && $parameter->location === 'query'
+                ? ['type' => $queryType, 'nullable' => \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::nullable($parameter->schema, $contract->models), 'enumValues' => []]
+                : PhpParameterTypeResolver::resolve(
+                    $parameter->schema, $operation->operationId . '.' . $parameter->wireName, $parameter->location === 'query',
+                );
             $nullable = !$parameter->required || $resolved['nullable'];
             if (isset($resolved['phpDoc'])) {
                 $fields[] = '    /** @var ' . $resolved['phpDoc'] . ($nullable ? '|null' : '') . ' */';
@@ -250,6 +256,9 @@ final readonly class PhpOperationRequestEmitter
         if ($propertyMap !== []) {
             $source .= '    protected const array PROPERTY_MAP = ' . PhpLiteral::export($propertyMap) . ";\n"
                 . '    protected const array WIRE_PROPERTY_MAP = ' . PhpLiteral::export($wirePropertyMap) . ";\n\n";
+        }
+        if ($includeBody && $operation->requestBody !== null) {
+            $source .= "    public const bool OPERATION_BODY = true;\n\n";
         }
         if ($validation !== []) {
             $source .= '    protected const array VALIDATION = ' . PhpLiteral::export($validation) . ";\n\n";

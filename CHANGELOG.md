@@ -6,6 +6,14 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.11.0] — 2026-11-08
+
+- Generate typed query objects for OpenAPI `style: deepObject`, `explode: true`: inline or local referenced flat scalar object schemas with explicit `additionalProperties: false` or a supported scalar value schema. Reuse named DTOs and existing typed Maps; reject undefined nested/null properties, unconstrained extras and other object styles.
+- Require published runtime `^0.8.0`. Serialize JSON wire names and backed enum values, omit readOnly properties, include writeOnly properties and revalidate object/map mutations before transport. Encode brackets and values once; reject ambiguous names and query-key collisions.
+- Exercise GetParams and PostParams with GET and POST, including simultaneous query objects and JSON body. Add explicit operation-body metadata so a query parameter named `body` is not sent as JSON, and reserve the actual `body` constructor field when the query DTO uses `queryBody`.
+- Verify JSON/YAML and OpenAPI 3.0/3.1, reusable parameters, static and instance APIs, exact PSR-18 URLs/body bytes, required fields, enums, validation and invalid mutations. Analyse twelve installed SDKs at PHPStan max and extend immutable-release installation smoke with GET/POST query-body separation.
+- HTTP forms, multipart, nested deepObject data and other pending HTTP serialization remain outside this release; record the partial getParameters/postParameters review and its remaining form work in pendientes.md.
+
 ## [0.10.0] — 2026-11-08
 
 - Execute primitive query lists using OpenAPI `spaceDelimited` and `pipeDelimited`, with omitted or false `explode`. Reject undefined `explode: true` combinations. Support Swagger query `collectionFormat: ssv`, `tsv` and `pipes` alongside existing CSV/multi.

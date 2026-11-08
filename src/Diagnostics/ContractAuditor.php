@@ -467,6 +467,7 @@ final class ContractAuditor
 
     private function parameter(array $parameter, string $at, ?string $operation): void
     {
+        $queryObject = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::rawSupported($parameter, $this->document);
         $queryArray = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::rawSupported($parameter, ($this->document['swagger'] ?? null) === '2.0');
         $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
         foreach (['explode', 'allowReserved', 'allowEmptyValue'] as $flag) {
@@ -479,7 +480,7 @@ final class ContractAuditor
             $this->add('cookie_parameter', "$at/in", 'Cookie parameter serialization is not implemented.', $operation);
         }
         $default = in_array($location, ['query', 'cookie'], true) ? 'form' : 'simple';
-        if (isset($parameter['style']) && $parameter['style'] !== $default && !$queryArray) {
+        if (isset($parameter['style']) && $parameter['style'] !== $default && !$queryArray && !$queryObject) {
             $this->add('parameter_style', "$at/style", 'This parameter style/explode combination is not executable for the declared location and schema.', $operation);
         }
         foreach (['allowReserved', 'allowEmptyValue'] as $flag) {
@@ -493,7 +494,7 @@ final class ContractAuditor
         if (isset($parameter['content'])) {
             $this->add('parameter_content', "$at/content", 'Content-based parameter serialization is not implemented.', $operation);
         }
-        if (isset($parameter['collectionFormat']) && !$queryArray) {
+        if (isset($parameter['collectionFormat']) && !$queryArray && !$queryObject) {
             $this->add('parameter_collectionFormat', "$at/collectionFormat", 'Swagger collection formats are not executed.', $operation);
         }
         if (isset($parameter['schema'])) {
@@ -506,8 +507,8 @@ final class ContractAuditor
         $type = $parameter['schema']['type'] ?? $parameter['type'] ?? null;
         $structured = in_array($type, ['array', 'object'], true)
             || (is_array($type) && array_intersect($type, ['array', 'object']) !== []);
-        if ($structured && !$queryArray) {
-            $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Only primitive query lists with supported form/delimited serialization are executable; other structured parameters remain unsupported.', $operation);
+        if ($structured && !$queryArray && !$queryObject) {
+            $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Only supported primitive query lists and flat deepObject query schemas are executable; other structured parameters remain unsupported.', $operation);
         }
     }
 
