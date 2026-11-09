@@ -29,6 +29,7 @@ final readonly class PhpResourceEmitter
         'pathSerialization' => [],
         'headerSerialization' => [],
         'queryAllowReserved' => [],
+        'parameterContent' => [],
     ];
 
     /**
@@ -253,6 +254,7 @@ PHP;
         $validation = [];
         $querySerialization = [];
         $queryAllowReserved = [];
+        $parameterContent = [];
         $pathSerialization = [];
         $headerSerialization = [];
         $bodySerialization = [];
@@ -275,6 +277,16 @@ PHP;
             }
             $objectType = $this->parameterTypes[$operation->operationId][$parameter->location][$parameter->wireName]
                 ?? ($parameter->location === 'query' ? ($this->queryTypes[$operation->operationId][$parameter->wireName] ?? null) : null);
+            if ($parameter->content !== []) {
+                $parameterContent[$parameter->location][$parameter->wireName] = strtolower($parameter->content[0]->mediaType);
+                if ($parameter->location === 'path' && $objectType === null) {
+                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName);
+                    $rules = $parameter->schema->validation;
+                    if ($resolved['enumValues'] !== []) { $rules['enum'] = $resolved['enumValues']; }
+                    if ($rules !== []) { $validation[$parameter->wireName] = $rules; }
+                }
+                continue;
+            }
             if ($objectType !== null) {
                 $format = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::format($parameter->serialization, $parameter->location);
                 if ($format === null) { throw new InvalidArgumentException("Unsupported object parameter at $operation->operationId.$parameter->wireName."); }
@@ -347,6 +359,7 @@ PHP;
             'serverUrl' => $serverUrl,
             'querySerialization' => $querySerialization,
             'queryAllowReserved' => $queryAllowReserved,
+            'parameterContent' => $parameterContent,
             'pathSerialization' => $pathSerialization,
             'headerSerialization' => $headerSerialization,
             'requestMediaType' => in_array($operation->requestBody?->mediaType, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)

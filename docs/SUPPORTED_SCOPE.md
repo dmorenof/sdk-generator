@@ -1,4 +1,4 @@
-# v0.28.0 supported scope and known limitations
+# v0.29.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -25,12 +25,12 @@
 ## What is deliberately NOT guaranteed
 
 - YAML support does not expand the supported OpenAPI feature set: YAML input is subject to the same deliberate subset and explicit rejections as JSON.
-- Not a general OpenAPI 3.1 / JSON Schema implementation; external references/mappings, arbitrary native unions, `not`/`const`, general schema composition, advanced formats, OAuth2/OpenID Connect authorization flows, structured/content cookie parameters, streaming downloads/non-seekable files and advanced form/multipart support are not implemented. Patterns using ECMA-regex features that differ from PCRE may not validate identically. For OAuth2, provide a previously obtained bearer token only when the security scheme is declared as HTTP bearer; the generator does not acquire or refresh tokens.
+- Not a general OpenAPI 3.1 / JSON Schema implementation; external references/mappings, arbitrary native unions, `not`/`const`, general schema composition, advanced formats, OAuth2/OpenID Connect authorization flows, structured/JSON cookie parameters, streaming downloads/non-seekable files and advanced form/multipart support are not implemented. Patterns using ECMA-regex features that differ from PCRE may not validate identically. For OAuth2, provide a previously obtained bearer token only when the security scheme is declared as HTTP bearer; the generator does not acquire or refresh tokens.
 - OAuth2/OpenID Connect authorization flows are not implemented; credentials must be supplied by the caller, and tokens are not acquired or refreshed by the SDK.
 - Multiple explicit JSON success statuses select their own hydrators and native return types in v0.22.0; binary-only successes share the bounded PSR codec from v0.20.0. Mixed JSON/binary successes and some non-object error schemas remain unsupported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.21.0 or later compatible versions (`^0.21.0`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.22.1 or later compatible versions (`^0.22.1`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
@@ -45,7 +45,7 @@ Please report supported-schema failures through GitHub Issues with a small **red
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.21.0`;
+The current generator and generated Composer packages require stable runtime `^0.22.1`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -338,3 +338,7 @@ OpenAPI query allowReserved supports the existing primitive scalar/list and flat
 ## Explicit empty-value policy (v0.28.0)
 
 Supported OpenAPI/Swagger query and Swagger formData allowEmptyValue declarations reuse existing typed DTOs and serializers. Explicit empty strings remain name=; optional absent/null values are omitted; false/zero and empty collection/item distinctions remain intact. Schema required/constraints/types stay authoritative. Runtime ^0.21.0 is unchanged. Independent OpenAPI/Swagger SDK HTTP checks preserve GetParams/PostParams and query/form/JSON separation. See [exact policy](EMPTY_VALUES.md).
+
+## Typed parameter content (v0.29.0)
+
+OpenAPI supports one application/json representation for path/query/header and text/plain for path/query/header/cookie using existing native types/models/collections. Runtime ^0.22.1 serializes request-direction JSON once before URI encoding, preserves raw header/cookie bytes and maintains list shape after sparse mutations. Unsupported media/cardinality/style conflicts fail explicitly; nullable roots and other documented limits remain pending. See [contract and evidence](PARAMETER_CONTENT.md).

@@ -90,3 +90,6 @@ analyse empty-values empty-values-openapi30.json 'Example\EmptySdk'
 analyse swagger-empty-values empty-values-swagger2.json 'Example\EmptySdk'
 php tests/empty-values-smoke.php "$OUT/empty-values"
 php tests/empty-values-smoke.php "$OUT/swagger-empty-values"
+
+analyse parameter-content parameter-content-openapi31.json 'Example\ContentSdk'
+php tests/parameter-content-smoke.php "$OUT/parameter-content"

@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.21.0';
+    public const RUNTIME_CONSTRAINT = '^0.22.1';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -1049,6 +1049,17 @@ final class PhpContractEmitter
                 }
                 if ($parameter->serialization->allowEmptyValue === true && $parameter->location !== 'query') {
                     throw new InvalidArgumentException('allowEmptyValue applies only to query parameters.');
+                }
+                if ($parameter->content !== []) {
+                    if (!\Dmorenof\SdkGenerator\Parsing\ParameterContentSupport::supported($parameter, $contract->models)) {
+                        throw new InvalidArgumentException('Unsupported parameter content schema or media type.');
+                    }
+                    if (in_array($parameter->schema->kind, [SchemaKind::Reference, SchemaKind::Object, SchemaKind::Array, SchemaKind::AllOf], true)) {
+                        $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
+                        $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), ucfirst($parameter->location), ucfirst($parameter->wireName)]);
+                        $this->operationParameterTypes[$operation->operationId][$parameter->location][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
+                    }
+                    continue;
                 }
                 if ($parameter->location === 'cookie') {
                     $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName);

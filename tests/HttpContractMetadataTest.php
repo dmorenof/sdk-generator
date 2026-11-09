@@ -42,7 +42,7 @@ final class HttpContractMetadataTest extends TestCase
         self::assertSame([], $report['diagnostics']);
     }
 
-    public function testContentParametersArePreservedButRemainStrictlyUnsupported(): void
+    public function testJsonContentParametersRetainMetadataAndAreStrictlyAccepted(): void
     {
         $document = self::document();
         $parameter = &$document['paths']['/users/{id}']['get']['parameters'][1];
@@ -52,7 +52,7 @@ final class HttpContractMetadataTest extends TestCase
         $content = $contract->operations[1]->parameters[1]->content;
         self::assertSame('application/json', $content[0]->mediaType);
         self::assertTrue($content[0]->annotations['example']);
-        self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
+        self::assertTrue((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
     }
 
     public function testSwaggerCollectionFormatIsNotMisparsedAsASchemaKeyword(): void
