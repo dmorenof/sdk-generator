@@ -159,14 +159,11 @@ final class ContractAuditor
                         'Swagger formData requires one application/x-www-form-urlencoded or multipart/form-data representation; media negotiation remains unsupported.', $id);
                 }
             }
-            foreach (['consumes' => true, 'produces' => false] as $keyword => $request) {
-                if ($request && ($hasForm || !$hasBody)) {
-                    continue;
-                }
-                $mediaTypes = $operation[$keyword] ?? $document[$keyword] ?? ['application/json'];
+            if (!$hasForm && $hasBody) {
+                $mediaTypes = $operation['consumes'] ?? $document['consumes'] ?? ['application/json'];
                 if (is_array($mediaTypes)) {
                     $declared = array_fill_keys(array_filter($mediaTypes, 'is_string'), []);
-                    $this->selectedMedia($declared, isset($operation[$keyword]) ? "$where/$keyword" : "/$keyword", $id, $request);
+                    $this->selectedMedia($declared, isset($operation['consumes']) ? "$where/consumes" : '/consumes', $id, true);
                 }
             }
         }
@@ -196,7 +193,28 @@ final class ContractAuditor
             // Error media types do not negotiate success representations.
             if (is_array($response) && preg_match('/^2[0-9]{2}$/', (string) $status) === 1) {
                 $this->resolvedObject($response, 'responses', $at, $id,
-                    fn (array $value, string $source) => $this->selectedMedia($value['content'] ?? [], "$source/content", $id, false));
+                    function (array $value, string $source) use ($operation, $where, $document, $id): void {
+                        if (($document['swagger'] ?? null) !== '2.0') {
+                            $this->selectedMedia($value['content'] ?? [], "$source/content", $id, false);
+                            return;
+                        }
+                        if (!is_array($value['schema'] ?? null)) {
+                            return; // Bodyless responses do not select a response codec.
+                        }
+                        $mediaTypes = $operation['produces'] ?? $document['produces'] ?? ['application/json'];
+                        if (!is_array($mediaTypes)) {
+                            return;
+                        }
+                        $schema = \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::swaggerSchema($value['schema'], $mediaTypes)
+                            ?? $value['schema'];
+                        $content = [];
+                        foreach ($mediaTypes as $media) {
+                            if (is_string($media)) {
+                                $content[$media] = ['schema' => $schema];
+                            }
+                        }
+                        $this->selectedMedia($content, isset($operation['produces']) ? "$where/produces" : '/produces', $id, false);
+                    });
             }
         }
     }

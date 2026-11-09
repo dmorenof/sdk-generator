@@ -313,6 +313,13 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - **Validación:** runtime 105 pruebas / 361 aserciones, PHPStan máximo y CI con versiones/dependencias mínimas. Generador: 371 pruebas / 2.781 aserciones y dieciocho SDKs instalados con PHPStan máximo; smoke de descarga en CI e instalación publicada. Runtime descarga dos archivos de 32 MiB; SDK repite GET/POST de 32 MiB bajo límite PHP 16 MiB. HTTP real Guzzle/cURL mide pico PHP 8 MiB en runtime y 6 MiB en SDK con hash/cabeceras completos.
 - **Límites:** solo application/octet-stream con esquema inline string/binary no nullable/sin constraints; sin Swagger, otros MIME ni mezcla de cuerpos JSON/binario por estado. PSR expone cabeceras pero sus esquemas siguen sin validarse. Guzzle puede almacenar temporalmente en disco; clientes/middleware/transportes antiguos y errores pueden bufferizar. No promete consumo de red progresivo, RSS universal ni cierra el paquete 04. [Uso y límites](docs/DOWNLOADS.md).
 
+### Entrega de descargas Swagger — v0.21.0, runtime v0.15.0 sin cambios
+
+- [x] Adaptar respuestas Swagger 2.0 schema type:file con un produces application/octet-stream al contrato PSR ya publicado; raíz/operación, referencias/alias y evaluación por uso efectivo. Salida idéntica al OpenAPI equivalente, sin transporte/DTO de archivo nuevo ni cambios del runtime.
+- [x] JSON/YAML, éxitos binarios 200/206 y 204 vacío, GetParams/PostParams, fachada/instancia, query llamado body separado del DTO JSON, bytes/cabeceras, repetición, mutaciones y ApiException con respuesta raw.
+- **Validación:** 376 pruebas / 2.851 aserciones; diecinueve SDKs instalados con PHPStan máximo. Reutilizar smoke instalado de descarga en CI/publicación. Cuatro descargas reales GET/POST de 32 MiB bajo límite PHP 16 MiB, pico PHP 8 MiB, hashes/cabeceras y valores HTTP comprobados.
+- **Límites:** un único produces explícito octet-stream; no otros MIME, negociación, file nullable/con constraints, errores file ni DTO JSON de error con produces octet-stream común. No sustituir type:file por string/binary en Swagger. Se mantienen buffering de errores/transportes antiguos, posibles temporales en disco y límites de clientes/middleware; no cierra streaming general ni el paquete 04. [Uso y límites](docs/DOWNLOADS.md#swagger-20-file-responses-v0210).
+
 ### Respuestas
 
 - [ ] Varios códigos `2xx` con cuerpos y tipos diferentes en la misma operación.
@@ -324,7 +331,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] Rangos de status `1XX`, `2XX`, `3XX`, `4XX`, `5XX` y `default`.
 - [ ] Política configurable de redirecciones `3xx`.
 - [ ] Errores con body escalar, array, mapa, no JSON y con media types alternativos.
-- [ ] **Parcial — Descargas binarias:** v0.20.0 devuelve ResponseInterface PSR-7 para éxitos application/octet-stream OpenAPI 3.0/3.1 sin materializar bytes completos en el runtime. Quedan Swagger, otros MIME, negociación y garantías generales de streaming. [Uso y medidas](docs/DOWNLOADS.md).
+- [ ] **Parcial — Descargas binarias:** v0.20.0 devuelve ResponseInterface PSR-7 para éxitos application/octet-stream OpenAPI 3.0/3.1 sin materializar bytes completos en el runtime. v0.21.0 añade Swagger type:file con produces octet-stream; quedan otros MIME, negociación y garantías generales de streaming. [Uso y medidas](docs/DOWNLOADS.md).
 - [ ] Respuestas texto, CSV, XML y otras representaciones cuando sea útil.
 - [ ] Negociación `Accept` y uso de `application/*+json` con diversos esquemas.
 - [ ] Referencias a `components/responses` y `components/headers`.
@@ -495,7 +502,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 - [ ] Múltiples `consumes` y `produces`.
 - [ ] **Parcial — `collectionFormat`.** Query primitivo csv/multi/ssv/tsv/pipes y formData csv/multi publicados; otros formatos/ubicaciones pendientes (paquete 03).
 - [x] **v0.13.0 — formData URL-encoded Swagger:** escalares/listas primitivas csv (default)/multi, required/validación, alias locales y overrides. Multipart/archivos y otros formatos quedan abiertos.
-- [ ] Tipo `file` y transmisión de archivos.
+- [ ] **Parcial — Tipo file/transmisión:** subida multipart Swagger en v0.16.0, streams PSR en v0.18.0 y descarga PSR type:file octet-stream en v0.21.0. Quedan MIME/negociación, entradas no seekables y garantías generales de streaming.
 - [ ] **Parcial — Arrays HTTP Swagger.** Query primitivo y formData csv/multi publicados; otras ubicaciones y formatos form pendientes.
 - [x] **v0.5.0:** referencias locales con nombre `#/parameters/...` y `#/responses/...`, con alias y parámetros body.
 - [ ] `securityDefinitions` OAuth2 y scopes.
@@ -620,3 +627,4 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-08 | Generador v0.18.0 + runtime v0.13.0: multipart en streaming por el adaptador PSR-18 existente, compatibilidad legacy, rebobinado y smoke 32 MiB bajo límite PHP 16 MiB. HTTP real con Guzzle/cURL y archivo íntegro; límites de clientes/middleware/respuestas explícitos. | [Generator v0.18.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.18.0), [Runtime v0.13.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.13.0) |
 | 2026-11-08 | Generador v0.19.0 + runtime v0.14.0: listas de archivos binarios OpenAPI con PHP/PSR nativos, partes repetidas, metadatos individuales, validación e herencia; colecciones solo JSON conservadas. Dos archivos de 16 MiB por request bajo límite PHP 16 MiB, SDK instalado y parser MIME independiente. | [Generator v0.19.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.19.0), [Runtime v0.14.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.14.0) |
 | 2026-11-08 | Generador v0.20.0 + runtime v0.15.0: descargas OpenAPI application/octet-stream como ResponseInterface PSR nativa; GET/POST con query, headers y DTO JSON, errores tipados y memoria medida en 32 MiB. | [Generator v0.20.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.20.0), [Runtime v0.15.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.15.0) |
+| 2026-11-09 | Generador v0.21.0: respuestas Swagger type:file/produces octet-stream adaptadas al contrato PSR existente, precedencia/alias, SDK equivalente y pruebas GET/POST de 32 MiB; runtime estable ^0.15.0 sin cambios. | [Generator v0.21.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.21.0) |

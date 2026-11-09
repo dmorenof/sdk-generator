@@ -262,3 +262,19 @@ arbitrary client/middleware memory behavior. Swagger, other MIME types,
 constraints/nullable binary schemas, binary errors, mixed success codecs,
 negotiation and declared response-header schema validation remain pending.
 See [downloads](DOWNLOADS.md) for usage and precise limits.
+
+
+## Swagger binary downloads (v0.21.0)
+
+Swagger 2.0 response schema type:file with one effective produces
+application/octet-stream adapts to the same native PSR response contract.
+Root/operation precedence, response aliases, JSON/YAML, explicit binary success
+codes and empty responses are supported. GetParams/PostParams retain query,
+headers and independent JSON request DTOs; mutations still validate before HTTP.
+The generated SDK matches equivalent OpenAPI byte for byte. Stable runtime
+^0.15.0 is unchanged, and the existing installed download smoke is reused.
+Nineteen independent SDKs pass maximum PHPStan. Real GET/POST downloads of 32 MiB
+under PHP memory_limit=16M measure an 8 MiB PHP peak with full hashes/headers.
+Multiple produces, other MIME types, file constraints/nullability/errors, typed
+JSON errors sharing octet-stream produces, and general streaming guarantees
+remain outside this slice. [Usage and exact limits](DOWNLOADS.md#swagger-20-file-responses-v0210).

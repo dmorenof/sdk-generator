@@ -362,4 +362,10 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/downl
     $downloads, 'Example\\DownloadSdk', 'example/published-downloads']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $downloads]);
 runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/download-smoke.php', $downloads]);
+$swaggerDownloads = $directory . '/swagger-downloads';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/downloads-swagger2.json',
+    $swaggerDownloads, 'Example\\DownloadSdk', 'example/published-swagger-downloads']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $swaggerDownloads]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/download-smoke.php', $swaggerDownloads]);
+echo "PUBLISHED_SWAGGER_DOWNLOAD_SDK_OK", PHP_EOL;
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

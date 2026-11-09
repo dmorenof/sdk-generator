@@ -17,6 +17,17 @@ final class BinaryResponseSupport
         return isset($content[self::MEDIA]) && is_array($content[self::MEDIA]) && self::supported($content[self::MEDIA]);
     }
 
+    /** Swagger file responses share the existing binary codec, with one explicit representation. */
+    public static function swaggerSchema(array $schema, array $mediaTypes): ?array
+    {
+        if ($mediaTypes !== [self::MEDIA] || ($schema['type'] ?? null) !== 'file' || array_key_exists('format', $schema)) {
+            return null;
+        }
+        $schema['type'] = 'string';
+        $schema['format'] = 'binary';
+        return self::supported(['schema' => $schema]) ? $schema : null;
+    }
+
     public static function supported(array $definition): bool
     {
         $schema = $definition['schema'] ?? null;

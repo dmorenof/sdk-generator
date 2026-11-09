@@ -508,10 +508,17 @@ final class SpecificationNormalizer
             }
             if ($dialect === 'swagger2') {
                 $schema = $raw['schema'] ?? null;
-                if ($schema !== null) {
-                    $this->requireJsonMedia($operation['produces'] ?? $document['produces'] ?? ['application/json'], "$where produces");
+                $produces = $operation['produces'] ?? $document['produces'] ?? ['application/json'];
+                $binarySchema = is_array($schema) ? BinaryResponseSupport::swaggerSchema($schema, $produces) : null;
+                if ($binarySchema !== null) {
+                    if (preg_match('/^2[0-9]{2}$/', $status) !== 1) {
+                        throw new InvalidArgumentException("Binary error responses are unsupported at $where.responses.$status.");
+                    }
+                    $schema = $binarySchema;
+                } elseif ($schema !== null) {
+                    $this->requireJsonMedia($produces, "$where produces");
                 }
-                $mediaType = $schema === null ? null : ($operation['produces'] ?? $document['produces'] ?? ['application/json'])[0];
+                $mediaType = $schema === null ? null : $produces[0];
             } else {
                 $representations = $raw['content'] ?? [];
                 $binary = BinaryResponseSupport::selected($representations);
