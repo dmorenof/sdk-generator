@@ -95,6 +95,10 @@ final class ContractAuditor
             $origin = $origins[$key] ?? $fallback;
             $this->withOrigin($outer, $origin, fn () => $this->keys([$key => $value], [...self::METHODS, 'parameters', 'servers'], $origin['pointer']));
         }
+        $parameterOrigin = $origins['parameters'] ?? $fallback;
+        $this->withOrigin($outer, $parameterOrigin, fn () => $this->duplicateParameters(
+            array_key_exists('parameters', $item) ? $item['parameters'] : [], $parameterOrigin['pointer'] . '/parameters', null));
+        if (isset($item['parameters']) && !is_array($item['parameters'])) { $item['parameters'] = []; }
         $serverOrigin = $origins['servers'] ?? $fallback;
         $this->withOrigin($outer, $serverOrigin, fn () => $this->servers($item['servers'] ?? null, $serverOrigin['pointer'] . '/servers', null, null));
         foreach (self::METHODS as $method) {
@@ -124,6 +128,8 @@ final class ContractAuditor
     private function pathOperation(array $item, array $operation, string $where, string $id,
         array $parameterOrigin, array $serverOrigin, array $outer): void
     {
+        $this->duplicateParameters(array_key_exists('parameters', $operation) ? $operation['parameters'] : [], "$where/parameters", $id);
+        if (isset($operation['parameters']) && !is_array($operation['parameters'])) { $operation['parameters'] = []; }
         $document = $this->document;
         $rootServers = $document['servers'] ?? [];
         $serverPointer = $serverOrigin['pointer'];
@@ -493,6 +499,32 @@ final class ContractAuditor
         }
         if (is_array($server) && isset($server['variables'])) {
             $this->add('server_variables', "$pointer/variables", 'Server variables are not expanded.', $operation);
+        }
+    }
+
+    /** Reusable component maps may share identities; only Parameter lists require uniqueness. */
+    private function duplicateParameters(mixed $parameters, string $pointer, ?string $operation): void
+    {
+        if (!is_array($parameters) || !array_is_list($parameters)) {
+            $this->add('invalid_parameter_list', $pointer, 'Parameters must be a list.', $operation);
+            return;
+        }
+        $seen = [];
+        foreach ($parameters as $index => $parameter) {
+            if (!is_array($parameter)) { continue; }
+            $at = JsonPointer::append($pointer, $index);
+            try {
+                $resolved = (new LocalObjectResolver($this->document))->resolve($parameter, 'parameters', $at);
+            } catch (LocalReferenceException) {
+                continue; // Existing reference audit retains its precise diagnostic.
+            }
+            $identity = $this->parameterIdentity($resolved['value']);
+            if ($identity === null) { continue; }
+            if (isset($seen[$identity])) {
+                $this->add('duplicate_parameter', $at, 'Parameter name and location repeat within the same list.',
+                    $operation, 'error', [...$this->referenceChain, ...$resolved['chain']]);
+            }
+            $seen[$identity] = true;
         }
     }
 

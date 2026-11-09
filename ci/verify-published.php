@@ -395,4 +395,24 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/cooki
     $cookies, 'Example\\CookieSdk', 'example/published-cookies']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $cookies]);
 runPublished([PHP_BINARY, $package . '/tests/cookies-smoke.php', $cookies]);
+$parameterOverrides = $directory . '/parameter-overrides';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/parameter-overrides-openapi31.json',
+    $parameterOverrides, 'Example\\OverrideSdk', 'example/published-parameter-overrides']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $parameterOverrides]);
+runPublished([PHP_BINARY, $package . '/tests/parameter-overrides-smoke.php', $parameterOverrides]);
+$duplicates = json_decode(file_get_contents($package . '/tests/fixtures/parameter-overrides-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+$duplicates['paths']['/items/{id}']['parameters'][] = $duplicates['paths']['/items/{id}']['parameters'][0];
+$duplicateJson = json_encode($duplicates, JSON_THROW_ON_ERROR);
+$duplicateReport = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspect($duplicateJson);
+$duplicateIssues = array_values(array_filter($duplicateReport['diagnostics'], static fn ($issue): bool => $issue->code === 'duplicate_parameter'));
+if ($duplicateReport['strictlyAccepted'] || $duplicateReport['generatable']
+    || ($duplicateIssues[0]->pointer ?? null) !== '/paths/~1items~1{id}/parameters/5') {
+    throw new RuntimeException('Published generator did not diagnose masked duplicate parameters.');
+}
+try {
+    (new \Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer())->fromJson($duplicateJson);
+    throw new RuntimeException('Published generator silently overwrote duplicate parameters.');
+} catch (InvalidArgumentException) {
+}
+echo "PUBLISHED_DUPLICATE_PARAMETER_REJECTION_OK", PHP_EOL;
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

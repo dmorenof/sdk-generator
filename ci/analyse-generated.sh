@@ -79,3 +79,6 @@ php tests/path-styles-smoke.php "$OUT/path-styles"
 
 analyse cookies cookies-openapi31.json 'Example\CookieSdk'
 php tests/cookies-smoke.php "$OUT/cookies"
+
+analyse parameter-overrides parameter-overrides-openapi31.json 'Example\OverrideSdk'
+php tests/parameter-overrides-smoke.php "$OUT/parameter-overrides"
