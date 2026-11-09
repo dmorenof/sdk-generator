@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.27.0] — 2026-11-09
+
+- Support OpenAPI query allowReserved with declarative per-parameter metadata and stable runtime ^0.21.0. Reuse the existing serializer for primitive scalars/lists and flat DTO/Map form/deepObject objects; default/false behavior remains unchanged.
+- Preserve legal reserved characters and percent triples in values while normally encoding names and security credentials. Reject raw query syntax and ambiguous structural delimiters according to documented OpenAPI application pre-encoding responsibilities.
+- Verify JSON/YAML, OpenAPI 3.0/3.1, local references, GetParams/PostParams, query body/JSON/cookie/header independence, credential precedence and mutations. Add the 27th independently installed SDK with maximum PHPStan and actual GET/POST HTTP in source and published-package smoke.
+- Keep unsupported-context diagnostics for Swagger, other parameter locations, content and advanced form-body encoding. Inspection gate tests now use the still-unsupported allowEmptyValue flag. See docs/RESERVED_QUERY.md.
+
 ## [0.26.1] — 2026-11-09
 
 - Reject repeated (location, name) identities within Path Item and operation parameter lists instead of silently overwriting them, including resolved aliases and duplicates masked by an operation override. Keep valid cross-level complete replacement and inheritance unchanged.

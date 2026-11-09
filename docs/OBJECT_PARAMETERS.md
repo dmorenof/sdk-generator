@@ -71,3 +71,5 @@ is not assumed to have an OpenAPI serialization meaning where none is specified.
 This completes the flat form/simple object families, not the entire HTTP roadmap.
 
 Label/matrix paths for the supported scalar/list/flat-object subset are available in [v0.25.0](PATH_STYLES.md).
+
+Query allowReserved for supported shapes is added in [v0.27.0](RESERVED_QUERY.md), with explicit application pre-encoding and delimiter rules. Other locations and form-body encoding do not inherit this option.

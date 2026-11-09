@@ -26,13 +26,13 @@ final class NestedContractAuditTest extends TestCase
     {
         $document = self::document();
         $document['components']['parameters']['filter/~'] = [
-            'name' => 'filter', 'in' => 'query', 'allowReserved' => true, 'schema' => ['type' => 'string'],
+            'name' => 'filter', 'in' => 'query', 'allowEmptyValue' => true, 'schema' => ['type' => 'string'],
         ];
         $document['components']['requestBodies']['Upload'] = ['content' => ['application/json' => [
             'schema' => ['type' => 'object'], 'encoding' => ['file' => ['unknownEncoding' => true]],
         ]]];
-        $issues = self::issues($document, 'parameter_allowReserved');
-        self::assertSame('/components/parameters/filter~1~0/allowReserved', $issues[0]->pointer);
+        $issues = self::issues($document, 'parameter_allowEmptyValue');
+        self::assertSame('/components/parameters/filter~1~0/allowEmptyValue', $issues[0]->pointer);
         self::assertSame('nested.json', $issues[0]->source);
         self::assertNull($issues[0]->operationId);
         self::assertSame('/components/requestBodies/Upload/content/application~1json/encoding/file/unknownEncoding',

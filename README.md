@@ -3,7 +3,7 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.26.1: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+**v0.27.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
 The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
@@ -30,6 +30,8 @@ Version 0.25.0 adds label/matrix paths for scalars, lists and flat objects with 
 Version 0.26.0 adds scalar cookie parameters and API key cookie authentication with stable runtime ^0.20.0. Configured, operation and security cookies coexist with explicit conflict detection. See [cookies and exact limits](docs/COOKIES.md).
 
 Version 0.26.1 rejects duplicate parameter identities within one list while preserving complete operation overrides and Path Item inheritance. See [parameter overrides](docs/PARAMETER_OVERRIDES.md).
+
+Version 0.27.0 supports query allowReserved for the existing scalar/list/flat-object subset through stable runtime ^0.21.0. Names and security credentials retain normal encoding; ambiguous structural data is rejected. See [reserved query rules](docs/RESERVED_QUERY.md).
 
 ## Quick start: generate Accounts SDK
 

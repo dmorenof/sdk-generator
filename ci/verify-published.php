@@ -83,12 +83,12 @@ runPublished([PHP_BINARY, $directory . '/server-consumer.php']);
 runPublished([PHP_BINARY, $binary, '--inspect', $package . '/tests/fixtures/casafari-openapi31.json']);
 $nested = json_decode(file_get_contents($package . '/tests/fixtures/accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
 $nested['components']['parameters']['Filter/~'] = [
-    'name' => 'filter', 'in' => 'query', 'schema' => ['type' => 'string'], 'allowReserved' => true,
+    'name' => 'filter', 'in' => 'query', 'schema' => ['type' => 'string'], 'allowEmptyValue' => true,
 ];
 $report = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspect(json_encode($nested, JSON_THROW_ON_ERROR));
-$issues = array_values(array_filter($report['diagnostics'], static fn ($issue): bool => $issue->code === 'parameter_allowReserved'));
+$issues = array_values(array_filter($report['diagnostics'], static fn ($issue): bool => $issue->code === 'parameter_allowEmptyValue'));
 if ($report['strictlyAccepted'] || !$report['generatable']
-    || ($issues[0]->pointer ?? null) !== '/components/parameters/Filter~1~0/allowReserved') {
+    || ($issues[0]->pointer ?? null) !== '/components/parameters/Filter~1~0/allowEmptyValue') {
     throw new RuntimeException('Published generator did not audit reusable parameter declarations.');
 }
 echo "PUBLISHED_NESTED_AUDIT_OK", PHP_EOL;
@@ -415,4 +415,9 @@ try {
 } catch (InvalidArgumentException) {
 }
 echo "PUBLISHED_DUPLICATE_PARAMETER_REJECTION_OK", PHP_EOL;
+$reservedQuery = $directory . '/reserved-query';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/reserved-query-openapi31.json',
+    $reservedQuery, 'Example\\ReservedSdk', 'example/published-reserved-query']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $reservedQuery]);
+runPublished([PHP_BINARY, $package . '/tests/reserved-query-smoke.php', $reservedQuery]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

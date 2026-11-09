@@ -82,3 +82,6 @@ php tests/cookies-smoke.php "$OUT/cookies"
 
 analyse parameter-overrides parameter-overrides-openapi31.json 'Example\OverrideSdk'
 php tests/parameter-overrides-smoke.php "$OUT/parameter-overrides"
+
+analyse reserved-query reserved-query-openapi31.json 'Example\ReservedSdk'
+php tests/reserved-query-smoke.php "$OUT/reserved-query"
