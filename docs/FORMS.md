@@ -363,3 +363,7 @@ PHP limit. Measured PHP peak was 4 MiB; an independent MIME parser checked both
 complete files, their repeated names, filenames/MIME, URL query and header. CI and
 immutable-release installation repeat the bounded-memory list smoke. The existing
 client/middleware/legacy transport/response memory limits still apply.
+
+## Explicit empty-value policy (v0.28.0)
+
+Swagger formData allowEmptyValue booleans are accepted for supported fields. Existing DTO types/required/constraints and serialization remain authoritative: explicit valid empty strings become name= in URL-encoded forms, optional null/absent fields are omitted and multipart schemas/bytes remain unchanged. OpenAPI form fields use their schemas rather than a new encoding flag. See [query/form/JSON distinctions and HTTP evidence](EMPTY_VALUES.md).

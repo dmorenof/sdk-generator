@@ -158,7 +158,7 @@ final class SwaggerFormGenerationTest extends TestCase
         foreach ([['type' => 'file'], ['type' => 'object'], ['type' => 'array', 'items' => ['type' => 'string'], 'collectionFormat' => 'pipes'],
             ['type' => 'array', 'items' => ['type' => 'string'], 'collectionFormat' => null],
             ['type' => 'array', 'items' => ['type' => 'string', 'x-nullable' => true]], ['type' => 'string', 'collectionFormat' => 'csv'],
-            ['type' => 'string', 'required' => 'false'], ['type' => 'string', 'allowEmptyValue' => true]] as $changes) {
+            ['type' => 'string', 'required' => 'false'], ['type' => 'string', 'allowEmptyValue' => 'true']] as $changes) {
             $document = self::document();
             $document['parameters']['Name'] = array_replace($document['parameters']['Name'], $changes);
             $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));

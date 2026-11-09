@@ -1,4 +1,4 @@
-# v0.27.0 supported scope and known limitations
+# v0.28.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -334,3 +334,7 @@ Operations replace a Path Item parameter's complete declaration by exact locatio
 ## Reserved query expansion (v0.27.0)
 
 OpenAPI query allowReserved supports the existing primitive scalar/list and flat DTO/Map forms. Safe reserved values and valid percent triples pass through; names, unflagged data and security credentials retain ordinary encoding. Explicit delimiter validation avoids changing query shape. Stable runtime ^0.21.0 preserves signatures and query/header/cookie/body separation. Application pre-encoding requirements, encoded list delimiters and unsupported contexts remain explicit. See [exact policy and tests](RESERVED_QUERY.md).
+
+## Explicit empty-value policy (v0.28.0)
+
+Supported OpenAPI/Swagger query and Swagger formData allowEmptyValue declarations reuse existing typed DTOs and serializers. Explicit empty strings remain name=; optional absent/null values are omitted; false/zero and empty collection/item distinctions remain intact. Schema required/constraints/types stay authoritative. Runtime ^0.21.0 is unchanged. Independent OpenAPI/Swagger SDK HTTP checks preserve GetParams/PostParams and query/form/JSON separation. See [exact policy](EMPTY_VALUES.md).

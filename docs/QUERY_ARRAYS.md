@@ -40,7 +40,7 @@ A nullable outer array may be represented by the supported nullable schema forms
 items themselves must be non-null.
 
 Other object styles (see [flat deepObject support](QUERY_OBJECTS.md)), nested arrays, nullable items, array-valued enums, other parameter
-locations, content-based parameters, empty-value flags and other styles
+locations, content-based parameters and other styles
 remain unsupported and diagnosed. This release does not provide general HTTP
 parameter or JSON Schema validation. Generated SDKs require stable runtime
 `^0.8.0` and run independently of the generator.
@@ -61,3 +61,5 @@ still pending. See [OpenAPI 3.1.2 style examples](https://spec.openapis.org/oas/
 for the serialization table and URI-encoding rules.
 
 Query allowReserved for supported shapes is added in [v0.27.0](RESERVED_QUERY.md), with explicit application pre-encoding and delimiter rules. Other locations and form-body encoding do not inherit this option.
+
+allowEmptyValue on supported query parameters follows the [v0.28.0 schema-authoritative policy](EMPTY_VALUES.md). Empty lists are not coerced to strings; item and bound constraints remain active.

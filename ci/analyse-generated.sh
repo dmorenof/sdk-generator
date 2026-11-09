@@ -85,3 +85,8 @@ php tests/parameter-overrides-smoke.php "$OUT/parameter-overrides"
 
 analyse reserved-query reserved-query-openapi31.json 'Example\ReservedSdk'
 php tests/reserved-query-smoke.php "$OUT/reserved-query"
+
+analyse empty-values empty-values-openapi30.json 'Example\EmptySdk'
+analyse swagger-empty-values empty-values-swagger2.json 'Example\EmptySdk'
+php tests/empty-values-smoke.php "$OUT/empty-values"
+php tests/empty-values-smoke.php "$OUT/swagger-empty-values"

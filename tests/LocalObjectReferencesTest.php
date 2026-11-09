@@ -102,12 +102,12 @@ final class LocalObjectReferencesTest extends TestCase
     public function testResolvedDiagnosticsKeepDeclarationPointerOperationAndAliasChain(): void
     {
         $document = self::document();
-        $document['components']['parameters']['ID/~']['allowEmptyValue'] = true;
+        $document['components']['parameters']['ID/~']['style'] = 'deepObject';
         $report = (new DocumentInspector())->inspect(self::source($document), sourceName: 'refs.json');
         self::assertFalse($report['strictlyAccepted']);
         $issues = array_values(array_filter($report['diagnostics'], static fn ($issue): bool =>
-            $issue->code === 'parameter_allowEmptyValue' && $issue->operationId === 'getUser'));
-        self::assertSame('/components/parameters/ID~1~0/allowEmptyValue', $issues[0]->pointer);
+            $issue->code === 'parameter_style' && $issue->operationId === 'getUser'));
+        self::assertSame('/components/parameters/ID~1~0/style', $issues[0]->pointer);
         self::assertSame('refs.json', $issues[0]->source);
         self::assertSame(['#/components/parameters/Identifier', '#/components/parameters/ID~1~0'], $issues[0]->referenceChain);
     }
@@ -177,7 +177,7 @@ final class LocalObjectReferencesTest extends TestCase
     public function testAliasDiagnosticProvenanceIsIndependentOfDeclarationOrder(): void
     {
         $document = self::document();
-        $document['components']['parameters']['ID/~']['allowEmptyValue'] = true;
+        $document['components']['parameters']['ID/~']['style'] = 'deepObject';
         $inspector = new DocumentInspector();
         $first = $inspector->inspect(self::source($document))['diagnostics'];
         $document['components']['parameters'] = array_reverse($document['components']['parameters'], true);

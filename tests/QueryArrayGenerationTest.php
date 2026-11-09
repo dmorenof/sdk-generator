@@ -112,7 +112,7 @@ final class QueryArrayGenerationTest extends TestCase
 
     public function testUnsupportedLocationsShapesAndStylesRemainStrictFailures(): void
     {
-        foreach ([['in', 'path'], ['style', 'deepObject'], ['allowEmptyValue', true]] as [$key, $value]) {
+        foreach ([['in', 'path'], ['style', 'deepObject']] as [$key, $value]) {
             $document = self::document();
             $document['paths']['/items']['get']['parameters'][0][$key] = $value;
             self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);

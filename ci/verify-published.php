@@ -83,12 +83,12 @@ runPublished([PHP_BINARY, $directory . '/server-consumer.php']);
 runPublished([PHP_BINARY, $binary, '--inspect', $package . '/tests/fixtures/casafari-openapi31.json']);
 $nested = json_decode(file_get_contents($package . '/tests/fixtures/accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
 $nested['components']['parameters']['Filter/~'] = [
-    'name' => 'filter', 'in' => 'query', 'schema' => ['type' => 'string'], 'allowEmptyValue' => true,
+    'name' => 'filter', 'in' => 'query', 'schema' => ['type' => 'string'], 'style' => 'deepObject',
 ];
 $report = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspect(json_encode($nested, JSON_THROW_ON_ERROR));
-$issues = array_values(array_filter($report['diagnostics'], static fn ($issue): bool => $issue->code === 'parameter_allowEmptyValue'));
+$issues = array_values(array_filter($report['diagnostics'], static fn ($issue): bool => $issue->code === 'parameter_style'));
 if ($report['strictlyAccepted'] || !$report['generatable']
-    || ($issues[0]->pointer ?? null) !== '/components/parameters/Filter~1~0/allowEmptyValue') {
+    || ($issues[0]->pointer ?? null) !== '/components/parameters/Filter~1~0/style') {
     throw new RuntimeException('Published generator did not audit reusable parameter declarations.');
 }
 echo "PUBLISHED_NESTED_AUDIT_OK", PHP_EOL;
@@ -420,4 +420,11 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/reser
     $reservedQuery, 'Example\\ReservedSdk', 'example/published-reserved-query']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $reservedQuery]);
 runPublished([PHP_BINARY, $package . '/tests/reserved-query-smoke.php', $reservedQuery]);
+foreach (['empty-values-openapi30.json', 'empty-values-swagger2.json'] as $index => $fixture) {
+    $emptyValues = $directory . '/empty-values-' . $index;
+    runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/' . $fixture,
+        $emptyValues, 'Example\\EmptySdk', 'example/published-empty-values-' . $index]);
+    runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $emptyValues]);
+    runPublished([PHP_BINARY, $package . '/tests/empty-values-smoke.php', $emptyValues]);
+}
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

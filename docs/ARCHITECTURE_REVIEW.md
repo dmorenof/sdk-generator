@@ -109,3 +109,7 @@ Se reutilizan Params DTOs, QuerySerializer, seguridad y transporte Guzzle/PSR. C
 ## Query reservada — v0.27.0 / runtime v0.21.0
 
 Se amplía QuerySerializer con selección de codificación por valor y una pequeña tabla de caracteres reservados sobre rawurlencode; Guzzle Query sigue ensamblando pares sin recodificar. Los nombres mantienen el encoder normal y la seguridad elimina la expansión reservada de sus credenciales. No se añade motor URI ni transporte. Se rechazan delimitadores estructurales según las responsabilidades de la aplicación descritas en OpenAPI, en lugar de inventar un escape. [Contrato y ejemplo oficial](RESERVED_QUERY.md).
+
+## Vacíos sin nueva infraestructura — v0.28.0
+
+El runtime ya distinguía name=, null/ausente, false/0 y colecciones vacías. Se elimina el diagnóstico falso de allowEmptyValue en ubicaciones soportadas y se documenta que el esquema gobierna tipos y constraints. No se añade metadata, wrapper, unión ni serializer; runtime ^0.21.0 sin cambios. SDKs OpenAPI/Swagger instalados prueban query/body/form con HTTP real. [Política](EMPTY_VALUES.md).
