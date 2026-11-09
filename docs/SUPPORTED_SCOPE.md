@@ -1,4 +1,4 @@
-# v0.26.0 supported scope and known limitations
+# v0.26.1 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -326,3 +326,7 @@ OpenAPI 3.0/3.1 primitive scalars/lists and flat typed objects support both expl
 ## Scalar cookies and API key cookies (v0.26.0)
 
 OpenAPI scalar form cookies use existing Params DTOs/validation/native percent encoding. Cookie API key credentials remain raw RFC6265 values. Configured, raw-operation and security cookies share one header with explicit conflict checks. Runtime ^0.20.0 preserves executor signatures and query/body separation. Structured/nullable/content cookie schemas, cookie jars, persistence and Set-Cookie response access remain unsupported. See [behavior, rationale and tests](COOKIES.md).
+
+## Parameter inheritance and duplicate rejection (v0.26.1)
+
+Operations replace a Path Item parameter's complete declaration by exact location/name identity. Empty or absent operation lists preserve inheritance. Duplicate identities within one list fail in normal/strict generation; resolved aliases and masked parent duplicates retain source diagnostics. Reusable declaration maps can contain alternative definitions. Stable runtime ^0.20.0 is unchanged. See [rules and verification](PARAMETER_OVERRIDES.md).

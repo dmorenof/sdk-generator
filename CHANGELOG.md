@@ -2,6 +2,12 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.26.1] — 2026-11-09
+
+- Reject repeated (location, name) identities within Path Item and operation parameter lists instead of silently overwriting them, including resolved aliases and duplicates masked by an operation override. Keep valid cross-level complete replacement and inheritance unchanged.
+- Report duplicate_parameter at the repeated usage with source pointers and reference chains; diagnose non-list parameter declarations. Reusable component maps may still contain alternative declarations with one identity.
+- Verify JSON/YAML, Swagger 2.0 and OpenAPI 3.0/3.1, inherited empty lists, effective types/styles/constraints, GetParams/PostParams and mutation validation. Add independent real GET/POST HTTP and published duplicate-rejection smoke; stable runtime ^0.20.0 remains sufficient. See docs/PARAMETER_OVERRIDES.md.
+
 ## [0.26.0] — 2026-11-09
 
 - Support OpenAPI scalar form cookie parameters through existing GetParams/PostParams DTOs, constraints and shared runtime execution. Preserve query body, headers and JSON payload separation without changing executor signatures.

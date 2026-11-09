@@ -148,6 +148,10 @@ final class SpecificationNormalizer
             if (!is_string($path) || !str_starts_with($path, '/') || !is_array($pathItem)) {
                 throw new InvalidArgumentException('Invalid path item in paths.');
             }
+            if (array_key_exists('parameters', $pathItem)
+                && (!is_array($pathItem['parameters']) || !array_is_list($pathItem['parameters']))) {
+                throw new InvalidArgumentException("Parameters must be a list at $path (Path Item).");
+            }
             foreach (self::METHODS as $method) {
                 if (!isset($pathItem[$method])) {
                     continue;
@@ -366,16 +370,27 @@ final class SpecificationNormalizer
         string $where,
     ): array {
         $merged = [];
-        foreach (array_merge($pathParameters, $operation['parameters'] ?? []) as $raw) {
-            if (!is_array($raw) || isset($raw['$ref'])) {
-                throw new InvalidArgumentException("Unsupported parameter reference at $where.");
+        foreach (['Path Item' => $pathParameters, 'operation' => array_key_exists('parameters', $operation) ? $operation['parameters'] : []] as $level => $declarations) {
+            if (!is_array($declarations) || !array_is_list($declarations)) {
+                throw new InvalidArgumentException("Parameters must be a list at $where ($level).");
             }
-            $loc = $raw['in'] ?? null;
-            $name = $raw['name'] ?? null;
-            if (!is_string($loc) || !is_string($name)) {
-                throw new InvalidArgumentException("Invalid parameter at $where.");
+            $seen = [];
+            foreach ($declarations as $raw) {
+                if (!is_array($raw) || isset($raw['$ref'])) {
+                    throw new InvalidArgumentException("Unsupported parameter reference at $where.");
+                }
+                $loc = $raw['in'] ?? null;
+                $name = $raw['name'] ?? null;
+                if (!is_string($loc) || !is_string($name)) {
+                    throw new InvalidArgumentException("Invalid parameter at $where.");
+                }
+                $identity = $loc . ':' . $name;
+                if (isset($seen[$identity])) {
+                    throw new InvalidArgumentException("Duplicate parameter $name in $loc at $where ($level).");
+                }
+                $seen[$identity] = true;
+                $merged[$identity] = $raw; // Replace the complete declaration only across levels.
             }
-            $merged[$loc . ':' . $name] = $raw; // Operation overrides path-level.
         }
         ksort($merged);
 

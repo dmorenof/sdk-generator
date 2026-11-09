@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.26.0** y `dmorenof/sdk-runtime` **v0.20.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.26.1** y `dmorenof/sdk-runtime` **v0.20.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -174,7 +174,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.24.0 y runtime v0.18.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
+**Situación actual:** generador v0.26.1 y runtime v0.20.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
 
 ### Revisión acordada de getParameters y postParameters
 
@@ -184,9 +184,9 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ### OpenAPI 3.x
 
-- [ ] **Parcial — Arrays y objetos por ubicación.** Arrays query publicados en v0.9.0, arrays simples path/header en v0.23.0 y objetos planos form/query y simple/path-header en v0.24.0. Quedan cookies y esquemas no representables por estos estilos.
+- [ ] **Parcial — Arrays y objetos por ubicación.** Arrays query publicados en v0.9.0, arrays simples path/header en v0.23.0 y objetos planos form/query y simple/path-header en v0.24.0. Quedan cookies estructuradas/content y esquemas no representables por estos estilos.
 - [x] **v0.9.0 — Arrays query primitivos con `style: form` y `explode: true/false`**, incluidos defaults OpenAPI.
-- [x] **v0.24.0 — style: form para objetos query planos**, cerrado o mapa escalar tipado, con defaults y explode true/false. Cookies form siguen pendientes en su apartado.
+- [x] **v0.24.0 — style: form para objetos query planos**, cerrado o mapa escalar tipado, con defaults y explode true/false. Cookies escalares form se incorporan en v0.26.0; las estructuradas/content siguen pendientes en su apartado.
 - [x] **v0.24.0 — style: simple path/header:** escalares, listas y objetos planos soportados, con defaults y explode true/false. Esquemas anidados/composiciones no cubiertos conservan diagnóstico explícito.
 - [x] **v0.11.0 — `deepObject` query plano** con explode true, propiedades escalares no null y additionalProperties false o schema escalar tipado; referencias locales e inline, DTOs/Maps y mutaciones.
 - [ ] Ampliar objetos query abiertos sin schema escalar de valores y composiciones compatibles. La serialización anidada de deepObject no está definida por OpenAPI y no se asume.
@@ -198,7 +198,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] Parámetros definidos con `content` en lugar de `schema`.
 - [ ] **Parcial — Cookies como parámetros:** escalares form y coexistencia con cookies configuradas/cabeceras/seguridad publicados en v0.26.0 / runtime v0.20.0. Arrays/objetos y content siguen pendientes; el conflicto de delimitadores OpenAPI/HTTP exige una política explícita. [Contrato](docs/COOKIES.md).
 - [x] **v0.23.0 — Placeholders path:** declaraciones requeridas/no null y correspondencia exacta con los placeholders; entradas runtime ausentes/null y mutaciones fallan antes de HTTP.
-- [ ] Reglas de sobreescritura de parámetros en Path Item vs operación.
+- [x] **v0.26.1 — Reglas de sobreescritura de parámetros:** reemplazo completo por identidad `(in, name)`, herencia con lista ausente/vacía y rechazo de duplicados en cada nivel, también mediante referencias. Swagger 2.0/OpenAPI 3.0/3.1 dentro del subconjunto soportado. [Reglas y pruebas](docs/PARAMETER_OVERRIDES.md).
 - [ ] Parámetros `default`, `example`, `examples` y `deprecated` cuando tengan efecto práctico.
 - [ ] **Parcial — Cobertura de encoding:** Unicode, espacios, comas, percent y delimitadores comprobados en query soportada y listas simple path/header; faltan los estilos/ubicaciones aún pendientes.
 
@@ -670,3 +670,10 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] Unificar Cookie sin distinguir casing de cabecera, preservar casing del nombre de cookie y detectar conflictos entre configuración/operación/seguridad.
 - [x] SDK independiente y smoke GET/POST HTTP real en CI y paquete publicado.
 - **Límites:** sin cookie jar, persistencia ni lectura de Set-Cookie; arrays/objetos y content no cubiertos. No se traducen silenciosamente los delimitadores incompatibles advertidos por OpenAPI 3.1.2, apéndice D. [Detalles](docs/COOKIES.md).
+
+### Herencia y duplicados de parámetros — v0.26.1
+
+- [x] Conservar reemplazo completo entre niveles e identidad por nombre/ubicación; no arrastrar tipos, constraints, required o estilos de la declaración sustituida. Una lista vacía no elimina parámetros heredados.
+- [x] Rechazar duplicados dentro del mismo nivel incluso si un override oculta la lista del Path Item; soportar referencias/alias con diagnósticos precisos. Los mapas de declaraciones reutilizables no se confunden con listas de uso.
+- [x] Verificar GetParams/PostParams, tipos diferentes GET/POST, header/query homónimos, cookie heredada, query body y JSON separados, mutaciones y HTTP real desde SDK independiente.
+- **Límites:** no amplía schemas/estilos ni introduce defaults o validación general del documento; runtime estable ^0.20.0 sin cambios. [Detalle](docs/PARAMETER_OVERRIDES.md).
