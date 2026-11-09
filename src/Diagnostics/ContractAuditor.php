@@ -558,6 +558,9 @@ final class ContractAuditor
             }
         }
         $location = $parameter['in'] ?? null;
+        if ($location === 'query' && ($parameter['allowReserved'] ?? false) === true && ($parameter['name'] ?? '') === '') {
+            $this->add('invalid_parameter_name', "$at/name", 'Reserved query expansion requires a non-empty parameter name.', $operation);
+        }
         if ($location === 'cookie' && (isset($this->document['swagger'])
             || !in_array($parameter['schema']['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
             || ($parameter['schema']['nullable'] ?? false) !== false || isset($parameter['content']))) {
@@ -571,7 +574,8 @@ final class ContractAuditor
             $this->add('parameter_style', "$at/style", 'This parameter style/explode combination is not executable for the declared location and schema.', $operation);
         }
         foreach (['allowReserved', 'allowEmptyValue'] as $flag) {
-            if (($parameter[$flag] ?? false) !== false) {
+            if (($parameter[$flag] ?? false) !== false
+                && !($flag === 'allowReserved' && $location === 'query' && !isset($this->document['swagger']))) {
                 $this->add('parameter_' . $flag, "$at/$flag", "Parameter $flag is not executed.", $operation);
             }
         }

@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.26.1** y `dmorenof/sdk-runtime` **v0.20.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.27.0** y `dmorenof/sdk-runtime` **v0.21.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -174,7 +174,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.26.1 y runtime v0.20.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
+**Situación actual:** generador v0.27.0 y runtime v0.21.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
 
 ### Revisión acordada de getParameters y postParameters
 
@@ -193,7 +193,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.10.0 — `style: spaceDelimited` y `pipeDelimited` para arrays query primitivos**, con explode ausente/false y rechazo de true (no definido).
 - [ ] Estilos delimitados para objetos.
 - [x] `style: label` y `matrix`: escalares, listas primitivas y objetos planos tipados OpenAPI 3.0/3.1, ambos explode; v0.25.0 / runtime v0.19.0. [Contrato y límites](docs/PATH_STYLES.md).
-- [ ] `allowReserved` con codificación correcta de caracteres reservados.
+- [x] **v0.27.0 — `allowReserved` en parámetros query OpenAPI:** escalares, listas y objetos planos ya soportados; conservar reservados legales y triples `%XX`, nombres/credenciales con codificación normal y rechazo explícito de delimitadores ambiguos. [Reglas de pre-encoding y límites](docs/RESERVED_QUERY.md).
 - [ ] `allowEmptyValue` distinguiendo ausente, vacío y null.
 - [ ] Parámetros definidos con `content` en lugar de `schema`.
 - [ ] **Parcial — Cookies como parámetros:** escalares form y coexistencia con cookies configuradas/cabeceras/seguridad publicados en v0.26.0 / runtime v0.20.0. Arrays/objetos y content siguen pendientes; el conflicto de delimitadores OpenAPI/HTTP exige una política explícita. [Contrato](docs/COOKIES.md).
@@ -677,3 +677,10 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] Rechazar duplicados dentro del mismo nivel incluso si un override oculta la lista del Path Item; soportar referencias/alias con diagnósticos precisos. Los mapas de declaraciones reutilizables no se confunden con listas de uso.
 - [x] Verificar GetParams/PostParams, tipos diferentes GET/POST, header/query homónimos, cookie heredada, query body y JSON separados, mutaciones y HTTP real desde SDK independiente.
 - **Límites:** no amplía schemas/estilos ni introduce defaults o validación general del documento; runtime estable ^0.20.0 sin cambios. [Detalle](docs/PARAMETER_OVERRIDES.md).
+
+### Query reservada — v0.27.0 / runtime v0.21.0
+
+- [x] Metadatos declarativos por parámetro y ampliación del serializador existente; sin motor URI ni ejecución generada duplicada. Flags ausentes/false conservan salida anterior.
+- [x] Escalares/listas y objetos planos form/deepObject, Unicode/percent, falsos/ceros/vacíos, ejemplos OpenAPI y restricciones de delimitadores. Nombres y credenciales de seguridad mantienen codificación habitual.
+- [x] GetParams/PostParams, query body separado de JSON, cookies/cabeceras intactas, mutaciones, ambos transportes y HTTP real en SDK independiente/publicado.
+- **Límites:** la aplicación debe preparar datos con delimitadores reservados según OpenAPI; se rechazan `#[]&=+` crudos y delimitadores de formato ambiguos. No cubre Swagger, otras ubicaciones, content, schemas nuevos ni encoding avanzado de forms. [Contrato](docs/RESERVED_QUERY.md).

@@ -212,10 +212,10 @@ final class PathItemHeaderReferencesTest extends TestCase
     {
         $document = self::document();
         $document['paths']['/users/{id}']['delete'] = ['operationId' => 'deleteUser', 'responses' => ['204' => ['description' => 'Deleted']]];
-        $document['components']['parameters']['ID/~']['allowReserved'] = true;
-        $issues = self::issues($document, 'parameter_allowReserved');
+        $document['components']['parameters']['ID/~']['allowEmptyValue'] = true;
+        $issues = self::issues($document, 'parameter_allowEmptyValue');
         $issue = array_values(array_filter($issues, static fn ($issue): bool => $issue->operationId === 'deleteUser'))[0];
-        self::assertSame('/components/parameters/ID~1~0/allowReserved', $issue->pointer);
+        self::assertSame('/components/parameters/ID~1~0/allowEmptyValue', $issue->pointer);
         self::assertSame(['#/components/pathItems/ReadAlias', '#/components/pathItems/ReadUser',
             '#/components/parameters/Identifier', '#/components/parameters/ID~1~0'], $issue->referenceChain);
     }

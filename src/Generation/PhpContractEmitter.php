@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.20.0';
+    public const RUNTIME_CONSTRAINT = '^0.21.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -1042,6 +1042,10 @@ final class PhpContractEmitter
                         throw new InvalidArgumentException("Path parameters must be required and nonnullable at $operation->operationId.");
                     }
                     $pathNames[] = $parameter->wireName;
+                }
+                if ($parameter->serialization->allowReserved === true
+                    && ($parameter->location !== 'query' || $parameter->wireName === '')) {
+                    throw new InvalidArgumentException('Reserved expansion requires a named OpenAPI query parameter.');
                 }
                 if ($parameter->location === 'cookie') {
                     $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName);

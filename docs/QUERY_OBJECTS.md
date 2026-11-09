@@ -50,3 +50,5 @@ composition schemas, other locations/styles, and omitted/false explode are outsi
 this bounded slice. Empty/bracketed names and collisions between expanded keys
 and explicit query parameters are rejected before transport. This does not define
 a non-standard encoding for nested deepObject values.
+
+Query allowReserved for supported shapes is added in [v0.27.0](RESERVED_QUERY.md), with explicit application pre-encoding and delimiter rules. Other locations and form-body encoding do not inherit this option.

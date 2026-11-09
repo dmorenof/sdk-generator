@@ -28,6 +28,7 @@ final readonly class PhpResourceEmitter
         'responseTypes' => [],
         'pathSerialization' => [],
         'headerSerialization' => [],
+        'queryAllowReserved' => [],
     ];
 
     /**
@@ -251,6 +252,7 @@ PHP;
 
         $validation = [];
         $querySerialization = [];
+        $queryAllowReserved = [];
         $pathSerialization = [];
         $headerSerialization = [];
         $bodySerialization = [];
@@ -268,6 +270,9 @@ PHP;
             }
         }
         foreach ($operation->parameters as $parameter) {
+            if ($parameter->location === 'query' && $parameter->serialization->allowReserved === true) {
+                $queryAllowReserved[] = $parameter->wireName;
+            }
             $objectType = $this->parameterTypes[$operation->operationId][$parameter->location][$parameter->wireName]
                 ?? ($parameter->location === 'query' ? ($this->queryTypes[$operation->operationId][$parameter->wireName] ?? null) : null);
             if ($objectType !== null) {
@@ -341,6 +346,7 @@ PHP;
             'validation' => $validation,
             'serverUrl' => $serverUrl,
             'querySerialization' => $querySerialization,
+            'queryAllowReserved' => $queryAllowReserved,
             'pathSerialization' => $pathSerialization,
             'headerSerialization' => $headerSerialization,
             'requestMediaType' => in_array($operation->requestBody?->mediaType, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)

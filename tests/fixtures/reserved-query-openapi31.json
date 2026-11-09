@@ -1,0 +1,232 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Reserved Query API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://example.test"
+    }
+  ],
+  "security": [
+    {
+      "Key": []
+    }
+  ],
+  "paths": {
+    "/items": {
+      "get": {
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "allowReserved": true,
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "allowReserved": true,
+            "required": false
+          },
+          {
+            "name": "labels",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "allowReserved": true,
+            "required": false
+          },
+          {
+            "name": "k",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "allowReserved": true,
+            "required": false
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "style": "deepObject",
+            "explode": true,
+            "allowReserved": true,
+            "schema": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          },
+          {
+            "name": "plain",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "theme",
+            "in": "cookie",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "allowReserved": true,
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "allowReserved": true,
+            "required": false
+          },
+          {
+            "name": "labels",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "allowReserved": true,
+            "required": false
+          },
+          {
+            "name": "k",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "allowReserved": true,
+            "required": false
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "style": "deepObject",
+            "explode": true,
+            "allowReserved": true,
+            "schema": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          },
+          {
+            "name": "plain",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "theme",
+            "in": "cookie",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Form"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "Key": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "k"
+      }
+    },
+    "schemas": {
+      "Filter": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "Form": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

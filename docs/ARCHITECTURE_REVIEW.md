@@ -105,3 +105,7 @@ Se evaluó guzzlehttp/uri-template v2.0.1: distingue objetos y listas por las cl
 ## Cookies escalares — v0.26.0 / runtime v0.20.0
 
 Se reutilizan Params DTOs, QuerySerializer, seguridad y transporte Guzzle/PSR. CookieHeader concentra exclusivamente la unión/validación RFC6265 de cabeceras de petición para configuración, parámetros y autenticación. CookieJar/SetCookie resuelven almacenamiento y respuestas, no esa combinación ni la adaptación OpenAPI; no se añaden jar ni persistencia. La ejecución común elimina ramas repetidas al asignar ubicaciones y conserva las firmas. Los formatos de múltiples valores incompatibles con cookies se rechazan explícitamente; no se inventa una serialización. [Contrato y pruebas](COOKIES.md).
+
+## Query reservada — v0.27.0 / runtime v0.21.0
+
+Se amplía QuerySerializer con selección de codificación por valor y una pequeña tabla de caracteres reservados sobre rawurlencode; Guzzle Query sigue ensamblando pares sin recodificar. Los nombres mantienen el encoder normal y la seguridad elimina la expansión reservada de sus credenciales. No se añade motor URI ni transporte. Se rechazan delimitadores estructurales según las responsabilidades de la aplicación descritas en OpenAPI, en lugar de inventar un escape. [Contrato y ejemplo oficial](RESERVED_QUERY.md).

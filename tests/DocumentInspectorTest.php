@@ -36,12 +36,12 @@ final class DocumentInspectorTest extends TestCase
     public function testPreviouslyIgnoredParameterOptionsHaveSourceOperationAndEscapedPointer(): void
     {
         $document = self::source();
-        $document['paths']['/users/{id}']['get']['parameters'][1]['allowReserved'] = true;
+        $document['paths']['/users/{id}']['get']['parameters'][1]['allowEmptyValue'] = true;
         $report = self::inspect($document);
         self::assertSame('partial', $report['status']);
         self::assertFalse($report['strictlyAccepted']);
         $issue = $report['diagnostics'][0];
-        self::assertSame('/paths/~1users~1{id}/get/parameters/1/allowReserved', $issue->pointer);
+        self::assertSame('/paths/~1users~1{id}/get/parameters/1/allowEmptyValue', $issue->pointer);
         self::assertSame('getUser', $issue->operationId);
         self::assertSame('api.json', $issue->source);
     }
@@ -107,14 +107,14 @@ final class DocumentInspectorTest extends TestCase
         $directory = sys_get_temp_dir() . '/sdk-inspection-' . bin2hex(random_bytes(8));
         mkdir($directory, 0700);
         $document = self::source();
-        $document['paths']['/users/{id}']['get']['parameters'][1]['allowReserved'] = true;
+        $document['paths']['/users/{id}']['get']['parameters'][1]['allowEmptyValue'] = true;
         file_put_contents("$directory/input.json", json_encode($document, JSON_THROW_ON_ERROR));
         try {
             $args = [PHP_BINARY, dirname(__DIR__) . '/bin/generate-sdk.php', '--strict', "$directory/input.json", "$directory/output", 'example/strict'];
             exec(implode(' ', array_map('escapeshellarg', $args)) . ' 2>&1', $lines, $exit);
             self::assertSame(1, $exit);
             self::assertDirectoryDoesNotExist("$directory/output");
-            self::assertStringContainsString('/paths/~1users~1{id}/get/parameters/1/allowReserved', implode("\n", $lines));
+            self::assertStringContainsString('/paths/~1users~1{id}/get/parameters/1/allowEmptyValue', implode("\n", $lines));
             $args = [PHP_BINARY, dirname(__DIR__) . '/bin/generate-sdk.php', '--inspect', "$directory/input.json"];
             exec(implode(' ', array_map('escapeshellarg', $args)), $json, $status);
             self::assertSame(1, $status);
