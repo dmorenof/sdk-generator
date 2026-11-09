@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.24.0** y `dmorenof/sdk-runtime` **v0.18.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.25.0** y `dmorenof/sdk-runtime` **v0.19.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -192,7 +192,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] Ampliar objetos query abiertos sin schema escalar de valores y composiciones compatibles. La serialización anidada de deepObject no está definida por OpenAPI y no se asume.
 - [x] **v0.10.0 — `style: spaceDelimited` y `pipeDelimited` para arrays query primitivos**, con explode ausente/false y rechazo de true (no definido).
 - [ ] Estilos delimitados para objetos.
-- [ ] `style: label` y `matrix`.
+- [x] `style: label` y `matrix`: escalares, listas primitivas y objetos planos tipados OpenAPI 3.0/3.1, ambos explode; v0.25.0 / runtime v0.19.0. [Contrato y límites](docs/PATH_STYLES.md).
 - [ ] `allowReserved` con codificación correcta de caracteres reservados.
 - [ ] `allowEmptyValue` distinguiendo ausente, vacío y null.
 - [ ] Parámetros definidos con `content` en lugar de `schema`.
@@ -655,3 +655,10 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-09 | Generador v0.22.0 + runtime v0.16.0: selección de respuestas JSON por estado HTTP, firmas unión PHP, nulabilidad/ausencia por status y corrección de 200 vacío con 204 alternativo; herencia, DTOs y ejecución común reutilizados. | [Generator v0.22.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.22.0), [Runtime v0.16.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.16.0) |
 | 2026-11-09 | Generador v0.23.0 + runtime v0.17.1: arrays primitivos simple/CSV en path y headers, validación de placeholders y PathParams nativo; reuse de serialización/DTOs y contratos GetParams/PostParams, SDKs equivalentes y HTTP real. | [Generator v0.23.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.23.0), [Runtime v0.17.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.17.1) |
 | 2026-11-09 | Generador v0.24.0 + runtime v0.18.0: objetos planos form/query y simple/path-header con explode/defaults, DTOs/Maps compartidos y validación por ubicación; colisiones query, delimitadores header, mutaciones y contrato GET/POST comprobados. | [Generator v0.24.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.24.0), [Runtime v0.18.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.18.0) |
+
+### Paths label/matrix — v0.25.0 / runtime v0.19.0
+
+- [x] Reutilizar DTO/Map y serializador común para escalares, listas y objetos planos, ambos explode y defaults.
+- [x] Verificar ejemplos RFC 6570, claves numéricas, codificación, vacíos y mutaciones; conservar GetParams/PostParams, query body y payload JSON independientes.
+- [x] Conservar segmentos punto con Guzzle/cURL y comprobar el target HTTP real.
+- **Límites:** no cookies, nesting, propiedades nullable/sin tipo, composiciones generales ni intérprete de plantillas URI. Los límites de entregas anteriores se describen históricamente; label/matrix queda cubierto aquí para el subconjunto indicado.

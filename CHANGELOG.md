@@ -2,6 +2,12 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.25.0] — 2026-11-09
+
+- Add OpenAPI label/matrix path scalars, primitive lists and flat typed DTO/Map objects with both explode modes and defaults. Reuse parameter support and shared runtime serialization; preserve GetParams/PostParams, query/header/JSON body separation and existing public signatures.
+- Require stable runtime ^0.19.0, preserving empty-label dot segments over default Guzzle/cURL transport. Verify RFC 6570 reference examples, percent encoding, numeric object keys, empty values, invalid shapes and mutations.
+- Add a 24th independently installed SDK with maximum PHPStan and immutable-package smoke; verify exact real HTTP GET/POST targets. Nested/null/unconstrained shapes, cookies and general URI templates remain outside scope. See docs/PATH_STYLES.md.
+
 ## Unreleased
 
 No changes yet.

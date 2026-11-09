@@ -529,8 +529,11 @@ final class ContractAuditor
         if ($location === 'cookie') {
             $this->add('cookie_parameter', "$at/in", 'Cookie parameter serialization is not implemented.', $operation);
         }
+        $pathScalarStyle = !isset($this->document['swagger']) && $location === 'path'
+            && in_array($parameter['schema']['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
+            && in_array($parameter['style'] ?? null, ['label', 'matrix'], true);
         $default = in_array($location, ['query', 'cookie'], true) ? 'form' : 'simple';
-        if (isset($parameter['style']) && $parameter['style'] !== $default && !$parameterArray && !$parameterObject) {
+        if (isset($parameter['style']) && $parameter['style'] !== $default && !$parameterArray && !$parameterObject && !$pathScalarStyle) {
             $this->add('parameter_style', "$at/style", 'This parameter style/explode combination is not executable for the declared location and schema.', $operation);
         }
         foreach (['allowReserved', 'allowEmptyValue'] as $flag) {

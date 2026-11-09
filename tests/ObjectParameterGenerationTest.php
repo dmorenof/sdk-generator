@@ -132,7 +132,7 @@ final class ObjectParameterGenerationTest extends TestCase {
     }
     public function testUnsupportedNestingNullablePathsOpenObjectsAndStylesStayDiagnosed(): void {
         $variants = [];
-        foreach ([['style' => 'label'], ['style' => 'matrix'], ['schema' => ['type' => 'object', 'additionalProperties' => true]],
+        foreach ([['style' => 'spaceDelimited'], ['style' => 'pipeDelimited'], ['schema' => ['type' => 'object', 'additionalProperties' => true]],
             ['schema' => ['type' => 'object', 'additionalProperties' => false, 'properties' => ['x' => ['type' => 'array', 'items' => ['type' => 'string']]]]],
             ['schema' => ['type' => 'object', 'nullable' => true, 'additionalProperties' => false]],
             ['schema' => ['type' => 'object', 'additionalProperties' => false, 'enum' => []]],

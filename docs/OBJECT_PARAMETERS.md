@@ -65,7 +65,9 @@ independently from the generator using stable runtime ^0.18.0.
 
 Only flat nonnullable primitive properties and nonempty keys are supported.
 Path/header object schemas themselves must be nonnullable. Free-form untyped maps,
-compositions, nested values, cookie objects, label/matrix, content-based parameters,
+compositions, nested values, cookie objects, content-based parameters,
 allowReserved true and allowEmptyValue true remain outside this delivery. Nesting
 is not assumed to have an OpenAPI serialization meaning where none is specified.
 This completes the flat form/simple object families, not the entire HTTP roadmap.
+
+Label/matrix paths for the supported scalar/list/flat-object subset are available in [v0.25.0](PATH_STYLES.md).

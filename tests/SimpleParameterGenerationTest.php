@@ -141,7 +141,7 @@ final class SimpleParameterGenerationTest extends TestCase {
     }
     public function testMissingAndInvalidPathDeclarationsAndUnsupportedSchemasAreDiagnosed(): void {
         $variants = [];
-        foreach (['label', 'matrix', 'form'] as $style) {
+        foreach (['deepObject', 'spaceDelimited', 'form'] as $style) {
             $d = self::document(); $d['paths']['/items/{ids}']['get']['parameters'][0]['style'] = $style; $variants[] = $d;
         }
         foreach ([['type' => 'object'], ['nullable' => true], ['enum' => []], ['items' => ['type' => 'object']],

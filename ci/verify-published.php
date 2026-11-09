@@ -385,4 +385,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/objec
     $objectParameters, 'Example\\ObjectSdk', 'example/published-object-parameters']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $objectParameters]);
 runPublished([PHP_BINARY, $package . '/tests/object-parameters-smoke.php', $objectParameters]);
+$pathStyles = $directory . '/path-styles';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/path-styles-openapi31.json',
+    $pathStyles, 'Example\\PathSdk', 'example/published-path-styles']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $pathStyles]);
+runPublished([PHP_BINARY, $package . '/tests/path-styles-smoke.php', $pathStyles]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

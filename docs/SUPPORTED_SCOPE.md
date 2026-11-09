@@ -1,4 +1,4 @@
-# v0.24.0 supported scope and known limitations
+# v0.25.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -30,7 +30,7 @@
 - Multiple explicit JSON success statuses select their own hydrators and native return types in v0.22.0; binary-only successes share the bounded PSR codec from v0.20.0. Mixed JSON/binary successes and some non-object error schemas remain unsupported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.18.0 or later compatible versions (`^0.18.0`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.19.0 or later compatible versions (`^0.19.0`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
@@ -45,7 +45,7 @@ Please report supported-schema failures through GitHub Issues with a small **red
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.18.0`;
+The current generator and generated Composer packages require stable runtime `^0.19.0`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -318,3 +318,7 @@ published first; twenty-three installed SDKs pass PHPStan maximum and an indepen
 HTTP consumer verifies GET/POST path/query/header/body bytes. Untyped/nested/null
 values, compositions, cookies, label/matrix and content remain unsupported.
 [Usage and exact boundaries](OBJECT_PARAMETERS.md).
+
+## Label/matrix paths (v0.25.0)
+
+OpenAPI 3.0/3.1 primitive scalars/lists and flat typed objects support both explode modes and defaults. Runtime ^0.19.0 preserves literal dot segments with the default Guzzle/cURL client. Existing query/header/body behavior and public executor signatures remain compatible. Nested/nullable/unconstrained shapes and cookies remain pending. See [exact behavior and evidence](PATH_STYLES.md).
