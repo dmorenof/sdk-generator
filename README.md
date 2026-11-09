@@ -23,7 +23,7 @@ Version 0.12.0 adds OpenAPI URL-encoded form bodies with scalar fields and primi
 
 Version 0.13.0 adds Swagger 2.0 `formData` scalar/list fields through the same URL-encoded runtime. Its CSV default and explicit multi format are preserved, including reusable aliases and operation overrides. See [Swagger HTTP forms](docs/FORMS.md#swagger-20-formdata-v0130).
 
-Version 0.23.0 adds primitive simple/CSV path and header lists, with native array PathParams, exact path item encoding, raw header rules and required placeholder validation. GetParams/PostParams keep query and JSON bodies independent; shared execution uses stable runtime ^0.17.0. See [simple parameters](docs/SIMPLE_PARAMETERS.md), [response selection](docs/RESPONSES.md), [downloads](docs/DOWNLOADS.md) and [the architecture review](docs/ARCHITECTURE_REVIEW.md).
+Version 0.23.0 adds primitive simple/CSV path and header lists, with native array PathParams, exact path item encoding, raw header rules and required placeholder validation. GetParams/PostParams keep query and JSON bodies independent; shared execution uses stable runtime ^0.17.1. See [simple parameters](docs/SIMPLE_PARAMETERS.md), [response selection](docs/RESPONSES.md), [downloads](docs/DOWNLOADS.md) and [the architecture review](docs/ARCHITECTURE_REVIEW.md).
 
 ## Quick start: generate Accounts SDK
 
@@ -179,7 +179,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v0.23.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.23.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.17.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v0.23.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.23.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.17.1**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

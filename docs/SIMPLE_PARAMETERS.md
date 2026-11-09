@@ -1,10 +1,12 @@
-# Simple path/header primitive lists — v0.23.0 / runtime v0.17.0
+# Simple path/header primitive lists — v0.23.0 / runtime v0.17.1
 
 OpenAPI 3.0/3.1 arrays of nonnullable primitive items can use `style: simple` in
 path and header parameters, including the location default. For arrays, explode
 true and false have the same comma-separated expansion. Swagger 2.0 arrays in
 these locations support collectionFormat csv, explicit or default. References to
-local Parameter Objects and aliases work; schemas themselves remain inline.
+local Parameter Objects and aliases work; schemas themselves remain inline. Numeric names such as `0` remain valid after PHP
+coerces array keys to integers; metadata types and protocol stringification cover
+these keys.
 
 ```yaml
 parameters:

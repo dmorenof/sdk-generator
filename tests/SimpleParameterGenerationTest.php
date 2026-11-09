@@ -65,6 +65,33 @@ final class SimpleParameterGenerationTest extends TestCase {
             catch (\InvalidArgumentException) { self::assertTrue(true); }
         }
     }
+    public function testNumericParameterNamesProduceValidMetadataAndPathFields(): void {
+        $document = self::document(); $item = $document['paths']['/items/{ids}'];
+        foreach (['get', 'post'] as $verb) {
+            $item[$verb]['parameters'][0]['name'] = '0'; $item[$verb]['parameters'][1]['name'] = '0';
+        }
+        $document['paths'] = ['/items/{0}' => $item];
+        $files = self::files($document);
+        self::assertStringContainsString('ByResource0 $identifier', $files['src/Resources/Items.php']);
+        self::assertStringContainsString("'pathSerialization' =>", $files['src/Resources/Items.php']);
+        $numericFiles = (new PhpExecutableEmitter('Example\\NumericSimpleSdk', 'example/numeric-simple'))->emit(
+            (new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR), strict: true));
+        foreach (['src/Client.php', 'src/Configuration.php', 'src/SimpleAPISDK.php'] as $path) {
+            eval(substr($numericFiles[$path], strlen('<?php'))); unset($numericFiles[$path]);
+        }
+        foreach ($numericFiles as $path => $source) { if (str_ends_with($path, '.php')) { eval(substr($source, strlen('<?php'))); } }
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public array $calls = [];
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse {
+                $this->calls[] = compact('url', 'headers'); return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
+            }
+        };
+        $resource = \Example\NumericSimpleSdk\Client::connect('https://example.test', transport: $transport)->resource(\Example\NumericSimpleSdk\Resources\Items::class);
+        $resource->getByResource0(new \Example\NumericSimpleSdk\PathParams\Items\ByResource0((object) ['0' => ['a,b', 'c/d']]),
+            new \Example\NumericSimpleSdk\GetParams\Items\ByResource0((object) ['0' => ['alpha', 'beta']]));
+        self::assertSame('https://example.test/items/a%2Cb,c%2Fd', $transport->calls[0]['url']);
+        self::assertSame('alpha,beta', $transport->calls[0]['headers'][0]);
+    }
     public function testCompositePathRetainsTheTwoArgumentDtoContract(): void {
         $document = self::document();
         $item = $document['paths']['/items/{ids}'];

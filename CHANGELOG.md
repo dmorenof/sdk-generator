@@ -9,7 +9,7 @@ No changes yet.
 ## [0.23.0] — 2026-11-09
 
 - Add OpenAPI simple primitive path/header arrays and Swagger CSV equivalents using the existing parameter list resolver, guard and declarative validation. Generate native array PathParams for single or composite list paths; preserve scalar signatures and the inherited two-argument executor API.
-- Require stable runtime ^0.17.0 for native path item encoding and raw simple header lists. Keep query/header/body locations independent, including duplicated path/query names and query named body. Reject ambiguous header commas/controls/outer whitespace, unsupported list/schema formats and ignored enum constraints; validate required nonnullable path declarations against placeholders.
+- Require stable runtime ^0.17.1 for native path item encoding and raw simple header lists, including numeric wire-name keys. Keep query/header/body locations independent, including duplicated path/query names and query named body. Reject ambiguous header commas/controls/outer whitespace, unsupported list/schema formats and ignored enum constraints; validate required nonnullable path declarations against placeholders.
 - Verify JSON/YAML, dialect/default/explode equivalence, local aliases, bounds/items/mutations, both transport paths, twenty-two installed SDKs and real OpenAPI/Swagger GET/POST bytes. Reuse independent package smoke for CI/publication; update current scope and pendientes.md without claiming object/label/matrix/cookie support.
 
 ## [0.22.0] — 2026-11-09
