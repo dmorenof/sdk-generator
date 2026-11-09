@@ -6,6 +6,12 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.24.0] — 2026-11-09
+
+- Complete flat OpenAPI form query and simple path/header object parameter families, including default/explicit styles and both explode modes. Reuse referenced/inline DTOs, typed Maps and the shared validation/directional field extractor; keep deepObject output and legacy emitter constructors/accessors compatible.
+- Track parameter types by operation/location/name so equal wire names cannot mix path/header/query schemas. Preserve PathParams and GetParams/PostParams body separation, required fields, aliases, enums, readOnly filtering, false/zero and mutation validation. Require published stable runtime ^0.18.0 without new transport, wrapper or hydrator.
+- Reject query expansion collisions, ambiguous header delimiters/controls and unsupported schemas/options. Verify JSON/YAML, both object expansion forms, references, maps, optional/empty behavior, mutations, twenty-three installed SDKs and real GET/POST request bytes. Update pendientes.md and docs/OBJECT_PARAMETERS.md; cookies, label/matrix, untyped maps, nesting and content remain outside this delivery.
+
 ## [0.23.0] — 2026-11-09
 
 - Add OpenAPI simple primitive path/header arrays and Swagger CSV equivalents using the existing parameter list resolver, guard and declarative validation. Generate native array PathParams for single or composite list paths; preserve scalar signatures and the inherited two-argument executor API.

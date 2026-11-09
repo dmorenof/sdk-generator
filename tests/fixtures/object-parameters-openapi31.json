@@ -1,0 +1,176 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Object Parameters API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test/v1"
+    }
+  ],
+  "paths": {
+    "/items/{selector}": {
+      "get": {
+        "operationId": "getItems",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "selector",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Selector"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Filter",
+            "style": "simple",
+            "explode": true,
+            "schema": {
+              "$ref": "#/components/schemas/Selector"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "$ref": "#/components/schemas/Selector"
+            }
+          },
+          {
+            "in": "query",
+            "name": "labels",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "in": "query",
+            "name": "body",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postItems",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "selector",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Selector"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Filter",
+            "style": "simple",
+            "explode": true,
+            "schema": {
+              "$ref": "#/components/schemas/Selector"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "$ref": "#/components/schemas/Selector"
+            }
+          },
+          {
+            "in": "query",
+            "name": "labels",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "in": "query",
+            "name": "body",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Form"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Selector": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "active"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "server-id": {
+            "type": "string",
+            "readOnly": true
+          }
+        }
+      },
+      "Form": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
