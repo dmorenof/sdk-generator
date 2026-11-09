@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.17.1';
+    public const RUNTIME_CONSTRAINT = '^0.18.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -39,8 +39,8 @@ final class PhpContractEmitter
     private array $operationErrorTypes = [];
     /** @var array<string,string> Operation ID => fully-qualified request body DTO. */
     private array $operationBodyTypes = [];
-    /** @var array<string,array<string,string>> Operation ID / wire name => query object type. */
-    private array $operationQueryTypes = [];
+    /** @var array<string,array<string,array<array-key,string>>> Operation ID / location / wire name => object type. */
+    private array $operationParameterTypes = [];
     /** @var array<string, string> Collection item type and rules => generated FQCN. */
     private array $collectionTypes = [];
     /** @var array<int,true> Body schema identities requiring native multipart file lists. */
@@ -84,7 +84,7 @@ final class PhpContractEmitter
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
         $this->operationBodyTypes = [];
-        $this->operationQueryTypes = [];
+        $this->operationParameterTypes = [];
         $this->collectionTypes = [];
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
@@ -155,7 +155,7 @@ final class PhpContractEmitter
 
         $files['src/Api/Operations.php'] = $this->renderOperations($contract, $files);
         $files = array_replace($files,
-            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes, $this->operationQueryTypes))->emit($contract));
+            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes, [], $this->operationParameterTypes))->emit($contract));
         $files['src/Api/OperationCatalog.php'] = $this->renderCatalog($contract);
         $manifest = [
             'name' => $this->packageName,
@@ -197,7 +197,19 @@ final class PhpContractEmitter
     /** @return array<string,array<string,string>> */
     public function operationQueryTypes(): array
     {
-        return $this->operationQueryTypes;
+        $queries = [];
+        foreach ($this->operationParameterTypes as $operation => $locations) {
+            if (isset($locations['query'])) {
+                $queries[$operation] = $locations['query'];
+            }
+        }
+        return $queries;
+    }
+
+    /** @return array<string,array<string,array<array-key,string>>> */
+    public function operationParameterTypes(): array
+    {
+        return $this->operationParameterTypes;
     }
 
 
@@ -1031,7 +1043,8 @@ final class PhpContractEmitter
                     }
                     $pathNames[] = $parameter->wireName;
                 }
-                if (in_array($parameter->location, ['path', 'header'], true)) {
+                $object = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::supported($parameter, $contract->models);
+                if (!$object && in_array($parameter->location, ['path', 'header'], true)) {
                     $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true);
                     if ($parameter->location === 'path' && $resolved['nullable']) {
                         throw new InvalidArgumentException("Path parameters must be nonnullable at $operation->operationId.");
@@ -1041,10 +1054,10 @@ final class PhpContractEmitter
                         throw new InvalidArgumentException("Unsupported simple list at $operation->operationId.$parameter->wireName.");
                     }
                 }
-                if (\Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::supported($parameter, $contract->models)) {
+                if ($object) {
                     $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
-                    $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), 'Query', ucfirst($parameter->wireName)]);
-                    $this->operationQueryTypes[$operation->operationId][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
+                    $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), ucfirst($parameter->location), ucfirst($parameter->wireName)]);
+                    $this->operationParameterTypes[$operation->operationId][$parameter->location][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
                 }
             }
             if (array_diff($matches[1], $pathNames) !== [] || array_diff($pathNames, $matches[1]) !== []) {

@@ -48,6 +48,8 @@ final readonly class PhpResourceEmitter
         private array $queryTypes = [],
         /** @var list<\Dmorenof\SdkGenerator\Contract\ModelDefinition> */
         private array $formModels = [],
+        /** @var array<string,array<string,array<array-key,string>>> */
+        private array $parameterTypes = [],
     ) {}
 
     /** @return array<string,string> */
@@ -266,11 +268,21 @@ PHP;
             }
         }
         foreach ($operation->parameters as $parameter) {
-            if ($parameter->location === 'query') {
-                if (isset($this->queryTypes[$operation->operationId][$parameter->wireName])) {
-                    $querySerialization[$parameter->wireName] = 'deepObject';
-                    continue;
+            $objectType = $this->parameterTypes[$operation->operationId][$parameter->location][$parameter->wireName]
+                ?? ($parameter->location === 'query' ? ($this->queryTypes[$operation->operationId][$parameter->wireName] ?? null) : null);
+            if ($objectType !== null) {
+                $format = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::format($parameter->serialization, $parameter->location);
+                if ($format === null) { throw new InvalidArgumentException("Unsupported object parameter at $operation->operationId.$parameter->wireName."); }
+                if ($parameter->location === 'query') {
+                    $querySerialization[$parameter->wireName] = $format;
+                } elseif ($parameter->location === 'path') {
+                    $pathSerialization[$parameter->wireName] = $format;
+                } else {
+                    $headerSerialization[$parameter->wireName] = $format;
                 }
+                continue;
+            }
+            if ($parameter->location === 'query') {
                 $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true);
                 if ($resolved['type'] === 'array') {
                     $format = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::format($parameter->serialization);

@@ -380,4 +380,9 @@ foreach (['simple-parameters-openapi31.json', 'simple-parameters-swagger2.json']
     runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $simpleDirectory]);
     runPublished([PHP_BINARY, $package . '/tests/simple-parameters-smoke.php', $simpleDirectory]);
 }
+$objectParameters = $directory . '/object-parameters';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/object-parameters-openapi31.json',
+    $objectParameters, 'Example\\ObjectSdk', 'example/published-object-parameters']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $objectParameters]);
+runPublished([PHP_BINARY, $package . '/tests/object-parameters-smoke.php', $objectParameters]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

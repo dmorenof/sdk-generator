@@ -23,6 +23,8 @@ final readonly class PhpOperationRequestEmitter
         private array $bodyTypes = [],
         /** @var array<string,array<string,string>> */
         private array $queryTypes = [],
+        /** @var array<string,array<string,array<array-key,string>>> */
+        private array $parameterTypes = [],
     ) {}
 
     /** @return array<string,string> */
@@ -74,7 +76,8 @@ final readonly class PhpOperationRequestEmitter
             $path = implode('/', $segments);
             $namespace = implode('\\', $segments);
             $identifier = null;
-            if (count($pathParameters) === 1 && $pathParameters[0]->schema->kind !== \Dmorenof\SdkGenerator\Contract\SchemaKind::Array) {
+            if (count($pathParameters) === 1 && $pathParameters[0]->schema->kind !== \Dmorenof\SdkGenerator\Contract\SchemaKind::Array
+                && !isset($this->parameterTypes[$operation->operationId]['path'][$pathParameters[0]->wireName])) {
                 $parameter = $pathParameters[0];
                 $resolved = PhpParameterTypeResolver::resolve(
                     $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
@@ -213,9 +216,10 @@ final readonly class PhpOperationRequestEmitter
                 $propertyMap[$parameter->wireName] = $field;
                 $wirePropertyMap[$field] = $parameter->wireName;
             }
-            $queryType = $this->queryTypes[$operation->operationId][$parameter->wireName] ?? null;
-            $resolved = $queryType !== null && $parameter->location === 'query'
-                ? ['type' => $queryType, 'nullable' => \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::nullable($parameter->schema, $contract->models), 'enumValues' => []]
+            $parameterType = $this->parameterTypes[$operation->operationId][$parameter->location][$parameter->wireName]
+                ?? ($parameter->location === 'query' ? ($this->queryTypes[$operation->operationId][$parameter->wireName] ?? null) : null);
+            $resolved = $parameterType !== null
+                ? ['type' => $parameterType, 'nullable' => \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::nullable($parameter->schema, $contract->models), 'enumValues' => []]
                 : PhpParameterTypeResolver::resolve(
                     $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true,
                 );

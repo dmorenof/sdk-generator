@@ -1,4 +1,4 @@
-# v0.23.0 supported scope and known limitations
+# v0.24.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -10,11 +10,11 @@
 - Compositions support local model references, primitives, enums, typed arrays and inline object branches where those schemas are otherwise supported. Scalar enum refinements retain inherited PHP types; other conflicting `allOf` properties and unsupported branch/sibling forms fail explicitly.
 - The normalizer preserves `default` metadata but does not materialize defaults into DTOs. `pattern` is validated with Unicode PCRE-compatible expressions. Type-less schemas are represented as `mixed` unless object properties, `additionalProperties`, or `pattern` provide a more specific shape.
 - `readOnly` properties are omitted from request serialization and are not required for requests; `writeOnly` properties are omitted from response serialization and are not required for responses. Directional filtering is recursive for nested DTOs.
-- Query arrays of non-null primitive items use native PHP lists, validated item constraints and bounds. OpenAPI form supports repeated keys (default) and CSV; Swagger supports multi and CSV (default). v0.10.0 adds OpenAPI spaceDelimited/pipeDelimited (omitted/false explode) and Swagger ssv/tsv/pipes. These formats reject items containing their own delimiter; separators are URI-encoded. Null/absent parameters and empty lists are omitted; empty string items are explicit. Other locations, objects, nested/nullable items and styles/flags remain pending. See [query arrays](QUERY_ARRAYS.md).
-- OpenAPI flat deepObject query objects use typed DTOs/Maps with explicit closed or scalar additional-property schemas. Inline/local references, request-direction fields, JSON names, enums and mutations are validated. GET and POST parameter DTOs keep query and JSON body separate, including a query named body. Nested/null properties, unconstrained extras and other object styles remain pending. See [query objects](QUERY_OBJECTS.md).
+- Query arrays of non-null primitive items use native PHP lists, validated item constraints and bounds. OpenAPI form supports repeated keys (default) and CSV; Swagger supports multi and CSV (default). v0.10.0 adds OpenAPI spaceDelimited/pipeDelimited (omitted/false explode) and Swagger ssv/tsv/pipes. These formats reject items containing their own delimiter; separators are URI-encoded. Null/absent parameters and empty lists are omitted; empty string items are explicit. Simple path/header lists are supported in v0.23.0; flat form/simple objects arrive in v0.24.0. Nested/nullable items, cookies and other styles/flags remain pending. See [query arrays](QUERY_ARRAYS.md).
+- OpenAPI flat deepObject query objects use typed DTOs/Maps with explicit closed or scalar additional-property schemas. Inline/local references, request-direction fields, JSON names, enums and mutations are validated. GET and POST parameter DTOs keep query and JSON body separate, including a query named body. v0.24.0 adds flat form/query and simple/path-header objects with both explode modes. Nested/null properties, unconstrained extras, cookies and other styles remain pending. See [query objects](QUERY_OBJECTS.md) and [flat HTTP objects](OBJECT_PARAMETERS.md).
 - OpenAPI URL-encoded form bodies support explicit closed objects with scalar fields and primitive lists, inline/named schemas and local requestBody references. Per-field form/explode defaults, repeated-key/CSV arrays, required fields, enums, JSON names and directional mutation validation are verified. Query, headers and body remain separate in GetParams/PostParams. Swagger v0.13.0 formData normalizes scalar/list fields to the same runtime with CSV/multi formats and explicit URL-encoded consumes. OpenAPI multipart now supports the bounded binary-string subset below; Swagger v0.16.0 multipart supports scalar/file fields and explicit multi lists through the same runtime. Other formats, nested/open form schemas and styles remain pending. See [forms](FORMS.md).
 - Primitive HTTP parameters support nullable primitive `anyOf` and inline string/integer enums; enum membership is validated before request transmission.
-- Inline object and array success responses generate deterministic operation-derived model/collection classes. Inline object error responses generate operation/status-derived response DTOs. One body-bearing success response may coexist with no-content success statuses, in which case the operation return type is nullable.
+- Inline object and array success responses generate deterministic operation-derived model/collection classes. Inline object error responses generate operation/status-derived response DTOs. Multiple explicit JSON successes select their types/nullability by actual status and emit native return unions; declared bodyless statuses return null without allowing an empty JSON status.
 - HTTP Basic and token-based HTTP authentication, as well as API keys in headers or query parameters, are supported. Root security is inherited by operations; operation-level security overrides it, including `security: []`. Security requirement entries use OpenAPI's OR-between-alternatives and AND-within-an-alternative semantics. Supply credentials through the generated `Core\SecurityCredentials` object, keyed by the OpenAPI scheme name; Basic credentials use `Core\BasicAuthCredentials`.
 - For the small supported subset, emits distinct DTO/model classes with native PHP property types, scalar-backed enums, collections that subclass the existing typedarray/typedarray library, and typed operation methods.
 - Generates an installable Composer package and a minimal runnable API client. GET/POST path, query, headers, JSON body and typed response hydration are verified with **offline mock HTTP**. Nested object, enum and collection hydration have tests.
@@ -30,7 +30,7 @@
 - Multiple explicit JSON success statuses select their own hydrators and native return types in v0.22.0; binary-only successes share the bounded PSR codec from v0.20.0. Mixed JSON/binary successes and some non-object error schemas remain unsupported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.17.1 or later compatible versions (`^0.17.1`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.18.0 or later compatible versions (`^0.18.0`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
@@ -45,7 +45,7 @@ Please report supported-schema failures through GitHub Issues with a small **red
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.17.1`;
+The current generator and generated Composer packages require stable runtime `^0.18.0`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -305,3 +305,16 @@ Twenty-two installed SDKs pass maximum PHPStan; both dialects reuse installation
 smoke and real GET/POST HTTP checks with independent query/headers/JSON body.
 Objects, nullable/nested items, other formats/styles and cookies remain pending.
 [Usage, empty policy and boundaries](SIMPLE_PARAMETERS.md).
+
+
+## Flat parameter objects (v0.24.0)
+
+Complete form/query and simple/path-header flat objects with defaults and both
+explode modes. Reuse DTO/Map schemas, JSON names, directions, validation and scalar
+encoding; keep PathParams/GetParams/PostParams and body/query separation. Expanded
+query collisions and ambiguous raw header delimiters fail before HTTP. DeepObject
+behavior and constructor/executor compatibility remain intact. Runtime ^0.18.0 is
+published first; twenty-three installed SDKs pass PHPStan maximum and an independent
+HTTP consumer verifies GET/POST path/query/header/body bytes. Untyped/nested/null
+values, compositions, cookies, label/matrix and content remain unsupported.
+[Usage and exact boundaries](OBJECT_PARAMETERS.md).

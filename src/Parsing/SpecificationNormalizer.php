@@ -441,6 +441,9 @@ final class SpecificationNormalizer
                 throw new InvalidArgumentException("Missing parameter schema at $where.");
             }
             $normalizedSchema = $this->schema($schema, $dialect, "$where.parameters." . $raw['name']);
+            if ($dialect === 'swagger2' && $normalizedSchema->kind === SchemaKind::Object) {
+                throw new InvalidArgumentException("Swagger non-body object parameters are unsupported at $where.");
+            }
             $arraySchema = $normalizedSchema->kind === SchemaKind::Array
                 || ($normalizedSchema->kind === SchemaKind::AnyOf && count(array_filter($normalizedSchema->branches,
                     static fn (SchemaDefinition $branch): bool => $branch->kind === SchemaKind::Array)) > 0);
