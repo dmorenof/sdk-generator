@@ -200,7 +200,7 @@ final class LocalObjectReferencesTest extends TestCase
         }
     }
 
-    public function testResolvedContentParametersRemainDiagnosedUntilTheirSerializerExists(): void
+    public function testResolvedJsonContentParametersAreStrictlyAccepted(): void
     {
         $document = self::document();
         $parameter = &$document['components']['parameters']['Détail'];
@@ -208,8 +208,8 @@ final class LocalObjectReferencesTest extends TestCase
         $parameter['content'] = ['application/json' => ['schema' => ['type' => 'boolean']]];
         $report = (new DocumentInspector())->inspect(self::source($document));
         self::assertTrue($report['generatable']);
-        self::assertFalse($report['strictlyAccepted']);
-        self::assertContains('parameter_content', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
+        self::assertTrue($report['strictlyAccepted']);
+        self::assertSame([], $report['diagnostics']);
     }
 
     public function testIsolationDoesNotInterpretExampleOrLinkPayloadsAsSchemaReferences(): void

@@ -19,7 +19,7 @@ The inspection command exits 1 if the document cannot pass the strict gate.
 Diagnostics identify the source file, escaped RFC 6901 JSON Pointer, stable code,
 severity, operation when applicable and local reference chain. Known HTTP options
 which the executable pipeline would ignore are reported explicitly: parameter
-styles/flags, structured/content parameters, effective server overrides, response
+unsupported styles/flags and structured/content forms, effective server overrides, response
 headers/links and media encoding. Vendor extensions and unselected non-JSON media
 alternatives are reported as warnings. Annotation fields are distinguished from
 execution options. A schema/parser/emitter failure not yet localized by the audit

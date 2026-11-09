@@ -427,4 +427,9 @@ foreach (['empty-values-openapi30.json', 'empty-values-swagger2.json'] as $index
     runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $emptyValues]);
     runPublished([PHP_BINARY, $package . '/tests/empty-values-smoke.php', $emptyValues]);
 }
+$parameterContent = $directory . '/parameter-content';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/parameter-content-openapi31.json',
+    $parameterContent, 'Example\\ContentSdk', 'example/published-parameter-content']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $parameterContent]);
+runPublished([PHP_BINARY, $package . '/tests/parameter-content-smoke.php', $parameterContent]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

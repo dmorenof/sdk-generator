@@ -452,9 +452,16 @@ final class SpecificationNormalizer
             if (!in_array($loc, $dialect === 'swagger2' ? ['path', 'query', 'header'] : ['path', 'query', 'header', 'cookie'], true)) {
                 throw new InvalidArgumentException("Unsupported parameter location $loc at $where.");
             }
+            $parameterContent = null;
+            if (array_key_exists('content', $raw)) {
+                $parameterContent = $dialect !== 'swagger2' ? ParameterContentSupport::raw($raw) : null;
+                if ($parameterContent === null) {
+                    throw new InvalidArgumentException("Unsupported or conflicting parameter content at $where.");
+                }
+            }
             $schema = $dialect === 'swagger2'
                 ? array_diff_key($raw, array_flip(['name', 'in', 'required', 'description', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', 'deprecated', 'example', 'examples']), $this->annotations($raw))
-                : ($raw['schema'] ?? (isset($raw['content']) ? ($this->jsonContent($raw['content'], "$where.parameters." . $raw['name'])['schema'] ?? null) : null));
+                : ($raw['schema'] ?? $parameterContent['schema'] ?? null);
             if (!is_array($schema)) {
                 throw new InvalidArgumentException("Missing parameter schema at $where.");
             }

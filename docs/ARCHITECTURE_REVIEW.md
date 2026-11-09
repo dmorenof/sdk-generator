@@ -113,3 +113,7 @@ Se amplía QuerySerializer con selección de codificación por valor y una peque
 ## Vacíos sin nueva infraestructura — v0.28.0
 
 El runtime ya distinguía name=, null/ausente, false/0 y colecciones vacías. Se elimina el diagnóstico falso de allowEmptyValue en ubicaciones soportadas y se documenta que el esquema gobierna tipos y constraints. No se añade metadata, wrapper, unión ni serializer; runtime ^0.21.0 sin cambios. SDKs OpenAPI/Swagger instalados prueban query/body/form con HTTP real. [Política](EMPTY_VALUES.md).
+
+## Content de parámetros — v0.29.0 / runtime v0.22.1
+
+Se reutilizan typeFor, DTOs, TypedArray/Map, validación direccional y Serializer/json_encode; el runtime recibe metadatos por ubicación y aplica después el encoder URI existente. text/plain cookie usa CookieHeader, sin encoding query. No se añade motor de codecs ni wrappers. La comprobación de mutaciones detectó índices dispersos: Serializer ahora emite valores de TypedArray como lista, conservando Map como objeto. [Contrato y pruebas](PARAMETER_CONTENT.md).

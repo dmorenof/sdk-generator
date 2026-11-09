@@ -561,7 +561,8 @@ final class ContractAuditor
         if ($location === 'query' && ($parameter['allowReserved'] ?? false) === true && ($parameter['name'] ?? '') === '') {
             $this->add('invalid_parameter_name', "$at/name", 'Reserved query expansion requires a non-empty parameter name.', $operation);
         }
-        if ($location === 'cookie' && (isset($this->document['swagger'])
+        $parameterContent = !isset($this->document['swagger']) ? \Dmorenof\SdkGenerator\Parsing\ParameterContentSupport::raw($parameter) : null;
+        if ($location === 'cookie' && $parameterContent === null && (isset($this->document['swagger'])
             || !in_array($parameter['schema']['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
             || ($parameter['schema']['nullable'] ?? false) !== false || isset($parameter['content']))) {
             $this->add('cookie_parameter', "$at/in", 'Only non-null scalar form cookie schemas are executable; structured form cookies have incompatible HTTP delimiters.', $operation);
@@ -583,8 +584,8 @@ final class ContractAuditor
         if (isset($parameter['schema'], $parameter['content'])) {
             $this->add('conflicting_parameter_schema', "$at/content", 'A parameter must declare either schema or content, not both.', $operation);
         }
-        if (isset($parameter['content'])) {
-            $this->add('parameter_content', "$at/content", 'Content-based parameter serialization is not implemented.', $operation);
+        if (isset($parameter['content']) && $parameterContent === null) {
+            $this->add('parameter_content', "$at/content", 'Require one supported parameter representation without schema/style conflicts.', $operation);
         }
         if (isset($parameter['collectionFormat']) && !$parameterArray && !$parameterObject && !$swaggerForm) {
             $this->add('parameter_collectionFormat', "$at/collectionFormat", 'Swagger collection formats are not executed.', $operation);
@@ -595,7 +596,7 @@ final class ContractAuditor
             $schema = array_intersect_key($parameter, array_flip(SpecificationNormalizer::SCHEMA_KEYWORDS));
             $this->schema($schema, $at, $operation);
         }
-        $this->content($parameter['content'] ?? [], "$at/content", $operation);
+        $this->content($parameter['content'] ?? [], "$at/content", $operation, parameter: $parameterContent !== null);
         $type = $parameter['schema']['type'] ?? $parameter['type'] ?? null;
         $structured = in_array($type, ['array', 'object'], true)
             || (is_array($type) && array_intersect($type, ['array', 'object']) !== []);
@@ -604,7 +605,7 @@ final class ContractAuditor
         }
     }
 
-    private function content(mixed $content, string $pointer, ?string $operation, bool $request = false, bool $response = false): void
+    private function content(mixed $content, string $pointer, ?string $operation, bool $request = false, bool $response = false, bool $parameter = false): void
     {
         if (!is_array($content)) {
             return;
@@ -622,7 +623,7 @@ final class ContractAuditor
             }
             $binary = $response && $media === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA
                 && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::supported($definition);
-            if (!$form && !$binary && !preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
+            if (!$form && !$binary && !($parameter && strtolower($media) === 'text/plain') && !preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
                 $this->add('media_type', $at, 'This representation is preserved but has no supported serializer in this position.', $operation, 'warning');
             }
             if (!empty($definition['encoding']) && !$form) {

@@ -1,0 +1,337 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Parameter Content API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://example.test"
+    }
+  ],
+  "security": [
+    {
+      "Key": []
+    }
+  ],
+  "paths": {
+    "/items/{selector}/{token}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Selector"
+        },
+        {
+          "$ref": "#/components/parameters/Token"
+        },
+        {
+          "$ref": "#/components/parameters/Body"
+        },
+        {
+          "$ref": "#/components/parameters/Records"
+        },
+        {
+          "$ref": "#/components/parameters/Empty"
+        },
+        {
+          "$ref": "#/components/parameters/Scalar"
+        },
+        {
+          "$ref": "#/components/parameters/Active"
+        },
+        {
+          "$ref": "#/components/parameters/Values"
+        },
+        {
+          "$ref": "#/components/parameters/Plain"
+        },
+        {
+          "$ref": "#/components/parameters/Optional"
+        },
+        {
+          "$ref": "#/components/parameters/Header"
+        },
+        {
+          "$ref": "#/components/parameters/Trace"
+        },
+        {
+          "$ref": "#/components/parameters/Session"
+        },
+        {
+          "$ref": "#/components/parameters/Theme"
+        }
+      ],
+      "get": {
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/scalar/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 3,
+                  "enum": [
+                    "Cat",
+                    "Dog"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Selector": {
+        "name": "selector",
+        "in": "path",
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          }
+        }
+      },
+      "Token": {
+        "name": "token",
+        "in": "path",
+        "required": true,
+        "content": {
+          "text/plain": {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "Body": {
+        "name": "body",
+        "in": "query",
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Payload"
+            }
+          }
+        }
+      },
+      "Records": {
+        "name": "records",
+        "in": "query",
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Payload"
+              }
+            }
+          }
+        }
+      },
+      "Empty": {
+        "name": "empty",
+        "in": "query",
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Scalar": {
+        "name": "scalar",
+        "in": "query",
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Active": {
+        "name": "active",
+        "in": "query",
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "Values": {
+        "name": "values",
+        "in": "query",
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Plain": {
+        "name": "plain",
+        "in": "query",
+        "required": false,
+        "content": {
+          "text/plain": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Optional": {
+        "name": "optional",
+        "in": "query",
+        "required": false,
+        "content": {
+          "text/plain": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Header": {
+        "name": "X-JSON",
+        "in": "header",
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          }
+        }
+      },
+      "Trace": {
+        "name": "X-Trace",
+        "in": "header",
+        "required": false,
+        "content": {
+          "text/plain": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Session": {
+        "name": "session",
+        "in": "cookie",
+        "required": false,
+        "content": {
+          "text/plain": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Theme": {
+        "name": "theme",
+        "in": "cookie",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "Payload": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "readOnly": true
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "Filter": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "flag"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "flag": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Key": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "auth"
+      }
+    }
+  }
+}

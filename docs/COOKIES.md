@@ -17,3 +17,7 @@ Configured headers, operation Cookie headers and selected security cookies coexi
 CookieHeader is a small request-header assembly/validation helper shared by execution, security and transport. Guzzle CookieJar manages storage, domain/path matching and Set-Cookie responses; its SetCookie parser handles response attributes, not merging request Cookie fields. Neither is a replacement for the OpenAPI encoding/merge contract here. No jar, persistence, automatic session refresh or Set-Cookie response access is added. A custom client with its own jar/middleware controls any subsequent changes it makes to the request.
 
 Validation covers both transports, configured/raw/security coexistence, name case, zero/false/empty/Unicode/base64 data, conflicts, invalid bytes, mutations and actual HTTP GET/POST. The generated SDK installs without the generator and performs the HTTP smoke both in source CI and against the immutable published package.
+
+## text/plain content cookies (v0.29.0)
+
+A cookie may now use one content text/plain representation with a string schema. Its valid RFC6265 bytes are retained, so base64 a+/b== is not converted to query encoding. Configured, schema-form and API key cookies still coexist with conflict detection. JSON cookie and nullable root schemas remain unsupported. See [parameter content](PARAMETER_CONTENT.md).

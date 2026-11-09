@@ -2,6 +2,12 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.29.0] — 2026-11-09
+
+- Add OpenAPI single-representation parameter content: application/json in path/query/header and text/plain in path/query/header/cookie. Reuse native scalar types, DTOs, TypedArrays, Maps and shared request-direction Serializer; emit declarative operation metadata without new executor signatures or transport layers.
+- Serialize once before path/query encoding; retain raw header/plain-cookie bytes, readOnly filtering, logical constraints, numeric map keys, JSON empty containers and query body/payload separation. Reject conflicting schema/style options, multiple/unsupported media and unsupported root shapes.
+- Require stable runtime ^0.22.1, including the correction that sparse typed collections serialize as JSON arrays at root and nested positions. Add the 30th independently installed SDK with maximum PHPStan and actual GET/POST/scalar-path/sparse-mutation HTTP in source and immutable-package smoke. Document limits in docs/PARAMETER_CONTENT.md and pendientes.md.
+
 ## [0.28.0] — 2026-11-09
 
 - Accept boolean allowEmptyValue on supported OpenAPI/Swagger query parameters and Swagger formData fields. Reuse existing DTO validation and serializers with a documented schema-authoritative policy: explicit empty strings remain name=, optional absent/null values are omitted and required/constraints/types are preserved.
