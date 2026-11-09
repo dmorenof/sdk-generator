@@ -1,0 +1,273 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Empty Values API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://example.test"
+    }
+  ],
+  "paths": {
+    "/items": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/requiredEmpty"
+        },
+        {
+          "$ref": "#/components/parameters/q"
+        },
+        {
+          "$ref": "#/components/parameters/body"
+        },
+        {
+          "$ref": "#/components/parameters/omitted"
+        },
+        {
+          "$ref": "#/components/parameters/nullable"
+        },
+        {
+          "$ref": "#/components/parameters/strict"
+        },
+        {
+          "$ref": "#/components/parameters/count"
+        },
+        {
+          "$ref": "#/components/parameters/enabled"
+        },
+        {
+          "$ref": "#/components/parameters/labels"
+        },
+        {
+          "$ref": "#/components/parameters/csv"
+        },
+        {
+          "$ref": "#/components/parameters/Trace"
+        }
+      ],
+      "get": {
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Form"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/json": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/requiredEmpty"
+        },
+        {
+          "$ref": "#/components/parameters/q"
+        },
+        {
+          "$ref": "#/components/parameters/body"
+        },
+        {
+          "$ref": "#/components/parameters/omitted"
+        },
+        {
+          "$ref": "#/components/parameters/nullable"
+        },
+        {
+          "$ref": "#/components/parameters/strict"
+        },
+        {
+          "$ref": "#/components/parameters/count"
+        },
+        {
+          "$ref": "#/components/parameters/enabled"
+        },
+        {
+          "$ref": "#/components/parameters/labels"
+        },
+        {
+          "$ref": "#/components/parameters/csv"
+        },
+        {
+          "$ref": "#/components/parameters/Trace"
+        }
+      ],
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Form"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "requiredEmpty": {
+        "name": "requiredEmpty",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "allowEmptyValue": true,
+        "required": true
+      },
+      "q": {
+        "name": "q",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "allowEmptyValue": true,
+        "required": false
+      },
+      "body": {
+        "name": "body",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "allowEmptyValue": true,
+        "required": false
+      },
+      "omitted": {
+        "name": "omitted",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "allowEmptyValue": true,
+        "required": false
+      },
+      "nullable": {
+        "name": "nullable",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "nullable": true
+        },
+        "allowEmptyValue": true,
+        "required": false
+      },
+      "strict": {
+        "name": "strict",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowEmptyValue": true,
+        "required": false
+      },
+      "count": {
+        "name": "count",
+        "in": "query",
+        "schema": {
+          "type": "integer"
+        },
+        "allowEmptyValue": true,
+        "required": false
+      },
+      "enabled": {
+        "name": "enabled",
+        "in": "query",
+        "schema": {
+          "type": "boolean"
+        },
+        "allowEmptyValue": true,
+        "required": false
+      },
+      "labels": {
+        "name": "labels",
+        "in": "query",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowEmptyValue": true,
+        "required": false
+      },
+      "csv": {
+        "name": "csv",
+        "in": "query",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowEmptyValue": true,
+        "required": false,
+        "explode": false
+      },
+      "Trace": {
+        "name": "X-Trace",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "Form": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "nullable": {
+            "type": "string",
+            "nullable": true
+          },
+          "strict": {
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

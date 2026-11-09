@@ -1047,6 +1047,9 @@ final class PhpContractEmitter
                     && ($parameter->location !== 'query' || $parameter->wireName === '')) {
                     throw new InvalidArgumentException('Reserved expansion requires a named OpenAPI query parameter.');
                 }
+                if ($parameter->serialization->allowEmptyValue === true && $parameter->location !== 'query') {
+                    throw new InvalidArgumentException('allowEmptyValue applies only to query parameters.');
+                }
                 if ($parameter->location === 'cookie') {
                     $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName);
                     if ($resolved['nullable'] || $parameter->wireName === '' || $parameter->content !== []

@@ -1,0 +1,295 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Empty Values API",
+    "version": "1"
+  },
+  "host": "example.test",
+  "schemes": [
+    "https"
+  ],
+  "parameters": {
+    "requiredEmpty": {
+      "name": "requiredEmpty",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": true,
+      "type": "string"
+    },
+    "q": {
+      "name": "q",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "string"
+    },
+    "body": {
+      "name": "body",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "string"
+    },
+    "omitted": {
+      "name": "omitted",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "string"
+    },
+    "nullable": {
+      "name": "nullable",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "string",
+      "x-nullable": true
+    },
+    "strict": {
+      "name": "strict",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "string",
+      "minLength": 1
+    },
+    "count": {
+      "name": "count",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "integer"
+    },
+    "enabled": {
+      "name": "enabled",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "boolean"
+    },
+    "labels": {
+      "name": "labels",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "collectionFormat": "multi"
+    },
+    "csv": {
+      "name": "csv",
+      "in": "query",
+      "allowEmptyValue": true,
+      "required": false,
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "collectionFormat": "csv"
+    },
+    "Trace": {
+      "name": "X-Trace",
+      "in": "header",
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "Form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "nullable": {
+          "type": "string",
+          "nullable": true
+        },
+        "strict": {
+          "type": "string",
+          "minLength": 1
+        },
+        "count": {
+          "type": "integer"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/items": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/requiredEmpty"
+        },
+        {
+          "$ref": "#/parameters/q"
+        },
+        {
+          "$ref": "#/parameters/body"
+        },
+        {
+          "$ref": "#/parameters/omitted"
+        },
+        {
+          "$ref": "#/parameters/nullable"
+        },
+        {
+          "$ref": "#/parameters/strict"
+        },
+        {
+          "$ref": "#/parameters/count"
+        },
+        {
+          "$ref": "#/parameters/enabled"
+        },
+        {
+          "$ref": "#/parameters/labels"
+        },
+        {
+          "$ref": "#/parameters/csv"
+        },
+        {
+          "$ref": "#/parameters/Trace"
+        }
+      ],
+      "get": {
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "name": "name",
+            "in": "formData",
+            "required": true,
+            "allowEmptyValue": true,
+            "type": "string"
+          },
+          {
+            "name": "nullable",
+            "in": "formData",
+            "required": false,
+            "allowEmptyValue": true,
+            "type": "string",
+            "x-nullable": true
+          },
+          {
+            "name": "strict",
+            "in": "formData",
+            "required": false,
+            "allowEmptyValue": true,
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "name": "count",
+            "in": "formData",
+            "required": false,
+            "allowEmptyValue": true,
+            "type": "integer"
+          },
+          {
+            "name": "enabled",
+            "in": "formData",
+            "required": false,
+            "allowEmptyValue": true,
+            "type": "boolean"
+          },
+          {
+            "name": "labels",
+            "in": "formData",
+            "required": false,
+            "allowEmptyValue": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "consumes": [
+          "application/x-www-form-urlencoded"
+        ],
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/json": {
+      "parameters": [
+        {
+          "$ref": "#/parameters/requiredEmpty"
+        },
+        {
+          "$ref": "#/parameters/q"
+        },
+        {
+          "$ref": "#/parameters/body"
+        },
+        {
+          "$ref": "#/parameters/omitted"
+        },
+        {
+          "$ref": "#/parameters/nullable"
+        },
+        {
+          "$ref": "#/parameters/strict"
+        },
+        {
+          "$ref": "#/parameters/count"
+        },
+        {
+          "$ref": "#/parameters/enabled"
+        },
+        {
+          "$ref": "#/parameters/labels"
+        },
+        {
+          "$ref": "#/parameters/csv"
+        },
+        {
+          "$ref": "#/parameters/Trace"
+        }
+      ],
+      "post": {
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Form"
+            }
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "responses": {
+          "204": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}

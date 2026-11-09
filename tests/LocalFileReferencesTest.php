@@ -256,14 +256,14 @@ final class LocalFileReferencesTest extends TestCase
     public function testHttpDiagnosticsKeepExternalPointersOperationsAndQualifiedChains(): void
     {
         $this->edit('http/parameters.json', static function ($doc) {
-            $doc['ID/~']['allowEmptyValue'] = true;
+            $doc['ID/~']['style'] = 'deepObject';
             return $doc;
         });
         $report = (new OpenApiAcceptanceAnalyzer())->analyzeFile("$this->directory/api.json");
         $issues = array_values(array_filter($report['compatibility']['diagnostics'], static fn ($issue): bool =>
-            $issue->code === 'parameter_allowEmptyValue' && $issue->operationId === 'getUser'));
+            $issue->code === 'parameter_style' && $issue->operationId === 'getUser'));
         self::assertSame("$this->directory/http/parameters.json", $issues[0]->source);
-        self::assertSame('/ID~1~0/allowEmptyValue', $issues[0]->pointer);
+        self::assertSame('/ID~1~0/style', $issues[0]->pointer);
         self::assertTrue((bool) array_filter($issues[0]->referenceChain, static fn ($reference): bool => str_contains($reference, 'parameters.json#')));
     }
 

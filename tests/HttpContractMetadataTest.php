@@ -37,9 +37,9 @@ final class HttpContractMetadataTest extends TestCase
         self::assertSame('Filter', $parameter->annotations['description']);
         self::assertTrue($parameter->annotations['deprecated']);
         $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));
-        self::assertFalse($report['strictlyAccepted']);
+        self::assertTrue($report['strictlyAccepted']);
         self::assertTrue($report['normalized']);
-        self::assertContains('parameter_allowEmptyValue', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
+        self::assertSame([], $report['diagnostics']);
     }
 
     public function testContentParametersArePreservedButRemainStrictlyUnsupported(): void
@@ -142,13 +142,13 @@ final class HttpContractMetadataTest extends TestCase
     public function testProgrammaticStrictNormalizationProvidesStructuredErrors(): void
     {
         $document = self::document();
-        $document['paths']['/users/{id}']['get']['parameters'][1]['allowEmptyValue'] = true;
+        $document['paths']['/users/{id}']['get']['parameters'][1]['style'] = 'deepObject';
         try {
             (new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR), strict: true, sourceName: 'source.json');
             self::fail('Strict normalization accepted an unimplemented HTTP option.');
         } catch (\Dmorenof\SdkGenerator\Diagnostics\CompatibilityException $exception) {
             self::assertSame('source.json', $exception->diagnostics[0]->source);
-            self::assertSame('/paths/~1users~1{id}/get/parameters/1/allowEmptyValue', $exception->diagnostics[0]->pointer);
+            self::assertSame('/paths/~1users~1{id}/get/parameters/1/style', $exception->diagnostics[0]->pointer);
             self::assertSame('getUser', $exception->diagnostics[0]->operationId);
         }
     }
@@ -156,9 +156,9 @@ final class HttpContractMetadataTest extends TestCase
     public function testProgrammaticYamlStrictModeUsesTheSameGate(): void
     {
         $document = self::document();
-        $document['paths']['/users/{id}']['get']['parameters'][1]['allowEmptyValue'] = true;
+        $document['paths']['/users/{id}']['get']['parameters'][1]['style'] = 'deepObject';
         $this->expectException(\Dmorenof\SdkGenerator\Diagnostics\CompatibilityException::class);
-        $this->expectExceptionMessage('source.yaml#/paths/~1users~1{id}/get/parameters/1/allowEmptyValue');
+        $this->expectExceptionMessage('source.yaml#/paths/~1users~1{id}/get/parameters/1/style');
         (new SpecificationNormalizer())->fromYaml(\Symfony\Component\Yaml\Yaml::dump($document, 20, 2), strict: true, sourceName: 'source.yaml');
     }
 
@@ -175,12 +175,12 @@ final class HttpContractMetadataTest extends TestCase
     {
         $document = self::document();
         $document['paths']['/users/{id}']['parameters'] = [[
-            'name' => 'verbose', 'in' => 'query', 'schema' => ['type' => 'boolean'], 'allowEmptyValue' => true,
+            'name' => 'verbose', 'in' => 'query', 'schema' => ['type' => 'boolean'], 'style' => 'deepObject',
         ]];
         $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));
         self::assertTrue($report['strictlyAccepted']);
         self::assertSame([], $report['diagnostics']);
-        self::assertNull(self::normalize($document)->operations[1]->parameters[1]->serialization->allowEmptyValue);
+        self::assertNull(self::normalize($document)->operations[1]->parameters[1]->serialization->style);
     }
 
     public function testUnsupportedSchemaKeywordHasItsExactPointerAndOperation(): void

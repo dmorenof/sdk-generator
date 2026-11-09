@@ -27,7 +27,7 @@ final class FormSupport
         if (($field['in'] ?? null) !== 'formData' || !is_string($field['name'] ?? null) || $field['name'] === ''
             || (array_key_exists('required', $field) && !is_bool($field['required']))
             || array_intersect(array_keys($field), ['schema', 'content', 'style', 'explode', 'allowReserved']) !== []
-            || ($field['allowEmptyValue'] ?? false) !== false
+            || (array_key_exists('allowEmptyValue', $field) && !is_bool($field['allowEmptyValue']))
             || (array_key_exists('collectionFormat', $field) && !is_string($field['collectionFormat']))) {
             return false;
         }

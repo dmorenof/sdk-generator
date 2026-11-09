@@ -2,6 +2,12 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.28.0] — 2026-11-09
+
+- Accept boolean allowEmptyValue on supported OpenAPI/Swagger query parameters and Swagger formData fields. Reuse existing DTO validation and serializers with a documented schema-authoritative policy: explicit empty strings remain name=, optional absent/null values are omitted and required/constraints/types are preserved.
+- Keep native types, false/zero, empty collection/item behavior, GetParams/PostParams and query body/form/JSON separation unchanged. No new runtime metadata, wrappers or transport logic; stable ^0.21.0 remains sufficient.
+- Verify JSON/YAML, OpenAPI 3.0/3.1, Swagger reusable declarations, supported object/multipart generation and mutation failures. Add independent OpenAPI and Swagger HTTP smokes to source and immutable-package verification (29 SDK analyses). Invalid-context and boolean-option diagnostics remain explicit; unsupported-style gate tests retain their coverage.
+
 ## [0.27.0] — 2026-11-09
 
 - Support OpenAPI query allowReserved with declarative per-parameter metadata and stable runtime ^0.21.0. Reuse the existing serializer for primitive scalars/lists and flat DTO/Map form/deepObject objects; default/false behavior remains unchanged.

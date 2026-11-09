@@ -108,14 +108,14 @@ final class OpenApiAcceptanceAnalyzerTest extends TestCase
     public function testIgnoredHttpSemanticsCannotProduceAFalseAcceptance(): void
     {
         $document = self::spec();
-        $document['paths']['/users/{id}']['get']['parameters'][1]['allowEmptyValue'] = true;
+        $document['paths']['/users/{id}']['get']['parameters'][1]['style'] = 'deepObject';
         $report = (new OpenApiAcceptanceAnalyzer())->analyze(json_encode($document, JSON_THROW_ON_ERROR), sourceName: 'contract.json');
         self::assertFalse($report['accepted']);
         self::assertSame('compatibility_failed', $report['full']['status']);
         self::assertSame('partial', $report['compatibility']['status']);
         self::assertSame(1, $report['summary']['compatibility_failed']);
         self::assertSame(1, $report['summary']['generated']);
-        self::assertStringContainsString('contract.json#/paths/~1users~1{id}/get/parameters/1/allowEmptyValue', $report['full']['error']['message']);
+        self::assertStringContainsString('contract.json#/paths/~1users~1{id}/get/parameters/1/style', $report['full']['error']['message']);
     }
 
     public function testOperationIsolationDoesNotDropPathServerOverrides(): void

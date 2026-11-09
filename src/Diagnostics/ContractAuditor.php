@@ -575,7 +575,8 @@ final class ContractAuditor
         }
         foreach (['allowReserved', 'allowEmptyValue'] as $flag) {
             if (($parameter[$flag] ?? false) !== false
-                && !($flag === 'allowReserved' && $location === 'query' && !isset($this->document['swagger']))) {
+                && !($flag === 'allowReserved' && $location === 'query' && !isset($this->document['swagger']))
+                && !($flag === 'allowEmptyValue' && ($location === 'query' || $swaggerForm))) {
                 $this->add('parameter_' . $flag, "$at/$flag", "Parameter $flag is not executed.", $operation);
             }
         }

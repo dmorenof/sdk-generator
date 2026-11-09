@@ -50,7 +50,7 @@ final class QueryObjectSupport
     {
         $format = self::format($parameter->serialization, $parameter->location);
         if ($format === null || $parameter->content !== []
-            || ($parameter->location !== 'query' && $parameter->serialization->allowReserved === true) || $parameter->serialization->allowEmptyValue === true
+            || ($parameter->location !== 'query' && ($parameter->serialization->allowReserved === true || $parameter->serialization->allowEmptyValue === true))
             || !self::key($parameter->wireName, $format === 'deepObject')) {
             return false;
         }
@@ -89,7 +89,7 @@ final class QueryObjectSupport
         $location = $parameter['in'] ?? '';
         if (isset($document['swagger']) || !is_string($location)
             || isset($parameter['content']) || isset($parameter['collectionFormat'])
-            || ($location !== 'query' && ($parameter['allowReserved'] ?? false) !== false) || ($parameter['allowEmptyValue'] ?? false) !== false
+            || ($location !== 'query' && (($parameter['allowReserved'] ?? false) !== false || ($parameter['allowEmptyValue'] ?? false) !== false))
             || !is_string($parameter['name'] ?? null)
             || (isset($parameter['style']) && !is_string($parameter['style']))
             || (isset($parameter['explode']) && !is_bool($parameter['explode']))
