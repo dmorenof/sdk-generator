@@ -1,0 +1,119 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Download API",
+    "version": "1"
+  },
+  "host": "api.example.test",
+  "basePath": "/v1",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/octet-stream"
+  ],
+  "paths": {
+    "/download": {
+      "get": {
+        "operationId": "getDownload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "body",
+            "type": "string"
+          },
+          {
+            "in": "header",
+            "name": "X-Trace",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/File"
+          },
+          "206": {
+            "description": "Binary file",
+            "schema": {
+              "type": "file"
+            }
+          },
+          "204": {
+            "description": "Empty"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postDownload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "body",
+            "type": "string"
+          },
+          {
+            "in": "header",
+            "name": "X-Trace",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Export"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Binary file",
+            "schema": {
+              "type": "file"
+            }
+          }
+        }
+      }
+    }
+  },
+  "responses": {
+    "File": {
+      "description": "Binary file",
+      "schema": {
+        "type": "file"
+      }
+    }
+  },
+  "definitions": {
+    "Export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "required": [
+        "message"
+      ],
+      "properties": {
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

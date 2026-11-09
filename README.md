@@ -23,7 +23,7 @@ Version 0.12.0 adds OpenAPI URL-encoded form bodies with scalar fields and primi
 
 Version 0.13.0 adds Swagger 2.0 `formData` scalar/list fields through the same URL-encoded runtime. Its CSV default and explicit multi format are preserved, including reusable aliases and operation overrides. See [Swagger HTTP forms](docs/FORMS.md#swagger-20-formdata-v0130).
 
-Version 0.20.0 adds OpenAPI binary downloads as native PSR-7 ResponseInterface values, preserving status, headers and body streams through the shared runtime. Reuse Guzzle copyToStream to save bytes; no download wrapper is generated. GET and POST with JSON DTOs each download 32 MiB under a 16 MiB PHP limit. Generated SDKs inherit stable runtime ^0.15.0. See [downloads and measured limits](docs/DOWNLOADS.md), [forms and multipart](docs/FORMS.md), and [the architecture review](docs/ARCHITECTURE_REVIEW.md).
+Version 0.21.0 extends native PSR-7 binary downloads to Swagger 2.0 type:file responses, including root/operation produces and response aliases. It generates the same SDK as equivalent OpenAPI and reuses stable runtime ^0.15.0 unchanged. GET and POST with JSON DTOs each download 32 MiB under a 16 MiB PHP limit. See [downloads and measured limits](docs/DOWNLOADS.md), [forms and multipart](docs/FORMS.md), and [the architecture review](docs/ARCHITECTURE_REVIEW.md).
 
 ## Quick start: generate Accounts SDK
 
@@ -154,7 +154,7 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 
 ## Supported features and deliberate boundaries
 
-| Area | v0.20.0 (supported subset) |
+| Area | v0.21.0 (supported subset) |
 |---|---|
 | Input dialects | Swagger 2.0, OpenAPI 3.0.x and 3.1.x in **JSON or YAML**, tested common subset |
 | Models | Object properties, common primitive types, local model references, backed enums, typed arrays, nested DTOs, compatible single-parent `allOf` inheritance, local discriminator mappings, and original-schema `anyOf`/`oneOf` validation |
@@ -179,7 +179,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v0.20.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.20.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.15.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v0.21.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.21.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.15.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

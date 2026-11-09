@@ -6,6 +6,12 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.21.0] — 2026-11-09
+
+- Normalize Swagger 2.0 successful type:file responses with one explicit application/octet-stream produces into the existing binary PSR contract. Resolve root/operation produces and response aliases per use, preserving compatible statuses and empty responses. Generate the same SDK as equivalent OpenAPI; reuse published stable runtime ^0.15.0 unchanged.
+- Verify JSON/YAML, GET/POST query/header separation and JSON export DTOs, native bytes/multi-value headers, replay, mutation validation and raw ApiException errors. Diagnose unsupported MIME/produces alternatives, file constraints/nullability/error schemas and typed JSON errors incompatible with shared octet-stream produces.
+- Reuse the installed binary download smoke for a nineteenth independent SDK, maximum PHPStan and immutable publication verification. Real Guzzle/cURL repeats four 32 MiB GET/POST downloads under PHP memory_limit=16M with an 8 MiB PHP peak and full hashes/headers. Update pendientes.md and docs/DOWNLOADS.md without claiming general streaming guarantees.
+
 ## [0.20.0] — 2026-11-08
 
 - Emit native PSR-7 ResponseInterface returns for bounded OpenAPI 3.0/3.1 application/octet-stream string/binary successes. Preserve JSON representation priority, local response aliases, compatible binary status codes, empty responses, raw headers and original bytes without download DTOs or per-SDK transport logic.

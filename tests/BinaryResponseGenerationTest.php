@@ -139,7 +139,7 @@ final class BinaryResponseGenerationTest extends TestCase
         $document['components']['responses']['File']['headers'] = ['X-Size' => ['schema' => ['type' => 'integer']]];
         $variants[] = $document;
         $variants[] = ['swagger' => '2.0', 'info' => ['title' => 'Download', 'version' => '1'],
-            'produces' => ['application/octet-stream'], 'paths' => ['/download' => ['get' => ['operationId' => 'download',
+            'produces' => ['image/png'], 'paths' => ['/download' => ['get' => ['operationId' => 'download',
                 'responses' => ['200' => ['description' => 'File', 'schema' => ['type' => 'file']]]]]]];
         foreach ($variants as $document) {
             try { self::files($document); self::fail('Unsupported contract accepted.'); }
