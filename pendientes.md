@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.19.0** y `dmorenof/sdk-runtime` **v0.14.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.22.0** y `dmorenof/sdk-runtime` **v0.16.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -174,7 +174,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.19.0 y runtime v0.14.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
+**Situación actual:** generador v0.22.0 y runtime v0.16.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
 
 ### Revisión acordada de getParameters y postParameters
 
@@ -320,12 +320,20 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - **Validación:** 376 pruebas / 2.851 aserciones; diecinueve SDKs instalados con PHPStan máximo. Reutilizar smoke instalado de descarga en CI/publicación. Cuatro descargas reales GET/POST de 32 MiB bajo límite PHP 16 MiB, pico PHP 8 MiB, hashes/cabeceras y valores HTTP comprobados.
 - **Límites:** un único produces explícito octet-stream; no otros MIME, negociación, file nullable/con constraints, errores file ni DTO JSON de error con produces octet-stream común. No sustituir type:file por string/binary en Swagger. Se mantienen buffering de errores/transportes antiguos, posibles temporales en disco y límites de clientes/middleware; no cierra streaming general ni el paquete 04. [Uso y límites](docs/DOWNLOADS.md#swagger-20-file-responses-v0210).
 
+### Entrega de respuestas JSON por estado — v0.22.0 / runtime v0.16.0
+
+- [x] Metadatos declarativos responseTypes por éxito explícito, con tipo/nulabilidad por estado y null para ausencia de body. Reutilizar ApiClient/JsonHydrator/validación existentes; sin wrapper, fábrica ni switch de ejecución en cada SDK. Compatibilidad de metadatos/argumentos antiguos y errores tipados/raw.
+- [x] Firmas PHP nativas User|CreatedUser|null, herencia real, tipos repetidos y nombres de respuestas inline por status. 204 sin contenido no oculta un 200 inválido/vacío/null. Swagger/OpenAPI 3.0/3.1 JSON/YAML equivalentes; GetParams/PostParams, query body, JSON DTO, serialización y mutaciones.
+- **Validación:** runtime 109 pruebas / 414 aserciones, PHPStan máximo, CI multiversión/dependencias mínimas e instalación publicada. Generador: 383 pruebas / 2.896 aserciones y veinte SDKs instalados con PHPStan máximo. SDK independiente con 24 escenarios HTTP reales GET/POST; smoke de selección/validación en CI y publicación inmutable.
+- **Límites:** éxitos JSON con códigos numéricos explícitos y esquemas ya representables; no mezcla JSON/binario por estado, rangos, codecs alternativos ni unión general de propiedades. Se conservan los límites JSON Schema y buffering de JSON/errores. [Uso y comportamiento](docs/RESPONSES.md).
+
 ### Respuestas
 
-- [ ] Varios códigos `2xx` con cuerpos y tipos diferentes en la misma operación.
-- [ ] Selección del DTO de respuesta mediante el código HTTP real.
-- [ ] Contrato público de tipos unión PHP cuando haya varias respuestas de éxito compatibles.
-- [ ] Respuestas sin contenido: `204`, `205`, `HEAD`, otras combinaciones válidas.
+- [x] **v0.22.0 — Varios códigos 2xx con cuerpos JSON y tipos representables diferentes** en una operación. El runtime selecciona el hidratador por el estado real; no adivina esquemas por el contenido.
+- [x] **v0.22.0 — Selección del DTO de respuesta mediante el código HTTP real**, para éxitos numéricos explícitos, con required/validación y nulabilidad por estado.
+- [x] **v0.22.0 — Uniones PHP nativas en firmas de recursos y fachadas** para varias respuestas JSON de éxito representables, incluida herencia y null; sin wrapper de resultado.
+- [ ] **Parcial — Respuestas sin contenido:** v0.22.0 distingue cada estado explícito sin body de otro con JSON; 204 vacío no permite aceptar 200 vacío. Quedan políticas generales para HEAD/205 y otras combinaciones del protocolo.
+- [ ] Mezclar respuestas de éxito JSON/binarias o negociar codecs distintos por estado.
 - [ ] Cabeceras de respuesta declaradas en `responses[*].headers`: v0.20.0 permite leer cabeceras PSR de descargas, pero no valida sus esquemas declarados.
 - [ ] `Set-Cookie` y acceso tipado a metadatos HTTP.
 - [ ] Rangos de status `1XX`, `2XX`, `3XX`, `4XX`, `5XX` y `default`.
@@ -336,7 +344,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] Negociación `Accept` y uso de `application/*+json` con diversos esquemas.
 - [ ] Referencias a `components/responses` y `components/headers`.
 
-**Decisión de diseño pendiente:** para respuestas `200: User` y `201: CreatedUser`, estudiar `User|CreatedUser` como retorno, dejando la selección del hidratador al runtime.
+**Decisión aplicada en v0.22.0:** `200: User` y `201: CreatedUser` producen un retorno nativo `User|CreatedUser`; el runtime conserva la selección del hidratador por status. La unión no modifica la validez de los modelos ni implementa uniones generales de propiedades.
 
 **Aceptación:** fixtures para cada caso, transporte simulado verificando bytes del request y estado/tipo del response, más un smoke HTTP real para JSON, multipart y binarios.
 
@@ -628,3 +636,4 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-08 | Generador v0.19.0 + runtime v0.14.0: listas de archivos binarios OpenAPI con PHP/PSR nativos, partes repetidas, metadatos individuales, validación e herencia; colecciones solo JSON conservadas. Dos archivos de 16 MiB por request bajo límite PHP 16 MiB, SDK instalado y parser MIME independiente. | [Generator v0.19.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.19.0), [Runtime v0.14.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.14.0) |
 | 2026-11-08 | Generador v0.20.0 + runtime v0.15.0: descargas OpenAPI application/octet-stream como ResponseInterface PSR nativa; GET/POST con query, headers y DTO JSON, errores tipados y memoria medida en 32 MiB. | [Generator v0.20.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.20.0), [Runtime v0.15.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.15.0) |
 | 2026-11-09 | Generador v0.21.0: respuestas Swagger type:file/produces octet-stream adaptadas al contrato PSR existente, precedencia/alias, SDK equivalente y pruebas GET/POST de 32 MiB; runtime estable ^0.15.0 sin cambios. | [Generator v0.21.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.21.0) |
+| 2026-11-09 | Generador v0.22.0 + runtime v0.16.0: selección de respuestas JSON por estado HTTP, firmas unión PHP, nulabilidad/ausencia por status y corrección de 200 vacío con 204 alternativo; herencia, DTOs y ejecución común reutilizados. | [Generator v0.22.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.22.0), [Runtime v0.16.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.16.0) |

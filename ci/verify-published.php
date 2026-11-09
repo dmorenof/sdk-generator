@@ -368,4 +368,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/downl
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $swaggerDownloads]);
 runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/download-smoke.php', $swaggerDownloads]);
 echo "PUBLISHED_SWAGGER_DOWNLOAD_SDK_OK", PHP_EOL;
+$statusResponses = $directory . '/status-responses';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/status-responses-openapi31.json',
+    $statusResponses, 'Example\\StatusSdk', 'example/published-status-responses']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $statusResponses]);
+runPublished([PHP_BINARY, $package . '/tests/status-response-smoke.php', $statusResponses]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

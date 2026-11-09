@@ -25,10 +25,11 @@ final readonly class PhpResourceEmitter
         'requestMediaType' => 'application/json',
         'bodySerialization' => [],
         'bodyParts' => [],
+        'responseTypes' => [],
     ];
 
     /**
-     * @param array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool}> $successTypes
+     * @param array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int,array{type:?string,schemaNullable:bool}>}> $successTypes
      * @param array<string,array<string,string>> $errorTypes
      */
     public function __construct(
@@ -300,7 +301,8 @@ PHP;
             'security' => $operation->securityRequirements,
             'success' => $successStatuses,
             'errors' => $this->errorTypes[$operation->operationId] ?? [],
-            'responseType' => $success['type'],
+            'responseType' => isset($success['byStatus']) ? null : $success['type'],
+            'responseTypes' => $success['byStatus'] ?? [],
             'schemaNullable' => $success['schemaNullable'],
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $validation,
