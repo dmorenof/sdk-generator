@@ -68,7 +68,7 @@ jobs:
           unzip -t casafari-sdk-unified-DTO-0.2.0.zip | tail -2
       - name: Upload evaluated Casafari SDK
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: casafari-unified-dto-020-psr12
           path: build/casafari-sdk-unified-DTO-0.2.0.zip

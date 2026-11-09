@@ -68,7 +68,7 @@ jobs:
         run: php tests/live/fakerestapi_smoke.php
       - name: Package evidence and generated sources
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fakerestapi-live-smoke-openapi-and-php-sdk
           path: |
