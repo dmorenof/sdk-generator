@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.26.0] — 2026-11-09
+
+- Support OpenAPI scalar form cookie parameters through existing GetParams/PostParams DTOs, constraints and shared runtime execution. Preserve query body, headers and JSON payload separation without changing executor signatures.
+- Add API key cookie authentication using existing security alternatives/AND selection. Stable runtime ^0.20.0 combines configured, operation and security cookies in one RFC6265 header, preserving raw authentication values and rejecting conflicts/invalid bytes before transport.
+- Verify JSON/YAML, OpenAPI 3.0/3.1, reusable parameters/security aliases, defaults, mutations and actual HTTP GET/POST from an independently installed SDK. Add the 25th SDK analysis and immutable-package HTTP smoke.
+- Reject structured/nullable/content cookie schemas and Swagger cookies explicitly. Document OpenAPI Appendix D delimiter incompatibilities; no cookie jar, persistence or Set-Cookie parsing is added. See docs/COOKIES.md.
+
 ## [0.25.0] — 2026-11-09
 
 - Add OpenAPI label/matrix path scalars, primitive lists and flat typed DTO/Map objects with both explode modes and defaults. Reuse parameter support and shared runtime serialization; preserve GetParams/PostParams, query/header/JSON body separation and existing public signatures.

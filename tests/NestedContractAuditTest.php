@@ -178,11 +178,11 @@ final class NestedContractAuditTest extends TestCase
         self::assertSame([], $auditor->audit(self::document(), 'second.json'));
     }
 
-    public function testUndefinedSecuritySchemesAndCookieKeysHavePreciseDiagnostics(): void
+    public function testUndefinedSecuritySchemesAndInvalidKeyLocationsHavePreciseDiagnostics(): void
     {
         $document = self::document();
         $document['security'] = [['Missing/~' => []]];
-        $document['components']['securitySchemes']['Session'] = ['type' => 'apiKey', 'name' => 'session', 'in' => 'cookie'];
+        $document['components']['securitySchemes']['Session'] = ['type' => 'apiKey', 'name' => 'session', 'in' => 'body'];
         self::assertSame('/security/0/Missing~1~0', self::issues($document, 'unknown_security_scheme')[0]->pointer);
         self::assertSame('/components/securitySchemes/Session/in', self::issues($document, 'unsupported_security_scheme')[0]->pointer);
     }

@@ -182,6 +182,9 @@ final readonly class PhpOperationRequestEmitter
         $propertyMap = [];
         $wirePropertyMap = [];
         $locations = ['path' => [], 'query' => [], 'header' => []];
+        if (count(array_filter($parameters, static fn ($p): bool => $p->location === 'cookie')) > 0) {
+            $locations['cookie'] = [];
+        }
         $occupied = [];
         $wireOccurrences = [];
         foreach ($parameters as $parameter) {

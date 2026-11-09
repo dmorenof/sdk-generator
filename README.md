@@ -3,7 +3,7 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.25.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+**v0.26.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
 The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
@@ -26,6 +26,8 @@ Version 0.13.0 adds Swagger 2.0 `formData` scalar/list fields through the same U
 Version 0.24.0 completes flat parameter objects for form queries and simple paths/headers, including defaults and both explode modes. Reuse DTO/Map types, validation and the shared serializer; reject expanded query collisions and ambiguous raw headers before transport. Stable runtime ^0.18.0 preserves the identifier/payload API. See [object parameters](docs/OBJECT_PARAMETERS.md), [simple lists](docs/SIMPLE_PARAMETERS.md), [responses](docs/RESPONSES.md) and [the architecture review](docs/ARCHITECTURE_REVIEW.md).
 
 Version 0.25.0 adds label/matrix paths for scalars, lists and flat objects with both explode modes, using stable runtime ^0.19.0. See [path styles](docs/PATH_STYLES.md) for encoding, empty values and transport guarantees.
+
+Version 0.26.0 adds scalar cookie parameters and API key cookie authentication with stable runtime ^0.20.0. Configured, operation and security cookies coexist with explicit conflict detection. See [cookies and exact limits](docs/COOKIES.md).
 
 ## Quick start: generate Accounts SDK
 
@@ -163,7 +165,7 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 | Endpoints | Path/query/header scalar parameters and native primitive query/simple path/header lists, flat typed deepObject/form query and simple path/header objects, JSON and bounded URL-encoded/multipart requests, status-selected JSON responses and native return unions |
 | Runtime | Typed operation signatures, Guzzle-by-default, optional PSR-18 injection, JSON hydration, binary PSR responses and HTTP status check |
 | Testing | Synthetic independent Accounts and Catalog API contracts across three dialects, Composer installation + mock HTTP |
-| Not included yet | External/general references, arbitrary native unions, `not`/`const` and unsupported composition branches, OAuth2/OpenID Connect token flows, cookie payloads, general streaming guarantees/non-seekable uploads and advanced form/multipart encoding, broad media types, all response shapes, full OpenAPI compliance |
+| Not included yet | External/general references, arbitrary native unions, `not`/`const` and unsupported composition branches, OAuth2/OpenID Connect token flows, structured/content cookie parameters, general streaming guarantees/non-seekable uploads and advanced form/multipart encoding, broad media types, all response shapes, full OpenAPI compliance |
 
 The validator **rejects many unsupported constructs explicitly** instead of silently treating them as supported. Generated DTOs validate required fields and supported constraints on construction and before sending, including modified nested values. This is not complete JSON Schema validation. See [the SDK design criteria](docs/SDK_DESIGN.md) and the supported-scope document for the current boundaries.
 

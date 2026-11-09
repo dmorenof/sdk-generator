@@ -390,4 +390,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/path-
     $pathStyles, 'Example\\PathSdk', 'example/published-path-styles']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $pathStyles]);
 runPublished([PHP_BINARY, $package . '/tests/path-styles-smoke.php', $pathStyles]);
+$cookies = $directory . '/cookies';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/cookies-openapi31.json',
+    $cookies, 'Example\\CookieSdk', 'example/published-cookies']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $cookies]);
+runPublished([PHP_BINARY, $package . '/tests/cookies-smoke.php', $cookies]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

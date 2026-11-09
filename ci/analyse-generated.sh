@@ -76,3 +76,6 @@ php tests/object-parameters-smoke.php "$OUT/object-parameters"
 
 analyse path-styles path-styles-openapi31.json 'Example\PathSdk'
 php tests/path-styles-smoke.php "$OUT/path-styles"
+
+analyse cookies cookies-openapi31.json 'Example\CookieSdk'
+php tests/cookies-smoke.php "$OUT/cookies"
