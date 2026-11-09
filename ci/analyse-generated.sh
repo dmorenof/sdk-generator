@@ -93,3 +93,6 @@ php tests/empty-values-smoke.php "$OUT/swagger-empty-values"
 
 analyse parameter-content parameter-content-openapi31.json 'Example\ContentSdk'
 php tests/parameter-content-smoke.php "$OUT/parameter-content"
+
+analyse delimited-parameters delimited-parameters-swagger2.json 'Example\DelimitedSdk'
+php tests/delimited-parameters-smoke.php "$OUT/delimited-parameters"
