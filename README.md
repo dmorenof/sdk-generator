@@ -3,7 +3,7 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.29.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+**v0.29.1: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
 The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
@@ -35,6 +35,8 @@ Version 0.27.0 supports query allowReserved for the existing scalar/list/flat-ob
 
 Version 0.28.0 accepts allowEmptyValue on supported query parameters and Swagger formData, with an explicit schema-authoritative policy for absent/null/empty values. It reuses stable runtime ^0.21.0 unchanged. See [empty values](docs/EMPTY_VALUES.md).
 
+Version 0.29.1 corrects the production runtime dependency for installations without development packages.
+
 Version 0.29.0 adds typed application/json and text/plain parameter content with stable runtime ^0.22.1, reusing models/collections and shared request serialization. Includes raw text cookies and validation before encoding. See [parameter content](docs/PARAMETER_CONTENT.md).
 
 ## Quick start: generate Accounts SDK
@@ -51,6 +53,8 @@ php bin/generate-sdk.php \
 ~~~
 
 **Arguments:** input JSON, YAML (`.yaml`/`.yml`) specification, output directory (must be empty or absent), PHP root namespace, Composer package name. The executable is also exposed to Composer as a binary when the generator is installed as a package.
+
+When installing the generator into another Composer project before Packagist registration, declare both GitHub VCS repositories (sdk-generator and sdk-runtime) in that project: Composer ignores repositories declared by dependencies.
 
 The command generates a standalone Composer package at build/accounts-sdk. Install its own runtime dependencies:
 
@@ -191,7 +195,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v0.24.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.24.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.18.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v0.29.1](https://github.com/dmorenof/sdk-generator/releases/tag/v0.29.1)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^0.22.1**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

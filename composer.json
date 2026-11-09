@@ -5,6 +5,7 @@
     "license": "MIT",
     "require": {
         "composer-runtime-api": "^2.2",
+        "dmorenof/sdk-runtime": "^0.22.1",
         "ext-intl": "*",
         "friendsofphp/php-cs-fixer": "^3.95",
         "php": "^8.3",
@@ -52,7 +53,6 @@
         "source": "https://github.com/dmorenof/sdk-generator"
     },
     "require-dev": {
-        "dmorenof/sdk-runtime": "^0.22.1",
         "guzzlehttp/guzzle": "^7.9",
         "phpstan/phpstan": "^2",
         "phpunit/phpunit": "^11.5",

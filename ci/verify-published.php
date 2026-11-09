@@ -21,7 +21,10 @@ $directory = sys_get_temp_dir() . '/generator-published-' . bin2hex(random_bytes
 mkdir($directory, 0700, true);
 file_put_contents($directory . '/composer.json', json_encode([
     'name' => 'example/published-generator-smoke',
-    'repositories' => [['type' => 'vcs', 'url' => 'https://github.com/dmorenof/sdk-generator', 'no-api' => true]],
+    'repositories' => [
+        ['type' => 'vcs', 'url' => 'https://github.com/dmorenof/sdk-generator', 'no-api' => true],
+        ['type' => 'vcs', 'url' => 'https://github.com/dmorenof/sdk-runtime', 'no-api' => true],
+    ],
     'require' => ['dmorenof/sdk-generator' => ltrim($tag, 'v')],
 ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $directory]);
