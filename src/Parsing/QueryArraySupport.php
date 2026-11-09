@@ -6,7 +6,7 @@ namespace Dmorenof\SdkGenerator\Parsing;
 
 use Dmorenof\SdkGenerator\Contract\ParameterSerialization;
 
-/** Primitive parameter-list formats shared by audit and emission, including simple path/header CSV. */
+/** Primitive parameter-list formats shared by audit and emission, including Swagger delimited path/header lists. */
 final class QueryArraySupport
 {
     public static function pathFormat(ParameterSerialization $options, string $kind): ?string
@@ -25,7 +25,8 @@ final class QueryArraySupport
                 return null;
             }
             if ($location !== 'query') {
-                return in_array($location, ['path', 'header'], true) && in_array($options->collectionFormat, [null, 'csv'], true) ? 'csv' : null;
+                return in_array($location, ['path', 'header'], true) && in_array($options->collectionFormat ?? 'csv', ['csv', 'ssv', 'tsv', 'pipes'], true)
+                    ? ($options->collectionFormat ?? 'csv') : null;
             }
             return match ($options->collectionFormat ?? 'csv') {
                 'csv' => 'csv', 'multi' => 'multi', 'ssv' => 'ssv', 'tsv' => 'tsv', 'pipes' => 'pipes', default => null,

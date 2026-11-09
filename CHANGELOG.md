@@ -2,6 +2,12 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.30.0] — 2026-11-10
+
+- Execute Swagger 2.0 collectionFormat ssv/tsv/pipes for primitive arrays in path and header parameters, including reusable aliases and JSON/YAML input. Emit existing declarative metadata and reuse stable runtime ^0.23.0; no new DTO wrappers or executor API.
+- Preserve per-item URI encoding, raw header separators, native list validation and GET/POST query-body separation. Reject delimiter-bearing data, unsupported multi in these locations and outer header whitespace that HTTP would trim.
+- Add the 31st independently installed SDK at PHPStan maximum and actual GET/POST HTTP smoke in source and published-package verification. OpenAPI collectionFormat, structured/nullable items and additional Swagger formData formats remain unsupported.
+
 ## [0.29.1] — 2026-11-10
 
 - Declare sdk-runtime ^0.22.1 as a production dependency: parameter-content cookie validation uses its shared CookieHeader class when the generator is installed without development dependencies. Include both VCS repositories in the independent installation smoke, since Composer only reads root repositories.

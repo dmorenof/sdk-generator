@@ -83,10 +83,44 @@ mutations fail before transport. The fixture is
 [simple-parameters-openapi31.json](../tests/fixtures/simple-parameters-openapi31.json).
 
 Flat objects are added in [v0.24.0](OBJECT_PARAMETERS.md). Nested/null list items, nullable list schemas, cookies,
-header/path ssv/tsv/pipes/multi, content-based parameters, arbitrary reserved/empty
+header/path multi, arbitrary reserved/empty
 flags and primitive schema references remain pending. Reject unsupported list-level
 enum constraints, including empty enum, rather than dropping their semantics.
 This is a bounded simple-list feature, not a claim that all parameter styles or
 all OpenAPI HTTP behavior are implemented.
 
 Label/matrix paths for the supported scalar/list/flat-object subset are available in [v0.25.0](PATH_STYLES.md).
+
+
+## Swagger delimited path/header lists — v0.30.0
+
+Swagger 2.0 primitive arrays now support collectionFormat csv (default), ssv,
+tsv and pipes in path/header parameters through stable runtime ^0.23.0.
+OpenAPI 3.x does not define collectionFormat; its simple lists stay CSV.
+multi remains unsupported in path/header. Query and form formats are independent.
+
+The existing operation metadata maps each location to its declared format.
+No new parameter classes, executor signatures or transport logic are generated.
+GetParams/PostParams still separate query, headers and JSON body; composite
+path lists use the existing PathParams DTO.
+
+For ['a/b', '%2F', 'ñ'], path separators are %20 (ssv), %09 (tsv) and %7C
+(pipes). Items are encoded once with native rawurlencode before joining.
+Headers ['alpha', 'beta'] retain a literal space, tab or pipe between items.
+This reuses QuerySerializer list validation and Guzzle/PSR request construction.
+
+Because percent-encoded separator bytes and data would be indistinguishable
+in these formats, items containing the active space/tab/pipe separator fail
+before transport. Raw header items retain existing HTTP byte and outer-whitespace
+checks. The assembled header also rejects outer SP/HTAB (for example ['', 'x']
+with ssv), rather than allowing PSR-7 or an HTTP peer to trim it silently.
+Empty lists produce an empty value; optional absent/null headers are omitted.
+False, zero, Unicode, percent data, enums and schema constraints retain existing
+behavior. CSV path data containing commas still encodes the item comma separately
+from the literal structural comma, preserving its existing semantics.
+
+JSON/YAML and reusable parameter aliases are verified. The independently installed
+Swagger SDK runs PHPStan maximum and real GET/POST HTTP, checking all three formats,
+query named body, JSON body and invalid path/header mutations. This smoke also runs
+against the immutable published generator. Additional formData formats, nested or
+nullable items, root schema aliases and structured cookies remain separate work.

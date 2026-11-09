@@ -320,7 +320,8 @@ PHP;
                     $pathSerialization[$parameter->wireName] = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::format($parameter->serialization, 'path')
                         ?? throw new InvalidArgumentException('Unsupported path list style.');
                 } else {
-                    $headerSerialization[$parameter->wireName] = 'csv';
+                    $headerSerialization[$parameter->wireName] = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::format($parameter->serialization, 'header')
+                        ?? throw new InvalidArgumentException('Unsupported header list format.');
                 }
             }
             if ($parameter->location !== 'path') {

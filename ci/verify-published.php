@@ -435,4 +435,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/param
     $parameterContent, 'Example\\ContentSdk', 'example/published-parameter-content']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $parameterContent]);
 runPublished([PHP_BINARY, $package . '/tests/parameter-content-smoke.php', $parameterContent]);
+$delimitedDirectory = $directory . '/delimited-parameters';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/delimited-parameters-swagger2.json',
+    $delimitedDirectory, 'Example\\DelimitedSdk', 'example/published-delimited-parameters']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $delimitedDirectory]);
+runPublished([PHP_BINARY, $package . '/tests/delimited-parameters-smoke.php', $delimitedDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

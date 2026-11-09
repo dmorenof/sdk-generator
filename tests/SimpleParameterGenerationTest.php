@@ -59,7 +59,7 @@ final class SimpleParameterGenerationTest extends TestCase {
         $document['components']['parameters'] = ['Ids' => $document['paths']['/items/{ids}']['get']['parameters'][0], 'Alias' => ['$ref' => '#/components/parameters/Ids']];
         foreach (['get', 'post'] as $verb) { $document['paths']['/items/{ids}'][$verb]['parameters'][0] = ['$ref' => '#/components/parameters/Alias']; }
         self::assertSame($expected, self::files($document));
-        foreach (['multi', 'ssv', 'pipes'] as $format) {
+        foreach (['multi', 'invalid'] as $format) {
             $unsupported = $swagger; $unsupported['paths']['/items/{ids}']['get']['parameters'][1]['collectionFormat'] = $format;
             try { self::files($unsupported); self::fail('Unsupported header format accepted.'); }
             catch (\InvalidArgumentException) { self::assertTrue(true); }

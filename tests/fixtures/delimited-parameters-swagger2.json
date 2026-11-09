@@ -1,0 +1,222 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Simple API",
+    "version": "1"
+  },
+  "host": "api.example.test",
+  "basePath": "/v1",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "definitions": {
+    "Form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "paths": {
+    "/items/{spaces}/{tabs}/{pipes}": {
+      "get": {
+        "operationId": "getItems",
+        "parameters": [
+          {
+            "name": "spaces",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "ssv"
+          },
+          {
+            "name": "tabs",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "tsv"
+          },
+          {
+            "name": "pipes",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "pipes"
+          },
+          {
+            "name": "X-Spaces",
+            "in": "header",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "ssv"
+          },
+          {
+            "name": "X-Tabs",
+            "in": "header",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "tsv"
+          },
+          {
+            "name": "X-Pipes",
+            "in": "header",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "pipes"
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postItems",
+        "parameters": [
+          {
+            "name": "spaces",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "ssv"
+          },
+          {
+            "name": "tabs",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "tsv"
+          },
+          {
+            "name": "pipes",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "pipes"
+          },
+          {
+            "name": "X-Spaces",
+            "in": "header",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "ssv"
+          },
+          {
+            "name": "X-Tabs",
+            "in": "header",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "tsv"
+          },
+          {
+            "name": "X-Pipes",
+            "in": "header",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "collectionFormat": "pipes"
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Form"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  }
+}

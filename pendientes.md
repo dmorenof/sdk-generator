@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.29.1** y `dmorenof/sdk-runtime` **v0.22.1** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.30.0** y `dmorenof/sdk-runtime` **v0.23.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -206,8 +206,8 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 - [x] **v0.9.0 — Arrays query primitivos con `collectionFormat: csv/multi`**, incluido default CSV de Swagger.
 - [x] **v0.10.0 — Arrays query primitivos con `collectionFormat: ssv`, `tsv` y `pipes`.**
-- [ ] **Parcial — Formatos en otras ubicaciones:** CSV path/header en v0.23.0; ssv/tsv/pipes y otros casos siguen pendientes.
-- [ ] **Parcial — Arrays Swagger por ubicación.** Query primitivo csv/multi/ssv/tsv/pipes , formData csv/multi y CSV path/header publicados; otros formatos pendientes.
+- [x] **Listas primitivas Swagger path/header:** CSV en v0.23.0 y ssv/tsv/pipes en v0.30.0 / runtime v0.23.0. Reutiliza metadatos/DTOs y serializador compartido; multi no es válido en estas ubicaciones. Ver [límites y encoding](docs/SIMPLE_PARAMETERS.md#swagger-delimited-pathheader-lists--v0300).
+- [ ] **Parcial — Arrays Swagger por ubicación.** Query primitivo csv/multi/ssv/tsv/pipes, path/header csv/ssv/tsv/pipes y formData csv/multi publicados; otros formatos formData y estructuras pendientes.
 
 ### Entrega de arrays query — v0.9.0 / runtime v0.6.0
 
@@ -699,3 +699,10 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] GetParams/PostParams/PathParams, query body y payload JSON separados, validación lógica antes de encoding, colecciones vacías y mutaciones.
 - [x] Corregir colecciones tipadas con índices borrados para conservar JSON array en raíz y anidado; no modificar claves Map.
 - **Límites:** otros MIME/variantes, schema aliases primitivas, nullable raíz, composiciones generales y JSON cookie pendientes. No hay motor de codecs ni wrappers nuevos. [Detalle](docs/PARAMETER_CONTENT.md).
+
+
+### Listas delimitadas Swagger path/header — v0.30.0 / runtime v0.23.0
+
+- ssv/tsv/pipes reutilizan QuerySerializer y los mapas existentes de Operation; el generador solo declara tipos y formato por ubicación. CSV/OpenAPI y firmas públicas conservados.
+- JSON/YAML, alias, PathParams, GetParams/PostParams, query llamado body, JSON DTO body, mutaciones y GET/POST HTTP real verificados. El SDK número 31 se instala de forma independiente y pasa PHPStan máximo; smoke de publicación incluido.
+- Runtime v0.23.0 publicado primero y comprobado por instalación/HTTP; generador requiere ^0.23.0 estable. multi path/header, nesting, nullable y otros formatos formData siguen fuera del subconjunto.
