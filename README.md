@@ -3,7 +3,7 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.22.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+**v0.23.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
 The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
@@ -23,7 +23,7 @@ Version 0.12.0 adds OpenAPI URL-encoded form bodies with scalar fields and primi
 
 Version 0.13.0 adds Swagger 2.0 `formData` scalar/list fields through the same URL-encoded runtime. Its CSV default and explicit multi format are preserved, including reusable aliases and operation overrides. See [Swagger HTTP forms](docs/FORMS.md#swagger-20-formdata-v0130).
 
-Version 0.22.0 selects JSON response models by actual HTTP status and emits native return unions such as User|CreatedUser|null. Each status preserves its own validation and nullability: a bodyless 204 no longer permits an empty 200. Execution reuses stable runtime ^0.16.0. See [response selection](docs/RESPONSES.md), [binary downloads](docs/DOWNLOADS.md), [forms and multipart](docs/FORMS.md), and [the architecture review](docs/ARCHITECTURE_REVIEW.md).
+Version 0.23.0 adds primitive simple/CSV path and header lists, with native array PathParams, exact path item encoding, raw header rules and required placeholder validation. GetParams/PostParams keep query and JSON bodies independent; shared execution uses stable runtime ^0.17.1. See [simple parameters](docs/SIMPLE_PARAMETERS.md), [response selection](docs/RESPONSES.md), [downloads](docs/DOWNLOADS.md) and [the architecture review](docs/ARCHITECTURE_REVIEW.md).
 
 ## Quick start: generate Accounts SDK
 
@@ -154,11 +154,11 @@ Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/
 
 ## Supported features and deliberate boundaries
 
-| Area | v0.22.0 (supported subset) |
+| Area | v0.23.0 (supported subset) |
 |---|---|
 | Input dialects | Swagger 2.0, OpenAPI 3.0.x and 3.1.x in **JSON or YAML**, tested common subset |
 | Models | Object properties, common primitive types, local model references, backed enums, typed arrays, nested DTOs, compatible single-parent `allOf` inheritance, local discriminator mappings, and original-schema `anyOf`/`oneOf` validation |
-| Endpoints | Path/query/header scalar parameters, native primitive query lists, flat typed deepObject query parameters, JSON and bounded URL-encoded/multipart requests, status-selected JSON responses and native return unions |
+| Endpoints | Path/query/header scalar parameters and native primitive query/simple path/header lists, flat typed deepObject query parameters, JSON and bounded URL-encoded/multipart requests, status-selected JSON responses and native return unions |
 | Runtime | Typed operation signatures, Guzzle-by-default, optional PSR-18 injection, JSON hydration, binary PSR responses and HTTP status check |
 | Testing | Synthetic independent Accounts and Catalog API contracts across three dialects, Composer installation + mock HTTP |
 | Not included yet | External/general references, arbitrary native unions, `not`/`const` and unsupported composition branches, OAuth2/OpenID Connect token flows, cookie payloads, general streaming guarantees/non-seekable uploads and advanced form/multipart encoding, broad media types, all response shapes, full OpenAPI compliance |
@@ -179,7 +179,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v0.22.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.22.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.16.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v0.23.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.23.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. Generated SDKs require stable `dmorenof/sdk-runtime` **^0.17.1**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

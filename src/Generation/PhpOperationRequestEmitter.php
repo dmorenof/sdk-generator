@@ -74,7 +74,7 @@ final readonly class PhpOperationRequestEmitter
             $path = implode('/', $segments);
             $namespace = implode('\\', $segments);
             $identifier = null;
-            if (count($pathParameters) === 1) {
+            if (count($pathParameters) === 1 && $pathParameters[0]->schema->kind !== \Dmorenof\SdkGenerator\Contract\SchemaKind::Array) {
                 $parameter = $pathParameters[0];
                 $resolved = PhpParameterTypeResolver::resolve(
                     $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
@@ -87,7 +87,7 @@ final readonly class PhpOperationRequestEmitter
                         ? 'identifier' : $variable,
                     'wireName' => $parameter->wireName,
                 ];
-            } elseif (count($pathParameters) > 1) {
+            } elseif ($pathParameters !== []) {
                 $type = '\\' . $this->namespace . '\\PathParams\\' . $namespace;
                 $filePath = "src/PathParams/$path.php";
                 $source = $this->render(
@@ -217,7 +217,7 @@ final readonly class PhpOperationRequestEmitter
             $resolved = $queryType !== null && $parameter->location === 'query'
                 ? ['type' => $queryType, 'nullable' => \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::nullable($parameter->schema, $contract->models), 'enumValues' => []]
                 : PhpParameterTypeResolver::resolve(
-                    $parameter->schema, $operation->operationId . '.' . $parameter->wireName, $parameter->location === 'query',
+                    $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true,
                 );
             $nullable = !$parameter->required || $resolved['nullable'];
             if (isset($resolved['phpDoc'])) {

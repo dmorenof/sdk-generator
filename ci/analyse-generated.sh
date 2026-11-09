@@ -65,3 +65,8 @@ php -d memory_limit=16M tests/download-smoke.php "$OUT/swagger-downloads"
 
 analyse status-responses status-responses-openapi31.json 'Example\StatusSdk'
 php tests/status-response-smoke.php "$OUT/status-responses"
+
+analyse simple-parameters simple-parameters-openapi31.json 'Example\SimpleSdk'
+analyse swagger-simple-parameters simple-parameters-swagger2.json 'Example\SimpleSdk'
+php tests/simple-parameters-smoke.php "$OUT/simple-parameters"
+php tests/simple-parameters-smoke.php "$OUT/swagger-simple-parameters"

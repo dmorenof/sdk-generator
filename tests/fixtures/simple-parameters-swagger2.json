@@ -1,0 +1,138 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Simple API",
+    "version": "1"
+  },
+  "host": "api.example.test",
+  "basePath": "/v1",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "definitions": {
+    "Form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "paths": {
+    "/items/{ids}": {
+      "get": {
+        "operationId": "getItems",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "X-Codes",
+            "in": "header",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "collectionFormat": "multi"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postItems",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "X-Codes",
+            "in": "header",
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "collectionFormat": "multi"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Form"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  }
+}

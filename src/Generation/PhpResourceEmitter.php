@@ -26,6 +26,8 @@ final readonly class PhpResourceEmitter
         'bodySerialization' => [],
         'bodyParts' => [],
         'responseTypes' => [],
+        'pathSerialization' => [],
+        'headerSerialization' => [],
     ];
 
     /**
@@ -247,6 +249,8 @@ PHP;
 
         $validation = [];
         $querySerialization = [];
+        $pathSerialization = [];
+        $headerSerialization = [];
         $bodySerialization = [];
         $bodyParts = [];
         if ($operation->requestBody?->mediaType === \Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA) {
@@ -276,13 +280,23 @@ PHP;
                     $querySerialization[$parameter->wireName] = $format;
                 }
             }
-            if ($parameter->location !== 'path') {
+            if (!in_array($parameter->location, ['path', 'header'], true)) {
                 continue;
             }
             $resolved = PhpParameterTypeResolver::resolve(
-                $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
+                $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true,
             );
-            $rules = $parameter->schema->validation;
+            if ($resolved['type'] === 'array') {
+                if ($parameter->location === 'path') {
+                    $pathSerialization[$parameter->wireName] = 'csv';
+                } else {
+                    $headerSerialization[$parameter->wireName] = 'csv';
+                }
+            }
+            if ($parameter->location !== 'path') {
+                continue;
+            }
+            $rules = $resolved['validation'] ?? $parameter->schema->validation;
             if ($resolved['enumValues'] !== []) {
                 $rules['enum'] = $resolved['enumValues'];
             }
@@ -308,6 +322,8 @@ PHP;
             'validation' => $validation,
             'serverUrl' => $serverUrl,
             'querySerialization' => $querySerialization,
+            'pathSerialization' => $pathSerialization,
+            'headerSerialization' => $headerSerialization,
             'requestMediaType' => in_array($operation->requestBody?->mediaType, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)
                 ? $operation->requestBody->mediaType : 'application/json',
             'bodySerialization' => $bodySerialization,

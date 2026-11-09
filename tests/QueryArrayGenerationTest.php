@@ -112,12 +112,17 @@ final class QueryArrayGenerationTest extends TestCase
 
     public function testUnsupportedLocationsShapesAndStylesRemainStrictFailures(): void
     {
-        foreach ([['in', 'header'], ['in', 'path'], ['style', 'deepObject'], ['allowReserved', true], ['allowEmptyValue', true]] as [$key, $value]) {
+        foreach ([['in', 'path'], ['style', 'deepObject'], ['allowReserved', true], ['allowEmptyValue', true]] as [$key, $value]) {
             $document = self::document();
             $document['paths']['/items']['get']['parameters'][0][$key] = $value;
             self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
         }
-        foreach ([['type' => 'object'], ['type' => 'array', 'items' => ['type' => 'string']], ['type' => 'string', 'nullable' => true]] as $items) {
+        $document = self::document();
+        $document['paths']['/items']['get']['parameters'][0]['in'] = 'header';
+        self::assertTrue((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
+        $document['paths']['/items']['get']['parameters'][0]['style'] = 'form';
+        self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
+        foreach ([['type' => 'object'], ['type' => 'array', 'items' => ['type' => 'string']], ['type' => 'string', 'nullable' => true], ['type' => 'string', 'enum' => []]] as $items) {
             $document = self::document();
             $document['paths']['/items']['get']['parameters'][0]['schema']['items'] = $items;
             self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);

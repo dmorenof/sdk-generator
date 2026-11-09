@@ -373,4 +373,11 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/statu
     $statusResponses, 'Example\\StatusSdk', 'example/published-status-responses']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $statusResponses]);
 runPublished([PHP_BINARY, $package . '/tests/status-response-smoke.php', $statusResponses]);
+foreach (['simple-parameters-openapi31.json', 'simple-parameters-swagger2.json'] as $simpleFixture) {
+    $simpleDirectory = $directory . '/' . pathinfo($simpleFixture, PATHINFO_FILENAME);
+    runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/' . $simpleFixture,
+        $simpleDirectory, 'Example\\SimpleSdk', 'example/published-simple-parameters']);
+    runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $simpleDirectory]);
+    runPublished([PHP_BINARY, $package . '/tests/simple-parameters-smoke.php', $simpleDirectory]);
+}
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

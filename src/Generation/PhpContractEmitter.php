@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.16.0';
+    public const RUNTIME_CONSTRAINT = '^0.17.1';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -1022,12 +1022,33 @@ final class PhpContractEmitter
                 && \Dmorenof\SdkGenerator\Parsing\FormSupport::formats($operation->requestBody, $contract->models) === null) {
                 throw new InvalidArgumentException("Unsupported form body schema or encoding at $operation->operationId.");
             }
+            preg_match_all('/\{([^{}]+)\}/', $operation->path, $matches);
+            $pathNames = [];
             foreach ($operation->parameters as $parameter) {
+                if ($parameter->location === 'path') {
+                    if (!$parameter->required || $parameter->schema->nullable) {
+                        throw new InvalidArgumentException("Path parameters must be required and nonnullable at $operation->operationId.");
+                    }
+                    $pathNames[] = $parameter->wireName;
+                }
+                if (in_array($parameter->location, ['path', 'header'], true)) {
+                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true);
+                    if ($parameter->location === 'path' && $resolved['nullable']) {
+                        throw new InvalidArgumentException("Path parameters must be nonnullable at $operation->operationId.");
+                    }
+                    if ($resolved['type'] === 'array' && ($resolved['nullable'] || $parameter->content !== []
+                        || \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::format($parameter->serialization, $parameter->location) === null)) {
+                        throw new InvalidArgumentException("Unsupported simple list at $operation->operationId.$parameter->wireName.");
+                    }
+                }
                 if (\Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::supported($parameter, $contract->models)) {
                     $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
                     $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), 'Query', ucfirst($parameter->wireName)]);
                     $this->operationQueryTypes[$operation->operationId][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
                 }
+            }
+            if (array_diff($matches[1], $pathNames) !== [] || array_diff($pathNames, $matches[1]) !== []) {
+                throw new InvalidArgumentException("Path placeholders and declared parameters differ at $operation->operationId.");
             }
             if ($operation->requestBody !== null) {
                 $this->operationBodyTypes[$operation->operationId] = $this->requestBodyType($operation, $files);
