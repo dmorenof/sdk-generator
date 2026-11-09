@@ -373,8 +373,8 @@ final class ContractAuditor
         }
         $type = $scheme['type'] ?? null;
         if ($type === 'apiKey') {
-            if (!in_array($scheme['in'] ?? null, ['header', 'query'], true)) {
-                $this->add('unsupported_security_scheme', "$pointer/in", 'API keys are executable only in headers or query parameters.');
+            if (!in_array($scheme['in'] ?? null, ($this->document['swagger'] ?? null) === '2.0' ? ['header', 'query'] : ['header', 'query', 'cookie'], true)) {
+                $this->add('unsupported_security_scheme', "$pointer/in", 'API keys are executable in headers, query or OpenAPI cookies.');
             }
         } elseif ($type === 'http') {
             if (!in_array(strtolower((string) ($scheme['scheme'] ?? '')), ['basic', 'bearer'], true)) {
@@ -526,8 +526,10 @@ final class ContractAuditor
             }
         }
         $location = $parameter['in'] ?? null;
-        if ($location === 'cookie') {
-            $this->add('cookie_parameter', "$at/in", 'Cookie parameter serialization is not implemented.', $operation);
+        if ($location === 'cookie' && (isset($this->document['swagger'])
+            || !in_array($parameter['schema']['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
+            || ($parameter['schema']['nullable'] ?? false) !== false || isset($parameter['content']))) {
+            $this->add('cookie_parameter', "$at/in", 'Only non-null scalar form cookie schemas are executable; structured form cookies have incompatible HTTP delimiters.', $operation);
         }
         $pathScalarStyle = !isset($this->document['swagger']) && $location === 'path'
             && in_array($parameter['schema']['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)

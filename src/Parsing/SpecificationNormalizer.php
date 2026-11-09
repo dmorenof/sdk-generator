@@ -285,7 +285,7 @@ final class SpecificationNormalizer
             } elseif ($type === 'apiKey') {
                 $location = $definition['in'] ?? null;
                 $parameterName = $definition['name'] ?? null;
-                if (!in_array($location, ['header', 'query'], true) || !is_string($parameterName) || $parameterName === '') {
+                if (!in_array($location, $dialect === 'swagger2' ? ['header', 'query'] : ['header', 'query', 'cookie'], true) || !is_string($parameterName) || $parameterName === '') {
                     throw new InvalidArgumentException("Unsupported API key security scheme at $name.");
                 }
                 $schemes[] = new SecuritySchemeDefinition($name, 'apiKey', null, $location, $parameterName);
@@ -434,7 +434,7 @@ final class SpecificationNormalizer
                 );
                 continue;
             }
-            if (!in_array($loc, ['path', 'query', 'header'], true)) {
+            if (!in_array($loc, $dialect === 'swagger2' ? ['path', 'query', 'header'] : ['path', 'query', 'header', 'cookie'], true)) {
                 throw new InvalidArgumentException("Unsupported parameter location $loc at $where.");
             }
             $schema = $dialect === 'swagger2'

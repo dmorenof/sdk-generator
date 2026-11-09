@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.25.0** y `dmorenof/sdk-runtime` **v0.19.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.26.0** y `dmorenof/sdk-runtime` **v0.20.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -168,7 +168,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] Comprobar HTTP simulado: Bearer + API key, alternativa query, Basic, ausencia de credenciales y rechazo de credenciales dadas solo al nombre de la base.
 - [x] Localizar el tipo/ubicación del destino no soportado; impedir que hermanos del alias habiliten OAuth u otros tipos pendientes.
 - **Validación:** cloud PHP 8.4: 299 pruebas / 2.342 aserciones; nueve SDKs con PHPStan max; SDK de alias instalado y ejecutado independientemente. El smoke publicado incluye esa comprobación.
-- **Límites:** únicamente referencias locales OpenAPI y tipos de autenticación ya soportados; referencias externas de seguridad, Swagger 2.0 `$ref`, OAuth/scopes y cookies siguen pendientes. Runtime `^0.5.0`.
+- **Límites:** únicamente referencias locales OpenAPI y tipos de autenticación ya soportados; referencias externas de seguridad, Swagger 2.0 `$ref` y OAuth/scopes siguen pendientes. API key cookie se incorpora posteriormente en v0.26.0. Runtime original `^0.5.0`.
 
 **Aceptación:** un OpenAPI dividido en varios archivos debe generar un SDK equivalente al de su versión consolidada; casos cíclicos válidos deben resolverse de forma segura.
 
@@ -196,7 +196,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] `allowReserved` con codificación correcta de caracteres reservados.
 - [ ] `allowEmptyValue` distinguiendo ausente, vacío y null.
 - [ ] Parámetros definidos con `content` en lugar de `schema`.
-- [ ] Cookies como parámetros y coexistencia con otras cookies.
+- [ ] **Parcial — Cookies como parámetros:** escalares form y coexistencia con cookies configuradas/cabeceras/seguridad publicados en v0.26.0 / runtime v0.20.0. Arrays/objetos y content siguen pendientes; el conflicto de delimitadores OpenAPI/HTTP exige una política explícita. [Contrato](docs/COOKIES.md).
 - [x] **v0.23.0 — Placeholders path:** declaraciones requeridas/no null y correspondencia exacta con los placeholders; entradas runtime ausentes/null y mutaciones fallan antes de HTTP.
 - [ ] Reglas de sobreescritura de parámetros en Path Item vs operación.
 - [ ] Parámetros `default`, `example`, `examples` y `deprecated` cuando tengan efecto práctico.
@@ -477,7 +477,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 - [ ] Renovación de tokens y gestión de expiración.
 - [ ] OpenID Connect y descubrimiento de configuración.
 - [ ] OAuth2 `refreshUrl` y documentos de metadatos.
-- [ ] API key ubicada en cookies.
+- [x] API key ubicada en cookies: v0.26.0 / runtime v0.20.0, credencial raw RFC6265, AND/OR y coexistencia con diagnóstico de conflictos.
 - [ ] Autenticación mutual TLS, certificados y claves de cliente.
 - [ ] Almacenamiento configurable y seguro de credenciales/tokens.
 - [ ] Reintento de autenticación por expiración cuando sea apropiado.
@@ -662,3 +662,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] Verificar ejemplos RFC 6570, claves numéricas, codificación, vacíos y mutaciones; conservar GetParams/PostParams, query body y payload JSON independientes.
 - [x] Conservar segmentos punto con Guzzle/cURL y comprobar el target HTTP real.
 - **Límites:** no cookies, nesting, propiedades nullable/sin tipo, composiciones generales ni intérprete de plantillas URI. Los límites de entregas anteriores se describen históricamente; label/matrix queda cubierto aquí para el subconjunto indicado.
+
+### Cookies escalares y autenticación — v0.26.0 / runtime v0.20.0
+
+- [x] Parámetros cookie escalares form en GetParams/PostParams, tipos/constraints y separación de query/header/body; omisión opcional, falsos/ceros/vacíos y percent encoding reutilizado.
+- [x] API keys cookie con selección de seguridad existente; conservar base64 raw y rechazar octetos inválidos.
+- [x] Unificar Cookie sin distinguir casing de cabecera, preservar casing del nombre de cookie y detectar conflictos entre configuración/operación/seguridad.
+- [x] SDK independiente y smoke GET/POST HTTP real en CI y paquete publicado.
+- **Límites:** sin cookie jar, persistencia ni lectura de Set-Cookie; arrays/objetos y content no cubiertos. No se traducen silenciosamente los delimitadores incompatibles advertidos por OpenAPI 3.1.2, apéndice D. [Detalles](docs/COOKIES.md).

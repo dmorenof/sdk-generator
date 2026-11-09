@@ -101,3 +101,7 @@ En v0.24.0/runtime v0.18.0 se completan objetos planos form/query y simple/path-
 ## Label/matrix: adaptación mínima — v0.25.0 / runtime v0.19.0
 
 Se evaluó guzzlehttp/uri-template v2.0.1: distingue objetos y listas por las claves PHP, por lo que un objeto JSON con clave numérica consecutiva 0 se interpreta como lista. El contrato OpenAPI ya conoce el tipo; delegar perdería esa distinción. Se amplía el serializador existente con metadatos por parámetro, reutilizando extracción DTO/Map, escalares y codificación. No se añade dependencia ni motor URI genérico. Los ejemplos oficiales RFC6570 y targets HTTP reales verifican la adaptación. Guzzle conserva el transporte; su opción cURL PATH_AS_IS evita normalizar el segmento punto de un label vacío.
+
+## Cookies escalares — v0.26.0 / runtime v0.20.0
+
+Se reutilizan Params DTOs, QuerySerializer, seguridad y transporte Guzzle/PSR. CookieHeader concentra exclusivamente la unión/validación RFC6265 de cabeceras de petición para configuración, parámetros y autenticación. CookieJar/SetCookie resuelven almacenamiento y respuestas, no esa combinación ni la adaptación OpenAPI; no se añaden jar ni persistencia. La ejecución común elimina ramas repetidas al asignar ubicaciones y conserva las firmas. Los formatos de múltiples valores incompatibles con cookies se rechazan explícitamente; no se inventa una serialización. [Contrato y pruebas](COOKIES.md).
