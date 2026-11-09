@@ -393,6 +393,9 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException("Swagger formData requires a single URL-encoded or multipart consumes representation at $where.");
         }
         foreach ($merged as $raw) {
+            if ($dialect === 'swagger2' && (array_key_exists('style', $raw) || array_key_exists('explode', $raw))) {
+                throw new InvalidArgumentException("OpenAPI style/explode options are not valid Swagger parameters at $where.");
+            }
             $loc = $raw['in'];
             if ($loc === 'formData' && $dialect === 'swagger2') {
                 if (!FormSupport::swaggerField($raw, $formMedia)) {

@@ -38,6 +38,9 @@ final class QueryObjectSupport
             return in_array($options->style, [null, 'form'], true)
                 ? ($options->explode === false ? 'form-object' : 'form-object-explode') : null;
         }
+        if ($location === 'path' && QueryArraySupport::pathFormat($options, 'object') !== null) {
+            return QueryArraySupport::pathFormat($options, 'object');
+        }
         return in_array($location, ['path', 'header'], true) && in_array($options->style, [null, 'simple'], true)
             ? ($options->explode === true ? 'object-explode' : 'object') : null;
     }

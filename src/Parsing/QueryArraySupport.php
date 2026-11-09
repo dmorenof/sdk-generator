@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Dmorenof\SdkGenerator\Parsing;
@@ -8,6 +9,15 @@ use Dmorenof\SdkGenerator\Contract\ParameterSerialization;
 /** Primitive parameter-list formats shared by audit and emission, including simple path/header CSV. */
 final class QueryArraySupport
 {
+    public static function pathFormat(ParameterSerialization $options, string $kind): ?string
+    {
+        if ($options->collectionFormat !== null || $options->collectionFormatDefault !== null
+            || !in_array($options->style, ['label', 'matrix'], true)) {
+            return null;
+        }
+        return $options->style . ($kind === 'scalar' ? '' : '-' . $kind . ($options->explode === true ? '-explode' : ''));
+    }
+
     public static function format(ParameterSerialization $options, string $location = 'query'): ?string
     {
         if ($options->collectionFormatDefault === 'csv') {
@@ -23,6 +33,9 @@ final class QueryArraySupport
         }
         if ($options->collectionFormat !== null) {
             return null;
+        }
+        if ($location === 'path' && self::pathFormat($options, 'list') !== null) {
+            return self::pathFormat($options, 'list');
         }
         if ($location !== 'query') {
             return in_array($location, ['path', 'header'], true) && in_array($options->style, [null, 'simple'], true) ? 'csv' : null;
@@ -65,7 +78,11 @@ final class QueryArraySupport
             || (isset($parameter['collectionFormat']) && !is_string($parameter['collectionFormat']))) {
             return false;
         }
-        return self::format(new ParameterSerialization(style: $parameter['style'] ?? null, explode: $parameter['explode'] ?? null,
-            collectionFormat: $parameter['collectionFormat'] ?? null, collectionFormatDefault: $swagger ? 'csv' : null), $location) !== null;
+        return self::format(new ParameterSerialization(
+            style: $parameter['style'] ?? null,
+            explode: $parameter['explode'] ?? null,
+            collectionFormat: $parameter['collectionFormat'] ?? null,
+            collectionFormatDefault: $swagger ? 'csv' : null
+        ), $location) !== null;
     }
 }

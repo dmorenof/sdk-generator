@@ -300,13 +300,20 @@ PHP;
             );
             if ($resolved['type'] === 'array') {
                 if ($parameter->location === 'path') {
-                    $pathSerialization[$parameter->wireName] = 'csv';
+                    $pathSerialization[$parameter->wireName] = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::format($parameter->serialization, 'path')
+                        ?? throw new InvalidArgumentException('Unsupported path list style.');
                 } else {
                     $headerSerialization[$parameter->wireName] = 'csv';
                 }
             }
             if ($parameter->location !== 'path') {
                 continue;
+            }
+            if ($resolved['type'] !== 'array') {
+                $pathFormat = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::pathFormat($parameter->serialization, 'scalar');
+                if ($pathFormat !== null) {
+                    $pathSerialization[$parameter->wireName] = $pathFormat;
+                }
             }
             $rules = $resolved['validation'] ?? $parameter->schema->validation;
             if ($resolved['enumValues'] !== []) {

@@ -73,3 +73,6 @@ php tests/simple-parameters-smoke.php "$OUT/swagger-simple-parameters"
 
 analyse object-parameters object-parameters-openapi31.json 'Example\ObjectSdk'
 php tests/object-parameters-smoke.php "$OUT/object-parameters"
+
+analyse path-styles path-styles-openapi31.json 'Example\PathSdk'
+php tests/path-styles-smoke.php "$OUT/path-styles"

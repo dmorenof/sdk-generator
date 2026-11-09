@@ -82,9 +82,11 @@ across both SDKs, checking encoded path/query, raw header values and JSON DTO by
 mutations fail before transport. The fixture is
 [simple-parameters-openapi31.json](../tests/fixtures/simple-parameters-openapi31.json).
 
-Flat objects are added in [v0.24.0](OBJECT_PARAMETERS.md). Nested/null list items, nullable list schemas, label/matrix, cookies,
+Flat objects are added in [v0.24.0](OBJECT_PARAMETERS.md). Nested/null list items, nullable list schemas, cookies,
 header/path ssv/tsv/pipes/multi, content-based parameters, arbitrary reserved/empty
 flags and primitive schema references remain pending. Reject unsupported list-level
 enum constraints, including empty enum, rather than dropping their semantics.
 This is a bounded simple-list feature, not a claim that all parameter styles or
 all OpenAPI HTTP behavior are implemented.
+
+Label/matrix paths for the supported scalar/list/flat-object subset are available in [v0.25.0](PATH_STYLES.md).
