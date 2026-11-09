@@ -6,6 +6,12 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 No changes yet.
 
+## [0.22.0] — 2026-11-09
+
+- Emit native PHP return unions and status-specific JSON response metadata for multiple explicit successes, including reference/inline models, inheritance, nullable schemas and bodyless statuses. Give multiple inline responses distinct status names; preserve existing single-body names and deduplicate native types.
+- Reuse published stable runtime ^0.16.0 to select the existing JsonHydrator by actual status without probing schemas. A bodyless 204 no longer permits an invalid empty/null 200; older SDKs retain legacy metadata behavior. Preserve typed/raw errors, GetParams/PostParams, request DTOs, serialization, directional fields and mutation validation.
+- Verify equivalent Swagger/OpenAPI JSON/YAML, twenty independently installed SDKs with maximum PHPStan, and 24 real Guzzle GET/POST response scenarios. Extend immutable-publication installation with the status consumer; update pendientes.md, current version summaries and docs/RESPONSES.md. Mixed JSON/binary codecs, ranges and general property unions remain outside this change.
+
 ## [0.21.0] — 2026-11-09
 
 - Normalize Swagger 2.0 successful type:file responses with one explicit application/octet-stream produces into the existing binary PSR contract. Resolve root/operation produces and response aliases per use, preserving compatible statuses and empty responses. Generate the same SDK as equivalent OpenAPI; reuse published stable runtime ^0.15.0 unchanged.

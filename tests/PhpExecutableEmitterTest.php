@@ -186,7 +186,8 @@ final class PhpExecutableEmitterTest extends TestCase
             $files['src/Resources/Users.php'],
         );
         self::assertStringContainsString('    204,', $files['src/Resources/Users.php']);
-        self::assertStringContainsString("'noContentAllowed' => true", $files['src/Resources/Users.php']);
+        self::assertStringContainsString("'responseTypes' =>", $files['src/Resources/Users.php']);
+        self::assertStringNotContainsString("'noContentAllowed' => true", $files['src/Resources/Users.php']);
         self::assertStringContainsString('GetStatus404Response', $files['src/Resources/Users.php']);
 
         foreach ([

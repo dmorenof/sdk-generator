@@ -19,7 +19,7 @@ final class PhpExecutableEmitter
     private ?PhpModelNameResolver $modelNames = null;
     /** @var list<SecuritySchemeDefinition> */
     private array $securitySchemes = [];
-    /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool}> */
+    /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int,array{type:?string,schemaNullable:bool}>}> */
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, string>> */
     private array $operationErrorTypes = [];

@@ -1,4 +1,4 @@
-# v0.19.0 supported scope and known limitations
+# v0.22.0 supported scope and known limitations
 
 **Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
 
@@ -27,10 +27,10 @@
 - YAML support does not expand the supported OpenAPI feature set: YAML input is subject to the same deliberate subset and explicit rejections as JSON.
 - Not a general OpenAPI 3.1 / JSON Schema implementation; external references/mappings, arbitrary native unions, `not`/`const`, general schema composition, advanced formats, OAuth2/OpenID Connect authorization flows, API keys in cookies, streaming downloads/non-seekable files and advanced form/multipart support are not implemented. Patterns using ECMA-regex features that differ from PCRE may not validate identically. For OAuth2, provide a previously obtained bearer token only when the security scheme is declared as HTTP bearer; the generator does not acquire or refresh tokens.
 - OAuth2/OpenID Connect authorization flows are not implemented; credentials must be supplied by the caller, and tokens are not acquired or refreshed by the SDK.
-- Heterogeneous body-bearing success responses and some non-object inline error schemas are not supported; v0.20.0 permits multiple statuses sharing its bounded binary response codec. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
+- Multiple explicit JSON success statuses select their own hydrators and native return types in v0.22.0; binary-only successes share the bounded PSR codec from v0.20.0. Mixed JSON/binary successes and some non-object error schemas remain unsupported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
 - Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
 - Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.15.0 or later compatible versions (`^0.15.0`).
+- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.16.0 or later compatible versions (`^0.16.0`).
 - No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
 - Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
 
@@ -45,7 +45,7 @@ Please report supported-schema failures through GitHub Issues with a small **red
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.15.0`;
+The current generator and generated Composer packages require stable runtime `^0.16.0`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
@@ -278,3 +278,16 @@ under PHP memory_limit=16M measure an 8 MiB PHP peak with full hashes/headers.
 Multiple produces, other MIME types, file constraints/nullability/errors, typed
 JSON errors sharing octet-stream produces, and general streaming guarantees
 remain outside this slice. [Usage and exact limits](DOWNLOADS.md#swagger-20-file-responses-v0210).
+
+
+## JSON success selection by status (v0.22.0)
+
+Swagger 2.0 and OpenAPI 3.0/3.1 JSON/YAML operations can declare several supported
+JSON success types. Generate native unions, distinct inline names, and a status
+map for shared ApiClient/JsonHydrator. Preserve parent/child classes, serialization,
+validation and per-status nullability; never probe another schema if validation
+fails. A bodyless status returns null; an empty JSON status still fails decoding.
+Older SDK metadata retains fallback behavior. Stable runtime ^0.16.0 and twenty
+independently installed SDKs are verified, including 24 real GET/POST scenarios.
+No mixed JSON/binary status codecs, ranges, general property unions or new JSON
+Schema keywords are implied. [Examples and compatibility](RESPONSES.md).
