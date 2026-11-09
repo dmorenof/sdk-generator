@@ -2,6 +2,11 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.29.1] — 2026-11-10
+
+- Declare sdk-runtime ^0.22.1 as a production dependency: parameter-content cookie validation uses its shared CookieHeader class when the generator is installed without development dependencies. Include both VCS repositories in the independent installation smoke, since Composer only reads root repositories.
+- v0.29.0 remains immutable; its publication smoke identified this packaging defect.
+
 ## [0.29.0] — 2026-11-09
 
 - Add OpenAPI single-representation parameter content: application/json in path/query/header and text/plain in path/query/header/cookie. Reuse native scalar types, DTOs, TypedArrays, Maps and shared request-direction Serializer; emit declarative operation metadata without new executor signatures or transport layers.

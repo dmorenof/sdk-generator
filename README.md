@@ -3,7 +3,7 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.29.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+**v0.29.1: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
 The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
@@ -34,6 +34,8 @@ Version 0.26.1 rejects duplicate parameter identities within one list while pres
 Version 0.27.0 supports query allowReserved for the existing scalar/list/flat-object subset through stable runtime ^0.21.0. Names and security credentials retain normal encoding; ambiguous structural data is rejected. See [reserved query rules](docs/RESERVED_QUERY.md).
 
 Version 0.28.0 accepts allowEmptyValue on supported query parameters and Swagger formData, with an explicit schema-authoritative policy for absent/null/empty values. It reuses stable runtime ^0.21.0 unchanged. See [empty values](docs/EMPTY_VALUES.md).
+
+Version 0.29.1 corrects the production runtime dependency for installations without development packages.
 
 Version 0.29.0 adds typed application/json and text/plain parameter content with stable runtime ^0.22.1, reusing models/collections and shared request serialization. Includes raw text cookies and validation before encoding. See [parameter content](docs/PARAMETER_CONTENT.md).
 
