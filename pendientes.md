@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.34.0** y `dmorenof/sdk-runtime` **v0.27.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.35.0** y `dmorenof/sdk-runtime` **v0.28.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -262,11 +262,11 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] **Parcial — Subida de archivos binarios:** v0.17.0 acepta strings o UploadedFileInterface con nombres/MIME configurables y streams de entrada readable/seekable. v0.18.0 preserva streams por PSR-18 y verifica 32 MiB bajo límite PHP 16 MiB; solo los transportes personalizados antiguos mantienen el string completo. v0.19.0 añade listas OpenAPI. Quedan nesting, entradas no seekables y garantías generales para otros clientes/middleware/respuestas.
 - [x] **v0.19.0 — Listas de archivos OpenAPI:** arrays nativos string|UploadedFileInterface, nombres de parte repetidos, MIME/nombre por archivo, validación/mutaciones/herencia y memoria comprobada. Swagger 2.0 no define arrays de file válidos.
 - [x] **v0.18.0 — Streaming multipart PSR-18:** adaptador existente, archivos seekables, rebobinado tras middleware y repetición; compatibilidad de transportes antiguos y prueba de memoria en instalación independiente.
-- [ ] Body directo de array, mapa, escalar o binario sin envolverlo necesariamente en un DTO de objeto.
+- [ ] **Parcial — v0.35.0:** body JSON directo array, mapa, escalar y null, sin DTO envoltorio; reutiliza colecciones/mapas existentes. Texto y binario raíz siguen pendientes. [Contrato](docs/REQUEST_BODIES.md).
 - [ ] Selección explícita de `Content-Type` entre representaciones alternativas.
 - [ ] Múltiples representaciones JSON con esquemas distintos.
 - [ ] **Parcial — Referencias a components/requestBodies:** alias locales resueltos y verificados también en multipart; resolución general/remota sigue en el paquete 02.
-- [ ] Tratar correctamente cuerpos ausentes, `null`, vacíos y opcionales.
+- [ ] **Parcial — v0.35.0:** cuerpos JSON ausentes, null explícito, strings/listas/mapas vacíos y required/opcionales cubiertos en recursos/fachadas y DTOs de parámetros. Otras representaciones conservan sus límites.
 
 ### Entrega de formularios URL-encoded — v0.12.0 / runtime v0.9.0
 
@@ -737,4 +737,12 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - Alias escalares encadenados reutilizados en propiedades, respuestas y parámetros/content/forms soportados. No generar DTOs escalares. Comprobación canónica de nombres reservados para clases de recursos.
 - Required nullable HTTP no puede desaparecer silenciosamente; optional null sigue omitido y JSON null conserva su semántica. GetParams/PostParams y separación por ubicación cubiertos.
 - 439 pruebas / 3.480 aserciones conjuntas, runtime 154 / 803; SDK independiente con HTTP y PHPStan max (36 SDKs en CI). [Contrato y límites](docs/NATIVE_SCHEMAS.md).
-- Siguen pendientes cuerpos raíz primitivos/arrays, alias raíz array generales, type sets objeto/array y composiciones generales; los envoltorios de composición existentes conservan su API.
+- Límites de v0.34.0: cuerpos raíz primitivos/arrays y alias raíz array se completan en v0.35.0; type sets objeto/array y composiciones generales siguen pendientes. Los envoltorios de composición existentes conservan su API.
+
+### Cuerpos JSON generales — v0.35.0 / runtime v0.28.0
+
+- [x] Cuerpos JSON raíz escalares/null, arrays nativos, mapas y colecciones/DTOs existentes; alias locales de arrays reutilizan sus representaciones.
+- [x] Ausente frente a null explícito en recursos/fachadas y propiedades body de GetParams/PostParams; required/nullability, reglas raíz, validación anidada y mutaciones antes de HTTP. Query llamado body sigue separado.
+- [x] JSON names/readOnly y media types JSON/+json conservados, transporte único mediante runtime/Guzzle/PSR. Firmas protegidas antiguas conservadas.
+- Pruebas conjuntas: generador 443 / 3.511 aserciones; runtime 157 / 835; HTTP real y SDK independiente al nivel máximo (37 SDKs en CI). [Contrato](docs/REQUEST_BODIES.md).
+- Quedan cuerpos texto/binarios, negociación de representaciones, ítems nullable generales y los límites de composición ya registrados.

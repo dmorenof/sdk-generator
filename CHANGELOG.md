@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.35.0] — 2026-11-10
+
+- Accept JSON root request bodies as primitive values, null, native arrays, existing typed collections, maps and DTOs. Resolve named array schemas/alias chains through the existing collection representation; retain supported JSON/+json media types.
+- Preserve omission versus explicit JSON null across resources, static facades and combined operation parameter DTOs. Enforce required/nullability, root and nested constraints, mutation checks and readOnly request filtering before HTTP; keep query parameters named body separate.
+- Reuse stable runtime ^0.28.0, existing argument mapping, nested validation and Serializer. Existing protected DTO executor signatures stay compatible. Add actual HTTP source/published smoke and a 37th installed SDK at PHPStan maximum.
+- Text/binary request bodies, request representation negotiation, general nullable collection items and remaining schema compositions stay explicit pending work. See docs/REQUEST_BODIES.md.
+
 ## [0.34.0] — 2026-11-10
 
 - Emit native primitive unions for OpenAPI 3.1 type sets and preserve boolean schemas in models, properties, array items and JSON responses. Validate original kinds and mutations through stable runtime ^0.27.0 and existing Opis guards.
