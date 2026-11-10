@@ -239,7 +239,7 @@ PHP;
             ?? throw new InvalidArgumentException("Missing success response metadata at $operation->operationId");
         $returnType = $success['type'] ?? 'void';
         if ($success['nullable'] && $success['type'] !== null) {
-            $returnType = '?' . $returnType;
+            $returnType = PhpParameterTypeResolver::nullableType($returnType, true);
         }
         if ($resourceClass !== null) {
             $connector = $grouped ? 'self::client()'
@@ -247,7 +247,8 @@ PHP;
             $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
                 . $resourceClass . '::class)->' . ($resourceMethod ?? $method)
                 . '(' . implode(', ', $forward) . ')';
-            return "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n"
+            $returnDoc = ltrim($returnType, '?') === 'array' ? '    /** @return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') . " */\n" : '';
+            return $returnDoc . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n"
                 . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";
         }
@@ -281,8 +282,8 @@ PHP;
             if ($parameter->content !== []) {
                 $parameterContent[$parameter->location][$parameter->wireName] = strtolower($parameter->content[0]->mediaType);
                 if ($parameter->location === 'path' && $objectType === null) {
-                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName);
-                    $rules = $parameter->schema->validation;
+                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, false, $this->formModels);
+                    $rules = $resolved['validation'] ?? $parameter->schema->validation;
                     if ($resolved['enumValues'] !== []) { $rules['enum'] = $resolved['enumValues']; }
                     if ($rules !== []) { $validation[$parameter->wireName] = $rules; }
                 }
@@ -301,7 +302,7 @@ PHP;
                 continue;
             }
             if ($parameter->location === 'query') {
-                $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true);
+                $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true, $this->formModels);
                 if ($resolved['type'] === 'array') {
                     $format = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::format($parameter->serialization);
                     if ($format === null || $parameter->content !== []) {
@@ -314,7 +315,7 @@ PHP;
                 continue;
             }
             $resolved = PhpParameterTypeResolver::resolve(
-                $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true,
+                $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true, $this->formModels,
             );
             if ($resolved['type'] === 'array') {
                 if ($parameter->location === 'path') {
@@ -394,10 +395,12 @@ PHP;
             }
             $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
         }
+        if (ltrim($returnType, '?') === 'array') { $source .= '    /** @return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') . " */\n"; }
         $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
+        $resultType = ltrim($returnType, '?') === 'array' ? 'list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') : $returnType;
         $source .= $success['type'] === null
             ? "        $call;\n        return;\n"
-            : "        /** @var $returnType \$result */\n        \$result = $call;\n        return \$result;\n";
+            : "        /** @var $resultType \$result */\n        \$result = $call;\n        return \$result;\n";
         return $source . "    }\n\n";
     }
 

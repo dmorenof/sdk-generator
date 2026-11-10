@@ -49,23 +49,17 @@ final class ParameterContentSupport
         $media = strtolower($parameter->content[0]->mediaType);
         $schema = $parameter->schema;
         if ($schema->kind === SchemaKind::Reference) {
-            $resolved = null;
-            foreach ($models as $model) {
-                if ($model->name === $schema->reference) {
-                    $resolved = $model->schema;
-                    break;
-                }
-            }
-            if ($resolved === null || !in_array($resolved->kind, [SchemaKind::Object, SchemaKind::Array, SchemaKind::AllOf], true)) {
-                return false;
-            }
-            $schema = $resolved;
+            try { $schema = SchemaReferences::resolve($schema, $models); }
+            catch (\InvalidArgumentException) { return false; }
         }
         if ($schema->nullable || $schema->kind === SchemaKind::Mixed || $schema->kind === SchemaKind::Null) {
             return false;
         }
         if ($media === 'text/plain') {
-            return $schema->kind === SchemaKind::String && $parameter->schema->kind === SchemaKind::String;
+            return $schema->kind === SchemaKind::String;
+        }
+        if ($schema->kind === SchemaKind::AnyOf && array_key_exists('schema', $schema->validation)) {
+            return $parameter->location !== 'cookie' && count(array_filter($schema->branches, static fn ($branch): bool => $branch->kind === SchemaKind::Null)) === 0;
         }
         return $parameter->location !== 'cookie' && in_array($schema->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Object, SchemaKind::Array, SchemaKind::AllOf], true);
     }

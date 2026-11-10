@@ -82,7 +82,7 @@ final class FormSupport
         }
         $formats = [];
         foreach ($schema->properties as $property) {
-            $field = $property->schema;
+            $field = SchemaReferences::resolve($property->schema, $models);
             $fieldEncoding = $encoding[$property->wireName] ?? [];
             $swaggerFormat = $fieldEncoding['collectionFormat'] ?? null;
             unset($fieldEncoding['collectionFormat']);
@@ -99,7 +99,7 @@ final class FormSupport
                 continue;
             }
             $array = $field->kind === SchemaKind::Array;
-            $binary = self::fileItem($field);
+            $binary = self::fileItem($field, $models);
             if ((!$array && ($fieldEncoding['style'] ?? 'form') !== 'form')
                 || ($array && !in_array($fieldEncoding['style'] ?? 'form', ['form', 'spaceDelimited', 'pipeDelimited'], true))
                 || ($swaggerFormat !== null && !in_array($swaggerFormat, ['csv', 'multi', 'ssv', 'tsv', 'pipes'], true))) { return null; }
@@ -157,7 +157,7 @@ final class FormSupport
                 $parts[$property->wireName] = ['contentType' => $fieldEncoding['contentType'] ?? 'application/json', 'json' => true];
                 continue;
             }
-            $binary = self::fileItem($property->schema) !== null;
+            $binary = self::fileItem(SchemaReferences::resolve($property->schema, $models), $models) !== null;
             $part = ['contentType' => $encoding[$property->wireName]['contentType'] ?? ($binary ? null : 'text/plain')];
             if ($binary) {
                 $part['filename'] = basename($property->wireName) . '.bin';
@@ -177,8 +177,9 @@ final class FormSupport
         foreach ($models as $model) { if ($schema->kind === SchemaKind::Reference && $model->name === $schema->reference) { $schema = $model->schema; break; } }
         $item = $schema->kind === SchemaKind::Array ? $schema->items : $schema;
         foreach ($models as $model) { if ($item?->kind === SchemaKind::Reference && $model->name === $item->reference) { $item = $model->schema; break; } }
-        if (self::fileItem($schema) !== null) { return false; }
+        if (self::fileItem($schema, $models) !== null) { return false; }
         if (in_array($schema->kind, [SchemaKind::Array, SchemaKind::Object], true) && $schema->enumValues !== []) { return false; }
+        if ($schema->kind === SchemaKind::AnyOf && array_key_exists('schema', $schema->validation)) { return self::jsonMedia($encoding['contentType'] ?? null); }
         $complex = $item !== null && in_array($item->kind, [SchemaKind::Object, SchemaKind::Array, SchemaKind::AllOf, SchemaKind::AnyOf, SchemaKind::OneOf], true);
         return self::jsonMedia($encoding['contentType'] ?? ($complex ? 'application/json' : null));
     }
@@ -204,9 +205,13 @@ final class FormSupport
         return self::jsonMedia($encoding['contentType'] ?? ($complex ? 'application/json' : null));
     }
 
-    public static function fileItem(SchemaDefinition $schema): ?SchemaDefinition
+    public static function fileItem(SchemaDefinition $schema, array $models = []): ?SchemaDefinition
     {
-        $item = $schema->kind === SchemaKind::Array ? $schema->items : $schema;
+        try {
+            $schema = SchemaReferences::resolve($schema, $models);
+            $item = $schema->kind === SchemaKind::Array ? $schema->items : $schema;
+            $item = $item === null ? null : SchemaReferences::resolve($item, $models);
+        } catch (\InvalidArgumentException) { return null; }
         return $item?->kind === SchemaKind::String && $item->format === 'binary' ? $item : null;
     }
 
@@ -266,6 +271,14 @@ final class FormSupport
                 'name' => (string) $name, 'in' => 'query', 'schema' => $field,
                 'style' => $encoding[$name]['style'] ?? 'form', 'explode' => $encoding[$name]['explode'] ?? (($encoding[$name]['style'] ?? '') === 'deepObject' ? true : null),
             ], $document)) { continue; }
+            if (isset($field['$ref'])) {
+                try { $field = SchemaReferences::raw($field, $document); }
+                catch (\InvalidArgumentException|\TypeError) { return false; }
+            }
+            if (is_array($field['items'] ?? null) && isset($field['items']['$ref'])) {
+                try { $field['items'] = SchemaReferences::raw($field['items'], $document); }
+                catch (\InvalidArgumentException|\TypeError) { return false; }
+            }
             $type = $field['type'] ?? null;
             $types = is_array($type) ? array_values(array_diff($type, ['null'])) : [$type];
             if (count($types) !== 1) {

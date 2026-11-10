@@ -106,3 +106,6 @@ php tests/form-block-smoke.php "$OUT/form-block" "$OUT/swagger-form-block"
 
 analyse schema-rules schema-rules-openapi31.json 'Example\SchemaRulesSdk'
 php tests/schema-rules-smoke.php "$OUT/schema-rules"
+
+analyse native-schemas native-schemas-openapi31.json 'Example\NativeSdk'
+php tests/native-schemas-smoke.php "$OUT/native-schemas"

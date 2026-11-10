@@ -550,7 +550,7 @@ final class ContractAuditor
             $this->add('swagger_form_field', "$at/type", 'Only scalar formData fields and primitive lists matching consumes are executable; files require multipart and multipart lists require explicit multi.', $operation);
         }
         $parameterObject = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::rawSupported($parameter, $this->document);
-        $parameterArray = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::rawSupported($parameter, ($this->document['swagger'] ?? null) === '2.0');
+        $parameterArray = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::rawSupported($parameter, ($this->document['swagger'] ?? null) === '2.0', $this->document);
         $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'uniqueItems', 'const', 'minProperties', 'maxProperties', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
         foreach (['explode', 'allowReserved', 'allowEmptyValue'] as $flag) {
             if (array_key_exists($flag, $parameter) && !is_bool($parameter[$flag])) {
@@ -562,13 +562,21 @@ final class ContractAuditor
             $this->add('invalid_parameter_name', "$at/name", 'Reserved query expansion requires a non-empty parameter name.', $operation);
         }
         $parameterContent = !isset($this->document['swagger']) ? \Dmorenof\SdkGenerator\Parsing\ParameterContentSupport::raw($parameter) : null;
+        $effectiveSchema = $parameter['schema'] ?? $parameter;
+        if (is_array($effectiveSchema) && isset($effectiveSchema['$ref'])) {
+            try { $effectiveSchema = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::raw($effectiveSchema, $this->document); }
+            catch (\InvalidArgumentException|\TypeError) { $effectiveSchema = []; }
+        }
+        $effectiveType = is_array($effectiveSchema) ? ($effectiveSchema['type'] ?? null) : null;
+        $scalarType = in_array($effectiveType, ['string', 'integer', 'number', 'boolean'], true)
+            || (is_array($effectiveType) && $effectiveType !== [] && array_diff($effectiveType, ['string', 'integer', 'number', 'boolean']) === []);
         if ($location === 'cookie' && $parameterContent === null && (isset($this->document['swagger'])
-            || !in_array($parameter['schema']['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
-            || ($parameter['schema']['nullable'] ?? false) !== false || isset($parameter['content']))) {
+            || !$scalarType
+            || ($effectiveSchema['nullable'] ?? false) !== false || isset($parameter['content']))) {
             $this->add('cookie_parameter', "$at/in", 'Only non-null scalar form cookie schemas are executable; structured form cookies have incompatible HTTP delimiters.', $operation);
         }
         $pathScalarStyle = !isset($this->document['swagger']) && $location === 'path'
-            && in_array($parameter['schema']['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
+            && $scalarType
             && in_array($parameter['style'] ?? null, ['label', 'matrix'], true);
         $default = in_array($location, ['query', 'cookie'], true) ? 'form' : 'simple';
         if (isset($parameter['style']) && $parameter['style'] !== $default && !$parameterArray && !$parameterObject && !$pathScalarStyle) {

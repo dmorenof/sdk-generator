@@ -80,7 +80,7 @@ final readonly class PhpOperationRequestEmitter
                 && !isset($this->parameterTypes[$operation->operationId]['path'][$pathParameters[0]->wireName])) {
                 $parameter = $pathParameters[0];
                 $resolved = PhpParameterTypeResolver::resolve(
-                    $parameter->schema, $operation->operationId . '.' . $parameter->wireName,
+                    $parameter->schema, $operation->operationId . '.' . $parameter->wireName, false, $contract->models,
                 );
                 $variable = PhpNameTransliterator::property($parameter->wireName);
                 $identifier = [
@@ -224,13 +224,13 @@ final readonly class PhpOperationRequestEmitter
             $resolved = $parameterType !== null
                 ? ['type' => $parameterType, 'nullable' => \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::nullable($parameter->schema, $contract->models), 'enumValues' => []]
                 : PhpParameterTypeResolver::resolve(
-                    $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true,
+                    $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true, $contract->models,
                 );
             $nullable = !$parameter->required || $resolved['nullable'];
             if (isset($resolved['phpDoc'])) {
                 $fields[] = '    /** @var ' . $resolved['phpDoc'] . ($nullable ? '|null' : '') . ' */';
             }
-            $fields[] = '    public ' . ($nullable ? '?' : '') . $resolved['type'] . ' $' . $field . ';';
+            $fields[] = '    public ' . PhpParameterTypeResolver::nullableType($resolved['type'], $nullable) . ' $' . $field . ';';
             $rules = $resolved['validation'] ?? $parameter->schema->validation;
             if ($resolved['enumValues'] !== []) {
                 $rules['enum'] = $resolved['enumValues'];

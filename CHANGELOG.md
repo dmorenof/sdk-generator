@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.34.0] — 2026-11-10
+
+- Emit native primitive unions for OpenAPI 3.1 type sets and preserve boolean schemas in models, properties, array items and JSON responses. Validate original kinds and mutations through stable runtime ^0.27.0 and existing Opis guards.
+- Resolve scalar alias chains across model fields, responses and supported parameter/form/content shapes without scalar DTO wrappers. Accept integral JSON numbers for PHP integers and integer-backed enums; preserve primitive union kinds.
+- Reuse the canonical reserved-name check for route-derived resource classes. Reject required HTTP parameters that would otherwise vanish as null, while retaining optional omission and nullable JSON properties.
+- Verify JSON/YAML, real HTTP, independent package installation and 36 generated SDKs at PHPStan maximum. Object/array type-set alternatives, general object compositions, named array aliases and primitive root request bodies remain pending. See docs/NATIVE_SCHEMAS.md.
+
 ## [0.33.0] — 2026-11-10
 
 - Deliver a JSON Schema rules block: numeric exclusiveMinimum/exclusiveMaximum/multipleOf, object property counts, array uniqueItems and OpenAPI 3.1 scalar/null const. Normalize Swagger/OpenAPI 3.0 boolean exclusive bounds to the same runtime rules as OpenAPI 3.1 numeric bounds.

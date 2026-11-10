@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.26.1';
+    public const RUNTIME_CONSTRAINT = '^0.27.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -114,6 +114,9 @@ final class PhpContractEmitter
                 throw new InvalidArgumentException("Duplicate PHP model name: $model->name");
             }
             $names[$key] = true;
+            $resolvedModel = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($model->schema, $contract->models);
+            if ($resolvedModel->enumValues === [] && (in_array($resolvedModel->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed], true)
+                || ($resolvedModel->kind === SchemaKind::AnyOf && array_key_exists('schema', $resolvedModel->validation)))) { continue; }
             if ($model->schema->kind === SchemaKind::AnyOf || $model->schema->kind === SchemaKind::OneOf) {
                 $path = $this->modelNames->path($model->name);
                 $files[$path] = $this->renderCompositionClass(
@@ -277,10 +280,11 @@ final class PhpContractEmitter
                 $propertyMap[$property->wireName] = $propertyName;
                 $wirePropertyMap[$propertyName] = $property->wireName;
             }
-            $nullableBranch = self::nullableCompositionBranch($property->schema);
-            $propertySchema = $nullableBranch ?? $property->schema;
+            $originalSchema = $this->effectiveSchema($property->schema);
+            $nullableBranch = self::nullableCompositionBranch($originalSchema);
+            $propertySchema = $nullableBranch ?? $originalSchema;
             $fileList = $propertySchema->kind === SchemaKind::Array
-                && \Dmorenof\SdkGenerator\Parsing\FormSupport::fileItem($propertySchema) !== null
+                && \Dmorenof\SdkGenerator\Parsing\FormSupport::fileItem($propertySchema, array_values($this->modelDefinitions)) !== null
                 && (isset($this->multipartSchemas[spl_object_id($schema)]) || $this->inheritsMultipartFileList($parent, $property->wireName));
             if (!isset($inherited[$property->wireName])) {
                 $type = $fileList ? 'array' : $this->typeFor(
@@ -293,14 +297,15 @@ final class PhpContractEmitter
                 if ($type === 'string' && $propertySchema->format === 'binary') {
                     $type .= '|\\Psr\\Http\\Message\\UploadedFileInterface' . ($nullable ? '|null' : '');
                 } elseif ($nullable) {
-                    $type = '?' . $type;
+                    $type = PhpParameterTypeResolver::nullableType($type, true);
                 }
                 // Deliberately uninitialized when absent, including optional fields.
                 // Calling get_object_vars() preserves the absent-vs-null distinction.
+                if (!$fileList && ltrim($type, '?') === 'array') { $fields[] = '    /** @var list<mixed>' . ($nullable ? '|null' : '') . ' */'; }
                 $fields[] = ($fileList ? '    /** @var list<string|\\Psr\\Http\\Message\\UploadedFileInterface>' . ($nullable ? '|null' : '') . " */\n" : '')
                     . '    public ' . $type . ' $' . $propertyName . ';';
             }
-            $propertyValidation = $property->schema->validation;
+            $propertyValidation = $originalSchema->validation;
             if ($fileList) {
                 $propertyValidation['items'] = ['type' => 'binary', 'rules' => []];
             }
@@ -408,7 +413,7 @@ final class PhpContractEmitter
             if (isset($this->multipartSchemas[spl_object_id($schema)])) {
                 foreach ($schema->properties as $property) {
                     if ($property->wireName === $wireName && $property->schema->kind === SchemaKind::Array
-                        && \Dmorenof\SdkGenerator\Parsing\FormSupport::fileItem($property->schema) !== null) {
+                        && \Dmorenof\SdkGenerator\Parsing\FormSupport::fileItem($property->schema, array_values($this->modelDefinitions)) !== null) {
                         return true;
                     }
                 }
@@ -416,6 +421,15 @@ final class PhpContractEmitter
             $parent = $this->modelParents[$parent] ?? null;
         }
         return false;
+    }
+
+    private function effectiveSchema(SchemaDefinition $schema): SchemaDefinition
+    {
+        if ($schema->kind !== SchemaKind::Reference) { return $schema; }
+        $resolved = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($schema, array_values($this->modelDefinitions));
+        if ($resolved->enumValues === [] && (in_array($resolved->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed], true)
+            || ($resolved->kind === SchemaKind::AnyOf && array_key_exists('schema', $resolved->validation)))) { return $resolved; }
+        return $schema;
     }
 
     /** @param array<string,string> $files */
@@ -426,6 +440,7 @@ final class PhpContractEmitter
         string $baseClass = 'DTO',
     ): string
     {
+        $schema = $this->effectiveSchema($schema);
         if ($schema->enumValues !== []) {
             if (!in_array($schema->kind, [SchemaKind::String, SchemaKind::Integer], true)) {
                 throw new InvalidArgumentException("Only string/integer backed enums are supported at $hint");
@@ -440,6 +455,7 @@ final class PhpContractEmitter
             SchemaKind::Number => 'float',
             SchemaKind::Boolean => 'bool',
             SchemaKind::Mixed => 'mixed',
+            SchemaKind::Null => 'null',
             SchemaKind::Reference => $this->reference($schema),
             SchemaKind::Array => $this->collectionType($schema, $hint, $files, $baseClass),
             SchemaKind::AnyOf, SchemaKind::OneOf => $this->compositionType($schema, $hint, $files, $baseClass),
@@ -546,6 +562,7 @@ final class PhpContractEmitter
         $nullable = false;
         $validation = [];
         if ($valueSchema instanceof SchemaDefinition) {
+            $valueSchema = $this->effectiveSchema($valueSchema);
             $valueType = $this->typeFor($valueSchema, $hint . 'Value', $files, $baseClass);
             $nullable = $valueSchema->nullable;
             $validation = $valueSchema->validation;
@@ -599,6 +616,13 @@ final class PhpContractEmitter
         string $baseClass = 'DTO',
     ): string
     {
+        if (array_key_exists('schema', $schema->validation)) {
+            $types = [];
+            foreach ($schema->branches as $branch) {
+                $types[] = match ($branch->kind) { SchemaKind::String => 'string', SchemaKind::Integer => 'int', SchemaKind::Number => 'float', SchemaKind::Boolean => 'bool', SchemaKind::Null => 'null', default => throw new InvalidArgumentException('Unsupported native type union.') };
+            }
+            return implode('|', array_unique($types));
+        }
         // A union of finite enums with the same backing type is itself a finite
         // enum. Keep anyOf wrappers only when they add actual model semantics.
         if ($schema->kind === SchemaKind::AnyOf) {
@@ -964,8 +988,10 @@ final class PhpContractEmitter
         if ($schema->items === null) {
             throw new InvalidArgumentException("Missing collection items at $hint");
         }
-        $itemType = $this->typeFor($schema->items, $hint . 'Item', $files, $baseClass);
-        $itemValidation = $schema->items->validation;
+        $itemSchema = $this->effectiveSchema($schema->items);
+        if ($itemSchema->kind === SchemaKind::Mixed || ($itemSchema->kind === SchemaKind::AnyOf && array_key_exists('schema', $itemSchema->validation))) { return 'array'; }
+        $itemType = $this->typeFor($itemSchema, $hint . 'Item', $files, $baseClass);
+        $itemValidation = $itemSchema->validation;
         if ($schema->items->pattern !== null) {
             $itemValidation['pattern'] = $schema->items->pattern;
         }
@@ -1076,7 +1102,7 @@ final class PhpContractEmitter
                     if (!\Dmorenof\SdkGenerator\Parsing\ParameterContentSupport::supported($parameter, $contract->models)) {
                         throw new InvalidArgumentException('Unsupported parameter content schema or media type.');
                     }
-                    if (in_array($parameter->schema->kind, [SchemaKind::Reference, SchemaKind::Object, SchemaKind::Array, SchemaKind::AllOf], true)) {
+                    if (in_array(\Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($parameter->schema, $contract->models)->kind, [SchemaKind::Object, SchemaKind::Array, SchemaKind::AllOf], true)) {
                         $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
                         $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), ucfirst($parameter->location), ucfirst($parameter->wireName)]);
                         $this->operationParameterTypes[$operation->operationId][$parameter->location][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
@@ -1084,7 +1110,7 @@ final class PhpContractEmitter
                     continue;
                 }
                 if ($parameter->location === 'cookie') {
-                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName);
+                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, false, $contract->models);
                     if ($resolved['nullable'] || $parameter->wireName === '' || $parameter->content !== []
                         || !in_array($parameter->serialization->style, [null, 'form'], true)
                         || $parameter->serialization->collectionFormat !== null
@@ -1094,7 +1120,7 @@ final class PhpContractEmitter
                 }
                 $object = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::supported($parameter, $contract->models);
                 if (!$object && in_array($parameter->location, ['path', 'header'], true)) {
-                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true);
+                    $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, true, $contract->models);
                     if ($parameter->location === 'path' && $resolved['nullable']) {
                         throw new InvalidArgumentException("Path parameters must be nonnullable at $operation->operationId.");
                     }
@@ -1161,6 +1187,8 @@ final class PhpContractEmitter
                 }
                 // An explicit untyped error still blocks a broader range/default.
                 $this->operationErrorTypes[$operation->operationId][$response->status] = null;
+                if ($response->schema->kind === SchemaKind::Reference
+                    && !in_array(\Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($response->schema, $contract->models)->kind, [SchemaKind::Object, SchemaKind::AllOf], true)) { continue; }
                 if ($response->schema->kind === SchemaKind::Reference) {
                     $this->operationErrorTypes[$operation->operationId][$response->status]
                         = $this->reference($response->schema);
@@ -1176,7 +1204,8 @@ final class PhpContractEmitter
                             : $this->typeFor($response->schema, $hint, $files, 'Response');
                 }
             }
-            $methods[] = '    public function ' . $methodName
+            $returnDoc = ltrim($return, '?') === 'array' ? '    /** @return list<mixed>' . (str_starts_with($return, '?') ? '|null' : '') . " */\n" : '';
+            $methods[] = $returnDoc . '    public function ' . $methodName
                 . '(' . implode(', ', $args) . '): ' . $return . ';';
         }
         return $this->header($this->namespace . '\\Api')
@@ -1232,6 +1261,9 @@ final class PhpContractEmitter
 
     private function bodyType(SchemaDefinition $schema, string $where): string
     {
+        if ($this->effectiveSchema($schema)->kind !== SchemaKind::Reference) {
+            throw new InvalidArgumentException("Native root request bodies remain unsupported at $where.");
+        }
         if ($schema->nullable || $schema->kind !== SchemaKind::Reference) {
             throw new InvalidArgumentException("Unsupported non-reference request body at $where");
         }
@@ -1276,7 +1308,7 @@ final class PhpContractEmitter
             $types = [];
             $nullable = false;
             foreach ($success as $response) {
-                $schema = $response->schema;
+                $schema = $response->schema === null ? null : $this->effectiveSchema($response->schema);
                 $type = $response->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA
                     ? '\\Psr\\Http\\Message\\ResponseInterface'
                     : ($schema === null ? null : $this->responseSchemaType($schema,
@@ -1305,11 +1337,12 @@ final class PhpContractEmitter
             return ($nullable ? '?' : '') . $type;
         }
         $response = $withSchema[0];
-        $schemaNullable = $response->schema->nullable;
+        $effectiveResponse = $this->effectiveSchema($response->schema);
+        $schemaNullable = $effectiveResponse->nullable;
         $noContentAllowed = count($success) > 1;
         $nullable = $schemaNullable || $noContentAllowed;
         $type = $this->responseSchemaType(
-            $response->schema,
+            $effectiveResponse,
             $this->operationResponseHint($operation),
             $files,
         );
@@ -1318,7 +1351,7 @@ final class PhpContractEmitter
             'nullable' => $nullable,
             'schemaNullable' => $schemaNullable,
             'noContentAllowed' => $noContentAllowed,
-            'rules' => $response->schema->validation,
+            'rules' => $effectiveResponse->validation,
         ];
         return ($nullable ? '?' : '') . $type;
     }
@@ -1326,6 +1359,7 @@ final class PhpContractEmitter
     /** @param array<string,string> $files */
     private function responseSchemaType(SchemaDefinition $schema, string $hint, array &$files): string
     {
+        $schema = $this->effectiveSchema($schema);
         if ($schema->kind === SchemaKind::Reference) {
             return $this->reference($schema);
         }

@@ -1,0 +1,268 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Native Schemas API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Identifier": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "IdentifierAlias": {
+        "$ref": "#/components/schemas/Identifier"
+      },
+      "Choice": {
+        "type": [
+          "string",
+          "integer",
+          "boolean",
+          "null"
+        ],
+        "minLength": 2,
+        "minimum": 0
+      },
+      "OpenValue": true,
+      "Impossible": false,
+      "Record": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "value",
+          "open",
+          "nullOnly",
+          "items",
+          "empty"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/IdentifierAlias"
+          },
+          "value": {
+            "$ref": "#/components/schemas/Choice"
+          },
+          "open": {
+            "$ref": "#/components/schemas/OpenValue"
+          },
+          "rejected": {
+            "$ref": "#/components/schemas/Impossible"
+          },
+          "nullOnly": {
+            "type": "null"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": [
+                "string",
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "empty": {
+            "type": "array",
+            "items": false
+          }
+        }
+      },
+      "Name": {
+        "type": "string",
+        "minLength": 2
+      }
+    }
+  },
+  "paths": {
+    "/native": {
+      "get": {
+        "operationId": "getNative",
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Record"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "postNative",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Record"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Record"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/value": {
+      "get": {
+        "operationId": "getValue",
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Choice"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/any": {
+      "get": {
+        "operationId": "getAny",
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/never": {
+      "get": {
+        "operationId": "getNever",
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items": {
+      "get": {
+        "operationId": "getItems",
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": [
+                      "string",
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/param/{id}": {
+      "get": {
+        "operationId": "getParam",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/IdentifierAlias"
+            }
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Choice"
+            }
+          },
+          {
+            "name": "X-Alias",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/Name"
+            }
+          },
+          {
+            "name": "session",
+            "in": "cookie",
+            "schema": {
+              "$ref": "#/components/schemas/Name"
+            }
+          },
+          {
+            "name": "json",
+            "in": "query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentifierAlias"
+                }
+              }
+            }
+          },
+          {
+            "name": "plain",
+            "in": "query",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Name"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Choice"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

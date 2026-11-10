@@ -22,6 +22,11 @@ final class PhpOperationNameResolver
         'void', 'object', 'mixed', 'never', 'self', 'parent',
     ];
 
+    public static function isReserved(string $name): bool
+    {
+        return in_array(strtolower($name), self::RESERVED, true);
+    }
+
     public static function resolve(string $operationId): string
     {
         if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $operationId) === 1
