@@ -30,5 +30,7 @@ final readonly class SchemaDefinition
         public ?string $title = null,
         public ?string $description = null,
         public ?DiscriminatorDefinition $discriminator = null,
+        /** @var array<string, mixed> Documentation and vendor metadata; never executable. */
+        public array $annotations = [],
     ) {}
 }

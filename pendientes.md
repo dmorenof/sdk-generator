@@ -16,7 +16,28 @@ Idéntico en los tres repositorios ([sdk-runtime](https://github.com/dmorenof/sd
 2. **sdk-generator (este repositorio):** cumplir las especificaciones más importantes (Swagger 2.0, OpenAPI 3.0/3.1) sobre ese runtime.
 3. **casafari-sdk:** evaluar y, si procede, migrar a un SDK generado.
 
-Consecuencias para este archivo: las tareas que dependen de capacidades de ejecución del runtime (OAuth2, reintentos, headers tipados, negociación, streaming, servidores dinámicos, validadores de `format`) se **bloquean hasta su publicación en el runtime**; la parte del generador es después declarar sus metadatos. La migración real de Casafari (apartados 0 y 11) queda para la fase 3. El SDK de Casafari generado sigue como prueba de aceptación en CI.
+Consecuencias para este archivo: las tareas que dependen de capacidades de ejecución del runtime (OAuth2, reintentos, headers tipados, negociación, streaming, servidores dinámicos, validadores de `format`) se **bloquean hasta su publicación en el runtime**; la parte del generador es después declarar sus metadatos. La migración de CasafariSDK no forma parte de esta entrega ni la bloquea (alcance confirmado por el usuario; ver más abajo) y queda como fase 3; el SDK de Casafari generado sigue como prueba de aceptación en CI.
+
+## Trabajo acumulado actual — sin validar ni publicar
+
+Por instrucción expresa del usuario del 2026-11-10, acumular la implementación y revisión del conjunto antes de ejecutar pruebas o publicar versiones. La línea base estable sigue siendo generador v0.40.0 / runtime v0.31.0. No interpretar este apartado como funcionalidad estable ni marcar sus casillas como verificadas.
+
+- JSON Schema 3.1: implementación inicial de `not`, `if`/`then`/`else`, `contains`/`minContains`/`maxContains`, `dependentRequired`, `dependentSchemas`, `propertyNames` y `prefixItems`. Opis compila/evalúa reglas; PHP conserva los tipos existentes y las tuplas usan arrays nativos.
+- Runtime: guard declarativo JSON que conserva objetos/listas del esquema, comprobación sobre JSON original al construir DTOs, revalidación de mutaciones/null, propagación del modo y conjunción de guards al aplanar allOf. Compilación compartida con defaults y extensiones de ejecución de Opis desactivados; `format` continúa como anotación.
+- Metadatos de schema conservados (`example`, `examples`, `deprecated`, `externalDocs`, `xml`, `$comment`, `x-*`); PHPDoc de modelos, propiedades y operaciones con escape de comentarios. No se habilita un codec XML ni aplicación implícita de defaults.
+- Referencias de Example/Link Objects: resolución local con alias y anotaciones por dialecto; importación desde archivos fragmento mediante el bundler existente. Los valores de ejemplos, `externalValue` y expresiones/valores de links siguen siendo datos, sin consultas de red ni ejecución automática.
+- Segunda parte acumulada: tipos unión de OpenAPI 3.1 con `object`/`array` mediante `stdClass`/arrays nativos, preservando valores y constraints; PHPDoc de listas también dentro de uniones. No convierte automáticamente esas ramas en modelos DTO.
+- `patternProperties`, `unevaluatedProperties` y `unevaluatedItems` autocontenidos conservan el esquema completo para la evaluación de propiedades/items; no se evalúan aisladamente de sus hermanos. Por ahora requieren `type: object` / `type: array` explícitos.
+- Lectura compartida JSON/YAML conserva objetos/listas en literales `const`/`enum`, incluida su identidad `{}` frente a `[]`, también desde archivos fragmento. Const complejo y enums no representables como backed enums usan guards Opis; los backed enums string/int conservan sus clases. `enum` usa igualdad JSON también durante la evaluación de composiciones.
+- Arrays OAS 3.1 sin `items` y sets de un solo tipo se normalizan sin inventar restricciones. Guards de items/uniones/contenedores se combinan por conjunción.
+- Composiciones autocontenidas OAS 3.1 que antes se rechazaban (allOf no objeto, operadores simultáneos y restricciones hermanas) usan tipos nativos y guard completo, manteniendo la exclusividad de oneOf. No cambia las clases/envoltorios de composiciones que ya tenían API pública.
+- **Límites actuales del bloque:** referencias/IDs/dirección dentro de guards completos siguen rechazados; no se aplica esta ampliación a grafos contextuales/dinámicos. No implica JSON Schema 2020-12 completo. La validación estructural exhaustiva de documentos, referencias contextuales y composiciones con grafos de modelos sigue pendiente.
+- **Runtime en desarrollo:** [commit 4fff41f41e9a406434f0034c4679de3523b84e9a](https://github.com/dmorenof/sdk-runtime/commit/4fff41f41e9a406434f0034c4679de3523b84e9a) en la rama remota existente `feature/p0-contract-fidelity`; sin PR ni publicación.
+- Swagger 2.0: `schemes` por operación se traduce al enrutamiento común existente, con prioridad sobre la raíz; validación de host/puerto/basePath/schemes sin aceptar credenciales o query/fragment embebidos. Defaults que dependen del origen del documento siguen pendientes.
+- Semántica HTTP: HEAD y estados sin cuerpo (1xx/204/205/304) no hidratan payload; los schemas/MIME declarados permanecen visibles como metadatos. Firmas y respuestas binarias/rangos conservan nulabilidad por 204/205. TRACE rechaza body declarado/enviado. No completa headers tipados, redirecciones ni todos los aspectos de OPTIONS/TRACE.
+- **Coordinación pendiente:** estas funciones requieren cambios del runtime aún no publicados. Actualizar a su versión estable únicamente al cerrar la implementación y validar el conjunto; no instalar esta rama de desarrollo como una versión estable.
+- **Alcance confirmado por el usuario:** la migración de CasafariSDK y las llamadas autenticadas a su API no forman parte de esta entrega ni la bloquean. Repositorio de referencia: [dmorenof/casafari-sdk](https://github.com/dmorenof/casafari-sdk). Se conserva la compatibilidad del generador con su especificación; no se requieren credenciales para continuar este trabajo.
+- **Estado:** no se han ejecutado pruebas, lint, análisis estático, instalación/smoke ni CI para estos cambios. VERSION y tags publicados permanecen intactos.
 
 ## Leyenda
 
@@ -42,7 +63,6 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [x] FakeRESTApi: generación del contrato original completo y peticiones reales GET individual, GET de lista y POST; no se han probado todas sus operaciones.
 - [x] CI del generador: 145 pruebas / 1.828 aserciones (estado comprobado al elaborar la auditoría).
 - [x] **Entrega coordinada:** `sdk-runtime` **v0.4.0** y `sdk-generator` **v0.3.0**, con herencia compatible, discriminadores locales y dependencia estable `^0.4.0`. Cierre: [Runtime #6](https://github.com/dmorenof/sdk-runtime/pull/6) y [Generator #19](https://github.com/dmorenof/sdk-generator/pull/19).
-- [ ] **Migración de CasafariSDK:** probar operaciones autenticadas reales, revisar compatibilidad de uso/middleware, comparar datos y preparar rollback antes del cambio en producción.
 
 ### Versiones de entrada
 
@@ -574,8 +594,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 - [ ] Tests de formatos de archivo, respuestas inesperadas, timeouts y fallos de red.
 - [ ] Política de reintentos/backoff para rate limits y errores transitorios (capacidad de runtime, no requerida por OAS).
 - [ ] Documentar límites frente a OpenAPI Generator sin atribuir paridad funcional por la reducción de código.
-- [ ] Fijar versión estable del runtime unificado, actualizar dependencias Composer y verificar instalación aislada de Casafari.
-- [ ] Migración real de CasafariSDK con credenciales privadas, smoke de operaciones representativas, comparación de respuestas y rollback.
+- [ ] Al cerrar el conjunto, fijar la nueva versión estable del runtime y actualizar las dependencias Composer del generador y de los SDKs emitidos; verificar su instalación aislada.
 
 ---
 
