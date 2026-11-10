@@ -64,7 +64,7 @@ final class PhpExecutableEmitterTest extends TestCase
             'extends \\Generated\\Sdk\\Client',
             $files['src/Resources/Users.php'],
         );
-        self::assertStringContainsString('$this->executeOperation(', $files['src/Resources/Users.php']);
+        self::assertStringContainsString('$this->executeBody(', $files['src/Resources/Users.php']);
     }
 
     public function testNullablePrimitiveAnyOfIsSupportedForHttpParameters(): void

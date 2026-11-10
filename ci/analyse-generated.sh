@@ -109,3 +109,6 @@ php tests/schema-rules-smoke.php "$OUT/schema-rules"
 
 analyse native-schemas native-schemas-openapi31.json 'Example\NativeSdk'
 php tests/native-schemas-smoke.php "$OUT/native-schemas"
+
+analyse request-bodies request-bodies-openapi31.json 'Example\BodySdk'
+php tests/request-bodies-smoke.php "$OUT/request-bodies"

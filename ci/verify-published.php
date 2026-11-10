@@ -464,4 +464,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/nativ
     $nativeDirectory, 'Example\\NativeSdk', 'example/published-native-schemas']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $nativeDirectory]);
 runPublished([PHP_BINARY, $package . '/tests/native-schemas-smoke.php', $nativeDirectory]);
+$bodyDirectory = $directory . '/request-bodies';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/request-bodies-openapi31.json',
+    $bodyDirectory, 'Example\\BodySdk', 'example/published-request-bodies']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $bodyDirectory]);
+runPublished([PHP_BINARY, $package . '/tests/request-bodies-smoke.php', $bodyDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

@@ -31,6 +31,7 @@ final readonly class PhpResourceEmitter
         'queryAllowReserved' => [],
         'parameterContent' => [],
         'responseValidation' => [],
+        'requestBody' => null,
     ];
 
     /**
@@ -223,6 +224,8 @@ PHP;
             ?? throw new InvalidArgumentException("Missing operation signature: $operation->operationId");
         $identifier = $signature['identifier'];
         $payload = $signature['payload'];
+        $nativeBody = $operation->requestBody !== null && !in_array($operation->requestBody->mediaType,
+            [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true);
         $arguments = [];
         $forward = [];
         if ($identifier !== null) {
@@ -231,7 +234,7 @@ PHP;
         }
         if ($payload !== null) {
             $parameterName = $payload['kind'] === 'dto' ? 'params' : 'payload';
-            $arguments[] = ($payload['required'] ? '' : '?') . $payload['type'] . ' $' . $parameterName
+            $arguments[] = PhpParameterTypeResolver::nullableType($payload['type'], !$payload['required']) . ' $' . $parameterName
                 . ($payload['required'] ? '' : ' = null');
             $forward[] = '$' . $parameterName;
         }
@@ -247,8 +250,15 @@ PHP;
             $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
                 . $resourceClass . '::class)->' . ($resourceMethod ?? $method)
                 . '(' . implode(', ', $forward) . ')';
+            $paramDoc = $payload !== null && in_array($payload['type'], ['array', '?array'], true) ? '    /** @param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload */' . "\n" : '';
             $returnDoc = ltrim($returnType, '?') === 'array' ? '    /** @return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') . " */\n" : '';
-            return $returnDoc . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n"
+            $omission = '';
+            if ($nativeBody && $payload !== null && $payload['kind'] === 'body' && !$payload['required']) {
+                $absentCall = substr($call, 0, strrpos($call, '(')) . '(' . implode(', ', array_slice($forward, 0, -1)) . ')';
+                $omission = '        if (func_num_args() <= ' . ($identifier === null ? '0' : '1') . ") {\n"
+                    . ($success['type'] === null ? "            $absentCall;\n            return;\n" : "            return $absentCall;\n") . "        }\n";
+            }
+            return $paramDoc . $returnDoc . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n" . $omission
                 . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";
         }
@@ -371,14 +381,36 @@ PHP;
             'bodySerialization' => $bodySerialization,
             'bodyParts' => $bodyParts,
         ];
+        if ($nativeBody) {
+            $body = $operation->requestBody;
+            $schema = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($body->schema, $this->formModels);
+            $rules = $schema->validation;
+            if ($schema->pattern !== null) { $rules['pattern'] = $schema->pattern; }
+            if ($schema->enumValues !== []) { $rules['enum'] = $schema->enumValues; }
+            $bodyType = $payload['kind'] === 'body' ? $payload['type'] : null;
+            // Combined parameter DTOs expose the generated type on their body property.
+            if ($bodyType === null) {
+                $bodyType = $signature['bodyType'] ?? throw new InvalidArgumentException('Missing native body type.');
+            }
+            $nullable = $schema->nullable || $schema->kind === SchemaKind::Null || str_contains($bodyType, '|null') || $bodyType === 'mixed';
+            $metadata['requestBody'] = ['type' => ltrim($bodyType, '?'), 'nullable' => $nullable, 'required' => $body->required, 'rules' => $rules];
+            $metadata['requestMediaType'] = $body->mediaType;
+        }
         foreach (self::OPERATION_DEFAULTS as $key => $default) {
-            if ($metadata[$key] === $default) {
+            if (($metadata[$key] ?? $default) === $default) {
                 unset($metadata[$key]);
             }
         }
         $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
         $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
-        if ($identifier === null && $payload === null) {
+        if ($nativeBody && $payload !== null && $payload['kind'] === 'body') {
+            $parts = ['self::' . $constant, 'body: $payload', 'bodyPresent: func_num_args() > ' . ($identifier === null ? '0' : '1')];
+            if ($identifier !== null) {
+                $parts[] = 'identifier: $' . $identifier['name'];
+                if ($identifier['kind'] === 'scalar') { $parts[] = 'identifierName: ' . var_export($identifier['wireName'], true); }
+            }
+            $call = '$this->executeBody(' . implode(', ', $parts) . ')';
+        } elseif ($identifier === null && $payload === null) {
             $call = '$this->executeOperation(self::' . $constant . ')';
         } elseif ($identifier === null && $payload['kind'] === 'body') {
             $call = '$this->executeOperation(self::' . $constant . ', body: $payload)';
@@ -396,6 +428,7 @@ PHP;
             $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
         }
         if (ltrim($returnType, '?') === 'array') { $source .= '    /** @return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') . " */\n"; }
+        if ($payload !== null && in_array($payload['type'], ['array', '?array'], true)) { $source .= '    /** @param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload */' . "\n"; }
         $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
         $resultType = ltrim($returnType, '?') === 'array' ? 'list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') : $returnType;
         $source .= $success['type'] === null

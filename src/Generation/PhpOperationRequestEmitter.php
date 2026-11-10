@@ -142,6 +142,7 @@ final readonly class PhpOperationRequestEmitter
             $types[$operation->operationId] = [
                 'identifier' => $identifier,
                 'payload' => $payload,
+                'bodyType' => $this->bodyTypes[$operation->operationId] ?? null,
             ];
         }
         ksort($files, SORT_STRING);
@@ -249,7 +250,13 @@ final readonly class PhpOperationRequestEmitter
                     ? ($this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models))
                         ->fqcn($body->schema->reference)
                     : throw new InvalidArgumentException("Missing inline request body type at $operation->operationId"));
-            $fields[] = '    public ' . ($body->required ? '' : '?') . $type . ' $body;';
+            $type = PhpParameterTypeResolver::nullableType($type, !$body->required);
+            $fields[] = ($type === 'array' || $type === '?array' ? "    /** @var list<mixed>" . ($type === '?array' ? '|null' : '') . " */\n" : '') . '    public ' . $type . ' $body;';
+            $schema = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($body->schema, $contract->models);
+            $rules = $schema->validation;
+            if ($schema->pattern !== null) { $rules['pattern'] = $schema->pattern; }
+            if ($schema->enumValues !== []) { $rules['enum'] = $schema->enumValues; }
+            if ($rules !== []) { $validation['body'] = $rules; }
             if ($body->required) {
                 $required[] = 'body';
             }

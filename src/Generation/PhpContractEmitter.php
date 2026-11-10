@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.27.0';
+    public const RUNTIME_CONSTRAINT = '^0.28.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -115,7 +115,7 @@ final class PhpContractEmitter
             }
             $names[$key] = true;
             $resolvedModel = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($model->schema, $contract->models);
-            if ($resolvedModel->enumValues === [] && (in_array($resolvedModel->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed], true)
+            if ($resolvedModel->enumValues === [] && (in_array($resolvedModel->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed, SchemaKind::Array], true)
                 || ($resolvedModel->kind === SchemaKind::AnyOf && array_key_exists('schema', $resolvedModel->validation)))) { continue; }
             if ($model->schema->kind === SchemaKind::AnyOf || $model->schema->kind === SchemaKind::OneOf) {
                 $path = $this->modelNames->path($model->name);
@@ -427,7 +427,7 @@ final class PhpContractEmitter
     {
         if ($schema->kind !== SchemaKind::Reference) { return $schema; }
         $resolved = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($schema, array_values($this->modelDefinitions));
-        if ($resolved->enumValues === [] && (in_array($resolved->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed], true)
+        if ($resolved->enumValues === [] && (in_array($resolved->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed, SchemaKind::Array], true)
             || ($resolved->kind === SchemaKind::AnyOf && array_key_exists('schema', $resolved->validation)))) { return $resolved; }
         return $schema;
     }
@@ -1173,7 +1173,7 @@ final class PhpContractEmitter
                     throw new InvalidArgumentException("Duplicate operation parameter $argName in $operation->operationId");
                 }
                 $seenArgs[$key] = true;
-                $args[] = ($required ? $argType : '?' . $argType)
+                $args[] = PhpParameterTypeResolver::nullableType($argType, !$required)
                     . ' $' . $argName . ($required ? '' : ' = null');
             }
             $return = $this->successResponseType($operation, $files);
@@ -1235,6 +1235,14 @@ final class PhpContractEmitter
         if ($body === null) {
             throw new InvalidArgumentException("Request body is absent at $operation->operationId");
         }
+        if (!in_array($body->mediaType, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)) {
+            $schema = $this->effectiveSchema($body->schema);
+            if ($schema->kind !== SchemaKind::Object || $body->schema->kind === SchemaKind::Reference) {
+                $type = $this->typeFor($schema, $operation->operationId . 'Body', $files, 'Request');
+                $resolved = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($body->schema, array_values($this->modelDefinitions));
+                return PhpParameterTypeResolver::nullableType($type, $resolved->nullable);
+            }
+        }
         if ($body->schema->kind === SchemaKind::Reference) {
             return $this->bodyType($body->schema, $operation->operationId);
         }
@@ -1250,13 +1258,13 @@ final class PhpContractEmitter
                 : PhpResourceNameResolver::pascal($part);
         }
         $verb = ucfirst(strtolower($operation->method));
-        return $this->inlineObjectType(
+        return PhpParameterTypeResolver::nullableType($this->inlineObjectType(
             $body->schema,
             implode('.', [...$segments, $verb]),
             $files,
             'Request',
             $verb,
-        );
+        ), $body->schema->nullable);
     }
 
     private function bodyType(SchemaDefinition $schema, string $where): string
