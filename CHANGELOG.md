@@ -8,6 +8,7 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 - Preserve schema documentation/vendor annotations and emit escaped PHPDoc for models, fields and operations, including deprecation and format annotations.
 - Resolve named local Example/Link Object aliases and import fragment-file references without traversing example values or executing link expressions.
 - Extend self-contained object/array type sets to native stdClass/array unions; retain complete schema guards for pattern/unevaluated assertions. Preserve complex const/enum JSON literal identity through JSON/YAML and fragment-file loading, reusing Opis JSON equality.
+- Execute Swagger operation-specific HTTP(S) schemes through existing shared server routing and validate host/port/basePath without inventing missing document-origin defaults.
 - Runtime coordination remains pending. No tests, analysis or release have run for this accumulated development, at the user's request. See pendientes.md for precise limits and outstanding work.
 
 ## [0.40.0] — 2026-11-10

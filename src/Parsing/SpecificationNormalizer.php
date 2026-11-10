@@ -203,6 +203,11 @@ final class SpecificationNormalizer
                     ? array_map(static fn (string $url): array => ['url' => $url], $servers)
                     : ($serverSource === 'operation' ? $raw['servers'] : ($serverSource === 'path' ? $pathItem['servers'] : ($document['servers'] ?? [])));
                 $operationServers = $serverSource === 'root' ? $servers : $this->serverUrls($serverDefinitions);
+                if ($dialect === 'swagger2' && array_key_exists('schemes', $raw)) {
+                    $operationServers = $this->servers(array_replace($document, ['schemes' => $raw['schemes']]), $dialect);
+                    $serverDefinitions = array_map(static fn (string $url): array => ['url' => $url], $operationServers);
+                    $serverSource = 'operation';
+                }
                 $operations[] = new OperationDefinition(
                     $id, strtoupper($method), $path, $parameters, $requestBody, $responses, $security,
                     $operationServers, $serverDefinitions, $serverSource, $this->annotations($raw),
@@ -389,11 +394,28 @@ final class SpecificationNormalizer
         if ($dialect === 'swagger2') {
             $host = $document['host'] ?? null;
             $schemes = $document['schemes'] ?? [];
-            $basePath = rtrim((string) ($document['basePath'] ?? ''), '/');
-            if (!is_string($host) || $host === '' || !is_array($schemes)) {
-                throw new InvalidArgumentException('Swagger 2.0 fixture requires explicit host and schemes.');
+            $basePath = $document['basePath'] ?? '';
+            if (!is_string($host) || $host === '' || !is_array($schemes) || !array_is_list($schemes) || $schemes === []
+                || !is_string($basePath) || ($basePath !== '' && !str_starts_with($basePath, '/'))
+                || preg_match('/[?#\x00-\x20\x7f{}]/', $basePath)) {
+                throw new InvalidArgumentException('Swagger 2.0 requires an explicit host, HTTP(S) schemes and a valid absolute basePath; source-relative defaults need document-origin resolution.');
             }
-            $servers = array_map(static fn ($scheme): string => $scheme . '://' . $host . $basePath, $schemes);
+            try {
+                $authority = new \GuzzleHttp\Psr7\Uri('//' . $host);
+                if ($authority->getHost() === '' || $authority->getUserInfo() !== '' || $authority->getPath() !== ''
+                    || $authority->getQuery() !== '' || $authority->getFragment() !== '') {
+                    throw new InvalidArgumentException('Swagger host must contain only a hostname and optional port.');
+                }
+            } catch (\Throwable $error) {
+                throw new InvalidArgumentException('Invalid Swagger host: ' . $error->getMessage(), 0, $error);
+            }
+            $servers = [];
+            foreach ($schemes as $scheme) {
+                if (!is_string($scheme) || !in_array($scheme, ['http', 'https'], true)) {
+                    throw new InvalidArgumentException('Swagger transfer schemes currently support only http and https.');
+                }
+                $servers[] = \Dmorenof\SdkRuntime\ServerUrl::normalize($scheme . '://' . $host . $basePath);
+            }
         } else {
             $servers = $this->serverUrls(array_key_exists('servers', $document) ? $document['servers'] : []);
         }

@@ -180,8 +180,12 @@ final class ContractAuditor
         } elseif (array_key_exists('servers', $item)) {
             $this->withOrigin($outer, $serverOrigin, fn () => $this->servers($item['servers'], "$serverPointer/servers", $id, $rootServers));
         }
-        if (isset($operation['schemes']) && $operation['schemes'] !== ($document['schemes'] ?? [])) {
-            $this->add('operation_schemes', "$where/schemes", 'Operation-specific Swagger schemes are not executed.', $id);
+        if (array_key_exists('schemes', $operation)) {
+            $schemes = $operation['schemes'];
+            if (($document['swagger'] ?? null) !== '2.0' || !is_array($schemes) || !array_is_list($schemes) || $schemes === []
+                || count(array_filter($schemes, static fn ($scheme): bool => is_string($scheme) && in_array($scheme, ['http', 'https'], true))) !== count($schemes)) {
+                $this->add('invalid_operation_schemes', "$where/schemes", 'Operation schemes require a nonempty Swagger 2.0 HTTP(S) list.', $id);
+            }
         }
         $overrides = [];
         foreach ($operation['parameters'] ?? [] as $parameter) {
