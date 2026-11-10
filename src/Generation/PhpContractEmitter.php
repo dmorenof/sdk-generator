@@ -1323,7 +1323,9 @@ final class PhpContractEmitter
             $success,
             static fn ($response): bool => $response->schema !== null,
         ));
-        if ($withSchema !== [] && count(array_filter($withSchema, fn ($response): bool => $this->binaryResponse($response))) === count($withSchema)
+        if ($withSchema !== [] && count($withSchema) === count($success) && !$hasSuccessRange
+            && count(array_filter($success, static fn ($response): bool => $response->status === 'default')) === 0
+            && count(array_filter($withSchema, fn ($response): bool => $this->binaryResponse($response))) === count($withSchema)
             && count(array_unique(array_map(static fn ($response) => $response->mediaType, $withSchema))) === 1) {
             $type = '\\Psr\\Http\\Message\\ResponseInterface';
             $this->operationSuccessTypes[$operation->operationId] = [
@@ -1344,7 +1346,7 @@ final class PhpContractEmitter
         if (count($success) > 1 || in_array($success[0]->status, ['2XX', 'default'], true)) {
             $byStatus = [];
             $types = [];
-            $nullable = false;
+            $nullable = $hasSuccessRange || count(array_filter($success, static fn ($response): bool => $response->status === 'default')) > 0;
             foreach ($success as $response) {
                 $schema = $response->schema === null ? null : $this->effectiveSchema($response->schema);
                 $type = $this->binaryResponse($response)

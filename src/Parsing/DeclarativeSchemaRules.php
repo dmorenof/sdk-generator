@@ -73,6 +73,62 @@ final class DeclarativeSchemaRules
         return [$structural, $json];
     }
 
+    /** PHP describes the possible JSON kinds; Opis retains the entire composition. */
+    public static function native(array $raw, string $where): \Dmorenof\SdkGenerator\Contract\SchemaDefinition
+    {
+        $guard = self::encode(array_diff_key($raw, array_flip(['readOnly', 'writeOnly'])), $where);
+        foreach (['readOnly', 'writeOnly'] as $flag) {
+            if (array_key_exists($flag, $raw) && !is_bool($raw[$flag])) { self::fail("$where.$flag"); }
+        }
+        $types = self::types($raw);
+        $arguments = [
+            'validation' => ['schema' => true, 'jsonSchema' => $guard],
+            'title' => $raw['title'] ?? null, 'description' => $raw['description'] ?? null,
+            'readOnly' => $raw['readOnly'] ?? false, 'writeOnly' => $raw['writeOnly'] ?? false,
+            'default' => $raw['default'] ?? null, 'hasDefault' => array_key_exists('default', $raw),
+        ];
+        if ($types === [] || count($types) === 7) {
+            return new \Dmorenof\SdkGenerator\Contract\SchemaDefinition(\Dmorenof\SdkGenerator\Contract\SchemaKind::Mixed, ...$arguments);
+        }
+        $arguments['kind'] = \Dmorenof\SdkGenerator\Contract\SchemaKind::AnyOf;
+        $arguments['branches'] = array_map(static fn (string $type) => new \Dmorenof\SdkGenerator\Contract\SchemaDefinition(\Dmorenof\SdkGenerator\Contract\SchemaKind::from($type)), $types);
+        return new \Dmorenof\SdkGenerator\Contract\SchemaDefinition(...$arguments);
+    }
+
+    /** Existing object allOf models keep their public classes and inheritance. */
+    public static function objectBranch(mixed $raw): bool
+    {
+        if (!is_array($raw)) { return false; }
+        if (isset($raw['$ref'])) { return true; }
+        if (isset($raw['allOf']) && is_array($raw['allOf']) && $raw['allOf'] !== []) {
+            foreach ($raw['allOf'] as $branch) { if (!self::objectBranch($branch)) { return false; } }
+            return true;
+        }
+        return ($raw['type'] ?? null) === 'object'
+            || (!isset($raw['type']) && (isset($raw['properties']) || array_key_exists('additionalProperties', $raw)));
+    }
+
+    /** @return list<string> A sound upper bound; assertions still decide validity. */
+    private static function types(mixed $raw): array
+    {
+        $all = ['string', 'integer', 'number', 'boolean', 'object', 'array', 'null'];
+        if ($raw === false) { return []; }
+        if ($raw === true) { return $all; }
+        $types = isset($raw['type']) ? (is_array($raw['type']) ? $raw['type'] : [$raw['type']]) : $all;
+        // JSON Schema number includes integer; intersect at JSON-kind granularity.
+        if (in_array('number', $types, true) && !in_array('integer', $types, true)) { $types[] = 'integer'; }
+        foreach (['allOf', 'anyOf', 'oneOf'] as $keyword) {
+            if (!isset($raw[$keyword])) { continue; }
+            $branchTypes = $keyword === 'allOf' ? $all : [];
+            foreach ($raw[$keyword] as $branch) {
+                $candidate = self::types($branch);
+                $branchTypes = $keyword === 'allOf' ? array_values(array_intersect($branchTypes, $candidate)) : array_values(array_unique([...$branchTypes, ...$candidate]));
+            }
+            $types = array_values(array_intersect($types, $branchTypes));
+        }
+        return array_values(array_intersect($all, $types));
+    }
+
     public static function conjoin(?string $left, string $right): string
     {
         if ($left === null) { return $right; }
@@ -118,7 +174,7 @@ final class DeclarativeSchemaRules
                 $result[$key] = $value;
             } elseif (in_array($key, ['type', 'required', 'minLength', 'maxLength', 'minItems', 'maxItems', 'minProperties', 'maxProperties', 'minContains', 'maxContains', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'uniqueItems', 'pattern', 'format'], true)) {
                 $result[$key] = $value;
-            } elseif (!in_array($key, ['title', 'description', 'default', 'examples', 'deprecated', '$comment'], true) && !str_starts_with($key, 'x-')) {
+            } elseif (!in_array($key, ['title', 'description', 'default', 'example', 'examples', 'deprecated', 'externalDocs', 'xml', '$comment'], true) && !str_starts_with($key, 'x-')) {
                 throw new \InvalidArgumentException("Unsupported assertion keyword '$key' at $where.");
             }
         }

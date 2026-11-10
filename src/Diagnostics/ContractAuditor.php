@@ -199,11 +199,16 @@ final class ContractAuditor
         $this->withOrigin($outer, $parameterOrigin, fn () => $this->parameters($pathParameters, $parameterOrigin['pointer'] . '/parameters', $id, $formMedia));
         $this->parameters($operation['parameters'] ?? [], "$where/parameters", $id, $formMedia);
         $this->requestBody($operation['requestBody'] ?? null, "$where/requestBody", $id);
+        if (str_ends_with($where, '/trace') && (isset($operation['requestBody'])
+            || count(array_filter($operation['parameters'] ?? [], static fn ($parameter): bool => is_array($parameter) && in_array($parameter['in'] ?? null, ['body', 'formData'], true))) > 0)) {
+            $this->add('trace_request_body', $where, 'HTTP TRACE must not contain a request body.', $id);
+        }
         foreach ($operation['responses'] ?? [] as $status => $response) {
             $at = JsonPointer::append("$where/responses", $status);
             $this->response($response, $at, $id);
             // Error media types do not negotiate success representations.
-            if (is_array($response) && ($status === 'default' || preg_match('/^2(?:[0-9]{2}|XX)$/', (string) $status) === 1)) {
+            if (is_array($response) && !str_ends_with($where, '/head') && !in_array((string) $status, ['204', '205'], true)
+                && ($status === 'default' || preg_match('/^2(?:[0-9]{2}|XX)$/', (string) $status) === 1)) {
                 $this->resolvedObject($response, 'responses', $at, $id,
                     function (array $value, string $source) use ($operation, $where, $document, $id): void {
                         if (($document['swagger'] ?? null) !== '2.0') {

@@ -195,8 +195,11 @@ final class SpecificationNormalizer
                     $dialect,
                     "$method $path",
                 );
+                if ($method === 'trace' && $requestBody !== null) {
+                    throw new InvalidArgumentException("TRACE cannot declare a request body at $path.");
+                }
                 $this->pathParameters($path, $parameters, "$method $path");
-                $responses = $this->responses($raw, $document, $dialect, "$method $path");
+                $responses = $this->responses($raw, $document, $dialect, "$method $path", $method === 'head');
                 $serverSource = array_key_exists('servers', $raw) ? 'operation'
                     : (array_key_exists('servers', $pathItem) ? 'path' : 'root');
                 $serverDefinitions = $dialect === 'swagger2'
@@ -586,7 +589,7 @@ final class SpecificationNormalizer
     }
 
     /** @return list<ResponseDefinition> */
-    private function responses(array $operation, array $document, string $dialect, string $where): array
+    private function responses(array $operation, array $document, string $dialect, string $where, bool $head = false): array
     {
         $rawResponses = $operation['responses'] ?? null;
         if (!is_array($rawResponses) || $rawResponses === []) {
@@ -602,7 +605,12 @@ final class SpecificationNormalizer
             if (!is_array($raw) || isset($raw['$ref'])) {
                 throw new InvalidArgumentException("Unsupported response reference at $where.");
             }
-            if ($dialect === 'swagger2') {
+            $bodyless = $head || $status === '1XX' || (ctype_digit($status)
+                && !\Dmorenof\SdkRuntime\Operation::allowsResponseBody('GET', (int) $status));
+            if ($bodyless) {
+                $schema = null;
+                $mediaType = null;
+            } elseif ($dialect === 'swagger2') {
                 $schema = $raw['schema'] ?? null;
                 $produces = $operation['produces'] ?? $document['produces'] ?? ['application/json'];
                 $binarySchema = is_array($schema) ? BinaryResponseSupport::swaggerSchema($schema, $produces) : null;
@@ -623,14 +631,15 @@ final class SpecificationNormalizer
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
             }
+            $schemaForContent = $bodyless && $dialect === 'swagger2' ? ($raw['schema'] ?? null) : $schema;
             $responses[] = new ResponseDefinition(
                 $status,
                 $mediaType,
                 $schema === null ? null : $this->schema($schema, $dialect, "$where.responses.$status"),
                 $dialect === 'swagger2'
-                    ? ($schema === null ? [] : $this->swaggerContent($operation['produces'] ?? $document['produces'] ?? ['application/json'], $schema, $dialect, "$where.responses.$status"))
+                    ? (!is_array($schemaForContent) ? [] : $this->swaggerContent($operation['produces'] ?? $document['produces'] ?? ['application/json'], $schemaForContent, $dialect, "$where.responses.$status"))
                     : $this->mediaContent($raw['content'] ?? [], $dialect, "$where.responses.$status"),
-                $raw['headers'] ?? [], $raw['links'] ?? [], $this->annotations($raw),
+                $raw['headers'] ?? [], $raw['links'] ?? [], $this->annotations($raw) + ($bodyless ? ['bodySuppressedByHttp' => true] : []),
             );
         }
         return $responses;
@@ -751,6 +760,16 @@ final class SpecificationNormalizer
             $arguments = get_object_vars($schema);
             $arguments['annotations'] = $metadata;
             return new SchemaDefinition(...$arguments);
+        }
+
+        $compositionKeywords = array_values(array_intersect(['allOf', 'oneOf', 'anyOf'], array_keys($raw)));
+        if ($this->jsonSchema31 && $compositionKeywords !== []) {
+            $siblings = array_diff(array_keys($raw), [...$compositionKeywords, 'title', 'description', 'discriminator']);
+            $nonObjectAllOf = isset($raw['allOf']) && is_array($raw['allOf'])
+                && count(array_filter($raw['allOf'], static fn ($branch): bool => !DeclarativeSchemaRules::objectBranch($branch))) > 0;
+            if (count($compositionKeywords) > 1 || $siblings !== [] || $nonObjectAllOf) {
+                return DeclarativeSchemaRules::native($raw, $where);
+            }
         }
 
         $declarative = DeclarativeSchemaRules::extract($raw, $this->jsonSchema31, $where);
