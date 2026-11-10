@@ -168,7 +168,8 @@ final class ContractAuditor
             if (!$hasForm && $hasBody) {
                 $mediaTypes = $operation['consumes'] ?? $document['consumes'] ?? ['application/json'];
                 if (is_array($mediaTypes)) {
-                    $declared = array_fill_keys(array_filter($mediaTypes, 'is_string'), []);
+                    $bodyFields = array_values(array_filter($effective, static fn ($field): bool => ($field['in'] ?? null) === 'body'));
+                    $declared = array_fill_keys(array_filter($mediaTypes, 'is_string'), ['schema' => $bodyFields[0]['schema'] ?? null]);
                     $this->selectedMedia($declared, isset($operation['consumes']) ? "$where/consumes" : '/consumes', $id, true);
                 }
             }
@@ -631,7 +632,8 @@ final class ContractAuditor
             }
             $binary = $response && $media === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA
                 && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::supported($definition);
-            if (!$form && !$binary && !($parameter && strtolower($media) === 'text/plain') && !preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
+            $raw = ($request || $response) && \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::supported($definition, $media, $this->document, $request);
+            if (!$form && !$binary && !$raw && !($parameter && strtolower($media) === 'text/plain') && !preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
                 $this->add('media_type', $at, 'This representation is preserved but has no supported serializer in this position.', $operation, 'warning');
             }
             if (!empty($definition['encoding']) && !$form) {
@@ -653,6 +655,7 @@ final class ContractAuditor
         if (!is_array($content) || $content === []) {
             return;
         }
+        if (\Dmorenof\SdkGenerator\Parsing\RawMediaSupport::selected($content, $this->document, $request) !== null) { return; }
         if (!$request && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::selected($content)) {
             return;
         }

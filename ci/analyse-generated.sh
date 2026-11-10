@@ -112,3 +112,6 @@ php tests/native-schemas-smoke.php "$OUT/native-schemas"
 
 analyse request-bodies request-bodies-openapi31.json 'Example\BodySdk'
 php tests/request-bodies-smoke.php "$OUT/request-bodies"
+
+analyse raw-media raw-media-openapi31.json 'Example\RawSdk'
+php -d memory_limit=16M tests/raw-media-smoke.php "$OUT/raw-media"
