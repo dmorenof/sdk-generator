@@ -111,7 +111,7 @@ final class HttpContractMetadataTest extends TestCase
         self::assertSame('getUser', $response->links['next']['operationId']);
     }
 
-    public function testVendorJsonMediaTypesAreRetainedAndFlaggedUntilHeadersAreExecuted(): void
+    public function testVendorJsonMediaTypesAreRetainedAndTheirHeadersAreExecuted(): void
     {
         $document = self::document('accounts-swagger2.json');
         $document['consumes'] = ['application/vnd.example+json'];
@@ -120,9 +120,9 @@ final class HttpContractMetadataTest extends TestCase
         self::assertSame('application/vnd.example+json', $contract->operations[0]->requestBody->mediaType);
         self::assertSame('application/problem+json', $contract->operations[1]->responses[0]->mediaType);
         $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));
-        self::assertFalse($report['strictlyAccepted']);
-        self::assertContains('request_media_type', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
-        self::assertContains('response_media_type', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
+        self::assertTrue($report['strictlyAccepted']);
+        self::assertNotContains('request_media_type', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
+        self::assertNotContains('response_media_type', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
     }
 
     public function testProblemJsonErrorsAndSuccessCharsetDoNotCauseFalseNegotiationErrors(): void

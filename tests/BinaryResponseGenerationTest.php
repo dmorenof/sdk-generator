@@ -120,7 +120,7 @@ final class BinaryResponseGenerationTest extends TestCase
             $variants[] = $document;
         }
         $document = $base;
-        $document['components']['responses']['File']['content'] = ['image/png' => ['schema' => ['type' => 'string', 'format' => 'binary']]];
+        $document['components']['responses']['File']['content'] = ['image/*' => ['schema' => ['type' => 'string', 'format' => 'binary']]];
         $variants[] = $document;
         $document = $base;
         $document['components']['responses']['File']['content']['application/octet-stream']['encoding'] = ['file' => ['contentType' => 'image/png']];

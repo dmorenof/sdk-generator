@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.39.0] — 2026-11-10
+
+- Retain concrete MIME types with existing JSON, opaque string and PSR binary codecs. CSV/XML string bodies/responses retain bytes and constraints; PNG/PDF/SVG and other bounded binary media retain streams and binary aliases. Swagger file responses support a single explicit concrete produces MIME.
+- Preserve vendor/problem +json in Accept/Content-Type while retaining JSON hydration. Distinguish codec from MIME through stable runtime ^0.31.0 metadata, including mixed success statuses and general error payloads; retain legacy SDK inference.
+- Reuse existing Guzzle/PSR transport with no model parser or wrapper. Verify actual 32 MiB image upload and PDF download under PHP 16 MiB, independent installation and a 41st SDK at PHPStan maximum.
+- Wildcards, incompatible representation negotiation, structured XML/CSV models, charset transcoding and binary/error-streaming limits remain explicit. See docs/MIME_MEDIA.md.
+
 ## [0.38.0] — 2026-11-10
 
 - Emit declared error response descriptors for JSON primitive/null values, arrays/collections, maps, enums, compositions and DTOs, plus text/plain and bounded binary errors. Preserve exact/range/default selection and explicit bodyless overrides.

@@ -484,4 +484,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/error
     $errorDirectory, 'Example\\ErrorPayloadSdk', 'example/published-error-payloads']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $errorDirectory]);
 runPublished([PHP_BINARY, $package . '/tests/error-payloads-smoke.php', $errorDirectory]);
+$mimeDirectory = $directory . '/mime-media';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/mime-media-openapi31.json',
+    $mimeDirectory, 'Example\\MimeMediaSdk', 'example/published-mime-media']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $mimeDirectory]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/mime-media-smoke.php', $mimeDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

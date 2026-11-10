@@ -121,3 +121,6 @@ php tests/schema-aliases-smoke.php "$OUT/schema-aliases"
 
 analyse error-payloads error-payloads-openapi31.json 'Example\ErrorPayloadSdk'
 php tests/error-payloads-smoke.php "$OUT/error-payloads"
+
+analyse mime-media mime-media-openapi31.json 'Example\MimeMediaSdk'
+php -d memory_limit=16M tests/mime-media-smoke.php "$OUT/mime-media"

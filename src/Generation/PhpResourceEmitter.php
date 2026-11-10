@@ -34,6 +34,7 @@ final readonly class PhpResourceEmitter
         'requestBody' => null,
         'responseMediaType' => 'application/json',
         'errorResponses' => [],
+        'responseEncoding' => 'json',
     ];
 
     /**
@@ -373,6 +374,7 @@ PHP;
             'responseTypes' => $success['byStatus'] ?? [],
             'responseValidation' => $success['rules'] ?? [],
             'responseMediaType' => $success['mediaType'] ?? 'application/json',
+            'responseEncoding' => $success['encoding'] ?? 'json',
             'schemaNullable' => $success['schemaNullable'],
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $validation,
@@ -401,9 +403,10 @@ PHP;
             $nullable = $schema->nullable || $schema->kind === SchemaKind::Null || str_contains($bodyType, '|null') || $bodyType === 'mixed';
             $metadata['requestBody'] = ['type' => ltrim($bodyType, '?'), 'nullable' => $nullable, 'required' => $body->required, 'rules' => $rules];
             $metadata['requestMediaType'] = $body->mediaType;
-            if ($body->mediaType === \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT) { $metadata['requestBody']['encoding'] = 'text'; }
-            if ($body->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA) {
-                $metadata['requestBody']['encoding'] = 'binary'; $metadata['requestBody']['type'] = 'stream';
+            if (\Dmorenof\SdkGenerator\Parsing\RawMediaSupport::rawMedia($body->mediaType)) {
+                $binaryBody = $schema->format === 'binary';
+                $metadata['requestBody']['encoding'] = $binaryBody ? 'binary' : 'text';
+                if ($binaryBody) { $metadata['requestBody']['type'] = 'stream'; }
             }
         }
         foreach (self::OPERATION_DEFAULTS as $key => $default) {

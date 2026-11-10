@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.30.0';
+    public const RUNTIME_CONSTRAINT = '^0.31.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -1196,7 +1196,7 @@ final class PhpContractEmitter
                 $schema = $this->effectiveSchema($response->schema);
                 $resolved = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($response->schema, $contract->models);
                 $hint = $this->operationResponseHint($operation, $response->status);
-                if ($response->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA) {
+                if ($this->binaryResponse($response)) {
                     $type = 'string';
                 } elseif ($schema->kind === SchemaKind::Reference) {
                     $type = $this->reference($schema);
@@ -1211,7 +1211,8 @@ final class PhpContractEmitter
                 if ($resolved->pattern !== null) { $rules['pattern'] = $resolved->pattern; }
                 $entry = ['type' => $type, 'schemaNullable' => $resolved->nullable];
                 if ($rules !== []) { $entry['rules'] = $rules; }
-                if (in_array($response->mediaType, [\Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT, \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA], true)) { $entry['mediaType'] = $response->mediaType; }
+                if ($response->mediaType !== null && $response->mediaType !== 'application/json') { $entry['mediaType'] = $response->mediaType; }
+                if ($response->mediaType !== null && \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::rawMedia($response->mediaType)) { $entry['encoding'] = $this->binaryResponse($response) ? 'binary' : 'text'; }
                 $this->operationErrorResponses[$operation->operationId][$response->status] = $entry;
             }
             $returnDoc = ltrim($return, '?') === 'array' ? '    /** @return list<mixed>' . (str_starts_with($return, '?') ? '|null' : '') . " */\n" : '';
@@ -1245,9 +1246,9 @@ final class PhpContractEmitter
         if ($body === null) {
             throw new InvalidArgumentException("Request body is absent at $operation->operationId");
         }
-        if ($body->mediaType === \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT) { return 'string'; }
-        if ($body->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA) {
-            return 'string|\\Psr\\Http\\Message\\StreamInterface';
+        if (\Dmorenof\SdkGenerator\Parsing\RawMediaSupport::rawMedia($body->mediaType)) {
+            $rawSchema = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($body->schema, array_values($this->modelDefinitions));
+            return $rawSchema->format === 'binary' ? 'string|\\Psr\\Http\\Message\\StreamInterface' : 'string';
         }
         if (!in_array($body->mediaType, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)) {
             $schema = $this->effectiveSchema($body->schema);
@@ -1292,6 +1293,12 @@ final class PhpContractEmitter
         return $this->reference($schema);
     }
 
+    private function binaryResponse(\Dmorenof\SdkGenerator\Contract\ResponseDefinition $response): bool {
+        return $response->schema !== null && $response->mediaType !== null
+            && \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::rawMedia($response->mediaType)
+            && \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($response->schema, array_values($this->modelDefinitions))->format === 'binary';
+    }
+
     private function successResponseType(OperationDefinition $operation, array &$files): string
     {
         $success = [];
@@ -1308,11 +1315,12 @@ final class PhpContractEmitter
             $success,
             static fn ($response): bool => $response->schema !== null,
         ));
-        if ($withSchema !== [] && count(array_filter($withSchema, static fn ($response): bool =>
-            $response->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA)) === count($withSchema)) {
+        if ($withSchema !== [] && count(array_filter($withSchema, fn ($response): bool => $this->binaryResponse($response))) === count($withSchema)
+            && count(array_unique(array_map(static fn ($response) => $response->mediaType, $withSchema))) === 1) {
             $type = '\\Psr\\Http\\Message\\ResponseInterface';
             $this->operationSuccessTypes[$operation->operationId] = [
                 'type' => $type, 'nullable' => false, 'schemaNullable' => false, 'noContentAllowed' => false,
+                'mediaType' => $withSchema[0]->mediaType, 'encoding' => 'binary',
             ];
             return $type;
         }
@@ -1331,12 +1339,13 @@ final class PhpContractEmitter
             $nullable = false;
             foreach ($success as $response) {
                 $schema = $response->schema === null ? null : $this->effectiveSchema($response->schema);
-                $type = $response->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA
+                $type = $this->binaryResponse($response)
                     ? '\\Psr\\Http\\Message\\ResponseInterface'
                     : ($schema === null ? null : $this->responseSchemaType($schema,
                         $this->operationResponseHint($operation, count($withSchema) > 1 || $response->status === 'default' ? $response->status : null), $files));
                 $byStatus[$response->status] = ['type' => $type, 'schemaNullable' => $schema?->nullable ?? false];
-                if ($response->mediaType === \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT) { $byStatus[$response->status]['mediaType'] = $response->mediaType; }
+                if ($response->mediaType !== null && $response->mediaType !== 'application/json') { $byStatus[$response->status]['mediaType'] = $response->mediaType; }
+                if ($response->mediaType !== null && \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::rawMedia($response->mediaType)) { $byStatus[$response->status]['encoding'] = $this->binaryResponse($response) ? 'binary' : 'text'; }
                 if ($schema?->validation !== null && $schema->validation !== []) { $byStatus[$response->status]['rules'] = $schema->validation; }
                 $nullable = $nullable || $schema === null || $schema->nullable;
                 if ($type !== null) {
@@ -1375,7 +1384,8 @@ final class PhpContractEmitter
             'schemaNullable' => $schemaNullable,
             'noContentAllowed' => $noContentAllowed,
             'rules' => $effectiveResponse->validation,
-            'mediaType' => $response->mediaType === \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT ? $response->mediaType : 'application/json',
+            'mediaType' => $response->mediaType ?? 'application/json',
+            'encoding' => $response->mediaType !== null && \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::rawMedia($response->mediaType) ? 'text' : 'json',
         ];
         return ($nullable ? '?' : '') . $type;
     }
