@@ -1,0 +1,283 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Schema Alias API",
+    "version": "1"
+  },
+  "paths": {
+    "/record": {
+      "post": {
+        "operationId": "postRecord",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChildAlias"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChildAlias"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/node": {
+      "post": {
+        "operationId": "postNode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeAlias"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeAlias"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/choice": {
+      "post": {
+        "operationId": "postChoice",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChoiceAlias"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChoiceAlias"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/map": {
+      "post": {
+        "operationId": "postMap",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScoreAlias"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreAlias"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "post": {
+        "operationId": "postStatus",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusAlias2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusAlias2"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/filter": {
+      "get": {
+        "operationId": "getFilter",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "style": "deepObject",
+            "explode": true,
+            "schema": {
+              "$ref": "#/components/schemas/FilterAlias"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusAlias"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "StatusCode": {
+        "type": "string",
+        "enum": [
+          "open",
+          "closed"
+        ]
+      },
+      "StatusAlias": {
+        "$ref": "#/components/schemas/StatusCode"
+      },
+      "StatusAlias2": {
+        "$ref": "#/components/schemas/StatusAlias"
+      },
+      "BaseRecord": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusAlias2"
+          }
+        }
+      },
+      "BaseAlias": {
+        "$ref": "#/components/schemas/BaseRecord"
+      },
+      "BaseAlias2": {
+        "$ref": "#/components/schemas/BaseAlias"
+      },
+      "ChildRecord": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseAlias2"
+          },
+          {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2
+              }
+            }
+          }
+        ]
+      },
+      "ChildAlias": {
+        "$ref": "#/components/schemas/ChildRecord"
+      },
+      "NodeRecord": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NodeAlias"
+          }
+        }
+      },
+      "NodeAlias": {
+        "$ref": "#/components/schemas/NodeRecord"
+      },
+      "RecordChoice": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ChildAlias"
+          },
+          {
+            "type": "integer"
+          }
+        ]
+      },
+      "ChoiceAlias": {
+        "$ref": "#/components/schemas/RecordChoice"
+      },
+      "ScoreMap": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "ScoreAlias": {
+        "$ref": "#/components/schemas/ScoreMap"
+      },
+      "FilterRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/StatusAlias2"
+          }
+        }
+      },
+      "FilterAlias": {
+        "$ref": "#/components/schemas/FilterRecord"
+      }
+    }
+  }
+}

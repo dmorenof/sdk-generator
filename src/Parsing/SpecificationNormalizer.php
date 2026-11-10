@@ -748,13 +748,13 @@ final class SpecificationNormalizer
             if (!is_array($mapping)) {
                 throw new InvalidArgumentException("Invalid discriminator mapping at $where.");
             }
-            $prefix = $dialect === 'swagger2' ? '#/definitions/' : '#/components/schemas/';
             foreach ($mapping as $tag => $target) {
                 if (!is_string($target) || $target === '') {
                     throw new InvalidArgumentException("Invalid discriminator mapping target at $where.");
                 }
-                $name = str_starts_with($target, $prefix) ? substr($target, strlen($prefix)) : $target;
-                if ($name === '' || strpbrk($name, '/#:') !== false) {
+                $local = str_starts_with($target, '#');
+                $name = $local ? SchemaReferences::localName($target, $dialect) : $target;
+                if ($name === '' || (!$local && strpbrk($name, '/#:') !== false)) {
                     throw new InvalidArgumentException("Unsupported non-local discriminator mapping at $where.");
                 }
                 $mapping[$tag] = $name;
@@ -796,15 +796,10 @@ final class SpecificationNormalizer
             if (count(array_diff(array_keys($raw), ['$ref', 'description', 'title'])) > 0) {
                 throw new InvalidArgumentException("Reference siblings are not supported at $where.");
             }
-            $prefix = $dialect === 'swagger2' ? '#/definitions/' : '#/components/schemas/';
             $reference = $raw['$ref'];
-            if (!is_string($reference) || !str_starts_with($reference, $prefix)) {
-                throw new InvalidArgumentException("Unsupported non-local model reference at $where.");
-            }
-            $name = substr($reference, strlen($prefix));
-            if ($name === '' || str_contains($name, '/')) {
-                throw new InvalidArgumentException("Invalid local model reference at $where.");
-            }
+            if (!is_string($reference)) { throw new InvalidArgumentException("Invalid model reference at $where."); }
+            try { $name = SchemaReferences::localName($reference, $dialect); }
+            catch (InvalidArgumentException $error) { throw new InvalidArgumentException("Unsupported model reference at $where: " . $error->getMessage(), 0, $error); }
             return new SchemaDefinition(
                 SchemaKind::Reference,
                 reference: $name,

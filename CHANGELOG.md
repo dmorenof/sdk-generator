@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.37.0] — 2026-11-10
+
+- Resolve local object, enum, map and composition alias chains to canonical PHP types, extending existing scalar/array alias support. Emit no alias wrapper classes and prevent aliases from distorting canonical naming prefixes.
+- Reuse shared chain resolution in forms/object parameters, recursive model properties, allOf inheritance and discriminator mappings. Retain original composition branches: equivalent aliases still invalidate oneOf exclusivity. Reject missing targets, pure cycles and excessive chain depth.
+- Reuse the existing JSON Pointer decoder for schema references and discriminator targets, including URI fragment escapes and ~0/~1. Preserve source identities and wire names; remote/dynamic scopes and $ref validation siblings remain pending.
+- Keep stable runtime ^0.29.0 without new runtime code. Verify recursive HTTP hydration, enum/query/map aliases, mutation checks, discriminators and a 39th independently installed SDK at PHPStan maximum. See docs/SCHEMA_ALIASES.md.
+
 ## [0.36.0] — 2026-11-10
 
 - Add raw text/plain request/response strings and application/octet-stream body strings/PSR-7 streams. Preserve constraints, aliases, optional omission versus empty text and path/query/header/body separation in the existing operation DTOs.

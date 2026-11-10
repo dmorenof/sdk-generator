@@ -719,7 +719,7 @@ final class ContractAuditor
                     break; // Report resolution only; schema recursion is not itself invalid.
                 }
                 $chain[] = $current;
-                if (!str_starts_with($current, '#/')) {
+                if (!str_starts_with($current, '#')) {
                     $this->add('external_reference', $pointer, 'External references are not fetched during inspection.', $operation, 'error', $chain);
                     return;
                 }
@@ -733,7 +733,9 @@ final class ContractAuditor
             $this->add('unresolved_reference', $pointer, $exception->getMessage(), $operation, 'error', $chain);
             return;
         }
-        if (!$schema || (!str_starts_with($reference, '#/components/schemas/') && !str_starts_with($reference, '#/definitions/'))) {
+        try { \Dmorenof\SdkGenerator\Parsing\SchemaReferences::localName($reference, isset($this->document['swagger']) ? 'swagger2' : 'openapi3'); $modelReference = true; }
+        catch (\InvalidArgumentException) { $modelReference = false; }
+        if (!$schema || !$modelReference) {
             $this->add('unsupported_reference', $pointer, 'Only local model references are executable in the current pipeline.', $operation, 'error', $chain);
         }
     }

@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.36.0** y `dmorenof/sdk-runtime` **v0.29.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.37.0** y `dmorenof/sdk-runtime` **v0.29.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -113,7 +113,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 2. [P0] Resolución general de referencias
 
-- [ ] **Parcial — JSON Pointer completo.** v0.5.0 decodifica escapes URI y `~0`/`~1` en las referencias HTTP locales soportadas. Faltan ubicaciones arbitrarias, URIs relativas y la aplicación general al resto de referencias.
+- [ ] **Parcial — JSON Pointer completo.** v0.5.0 decodifica escapes URI y `~0`/`~1` en las referencias HTTP locales soportadas. v0.37.0 reutiliza la misma decodificación URI/~0/~1 en referencias locales de schemas y mappings. Faltan ubicaciones arbitrarias, URIs relativas y ámbitos externos/dinámicos.
 - [x] **v0.5.0 — Referencias locales con nombre a `components/parameters`, `responses` y `requestBodies`**, con alias, parámetros en Path Item/operación y precedencia tras resolver `in`/`name`.
 - [x] **v0.5.0 — Referencias locales Swagger `#/parameters/...` y `#/responses/...`**, incluidos parámetros de body.
 - [x] **v0.6.0 — Referencias locales a `components/headers`**, con alias y anotaciones de Reference Objects, en metadatos de respuestas y encoding. Su exposición/validación tipada en el runtime sigue pendiente en el paquete 04.
@@ -754,3 +754,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] Subida HTTP real de 32 MiB bajo PHP 16 MiB, identidad/rewind de stream, mutaciones y rechazo de null/no seekables; instalación independiente y PHPStan max (38 SDKs en CI).
 - Pruebas conjuntas: generador 448 / 3.542 aserciones; runtime 161 / 860. [Contrato y límites](docs/RAW_MEDIA.md).
 - Permanecen negociación de alternativas, otros MIME/codecs, constraints binarios y entrada no seekable. Transportes personalizados antiguos siguen materializando el string.
+
+### Referencias locales canónicas — v0.37.0 / runtime estable v0.29.0
+
+- [x] Alias de objetos/enums/mapas/composiciones, encadenados y recursividad por objeto; reutilizar clases canónicas sin envoltorios de alias ni alterar sus prefijos de nombres. Scalar/array aliases conservan soporte previo.
+- [x] Resolución compartida en forms, parámetros objeto, allOf/herencia y discriminadores; mapping explícito a alias o destino canónico. oneOf sigue contando ramas equivalentes por separado.
+- [x] JSON Pointer URI/~0/~1 aplicado a schemas y mapping, reutilizando el decodificador existente. Ciclos puros, referencias inexistentes y profundidad excesiva rechazados.
+- Validación: 454 pruebas / 3.572 aserciones del generador, SDK independiente con HTTP y PHPStan max (39 en CI). Sin cambios de runtime ni dependencias temporales. [Contrato](docs/SCHEMA_ALIASES.md).
+- Siguen pendientes ámbitos externos/dinámicos, ubicaciones arbitrarias, hermanos de validación $ref y composiciones no soportadas.

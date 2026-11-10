@@ -7,7 +7,6 @@ use Dmorenof\SdkGenerator\Contract\ModelDefinition;
 use Dmorenof\SdkGenerator\Contract\RequestBodyDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaKind;
-use Dmorenof\SdkGenerator\Diagnostics\JsonPointer;
 
 /** Form encodings reuse parameter expansion and JSON multipart serialization. */
 final class FormSupport
@@ -127,15 +126,8 @@ final class FormSupport
     /** @param list<ModelDefinition> $models */
     private static function schema(RequestBodyDefinition $body, array $models): ?SchemaDefinition
     {
-        if ($body->schema->kind !== SchemaKind::Reference) {
-            return $body->schema;
-        }
-        foreach ($models as $model) {
-            if ($model->name === $body->schema->reference) {
-                return $model->schema;
-            }
-        }
-        return null;
+        try { return SchemaReferences::resolve($body->schema, $models); }
+        catch (\InvalidArgumentException) { return null; }
     }
 
     /** @param list<ModelDefinition> $models @return array<string,array{contentType:?string,filename?:string,json?:bool}>|null */
@@ -174,9 +166,9 @@ final class FormSupport
 
     private static function jsonPart(SchemaDefinition $schema, array $encoding, array $models): bool
     {
-        foreach ($models as $model) { if ($schema->kind === SchemaKind::Reference && $model->name === $schema->reference) { $schema = $model->schema; break; } }
+        $schema = SchemaReferences::resolve($schema, $models);
         $item = $schema->kind === SchemaKind::Array ? $schema->items : $schema;
-        foreach ($models as $model) { if ($item?->kind === SchemaKind::Reference && $model->name === $item->reference) { $item = $model->schema; break; } }
+        $item = $item === null ? null : SchemaReferences::resolve($item, $models);
         if (self::fileItem($schema, $models) !== null) { return false; }
         if (in_array($schema->kind, [SchemaKind::Array, SchemaKind::Object], true) && $schema->enumValues !== []) { return false; }
         if ($schema->kind === SchemaKind::AnyOf && array_key_exists('schema', $schema->validation)) { return self::jsonMedia($encoding['contentType'] ?? null); }
@@ -187,7 +179,7 @@ final class FormSupport
     private static function rawJsonPart(array $schema, array $encoding, array $document): bool
     {
         if (isset($schema['$ref'])) {
-            try { $schema = JsonPointer::resolve($document, $schema['$ref']); }
+            try { $schema = SchemaReferences::raw($schema, $document); }
             catch (\InvalidArgumentException|\TypeError) { return false; }
         }
         if (!is_array($schema)) { return false; }
@@ -195,7 +187,7 @@ final class FormSupport
         $array = $type === 'array' || (is_array($type) && in_array('array', $type, true));
         $item = $array ? ($schema['items'] ?? []) : $schema;
         if (isset($item['$ref'])) {
-            try { $item = JsonPointer::resolve($document, $item['$ref']); }
+            try { $item = SchemaReferences::raw($item, $document); }
             catch (\InvalidArgumentException|\TypeError) { return false; }
         }
         if (!is_array($item) || (($array || ($schema['type'] ?? '') === 'object') && array_key_exists('enum', $schema))) { return false; }
@@ -244,7 +236,7 @@ final class FormSupport
         $schema = $definition['schema'] ?? null;
         if (is_array($schema) && isset($schema['$ref'])) {
             try {
-                $schema = JsonPointer::resolve($document, $schema['$ref']);
+                $schema = SchemaReferences::raw($schema, $document);
             } catch (\InvalidArgumentException|\TypeError) {
                 return false;
             }

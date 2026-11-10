@@ -96,7 +96,7 @@ final class PhpContractEmitter
             }
             $bodySchema = $operation->requestBody->schema;
             if ($bodySchema->kind === SchemaKind::Reference) {
-                $bodySchema = $this->modelDefinitions[$bodySchema->reference]->schema ?? $bodySchema;
+                $bodySchema = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($bodySchema, $contract->models);
             }
             $this->multipartSchemas[spl_object_id($bodySchema)] = true;
         }
@@ -109,6 +109,7 @@ final class PhpContractEmitter
         }
         $names = [];
         foreach ($contract->models as $model) {
+            if ($model->schema->kind === SchemaKind::Reference) { continue; }
             $key = strtolower($model->name);
             if (isset($names[$key])) {
                 throw new InvalidArgumentException("Duplicate PHP model name: $model->name");
@@ -630,7 +631,7 @@ final class PhpContractEmitter
             $values = [];
             foreach ($schema->branches as $branch) {
                 if ($branch->kind === SchemaKind::Reference) {
-                    $branch = $this->modelDefinitions[$branch->reference]->schema;
+                    $branch = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($branch, array_values($this->modelDefinitions));
                 }
                 if ($branch->enumValues === [] || $branch->nullable
                     || $branch->validation !== [] || $branch->pattern !== null
@@ -769,7 +770,7 @@ final class PhpContractEmitter
                 if ($branch->kind !== SchemaKind::Reference) {
                     throw new InvalidArgumentException("Discriminator requires named reference branches at $where.");
                 }
-                $targetSchema = $this->expandAllOf($this->modelDefinitions[$branch->reference]->schema, $where);
+                $targetSchema = $this->expandAllOf(\Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($branch, array_values($this->modelDefinitions)), $where);
                 $tagProperty = null;
                 foreach ($targetSchema->properties as $property) {
                     if ($property->wireName === $discriminator->propertyName) {
@@ -808,7 +809,8 @@ final class PhpContractEmitter
             $mapping[$name] = ltrim($this->modelNames->fqcn($name), '\\');
         }
         foreach ($discriminator->mapping as $tag => $target) {
-            if (!in_array($target, $candidates, true)) {
+            $candidateTypes = array_map(fn (string $name): string => $this->modelNames->fqcn($name), $candidates);
+            if (!in_array($this->modelNames->fqcn($target), $candidateTypes, true)) {
                 throw new InvalidArgumentException("Discriminator mapping '$tag' must target a compatible named subtype/branch at $where.");
             }
             $mapping[$tag] = ltrim($this->modelNames->fqcn($target), '\\');
@@ -827,7 +829,7 @@ final class PhpContractEmitter
                 if ($model->schema->discriminator !== null
                     && in_array($model->schema->kind, [SchemaKind::OneOf, SchemaKind::AnyOf], true)) {
                     foreach ($model->schema->branches as $branch) {
-                        if ($branch->kind === SchemaKind::Reference && $branch->reference === $name) {
+                        if ($branch->kind === SchemaKind::Reference && \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($branch, array_values($this->modelDefinitions)) === $name) {
                             return true;
                         }
                     }
@@ -881,7 +883,7 @@ final class PhpContractEmitter
                 return null;
             }
         }
-        $parent = $references[0]->reference;
+        $parent = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($references[0], array_values($this->modelDefinitions));
         if ($parent === null) {
             return null;
         }
@@ -907,7 +909,7 @@ final class PhpContractEmitter
                     throw new InvalidArgumentException("Invalid or cyclic allOf reference at $where.allOf.$index");
                 }
                 $seen[$reference] = true;
-                $branch = $this->modelDefinitions[$reference]->schema;
+                $branch = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($branch, array_values($this->modelDefinitions));
             }
             if ($branch->kind === SchemaKind::AllOf) {
                 $branch = $this->expandAllOf($branch, "$where.allOf.$index", $seen);
@@ -937,7 +939,7 @@ final class PhpContractEmitter
         $closed = false;
         foreach ($schema->branches as $branch) {
             if ($branch->kind === SchemaKind::Reference) {
-                $branch = $this->modelDefinitions[$branch->reference]->schema;
+                $branch = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($branch, array_values($this->modelDefinitions));
             }
             if ($branch->kind === SchemaKind::AllOf) {
                 $branch = $this->expandAllOf($branch, $where);
