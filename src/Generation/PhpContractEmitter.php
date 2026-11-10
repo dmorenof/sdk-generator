@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.25.0';
+    public const RUNTIME_CONSTRAINT = '^0.26.1';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -33,7 +33,7 @@ final class PhpContractEmitter
     private array $modelDefinitions = [];
     /** @var array<string, string> Child schema name => parent schema name. */
     private array $modelParents = [];
-    /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int|string,array{type:?string,schemaNullable:bool}>}> */
+    /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,rules?:array<string,mixed>,byStatus?:array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>}>}> */
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, ?string>> */
     private array $operationErrorTypes = [];
@@ -147,6 +147,7 @@ final class PhpContractEmitter
                     $model->schema->additionalProperties,
                     $files,
                     $model->name,
+                    rules: $model->schema->validation,
                 );
             } else {
                 $files[$path] = $this->renderModel($model, $files, $roles[$model->name] ?? 'DTO');
@@ -177,7 +178,7 @@ final class PhpContractEmitter
         return $files;
     }
 
-    /** @return array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int|string,array{type:?string,schemaNullable:bool}>}> */
+    /** @return array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,rules?:array<string,mixed>,byStatus?:array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>}>}> */
     public function operationSuccessTypes(): array
     {
         return $this->operationSuccessTypes;
@@ -368,6 +369,9 @@ final class PhpContractEmitter
             $source .= "    protected const array PROPERTY_MAP = " . PhpLiteral::export($propertyMap) . ";\n"
                 . "    protected const array WIRE_PROPERTY_MAP = " . PhpLiteral::export($wirePropertyMap) . ";\n\n";
         }
+        if ($schema->validation !== []) {
+            $source .= "    protected const array MODEL_VALIDATION = " . PhpLiteral::export($schema->validation) . ";\n\n";
+        }
         if ($validation !== []) {
             $source .= "    protected const array VALIDATION = " . PhpLiteral::export($validation) . ";\n\n";
         }
@@ -491,7 +495,7 @@ final class PhpContractEmitter
     ): string
     {
         if ($schema->properties === [] && $this->hasOpenAdditionalProperties($schema)) {
-            return $this->inlineMapType($schema->additionalProperties, $hint, $files, $baseClass);
+            return $this->inlineMapType($schema->additionalProperties, $hint, $files, $baseClass, $schema->validation);
         }
         if ($className === null && str_starts_with($hint, 'Errors.')) {
             $segments = explode('.', $hint);
@@ -517,13 +521,14 @@ final class PhpContractEmitter
         string $hint,
         array &$files,
         string $baseClass = 'DTO',
+        array $rules = [],
     ): string
     {
         $entry = $this->modelNames->derived($hint . 'Map', self::categoryForBaseClass($baseClass), null, self::nameCategoryForBaseClass($baseClass));
         $this->addFile(
             $files,
             $entry['path'],
-            $this->renderMapClass($entry['type'], $valueSchema, $files, $hint, $baseClass),
+            $this->renderMapClass($entry['type'], $valueSchema, $files, $hint, $baseClass, $rules),
         );
         return $entry['type'];
     }
@@ -535,6 +540,7 @@ final class PhpContractEmitter
         array &$files,
         string $hint,
         string $baseClass = 'DTO',
+        array $rules = [],
     ): string {
         $valueType = 'mixed';
         $nullable = false;
@@ -555,6 +561,9 @@ final class PhpContractEmitter
             . "    protected const bool VALUE_NULLABLE = " . PhpLiteral::export($nullable) . ";\n";
         if ($validation !== []) {
             $source .= "    protected const array VALUE_VALIDATION = " . PhpLiteral::export($validation) . ";\n";
+        }
+        if ($rules !== []) {
+            $source .= "    protected const array MAP_VALIDATION = " . PhpLiteral::export($rules) . ";\n";
         }
         return $source . "}\n";
     }
@@ -866,6 +875,7 @@ final class PhpContractEmitter
         }
         $properties = [];
         $required = [];
+        $validation = [];
         foreach ($schema->branches as $index => $branch) {
             if ($branch->kind === SchemaKind::Reference) {
                 $reference = $branch->reference;
@@ -881,6 +891,9 @@ final class PhpContractEmitter
             if ($branch->kind !== SchemaKind::Object
                 || ($branch->additionalProperties !== null && $branch->additionalProperties !== false)) {
                 throw new InvalidArgumentException("Unsupported allOf branch at $where.allOf.$index");
+            }
+            foreach ($branch->validation as $rule => $limit) {
+                $validation[$rule] = isset($validation[$rule]) ? ($rule === 'minProperties' ? max($validation[$rule], $limit) : min($validation[$rule], $limit)) : $limit;
             }
             foreach ($branch->properties as $property) {
                 if (isset($properties[$property->wireName])
@@ -928,6 +941,7 @@ final class PhpContractEmitter
             properties: array_values($properties),
             additionalProperties: $closed ? false : null,
             discriminator: $schema->discriminator,
+            validation: $validation,
         );
     }
 
@@ -957,11 +971,13 @@ final class PhpContractEmitter
         }
         $rules = $itemValidation;
         ksort($rules);
-        $key = serialize([$itemType, $schema->items->nullable, $rules]);
+        // Existing shared collection names describe item types; keep them for old contracts.
+        $collectionRules = array_intersect_key($schema->validation, array_flip(['uniqueItems', 'const']));
+        $key = serialize([$itemType, $schema->items->nullable, $rules, $collectionRules]);
         if (isset($this->collectionTypes[$key])) {
             return $this->collectionTypes[$key];
         }
-        $sharedName = $itemValidation === [] ? match ($itemType) {
+        $sharedName = $itemValidation === [] && $collectionRules === [] ? match ($itemType) {
             'string' => 'StringCollection',
             'int' => 'IntegerCollection',
             'float' => 'FloatCollection',
@@ -983,6 +999,9 @@ final class PhpContractEmitter
             . "final class $name extends \\" . self::RUNTIME_NAMESPACE . "\\TypedArray\n"
             . "{\n"
             . "    protected string \$expected_type = $expected;\n";
+        if ($collectionRules !== []) {
+            $file .= "    protected const array COLLECTION_VALIDATION = " . PhpLiteral::export($collectionRules) . ";\n";
+        }
         if ($itemValidation !== []) {
             $file .= "    protected const array ITEM_VALIDATION = "
                 . PhpLiteral::export($itemValidation) . ";\n";
@@ -999,6 +1018,8 @@ final class PhpContractEmitter
         $cases = [];
         $seen = [];
         foreach ($schema->enumValues as $value) {
+            try { \Dmorenof\SdkRuntime\Constraints::validate($value, $schema->validation, $name); }
+            catch (\UnexpectedValueException) { continue; }
             if (($backing === 'string' && !is_string($value))
                 || ($backing === 'int' && !is_int($value))) {
                 throw new InvalidArgumentException("Invalid $backing enum backing value in $name");
@@ -1021,6 +1042,7 @@ final class PhpContractEmitter
             $seen[strtolower($case)] = true;
             $cases[] = '    case ' . $case . ' = ' . var_export($value, true) . ';';
         }
+        if ($cases === []) { throw new InvalidArgumentException("Enum $name has no values satisfying its constraints."); }
         return $this->header($namespace)
             . "enum $name: $backing\n{\n" . implode("\n", $cases) . "\n}\n";
     }
@@ -1260,6 +1282,7 @@ final class PhpContractEmitter
                     : ($schema === null ? null : $this->responseSchemaType($schema,
                         $this->operationResponseHint($operation, count($withSchema) > 1 || $response->status === 'default' ? $response->status : null), $files));
                 $byStatus[$response->status] = ['type' => $type, 'schemaNullable' => $schema?->nullable ?? false];
+                if ($schema?->validation !== null && $schema->validation !== []) { $byStatus[$response->status]['rules'] = $schema->validation; }
                 $nullable = $nullable || $schema === null || $schema->nullable;
                 if ($type !== null) {
                     $types[] = $type;
@@ -1295,6 +1318,7 @@ final class PhpContractEmitter
             'nullable' => $nullable,
             'schemaNullable' => $schemaNullable,
             'noContentAllowed' => $noContentAllowed,
+            'rules' => $response->schema->validation,
         ];
         return ($nullable ? '?' : '') . $type;
     }

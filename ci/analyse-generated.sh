@@ -103,3 +103,6 @@ php tests/response-selection-smoke.php "$OUT/response-selection"
 analyse form-block form-block-openapi31.json 'Example\FormBlockSdk'
 analyse swagger-form-block form-block-swagger2.json 'Example\SwaggerFormBlockSdk'
 php tests/form-block-smoke.php "$OUT/form-block" "$OUT/swagger-form-block"
+
+analyse schema-rules schema-rules-openapi31.json 'Example\SchemaRulesSdk'
+php tests/schema-rules-smoke.php "$OUT/schema-rules"

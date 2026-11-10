@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.33.0] — 2026-11-10
+
+- Deliver a JSON Schema rules block: numeric exclusiveMinimum/exclusiveMaximum/multipleOf, object property counts, array uniqueItems and OpenAPI 3.1 scalar/null const. Normalize Swagger/OpenAPI 3.0 boolean exclusive bounds to the same runtime rules as OpenAPI 3.1 numeric bounds.
+- Reuse maintained opis/json-schema through stable runtime ^0.26.1 for JSON numeric/object equality and rule evaluation. Emit model/map/collection metadata without new wrappers; preserve existing shared collection names and intersect object-count bounds across supported allOf inheritance.
+- Enforce root scalar/array response constraints as well as DTO fields, maps, collections and parameter items. Constrained native enum cases reflect their valid intersection. Recheck mutations, including inherited ArrayObject exchangeArray.
+- Add an independently installed SDK at PHPStan maximum (35 total) and actual HTTP validation in source and immutable-package smoke. Verify Unicode code-point counting already present. Complex const literals, arbitrary type unions/boolean schemas and remaining schema vocabularies stay explicit pending work.
+
 ## [0.32.0] — 2026-11-10
 
 - Deliver one HTTP form block: Swagger URL-encoded csv/multi/ssv/tsv/pipes lists; OpenAPI spaceDelimited/pipeDelimited lists and flat DTO/Map form/exploded/deepObject fields; multipart JSON models, maps, nested values, repeated complex items and explicit JSON scalar parts.

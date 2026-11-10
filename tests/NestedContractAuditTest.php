@@ -46,12 +46,12 @@ final class NestedContractAuditTest extends TestCase
     public function testReusableResponsesAndHeadersAreAuditedAtTheirDeclaration(): void
     {
         $document = self::document();
-        $document['components']['headers']['Page/~'] = ['schema' => ['type' => 'integer', 'multipleOf' => 2]];
+        $document['components']['headers']['Page/~'] = ['schema' => ['type' => 'integer', 'not' => ['type' => 'null']]];
         $document['components']['responses']['Paged'] = ['description' => 'Page', 'headers' => [
             'Next' => ['content' => ['application/json' => ['schema' => ['not' => ['type' => 'null']]]]],
         ]];
         self::assertSame([
-            '/components/headers/Page~1~0/schema/multipleOf',
+            '/components/headers/Page~1~0/schema/not',
             '/components/responses/Paged/headers/Next/content/application~1json/schema/not',
         ], array_map(static fn ($issue): string => $issue->pointer, self::issues($document, 'unsupported_schema_keyword')));
         self::assertSame('/components/responses/Paged/headers', self::issues($document, 'response_headers')[0]->pointer);
@@ -130,10 +130,10 @@ final class NestedContractAuditTest extends TestCase
         $document['parameters']['IDs'] = ['name' => 'ids', 'in' => 'query', 'type' => 'array',
             'items' => ['type' => 'integer'], 'collectionFormat' => 'multi'];
         $document['responses']['Paged'] = ['description' => 'Page', 'headers' => [
-            'Pages' => ['type' => 'integer', 'multipleOf' => 2],
+            'Pages' => ['type' => 'integer', 'not' => ['type' => 'null']],
         ]];
         self::assertSame([], self::issues($document, 'parameter_collectionFormat'));
-        self::assertSame('/responses/Paged/headers/Pages/multipleOf', self::issues($document, 'unsupported_schema_keyword')[0]->pointer);
+        self::assertSame('/responses/Paged/headers/Pages/not', self::issues($document, 'unsupported_schema_keyword')[0]->pointer);
     }
 
     public function testInlineHeadersAndLinksUseTheSameNestedAuditAndRealServerPointer(): void

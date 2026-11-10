@@ -1,0 +1,187 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Schema Rules API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Record": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "amount",
+          "rows",
+          "tag",
+          "profile",
+          "label"
+        ],
+        "minProperties": 5,
+        "maxProperties": 6,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "readOnly": true
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "exclusiveMaximum": 1,
+            "multipleOf": 0.1
+          },
+          "rows": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "tag": {
+            "type": "integer",
+            "const": 7
+          },
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "minProperties": 1,
+        "maxProperties": 1
+      },
+      "NumericStatus": {
+        "type": "integer",
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "exclusiveMinimum": 0,
+        "exclusiveMaximum": 3
+      }
+    }
+  },
+  "paths": {
+    "/rules": {
+      "post": {
+        "operationId": "postRules",
+        "parameters": [
+          {
+            "name": "amount",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1,
+              "multipleOf": 0.1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Record"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Record"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scalar": {
+      "get": {
+        "operationId": "getScalar",
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "exclusiveMaximum": 1,
+                  "multipleOf": 0.1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scalar-bad": {
+      "get": {
+        "operationId": "getBadScalar",
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "exclusiveMaximum": 1,
+                  "multipleOf": 0.1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collection": {
+      "get": {
+        "operationId": "getCollection",
+        "responses": {
+          "200": {
+            "description": "Value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 3,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

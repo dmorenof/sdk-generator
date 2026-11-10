@@ -133,13 +133,13 @@ final class LocalFileReferencesTest extends TestCase
     public function testDiagnosticsAndStrictErrorsPointToTheOriginalExternalSchema(): void
     {
         $this->edit('models/User.json', static function ($doc) {
-            $doc['properties']['id']['multipleOf'] = 2;
+            $doc['properties']['id']['not'] = ['type' => 'null'];
             return $doc;
         });
         $report = (new DocumentInspector())->inspectFile("$this->directory/api.json");
         $issue = array_values(array_filter($report['diagnostics'], static fn ($issue): bool => $issue->code === 'unsupported_schema_keyword'))[0];
         self::assertSame("$this->directory/models/User.json", $issue->source);
-        self::assertSame('/properties/id/multipleOf', $issue->pointer);
+        self::assertSame('/properties/id/not', $issue->pointer);
         try {
             (new SpecificationNormalizer())->fromFile("$this->directory/api.json", strict: true);
             self::fail('Unsupported schema accepted.');
