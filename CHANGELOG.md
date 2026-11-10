@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.36.0] — 2026-11-10
+
+- Add raw text/plain request/response strings and application/octet-stream body strings/PSR-7 streams. Preserve constraints, aliases, optional omission versus empty text and path/query/header/body separation in the existing operation DTOs.
+- Select text, JSON, binary PSR responses and bodyless success codecs by existing status precedence, retaining response validation and explicit Accept media. JSON selection priority and bounded raw-schema diagnostics remain explicit.
+- Reuse stable runtime ^0.29.0, Guzzle/PSR stream identity and transport rewinding. Verify 32 MiB binary upload under PHP 16 MiB, installed-package HTTP smoke and a 38th SDK at PHPStan maximum. Existing protected executor signatures remain compatible.
+- Non-seekable inputs, binary constraints, arbitrary raw media and negotiation among incompatible representations remain pending. See docs/RAW_MEDIA.md.
+
 ## [0.35.0] — 2026-11-10
 
 - Accept JSON root request bodies as primitive values, null, native arrays, existing typed collections, maps and DTOs. Resolve named array schemas/alias chains through the existing collection representation; retain supported JSON/+json media types.

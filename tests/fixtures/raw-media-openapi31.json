@@ -1,0 +1,156 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Raw Media API",
+    "version": "1"
+  },
+  "paths": {
+    "/text": {
+      "post": {
+        "operationId": "postText",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "$ref": "#/components/schemas/TextAlias"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/optional": {
+      "post": {
+        "operationId": "postOptional",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Accepted"
+          }
+        }
+      }
+    },
+    "/binary/{id}": {
+      "post": {
+        "operationId": "postBinary",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Test",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "$ref": "#/components/schemas/BinaryData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Accepted"
+          }
+        }
+      }
+    },
+    "/mixed": {
+      "get": {
+        "operationId": "getMixed",
+        "responses": {
+          "200": {
+            "description": "Text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Binary",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Empty"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Text": {
+        "type": "string",
+        "minLength": 2
+      },
+      "TextAlias": {
+        "$ref": "#/components/schemas/Text"
+      },
+      "BinaryData": {
+        "type": "string",
+        "format": "binary"
+      }
+    }
+  }
+}

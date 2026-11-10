@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.35.0** y `dmorenof/sdk-runtime` **v0.28.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.36.0** y `dmorenof/sdk-runtime` **v0.29.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -262,7 +262,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] **Parcial — Subida de archivos binarios:** v0.17.0 acepta strings o UploadedFileInterface con nombres/MIME configurables y streams de entrada readable/seekable. v0.18.0 preserva streams por PSR-18 y verifica 32 MiB bajo límite PHP 16 MiB; solo los transportes personalizados antiguos mantienen el string completo. v0.19.0 añade listas OpenAPI. Quedan nesting, entradas no seekables y garantías generales para otros clientes/middleware/respuestas.
 - [x] **v0.19.0 — Listas de archivos OpenAPI:** arrays nativos string|UploadedFileInterface, nombres de parte repetidos, MIME/nombre por archivo, validación/mutaciones/herencia y memoria comprobada. Swagger 2.0 no define arrays de file válidos.
 - [x] **v0.18.0 — Streaming multipart PSR-18:** adaptador existente, archivos seekables, rebobinado tras middleware y repetición; compatibilidad de transportes antiguos y prueba de memoria en instalación independiente.
-- [ ] **Parcial — v0.35.0:** body JSON directo array, mapa, escalar y null, sin DTO envoltorio; reutiliza colecciones/mapas existentes. Texto y binario raíz siguen pendientes. [Contrato](docs/REQUEST_BODIES.md).
+- [ ] **Parcial — v0.35.0:** body JSON directo array, mapa, escalar y null, sin DTO envoltorio; reutiliza colecciones/mapas existentes. v0.36.0 añade text/plain y application/octet-stream con strings/streams PSR-7; quedan otros MIME y negociación. [Contrato](docs/REQUEST_BODIES.md).
 - [ ] Selección explícita de `Content-Type` entre representaciones alternativas.
 - [ ] Múltiples representaciones JSON con esquemas distintos.
 - [ ] **Parcial — Referencias a components/requestBodies:** alias locales resueltos y verificados también en multipart; resolución general/remota sigue en el paquete 02.
@@ -356,7 +356,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] Política configurable de redirecciones `3xx`.
 - [ ] Errores con body escalar, array, mapa, no JSON y con media types alternativos.
 - [ ] **Parcial — Descargas binarias:** v0.20.0 devuelve ResponseInterface PSR-7 para éxitos application/octet-stream OpenAPI 3.0/3.1 sin materializar bytes completos en el runtime. v0.21.0 añade Swagger type:file con produces octet-stream; quedan otros MIME, negociación y garantías generales de streaming. [Uso y medidas](docs/DOWNLOADS.md).
-- [ ] Respuestas texto, CSV, XML y otras representaciones cuando sea útil.
+- [ ] **Parcial — v0.36.0:** respuestas text/plain como strings con constraints, combinadas por estado con JSON/binario/sin contenido. CSV/XML y otros codecs siguen pendientes. [Contrato](docs/RAW_MEDIA.md).
 - [ ] Negociación `Accept` y uso de `application/*+json` con diversos esquemas.
 - [ ] Referencias a `components/responses` y `components/headers`.
 
@@ -746,3 +746,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] JSON names/readOnly y media types JSON/+json conservados, transporte único mediante runtime/Guzzle/PSR. Firmas protegidas antiguas conservadas.
 - Pruebas conjuntas: generador 443 / 3.511 aserciones; runtime 157 / 835; HTTP real y SDK independiente al nivel máximo (37 SDKs en CI). [Contrato](docs/REQUEST_BODIES.md).
 - Quedan cuerpos texto/binarios, negociación de representaciones, ítems nullable generales y los límites de composición ya registrados.
+
+### Texto y binario HTTP — v0.36.0 / runtime v0.29.0
+
+- [x] text/plain de entrada/salida con constraints y alias; application/octet-stream body como string o stream PSR-7 readable/seekable. Sin wrappers ni transportes nuevos.
+- [x] Codec de respuesta por estado (texto/JSON/binario/vacío), Accept coherente y validación conservada; nombres wire y separación GetParams/PostParams query/header/body.
+- [x] Subida HTTP real de 32 MiB bajo PHP 16 MiB, identidad/rewind de stream, mutaciones y rechazo de null/no seekables; instalación independiente y PHPStan max (38 SDKs en CI).
+- Pruebas conjuntas: generador 448 / 3.542 aserciones; runtime 161 / 860. [Contrato y límites](docs/RAW_MEDIA.md).
+- Permanecen negociación de alternativas, otros MIME/codecs, constraints binarios y entrada no seekable. Transportes personalizados antiguos siguen materializando el string.

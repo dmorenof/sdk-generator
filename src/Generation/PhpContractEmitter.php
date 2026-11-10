@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.28.0';
+    public const RUNTIME_CONSTRAINT = '^0.29.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -1235,6 +1235,10 @@ final class PhpContractEmitter
         if ($body === null) {
             throw new InvalidArgumentException("Request body is absent at $operation->operationId");
         }
+        if ($body->mediaType === \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT) { return 'string'; }
+        if ($body->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA) {
+            return 'string|\\Psr\\Http\\Message\\StreamInterface';
+        }
         if (!in_array($body->mediaType, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)) {
             $schema = $this->effectiveSchema($body->schema);
             if ($schema->kind !== SchemaKind::Object || $body->schema->kind === SchemaKind::Reference) {
@@ -1322,6 +1326,7 @@ final class PhpContractEmitter
                     : ($schema === null ? null : $this->responseSchemaType($schema,
                         $this->operationResponseHint($operation, count($withSchema) > 1 || $response->status === 'default' ? $response->status : null), $files));
                 $byStatus[$response->status] = ['type' => $type, 'schemaNullable' => $schema?->nullable ?? false];
+                if ($response->mediaType === \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT) { $byStatus[$response->status]['mediaType'] = $response->mediaType; }
                 if ($schema?->validation !== null && $schema->validation !== []) { $byStatus[$response->status]['rules'] = $schema->validation; }
                 $nullable = $nullable || $schema === null || $schema->nullable;
                 if ($type !== null) {
@@ -1360,6 +1365,7 @@ final class PhpContractEmitter
             'schemaNullable' => $schemaNullable,
             'noContentAllowed' => $noContentAllowed,
             'rules' => $effectiveResponse->validation,
+            'mediaType' => $response->mediaType === \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT ? $response->mediaType : 'application/json',
         ];
         return ($nullable ? '?' : '') . $type;
     }

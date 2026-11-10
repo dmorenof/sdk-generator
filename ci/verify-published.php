@@ -469,4 +469,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/reque
     $bodyDirectory, 'Example\\BodySdk', 'example/published-request-bodies']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $bodyDirectory]);
 runPublished([PHP_BINARY, $package . '/tests/request-bodies-smoke.php', $bodyDirectory]);
+$rawDirectory = $directory . '/raw-media';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/raw-media-openapi31.json',
+    $rawDirectory, 'Example\\RawSdk', 'example/published-raw-media']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $rawDirectory]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/raw-media-smoke.php', $rawDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

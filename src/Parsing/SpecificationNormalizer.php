@@ -443,7 +443,9 @@ final class SpecificationNormalizer
                     throw new InvalidArgumentException("Invalid or duplicated body at $where.");
                 }
                 $mediaTypes = $operation['consumes'] ?? $document['consumes'] ?? ['application/json'];
-                $this->requireJsonMedia($mediaTypes, "$where consumes");
+                if (count($mediaTypes) !== 1 || !RawMediaSupport::supported(['schema' => $raw['schema']], $mediaTypes[0] ?? '', $document, true)) {
+                    $this->requireJsonMedia($mediaTypes, "$where consumes");
+                }
                 $requestBody = new RequestBodyDefinition(
                     $mediaTypes[0],
                     $this->schema($raw['schema'], $dialect, "$where.body"),
@@ -505,7 +507,7 @@ final class SpecificationNormalizer
             $formMedia = isset($content[FormSupport::MEDIA]['schema']) ? FormSupport::MEDIA : FormSupport::MULTIPART;
             $bodyContent = !$hasJson && isset($content[$formMedia]['schema'])
                 ? ['mediaType' => $formMedia, 'schema' => $content[$formMedia]['schema']]
-                : $this->jsonContent($content, "$where.requestBody");
+                : (RawMediaSupport::selected($content, $document, true) ?? $this->jsonContent($content, "$where.requestBody"));
             if ($bodyContent === null) {
                 throw new InvalidArgumentException("Missing supported request body at $where.");
             }
@@ -548,7 +550,9 @@ final class SpecificationNormalizer
                     }
                     $schema = $binarySchema;
                 } elseif ($schema !== null) {
-                    $this->requireJsonMedia($produces, "$where produces");
+                    if (count($produces) !== 1 || !RawMediaSupport::supported(['schema' => $schema], $produces[0] ?? '', $document, false)) {
+                        $this->requireJsonMedia($produces, "$where produces");
+                    }
                 }
                 $mediaType = $schema === null ? null : $produces[0];
             } else {
@@ -559,7 +563,7 @@ final class SpecificationNormalizer
                 }
                 $content = $binary
                     ? ['mediaType' => BinaryResponseSupport::MEDIA, 'schema' => $representations[BinaryResponseSupport::MEDIA]['schema']]
-                    : $this->jsonContent($representations, "$where.responses.$status");
+                    : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"));
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
             }
