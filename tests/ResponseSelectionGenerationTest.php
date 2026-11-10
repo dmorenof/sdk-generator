@@ -85,7 +85,7 @@ final class ResponseSelectionGenerationTest extends TestCase {
             '/items' => ['get' => ['responses' => ['default' => ['description' => 'Fallback', 'schema' => $schema]]]]]];
         self::assertNotEmpty(self::files($swagger));
     }
-    public function testMalformedRangesSwaggerRangesAndBinaryErrorsAreRejected(): void {
+    public function testMalformedRangesAndSwaggerRangesAreRejectedAndBinaryErrorsAreDeclared(): void {
         foreach (['2xx', '20X', '6XX', '2000'] as $status) {
             $d = self::document(); $d['paths']['/responses']['get']['responses'][$status] = ['description' => 'Invalid'];
             try { self::files($d); self::fail('Invalid status accepted.'); } catch (\InvalidArgumentException) { self::assertTrue(true); }
@@ -93,6 +93,6 @@ final class ResponseSelectionGenerationTest extends TestCase {
         $d = ['swagger' => '2.0', 'host' => 'example.test', 'schemes' => ['https'], 'info' => ['title' => 'Test', 'version' => '1'], 'paths' => ['/items' => ['get' => ['responses' => ['2XX' => ['description' => 'Invalid']]]]]];
         try { self::files($d); self::fail('Swagger range accepted.'); } catch (\InvalidArgumentException) { self::assertTrue(true); }
         $d = self::document(); $d['paths']['/responses']['get']['responses']['4XX'] = $d['paths']['/responses']['get']['responses']['201'];
-        $this->expectException(\InvalidArgumentException::class); self::files($d);
+        $files = self::files($d); self::assertStringContainsString("'errorResponses' => [", $files['src/Resources/Responses.php']);
     }
 }

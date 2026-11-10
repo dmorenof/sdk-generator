@@ -33,6 +33,7 @@ final readonly class PhpResourceEmitter
         'responseValidation' => [],
         'requestBody' => null,
         'responseMediaType' => 'application/json',
+        'errorResponses' => [],
     ];
 
     /**
@@ -55,6 +56,8 @@ final readonly class PhpResourceEmitter
         private array $formModels = [],
         /** @var array<string,array<string,array<array-key,string>>> */
         private array $parameterTypes = [],
+        /** @var array<string,array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>> */
+        private array $errorResponses = [],
     ) {}
 
     /** @return array<string,string> */
@@ -365,6 +368,7 @@ PHP;
             'security' => $operation->securityRequirements,
             'success' => $successStatuses,
             'errors' => $this->errorTypes[$operation->operationId] ?? [],
+            'errorResponses' => $this->errorResponses[$operation->operationId] ?? [],
             'responseType' => isset($success['byStatus']) ? null : $success['type'],
             'responseTypes' => $success['byStatus'] ?? [],
             'responseValidation' => $success['rules'] ?? [],

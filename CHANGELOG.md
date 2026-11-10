@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.38.0] — 2026-11-10
+
+- Emit declared error response descriptors for JSON primitive/null values, arrays/collections, maps, enums, compositions and DTOs, plus text/plain and bounded binary errors. Preserve exact/range/default selection and explicit bodyless overrides.
+- Reuse stable runtime ^0.30.0 and existing hydration/validation. ApiException payload exposes general values while its DTO-only error property and legacy constructor/metadata remain compatible. Invalid decoding preserves raw HTTP status/body and the decoding cause.
+- Include error media in Accept, retain direction/constraints/mutation checks and verify real HTTP including malformed JSON, invalid schemas, raw bytes and fallback precedence. Add a 40th installed SDK at PHPStan maximum and published-package smoke.
+- Binary errors retain buffered HttpResponse bytes; arbitrary media, error streaming and representation negotiation remain pending. See docs/ERROR_PAYLOADS.md.
+
 ## [0.37.0] — 2026-11-10
 
 - Resolve local object, enum, map and composition alias chains to canonical PHP types, extending existing scalar/array alias support. Emit no alias wrapper classes and prevent aliases from distorting canonical naming prefixes.
