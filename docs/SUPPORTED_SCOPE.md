@@ -1,51 +1,42 @@
-# v0.29.0 supported scope and known limitations
+# v0.39.0 supported scope and known limitations
 
-**Status: bounded Swagger/OpenAPI support; full conformance remains outside this release.**
+**Stable dependency: sdk-runtime ^0.31.0. Support remains bounded; this is not full OpenAPI/JSON Schema conformance.**
 
-## What is verified
+## Current verified coverage
 
-- The normalizer accepts tested JSON and YAML subsets of Swagger 2.0, OpenAPI 3.0.x and OpenAPI 3.1.x. YAML documents are parsed and passed through the same contract normalization as JSON.
-- The canonical contract uses immutable typed classes: API, operation, schema, parameters, body, model and response. One PHP emitter path writes the output, independent of source dialect.
-- `allOf` generates native inheritance for compatible single-parent object schemas and merges independent bases. `anyOf` and `oneOf` use shared runtime wrappers that evaluate the supported original schemas before hydration; `oneOf` requires exactly one match. Local discriminator mappings select the hydrated class independently of schema validity.
-- Compositions support local model references, primitives, enums, typed arrays and inline object branches where those schemas are otherwise supported. Scalar enum refinements retain inherited PHP types; other conflicting `allOf` properties and unsupported branch/sibling forms fail explicitly.
-- The normalizer preserves `default` metadata but does not materialize defaults into DTOs. `pattern` is validated with Unicode PCRE-compatible expressions. Type-less schemas are represented as `mixed` unless object properties, `additionalProperties`, or `pattern` provide a more specific shape.
-- `readOnly` properties are omitted from request serialization and are not required for requests; `writeOnly` properties are omitted from response serialization and are not required for responses. Directional filtering is recursive for nested DTOs.
-- Query arrays of non-null primitive items use native PHP lists, validated item constraints and bounds. OpenAPI form supports repeated keys (default) and CSV; Swagger supports multi and CSV (default). v0.10.0 adds OpenAPI spaceDelimited/pipeDelimited (omitted/false explode) and Swagger ssv/tsv/pipes. These formats reject items containing their own delimiter; separators are URI-encoded. Null/absent parameters and empty lists are omitted; empty string items are explicit. Simple path/header lists are supported in v0.23.0; flat form/simple objects arrive in v0.24.0. Nested/nullable items, cookies and other styles/flags remain pending. See [query arrays](QUERY_ARRAYS.md).
-- OpenAPI flat deepObject query objects use typed DTOs/Maps with explicit closed or scalar additional-property schemas. Inline/local references, request-direction fields, JSON names, enums and mutations are validated. GET and POST parameter DTOs keep query and JSON body separate, including a query named body. v0.24.0 adds flat form/query and simple/path-header objects with both explode modes. Nested/null properties, unconstrained extras, cookies and other styles remain pending. See [query objects](QUERY_OBJECTS.md) and [flat HTTP objects](OBJECT_PARAMETERS.md).
-- OpenAPI URL-encoded form bodies support explicit closed objects with scalar fields and primitive lists, inline/named schemas and local requestBody references. Per-field form/explode defaults, repeated-key/CSV arrays, required fields, enums, JSON names and directional mutation validation are verified. Query, headers and body remain separate in GetParams/PostParams. Swagger v0.13.0 formData normalizes scalar/list fields to the same runtime with CSV/multi formats and explicit URL-encoded consumes. OpenAPI multipart now supports the bounded binary-string subset below; Swagger v0.16.0 multipart supports scalar/file fields and explicit multi lists through the same runtime. Other formats, nested/open form schemas and styles remain pending. See [forms](FORMS.md).
-- Primitive HTTP parameters support nullable primitive `anyOf` and inline string/integer enums; enum membership is validated before request transmission.
-- Inline object and array success responses generate deterministic operation-derived model/collection classes. Inline object error responses generate operation/status-derived response DTOs. Multiple explicit JSON successes select their types/nullability by actual status and emit native return unions; declared bodyless statuses return null without allowing an empty JSON status.
-- HTTP Basic and token-based HTTP authentication, as well as API keys in headers, query parameters or OpenAPI cookies, are supported (cookie support added in v0.26.0). Root security is inherited by operations; operation-level security overrides it, including `security: []`. Security requirement entries use OpenAPI's OR-between-alternatives and AND-within-an-alternative semantics. Supply credentials through the generated `Core\SecurityCredentials` object, keyed by the OpenAPI scheme name; Basic credentials use `Core\BasicAuthCredentials`.
-- For the small supported subset, emits distinct DTO/model classes with native PHP property types, scalar-backed enums, collections that subclass the existing typedarray/typedarray library, and typed operation methods.
-- Generates an installable Composer package and a minimal runnable API client. GET/POST path, query, headers, JSON body and typed response hydration are verified with **offline mock HTTP**. Nested object, enum and collection hydration have tests.
-- `Client::connect(baseUrl)` returns an independent instance and constructs Guzzle 7 automatically. It also accepts a PSR-18 client, default headers, security credentials, or a custom transport. Route classes expose instance methods and inherit construction/execution behavior. They can be instantiated directly or obtained through `$client->resource(Route::class)`.
-- Rejects a variety of unsupported schema keywords, media types, missing/ambiguous operation IDs, unresolved local references and unsupported input dialects instead of knowingly emitting incomplete code.
-- The acceptance analyzer and its CLI also accept YAML (`.yaml`/`.yml`) and report isolated and full-source generation results through the same parser/emitter.
+- Swagger 2.0, OpenAPI 3.0.x and 3.1.x use the same normalization/emission path for the tested JSON/YAML subset. Strict inspection rejects known unsupported execution and does not silently enable it.
+- Canonical local scalar/object/enum/map/array/composition aliases, recursive object graphs, JSON Pointer URI/~0/~1 schema decoding and explicit opt-in local file bundles are supported. Alias components reuse canonical types without extra wrappers; pure cycles, missing targets and excessive chain depth fail.
+- Compatible single-parent object allOf uses PHP inheritance. Discriminators select classes independently of validity. Existing composition wrappers validate the original JSON snapshot and count every branch: oneOf requires exactly one match, anyOf at least one. Equivalent aliases do not hide ambiguity.
+- OpenAPI 3.1 primitive type sets use native PHP unions. Boolean schemas and scalar/null const, numeric bounds/multiples, Unicode-aware string constraints, property counts and array rules are checked within their supported contexts. Named array aliases reuse native arrays or existing typed collections. Defaults are preserved as metadata and are not materialized into DTOs.
+- Required/readOnly/writeOnly behavior and JSON names are directional and recursive. Validation remains active before sending/serialization and after mutations. Existing shared enum/DTO/Map/TypedArray behavior is reused.
+- Supported HTTP parameters include scalar/list/flat-object form, deepObject, simple, label/matrix and Swagger delimiter formats, bounded allowReserved/allowEmptyValue, scalar cookies/API key cookies, and JSON/text parameter content. GetParams/PostParams keep path/query/header/cookie/body locations separate, including a query named body. Optional null wire parameters stay omitted; required ones cannot silently disappear.
+- Supported JSON root bodies include DTOs, maps, collections, native arrays, scalar values and null. Optional omission differs from explicit JSON null in resources, facades and combined parameter DTOs. Bounded URL-encoded and multipart forms include existing list/object encodings, binary uploads/file lists and JSON parts.
+- Concrete raw MIME string schemas retain opaque CSV/XML/text bytes and constraints. Bounded binary schemas reuse PSR streams for PNG/PDF/SVG and other concrete media, including binary aliases. Vendor/problem +json retains JSON hydration and its declared Accept/Content-Type. Raw CSV/XML are strings, not structured model codecs.
+- Success and error response codecs follow exact/range/default status precedence. Bodyless overrides suppress fallback decoding. ApiException keeps the HTTP status/raw response and DTO-only error property; payload exposes supported scalar/null/list/map/enum/composition/DTO and raw errors. Invalid decoding preserves the HTTP failure and its cause.
+- Runtime execution, security and configuration stay shared. Client::connect constructs Guzzle by default and accepts PSR-18 or legacy custom transports. Public middleware remains reusable; generated resources declare types and operation metadata. Existing protected DTO executor signatures remain supported.
+- HTTP Basic, bearer tokens and API keys in supported locations retain inherited/overridden OR/AND security requirements. Literal HTTP(S) operation servers support existing per-environment overrides.
+- Local validation covers 464 generator tests / 3,728 assertions and runtime 169 / 954. CI installs 41 independent generated SDKs at PHPStan maximum, with source/published-package HTTP smoke. File-backed 32 MiB input/output tests run under PHP 16 MiB; this does not promise arbitrary-client/RSS/streaming guarantees.
 
-## What is deliberately NOT guaranteed
+## Remaining boundaries
 
-- YAML support does not expand the supported OpenAPI feature set: YAML input is subject to the same deliberate subset and explicit rejections as JSON.
-- Not a general OpenAPI 3.1 / JSON Schema implementation; external references/mappings, arbitrary native unions, `not`/`const`, general schema composition, advanced formats, OAuth2/OpenID Connect authorization flows, structured/JSON cookie parameters, streaming downloads/non-seekable files and advanced form/multipart support are not implemented. Patterns using ECMA-regex features that differ from PCRE may not validate identically. For OAuth2, provide a previously obtained bearer token only when the security scheme is declared as HTTP bearer; the generator does not acquire or refresh tokens.
-- OAuth2/OpenID Connect authorization flows are not implemented; credentials must be supplied by the caller, and tokens are not acquired or refreshed by the SDK.
-- Multiple explicit JSON success statuses select their own hydrators and native return types in v0.22.0; binary-only successes share the bounded PSR codec from v0.20.0. Mixed JSON/binary successes and some non-object error schemas remain unsupported. Multiple advertised media types are accepted when at least one JSON representation exists and all JSON variants share the same schema; incompatible JSON schemas are rejected. Versioned JSON media types are supported. The full original FakeRESTApi OpenAPI document generates successfully, with live GET list/single and POST response checks.
-- Required fields and supported schema constraints are validated before outbound request serialization. Native PHP types constrain assigned values, but this is not full JSON Schema validation and does not cover every format or constraint.
-- Explicit `additionalProperties` and discriminated families preserve permitted extra JSON fields. Other generated DTOs reject unknown fields; a general configurable policy remains pending. Input JSON property names must be representable by supported generated PHP identifiers.
-- The generated SDK defaults to Guzzle 7; a PSR-18 client is optionally injectable. Shared HTTP behavior is provided by stable `sdk-runtime` v0.22.1 or later compatible versions (`^0.22.1`).
-- No tested live integration with Casafari or a production external API; only owned synthetic fixtures. No general latency, memory or security superiority claim versus OpenAPI Generator.
-- Existing Casafari SDK middleware that uses by-reference arguments and bool callbacks **is not** an interchangeable instance of Guzzle HandlerStack middleware. This release does not change Casafari SDK.
+- Remote/dynamic/general reference scopes, arbitrary schema locations, IDs/anchors/dynamic references and general validation siblings of schema $ref remain incomplete. String inspection remains offline; local file loading is explicit.
+- Native object/array type-set alternatives, general non-object allOf/intersections, general not/conditional vocabularies and complex const remain outside the bounded schema implementation. PHP numeric precision and existing composition limits still apply.
+- Nested/unconstrained HTTP structures, structured/JSON cookies, advanced multipart headers/explode behavior, non-seekable inputs and general nullable collection-item support remain limited. See each serializer's contract.
+- Wildcard MIME selection, incompatible representation negotiation, structured XML/CSV models and charset transcoding remain pending. Binary schemas retain their bounded rules. Binary error bodies remain buffered in HttpResponse; legacy custom transports materialize string bodies.
+- Declared response header schemas are preserved but are not generally validated/exposed through a typed response wrapper. General cookie persistence, redirect policy and protocol edge cases remain pending.
+- OAuth2/OIDC token acquisition, relative/template/variable servers and live authenticated Casafari migration are not completed. No production migration or authenticated acceptance is claimed by mock/TCP tests.
 
-## Roadmap (not promises about 0.4.0)
+Use [pendientes.md](../pendientes.md) for the remaining roadmap and the focused contracts: [schema rules](SCHEMA_RULES.md), [native types](NATIVE_SCHEMAS.md), [JSON bodies](REQUEST_BODIES.md), [aliases](SCHEMA_ALIASES.md), [errors](ERROR_PAYLOADS.md), [MIME](MIME_MEDIA.md), [forms](FORMS.md) and [parameter serialization](OBJECT_PARAMETERS.md).
 
-Broader OpenAPI coverage, more live endpoint cases (including authenticated requests and PATCH where safe), and feature-equivalent performance/usability comparisons.
+## Historical delivery notes
 
-Please report supported-schema failures through GitHub Issues with a small **redacted** reproducible JSON specification (no keys or tokens).
-
+The sections below record the limits of their original releases. Later milestones and the current coverage above supersede those historical limits; they are not a second current feature checklist.
 
 ## Polymorphic models (since 0.3.0)
 
 Generator 0.3.0 ([PR #19](https://github.com/dmorenof/sdk-generator/pull/19)) is
 coordinated with runtime 0.4.0 ([PR #6](https://github.com/dmorenof/sdk-runtime/pull/6)).
-The current generator and generated Composer packages require stable runtime `^0.22.1`;
+This historical milestone originally introduced stable runtime dependencies; current packages use `^0.31.0`;
 installation no longer depends on a development branch.
 
 - Compatible single-parent object `allOf` models use real PHP inheritance. Only
