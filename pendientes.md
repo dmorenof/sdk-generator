@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.31.0** y `dmorenof/sdk-runtime` **v0.24.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.32.0** y `dmorenof/sdk-runtime` **v0.25.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -174,13 +174,13 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.29.0 y runtime v0.22.1 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
+**Situación actual:** generador v0.32.0 y runtime v0.25.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
 
 ### Revisión acordada de getParameters y postParameters
 
-- [ ] **Parcial — Revisión de `getParameters`/`postParameters`.** v0.13.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded OpenAPI/Swagger. No existen símbolos literales getParameters/postParameters en el emisor actual. v0.15.0 añade multipart OpenAPI y v0.16.0 Swagger con bytes binarios; v0.18.0 preserva streams por PSR-18. Quedan encoding avanzado y otros escenarios de streaming.
-- [ ] **Parcial — Separar método y ubicación.** v0.13.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded OpenAPI/Swagger, y distingue un query llamado body del payload real. v0.15.0/v0.16.0 verifican también el subconjunto multipart OpenAPI/Swagger; quedan las combinaciones de sus formatos pendientes.
-- [ ] **Parcial — Pruebas GET/POST HTTP y forms.** v0.12.0 cubre GET query, POST query + headers + JSON/urlencoded, nombres coincidentes/body, arrays, ausente/null/vacío y mutaciones; URL, Content-Type y bytes exactos, PSR-18, HTTP real cloud-local e instalación independiente. v0.15.0/v0.16.0 añaden esas comprobaciones a multipart OpenAPI/Swagger; las extensiones de multipart siguen abiertas.
+- [x] **Revisión de `getParameters`/`postParameters` (subconjunto publicado).** v0.13.0 revisa los DTOs actuales `GetParams`/`PostParams`, firmas de fachadas/recursos y query + body JSON/urlencoded OpenAPI/Swagger. No existen símbolos literales getParameters/postParameters en el emisor actual. v0.15.0 añade multipart OpenAPI y v0.16.0 Swagger con bytes binarios; v0.18.0 preserva streams por PSR-18. v0.32.0 añade objetos de form, listas delimitadas y partes JSON. La revisión de firmas, ubicación y mutaciones está completada; ampliaciones de encoding/streaming se siguen en sus apartados.
+- [x] **Separar método y ubicación (subconjunto publicado).** v0.13.0 comprueba query en GET/POST junto con headers y body JSON/urlencoded OpenAPI/Swagger, y distingue un query llamado body del payload real. v0.15.0/v0.16.0 verifican también el subconjunto multipart OpenAPI/Swagger; quedan las combinaciones de sus formatos pendientes.
+- [x] **Pruebas GET/POST HTTP y forms del subconjunto publicado.** v0.12.0 cubre GET query, POST query + headers + JSON/urlencoded, nombres coincidentes/body, arrays, ausente/null/vacío y mutaciones; URL, Content-Type y bytes exactos, PSR-18, HTTP real cloud-local e instalación independiente. v0.15.0/v0.16.0 añaden esas comprobaciones a multipart OpenAPI/Swagger; las extensiones de multipart siguen abiertas.
 
 ### OpenAPI 3.x
 
@@ -207,7 +207,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.9.0 — Arrays query primitivos con `collectionFormat: csv/multi`**, incluido default CSV de Swagger.
 - [x] **v0.10.0 — Arrays query primitivos con `collectionFormat: ssv`, `tsv` y `pipes`.**
 - [x] **Listas primitivas Swagger path/header:** CSV en v0.23.0 y ssv/tsv/pipes en v0.30.0 / runtime v0.23.0. Reutiliza metadatos/DTOs y serializador compartido; multi no es válido en estas ubicaciones. Ver [límites y encoding](docs/SIMPLE_PARAMETERS.md#swagger-delimited-pathheader-lists--v0300).
-- [ ] **Parcial — Arrays Swagger por ubicación.** Query primitivo csv/multi/ssv/tsv/pipes, path/header csv/ssv/tsv/pipes y formData csv/multi publicados; otros formatos formData y estructuras pendientes.
+- [ ] **Parcial — Arrays Swagger por ubicación.** Query primitivo csv/multi/ssv/tsv/pipes, path/header csv/ssv/tsv/pipes y formData URL-encoded csv/multi/ssv/tsv/pipes publicados; formatos multipart adicionales y estructuras pendientes.
 
 ### Entrega de arrays query — v0.9.0 / runtime v0.6.0
 
@@ -257,8 +257,8 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 - [ ] **Parcial — Revisión HTTP/forms del paquete 03.** GetParams/PostParams con query + urlencoded en v0.12.0 y multipart básico OpenAPI en v0.15.0/Swagger en v0.16.0. Streaming PSR-18 se añade en v0.18.0; quedan encoding avanzado y otros escenarios de streaming.
 - [x] **v0.12.0 — application/x-www-form-urlencoded:** objetos cerrados con campos escalares/listas primitivas, encoding form/explode, inline/referencias locales, DTOs y validación tras mutaciones.
-- [ ] Ampliar formularios a objetos/mapas abiertos, estructuras complejas, otros estilos y negociación de representaciones.
-- [ ] **Parcial — multipart/form-data:** v0.15.0 ejecuta objetos cerrados planos con texto, listas repetidas y archivos binary en strings; contentType por campo binario y MIME mediante Guzzle. v0.16.0 incorpora Swagger type:file y listas multi. v0.19.0 añade listas de archivos binarias OpenAPI. Quedan headers por parte, objetos/nesting y otros encoding.
+- [ ] **Parcial — Formularios ampliados:** v0.32.0 añade campos objeto/mapa planos con form/deepObject y listas spaceDelimited/pipeDelimited. Quedan cuerpos raíz abiertos, estructuras URL-encoded arbitrarias y negociación de representaciones.
+- [ ] **Parcial — multipart/form-data:** v0.15.0 ejecuta objetos cerrados planos con texto, listas repetidas y archivos binary en strings; contentType por campo binario y MIME mediante Guzzle. v0.16.0 incorpora Swagger type:file y listas multi. v0.19.0 añade listas de archivos binarias OpenAPI. v0.32.0 añade objetos/mapas/nesting JSON, arrays complejos repetidos y escalares JSON explícitos. Quedan headers por parte, explode:false y otros encoding.
 - [ ] **Parcial — Subida de archivos binarios:** v0.17.0 acepta strings o UploadedFileInterface con nombres/MIME configurables y streams de entrada readable/seekable. v0.18.0 preserva streams por PSR-18 y verifica 32 MiB bajo límite PHP 16 MiB; solo los transportes personalizados antiguos mantienen el string completo. v0.19.0 añade listas OpenAPI. Quedan nesting, entradas no seekables y garantías generales para otros clientes/middleware/respuestas.
 - [x] **v0.19.0 — Listas de archivos OpenAPI:** arrays nativos string|UploadedFileInterface, nombres de parte repetidos, MIME/nombre por archivo, validación/mutaciones/herencia y memoria comprobada. Swagger 2.0 no define arrays de file válidos.
 - [x] **v0.18.0 — Streaming multipart PSR-18:** adaptador existente, archivos seekables, rebobinado tras middleware y repetición; compatibilidad de transportes antiguos y prueba de memoria en instalación independiente.
@@ -524,10 +524,10 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 ## 9. [P2] Funcionalidades específicas de Swagger 2.0
 
 - [ ] Múltiples `consumes` y `produces`.
-- [ ] **Parcial — `collectionFormat`.** Query primitivo csv/multi/ssv/tsv/pipes y formData csv/multi publicados; otros formatos/ubicaciones pendientes (paquete 03).
+- [ ] **Parcial — `collectionFormat`.** Query y formData URL-encoded csv/multi/ssv/tsv/pipes, path/header csv/ssv/tsv/pipes publicados; quedan formatos multipart adicionales (paquete 03).
 - [x] **v0.13.0 — formData URL-encoded Swagger:** escalares/listas primitivas csv (default)/multi, required/validación, alias locales y overrides. Multipart/archivos y otros formatos quedan abiertos.
 - [ ] **Parcial — Tipo file/transmisión:** subida multipart Swagger en v0.16.0, streams PSR en v0.18.0 y descarga PSR type:file octet-stream en v0.21.0. Quedan MIME/negociación, entradas no seekables y garantías generales de streaming.
-- [ ] **Parcial — Arrays HTTP Swagger.** Query primitivo y formData csv/multi publicados; otras ubicaciones y formatos form pendientes.
+- [ ] **Parcial — Arrays HTTP Swagger.** Query/formData URL-encoded con todos los formatos y path/header csv/ssv/tsv/pipes publicados; quedan formatos multipart adicionales.
 - [x] **v0.5.0:** referencias locales con nombre `#/parameters/...` y `#/responses/...`, con alias y parámetros body.
 - [ ] `securityDefinitions` OAuth2 y scopes.
 - [ ] Validación y metadatos específicos del dialecto.
@@ -714,3 +714,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - Runtime v0.24.0 publicado primero con CI, 138 pruebas y smoke de instalación/HTTP; generador y SDKs requieren ^0.24.0 estable.
 - JSON/YAML, referencias, esquema inválido sin fallback, errores raw, mutación y GetParams/PostParams comprobados. El SDK número 32 pasa PHPStan máximo y nueve escenarios HTTP reales; smoke de publicación incluido.
 - Compatibilidad de SDKs binarios conservada. Siguen pendientes HEAD/205 general, headers tipados, errores escalares/binarios y varios MIME en un estado.
+
+
+### Bloque de forms — v0.32.0 / runtime v0.25.0
+
+- Entrega conjunta: listas Swagger URL-encoded csv/multi/ssv/tsv/pipes, objetos/mapas form y deepObject, listas OpenAPI delimitadas y multipart JSON con modelos/mapas/nesting/colecciones. Todo reutiliza serializers y MIME de Guzzle; sin nuevas firmas de ejecución.
+- Runtime v0.25.0 publicado primero con 142 pruebas, PHPStan máximo, CI y smoke de instalación/HTTP. Generador/SDKs requieren ^0.25.0 estable.
+- Dos SDKs nuevos independientes llevan la batería a 34; HTTP real comprueba query/body, headers, bytes binarios, JSON direction, Unicode y mutaciones. Actualizados límites históricos que ya no describían lo implementado.
+- La revisión GetParams/PostParams y separación de ubicaciones queda marcada como hecha para el subconjunto publicado. Siguen pendientes root forms abiertos, nesting URL-encoded arbitrario, headers por parte, otros formatos multipart y negociación de representaciones.

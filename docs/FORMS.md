@@ -47,7 +47,8 @@ POST query + headers + form, coincident names, empty/null values and mutations.
 A cloud-local HTTP server verifies real request bytes; release verification
 installs the generated SDK separately from the generator.
 
-Nested objects/lists, nullable list items, open/map bodies, other styles,
+v0.32.0 adds flat object fields, deepObject and delimited lists below.
+Nested URL-encoded values, nullable list items and open root bodies,
 contentType/headers in URL-encoded encoding and allowReserved true remain
 unsupported and diagnosed. Swagger 2.0 URL-encoded formData and the bounded OpenAPI
 multipart subset are described below.
@@ -90,8 +91,9 @@ when any form field is required; all-optional forms can omit the body entirely.
 Scalar constraints, string/integer enums, descriptions/default metadata and the
 supported nullable extensions are retained. Defaults are not materialized.
 
-Files in URL-encoded bodies, objects/nested lists, nullable list items, ssv/tsv/pipes form
-arrays, scalar collectionFormat, malformed flags/options and multiple consumes
+v0.32.0 adds ssv/tsv/pipes URL-encoded form arrays. Files in URL-encoded bodies,
+objects/nested lists in Swagger, nullable list items, scalar collectionFormat,
+malformed flags/options and multiple consumes
 representations remain unsupported and diagnosed. Query ssv/tsv/pipes support is
 unchanged. Multipart support for both dialects is described below.
 
@@ -149,8 +151,8 @@ stream. Legacy custom transports still accept complete strings and therefore
 buffer. Use file-backed PSR uploads for large files; see measured limits below.
 Readable, seekable streams are accepted through PSR UploadedFileInterface since
 v0.17.0, with configurable filenames; OpenAPI binary lists are added in v0.19.0.
-Direct stream/resource properties, nested objects, open maps, null list items,
-CSV multipart arrays and per-part
+v0.32.0 adds JSON parts for nested models/maps below. Direct stream/resource
+properties, nested file data, CSV multipart arrays and per-part
 headers remain pending. Binary enum/pattern/minLength/maxLength constraints are rejected
 because their current Unicode string semantics do not validate arbitrary bytes.
 Binary DTOs are sent through multipart; JSON encoding arbitrary byte strings can
@@ -367,3 +369,63 @@ client/middleware/legacy transport/response memory limits still apply.
 ## Explicit empty-value policy (v0.28.0)
 
 Swagger formData allowEmptyValue booleans are accepted for supported fields. Existing DTO types/required/constraints and serialization remain authoritative: explicit valid empty strings become name= in URL-encoded forms, optional null/absent fields are omitted and multipart schemas/bytes remain unchanged. OpenAPI form fields use their schemas rather than a new encoding flag. See [query/form/JSON distinctions and HTTP evidence](EMPTY_VALUES.md).
+
+
+## Form encoding block — v0.32.0
+
+Generator and SDKs require published stable runtime ^0.25.0. The block reuses
+QuerySerializer, model request serialization and Guzzle MultipartStream.
+Generated methods keep their existing identifier/payload signatures and declare
+only operation metadata.
+
+### URL-encoded forms
+
+Swagger 2.0 formData primitive lists support all five collectionFormat values:
+csv (default), multi, ssv, tsv and pipes. Multi repeats the key; other formats
+join encoded items. Space uses +, tab %09 and pipe %7C under native RFC1738 form
+encoding. Data is encoded once, preserving Unicode, percent, false and zero.
+Values containing their space/tab/pipe separator fail instead of becoming
+ambiguous. Swagger multipart still supports its existing multi list subset.
+
+OpenAPI 3.0/3.1 adds spaceDelimited/pipeDelimited primitive lists with explode:false
+(the non-form default is false). Flat scalar-valued DTO/Map fields support form
+with explode false or true, and deepObject with explode:true. Defaults retain
+form/explode:true. These use the same shape/key/constraint rules as supported
+query objects, including typed additional-property values. Names expanded into
+another form field fail before transport. Query and form fields are separate
+namespaces; a query named body remains queryBody alongside the body DTO.
+
+The root body remains a closed object; nested form objects must be flat scalar
+objects/maps. Arbitrary nested URL-encoded serialization is not invented.
+Unsupported style/type combinations, scalar collectionFormat, malformed flags,
+unknown names and conflicting options fail strict generation.
+
+### JSON multipart parts
+
+Complex properties use application/json by default: DTOs/maps, supported
+compositions and arrays of complex values. An explicit application/json or
+application/vendor+json contentType also supports primitive JSON parts.
+A string becomes a quoted JSON string; nested values retain their JSON shape.
+Arrays use repeated parts, each containing the JSON serialization of one item.
+Empty arrays produce no parts; absent/null outer fields retain omission behavior.
+
+Serialization preserves JSON names, request-direction constraints and readOnly
+filtering before MIME construction. Files remain binary parts with the existing
+UploadedFileInterface and stream handling; a JSON part cannot also be a file.
+JSON nested file data is rejected rather than silently converted to an object.
+text/plain or XML cannot serialize a complex model in this subset.
+
+Only form/explode:true multipart expansion is supported. Per-part headers,
+explode:false aggregation, arbitrary contentType parameters and root/open form
+bodies remain pending, as does selection among multiple request representations.
+Nested binary lists retain their previous limits.
+
+### Verification
+
+JSON/YAML, OpenAPI 3.0/3.1, Swagger aliases and reusable request bodies are checked,
+alongside constructor/execution validation and nested/collection mutations.
+Two independently installed SDKs pass PHPStan maximum (34 SDKs in the suite).
+A shared actual HTTP smoke checks form object expansion, every Swagger list
+format, multipart JSON/nesting/readOnly, raw file bytes, Unicode, query named body
+and headers. The same consumers run from the immutable installed generator.
+Existing streaming and download memory smokes remain green.

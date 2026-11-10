@@ -5,7 +5,7 @@
     "license": "MIT",
     "require": {
         "composer-runtime-api": "^2.2",
-        "dmorenof/sdk-runtime": "^0.24.0",
+        "dmorenof/sdk-runtime": "^0.25.0",
         "ext-intl": "*",
         "friendsofphp/php-cs-fixer": "^3.95",
         "php": "^8.3",

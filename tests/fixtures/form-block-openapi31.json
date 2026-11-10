@@ -1,0 +1,273 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Form Block API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Flat": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "flag"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "flag": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Expanded": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "city",
+          "zip"
+        ],
+        "properties": {
+          "city": {
+            "type": "string",
+            "minLength": 1
+          },
+          "zip": {
+            "type": "integer"
+          }
+        }
+      },
+      "Deep": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "Nested": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "flag"
+        ],
+        "properties": {
+          "flag": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "code",
+          "nested"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "readOnly": true
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nested": {
+            "$ref": "#/components/schemas/Nested"
+          }
+        }
+      },
+      "Form": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "body",
+          "space",
+          "pipe",
+          "filter",
+          "expanded",
+          "deep"
+        ],
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "space": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "pipe": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filter": {
+            "$ref": "#/components/schemas/Flat"
+          },
+          "expanded": {
+            "$ref": "#/components/schemas/Expanded"
+          },
+          "deep": {
+            "$ref": "#/components/schemas/Deep"
+          }
+        }
+      },
+      "Multipart": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profile",
+          "batch",
+          "asJson",
+          "document",
+          "count"
+        ],
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
+          },
+          "batch": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/Profile"
+            }
+          },
+          "asJson": {
+            "type": "string"
+          },
+          "document": {
+            "type": "string",
+            "format": "binary"
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/form": {
+      "post": {
+        "operationId": "postForm",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Form"
+              },
+              "encoding": {
+                "space": {
+                  "style": "spaceDelimited",
+                  "explode": false
+                },
+                "pipe": {
+                  "style": "pipeDelimited",
+                  "explode": false
+                },
+                "filter": {
+                  "style": "form",
+                  "explode": false
+                },
+                "expanded": {
+                  "style": "form",
+                  "explode": true
+                },
+                "deep": {
+                  "style": "deepObject",
+                  "explode": true
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    },
+    "/multipart": {
+      "post": {
+        "operationId": "postMultipart",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Multipart"
+              },
+              "encoding": {
+                "batch": {
+                  "contentType": "application/vnd.test+json"
+                },
+                "asJson": {
+                  "contentType": "application/json"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  }
+}

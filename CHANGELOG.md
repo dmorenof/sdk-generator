@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.32.0] — 2026-11-10
+
+- Deliver one HTTP form block: Swagger URL-encoded csv/multi/ssv/tsv/pipes lists; OpenAPI spaceDelimited/pipeDelimited lists and flat DTO/Map form/exploded/deepObject fields; multipart JSON models, maps, nested values, repeated complex items and explicit JSON scalar parts.
+- Reuse parameter expansion, request-direction model serialization and Guzzle MultipartStream through published stable runtime ^0.25.0. Preserve query/body separation, native form encoding, readOnly/JSON names and binary streams without new wrappers or executor APIs.
+- Verify JSON/YAML, OpenAPI 3.0/3.1, Swagger aliases, constraints/mutations, delimiter/collision errors and real HTTP. Add two independently installed SDKs (34 total) at PHPStan maximum and a shared source/published installation smoke.
+- Root open forms, undefined nested URL-encoded structures, multipart per-part headers/explode:false and multiple request representations remain outside the supported subset. Update older limits and completed GetParams/PostParams review in pendientes.md.
+
 ## [0.31.0] — 2026-11-10
 
 - Deliver HTTP response selection as one block: OpenAPI uppercase 1XX–5XX selectors, exact/range/default precedence, default-only successes and JSON/binary/bodyless success mixtures. Swagger keeps exact codes/default and rejects ranges.

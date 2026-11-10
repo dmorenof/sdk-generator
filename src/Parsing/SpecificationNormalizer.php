@@ -430,7 +430,8 @@ final class SpecificationNormalizer
                 $formFields[] = new PropertyDefinition($raw['name'],
                     $this->schema($fieldSchema, $dialect, "$where.formData." . $raw['name']), $raw['required'] ?? false);
                 if ($raw['type'] === 'array') {
-                    $formEncoding[$raw['name']] = ['style' => 'form', 'explode' => ($raw['collectionFormat'] ?? 'csv') === 'multi'];
+                    $formEncoding[$raw['name']] = ['style' => 'form', 'explode' => ($raw['collectionFormat'] ?? 'csv') === 'multi']
+                        + (in_array($raw['collectionFormat'] ?? 'csv', ['ssv', 'tsv', 'pipes'], true) ? ['collectionFormat' => $raw['collectionFormat']] : []);
                 }
                 continue;
             }
