@@ -45,13 +45,13 @@ final class SpecificationNormalizer
             'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'uniqueItems', 'minProperties', 'maxProperties', 'const',
             'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf', 'discriminator',
             'not', 'if', 'then', 'else', 'contains', 'minContains', 'maxContains',
-            'dependentRequired', 'dependentSchemas', 'propertyNames', 'prefixItems',
+            'dependentRequired', 'dependentSchemas', 'propertyNames', 'prefixItems', 'patternProperties', 'unevaluatedProperties', 'unevaluatedItems',
     ];
 
     public function fromYaml(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
     {
         try {
-            $document = Yaml::parse($source, Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+            $document = SpecificationData::yaml($source);
             $json = json_encode($document, JSON_THROW_ON_ERROR);
         } catch (ParseException|JsonException $exception) {
             throw new InvalidArgumentException('Invalid specification YAML.', 0, $exception);
@@ -88,7 +88,7 @@ final class SpecificationNormalizer
     public function fromJson(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
     {
         try {
-            $document = json_decode($source, true, 512, JSON_THROW_ON_ERROR);
+            $document = SpecificationData::json($source);
         } catch (JsonException $exception) {
             throw new InvalidArgumentException('Invalid specification JSON.', 0, $exception);
         }
@@ -736,7 +736,7 @@ final class SpecificationNormalizer
             [$structural, $guard] = $declarative;
             $schema = $this->schema($structural, $dialect, $where);
             $arguments = get_object_vars($schema);
-            $arguments['validation']['jsonSchema'] = $guard;
+            $arguments['validation']['jsonSchema'] = DeclarativeSchemaRules::conjoin($arguments['validation']['jsonSchema'] ?? null, $guard);
             return new SchemaDefinition(...$arguments);
         }
 
@@ -750,6 +750,32 @@ final class SpecificationNormalizer
             if (isset($raw[$annotation]) && !is_string($raw[$annotation])) {
                 throw new InvalidArgumentException("Invalid schema $annotation at $where.");
             }
+        }
+
+        if ($this->jsonSchema31 && is_array($raw['type'] ?? null) && array_is_list($raw['type']) && count($raw['type']) === 1) {
+            $raw['type'] = $raw['type'][0];
+            return $this->schema($raw, $dialect, $where);
+        }
+
+        if ($this->jsonSchema31 && is_array($raw['type'] ?? null)
+            && count($raw['type']) > 1 && array_intersect($raw['type'], ['object', 'array']) !== []
+            && !(count($raw['type']) === 2 && in_array('null', $raw['type'], true))) {
+            $types = $raw['type'];
+            if (!array_is_list($types) || count(array_filter($types, 'is_string')) !== count($types)
+                || count(array_unique($types)) !== count($types)
+                || array_diff($types, ['string', 'integer', 'number', 'boolean', 'null', 'object', 'array']) !== []) {
+                throw new InvalidArgumentException("Invalid JSON Schema type set at $where.");
+            }
+            foreach (['readOnly', 'writeOnly'] as $flag) {
+                if (array_key_exists($flag, $raw) && !is_bool($raw[$flag])) { throw new InvalidArgumentException("Invalid $flag at $where."); }
+            }
+            $guard = DeclarativeSchemaRules::encode(array_diff_key($raw, array_flip(['readOnly', 'writeOnly'])), $where);
+            return new SchemaDefinition(SchemaKind::AnyOf,
+                validation: ['schema' => true, 'jsonSchema' => $guard],
+                readOnly: $raw['readOnly'] ?? false, writeOnly: $raw['writeOnly'] ?? false,
+                branches: array_map(static fn (string $type): SchemaDefinition => new SchemaDefinition(SchemaKind::from($type)), $types),
+                title: $raw['title'] ?? null, description: $raw['description'] ?? null,
+                default: $raw['default'] ?? null, hasDefault: array_key_exists('default', $raw));
         }
 
         if (is_array($raw['type'] ?? null) && !(count($raw['type']) === 2 && in_array('null', $raw['type'], true))) {
@@ -782,7 +808,7 @@ final class SpecificationNormalizer
                 }));
                 $this->schema(['type' => $type] + $applicable, $dialect, $where . '.type.' . $type);
             }
-            return new SchemaDefinition(SchemaKind::AnyOf, validation: ['schema' => $guard],
+            return new SchemaDefinition(SchemaKind::AnyOf, validation: ['schema' => true, 'jsonSchema' => DeclarativeSchemaRules::encode($guard, $where)],
                 branches: array_map(static fn (string $type): SchemaDefinition => new SchemaDefinition(SchemaKind::from($type)), $types),
                 readOnly: $raw['readOnly'] ?? false, writeOnly: $raw['writeOnly'] ?? false,
                 title: $raw['title'] ?? null, description: $raw['description'] ?? null,
@@ -944,6 +970,7 @@ final class SpecificationNormalizer
                 }
             }
         } elseif ($kind === SchemaKind::Array) {
+            if ($this->jsonSchema31 && !array_key_exists('items', $raw)) { $raw['items'] = true; }
             if (!is_array($raw['items'] ?? null) && !($this->jsonSchema31 && is_bool($raw['items'] ?? null))) {
                 throw new InvalidArgumentException("Array items are missing at $where.");
             }
@@ -951,7 +978,7 @@ final class SpecificationNormalizer
         }
 
         $enumValues = $raw['enum'] ?? [];
-        if (!is_array($enumValues)) {
+        if (!is_array($enumValues) || !array_is_list($enumValues) || (array_key_exists('enum', $raw) && $enumValues === [])) {
             throw new InvalidArgumentException("Invalid enum at $where.");
         }
         usort($enumValues, static fn ($a, $b): int => strcmp(json_encode($a), json_encode($b)));
@@ -1006,8 +1033,19 @@ final class SpecificationNormalizer
             $validation['uniqueItems'] = $raw['uniqueItems'];
         }
         if (array_key_exists('const', $raw)) {
-            if (!$this->jsonSchema31 || !in_array($kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed], true) || (is_array($raw['const']) || is_object($raw['const']))) { throw new InvalidArgumentException("Only OpenAPI 3.1 scalar/null const values are supported at $where."); }
-            $validation['const'] = $raw['const'];
+            if (!$this->jsonSchema31) { throw new InvalidArgumentException("Const requires OpenAPI 3.1 at $where."); }
+            if (is_array($raw['const']) || is_object($raw['const'])) {
+                $validation['jsonSchema'] = DeclarativeSchemaRules::encode(['const' => $raw['const']], $where);
+            } else {
+                $validation['const'] = $raw['const'];
+            }
+        }
+        $backedEnum = ($kind === SchemaKind::String && count(array_filter($enumValues, 'is_string')) === count($enumValues))
+            || ($kind === SchemaKind::Integer && count(array_filter($enumValues, 'is_int')) === count($enumValues));
+        if ($enumValues !== [] && !$backedEnum) {
+            $validation['jsonSchema'] = DeclarativeSchemaRules::conjoin($validation['jsonSchema'] ?? null,
+                DeclarativeSchemaRules::encode(['enum' => $enumValues], $where));
+            $enumValues = [];
         }
         foreach ([['minLength', 'maxLength'], ['minimum', 'maximum'], ['minItems', 'maxItems'], ['minProperties', 'maxProperties']] as [$lower, $upper]) {
             if (isset($validation[$lower], $validation[$upper]) && $validation[$lower] > $validation[$upper]) {
@@ -1017,6 +1055,10 @@ final class SpecificationNormalizer
 
         if ($kind === SchemaKind::Array && $items !== null && array_key_exists('schema', $items->validation)) {
             $validation['schema'] = ['type' => $nullable ? ['array', 'null'] : 'array', 'items' => $items->validation['schema']];
+        }
+
+        if ($kind === SchemaKind::Array && $items !== null && isset($items->validation['jsonSchema'])) {
+            $validation['jsonSchema'] = DeclarativeSchemaRules::conjoin($validation['jsonSchema'] ?? null, json_encode(['items' => json_decode($items->validation['jsonSchema'], false, 512, JSON_THROW_ON_ERROR)], JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
         }
 
         if ($discriminator !== null && $kind !== SchemaKind::Object) {

@@ -171,8 +171,8 @@ final class LocalFileBundler
             $this->fail('source_hash_mismatch', "Root SHA-256 does not match the pinned input: expected {$this->expectedRootHash}, received $hash.", $file, '', []);
         }
         try {
-            $document = $extension === 'json' ? json_decode($bytes, true, 512, JSON_THROW_ON_ERROR)
-                : Yaml::parse($bytes, Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+            $document = $extension === 'json' ? SpecificationData::json($bytes)
+                : SpecificationData::yaml($bytes);
         } catch (\Throwable $exception) {
             $this->fail('invalid_reference_document', 'Invalid JSON/YAML source: ' . $exception->getMessage(), $source, $pointer, $chain);
         }

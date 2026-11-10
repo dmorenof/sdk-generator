@@ -310,7 +310,7 @@ final class PhpContractEmitter
                 // Deliberately uninitialized when absent, including optional fields.
                 // Calling get_object_vars() preserves the absent-vs-null distinction.
                 $docTags = [];
-                if (!$fileList && ltrim($type, '?') === 'array') { $docTags[] = '@var list<mixed>' . ($nullable ? '|null' : ''); }
+                if (!$fileList && PhpDoc::hasArray($type)) { $docTags[] = '@var ' . PhpDoc::type($type); }
                 if ($fileList) { $docTags[] = '@var list<string|\\Psr\\Http\\Message\\UploadedFileInterface>' . ($nullable ? '|null' : ''); }
                 $fields[] = PhpDoc::render(['description' => $property->schema->description ?? $propertySchema->description, 'format' => $propertySchema->format] + $property->schema->annotations, $docTags)
                     . '    public ' . $type . ' $' . $propertyName . ';';
@@ -630,7 +630,7 @@ final class PhpContractEmitter
         if (array_key_exists('schema', $schema->validation)) {
             $types = [];
             foreach ($schema->branches as $branch) {
-                $types[] = match ($branch->kind) { SchemaKind::String => 'string', SchemaKind::Integer => 'int', SchemaKind::Number => 'float', SchemaKind::Boolean => 'bool', SchemaKind::Null => 'null', default => throw new InvalidArgumentException('Unsupported native type union.') };
+                $types[] = match ($branch->kind) { SchemaKind::String => 'string', SchemaKind::Integer => 'int', SchemaKind::Number => 'float', SchemaKind::Boolean => 'bool', SchemaKind::Null => 'null', SchemaKind::Object => '\\stdClass', SchemaKind::Array => 'array', default => throw new InvalidArgumentException('Unsupported native type union.') };
             }
             return implode('|', array_unique($types));
         }
@@ -930,7 +930,7 @@ final class PhpContractEmitter
             }
             foreach ($branch->validation as $rule => $limit) {
                 if ($rule === 'jsonSchema' && isset($validation[$rule])) {
-                    $validation[$rule] = json_encode(['allOf' => [json_decode($validation[$rule], false, 512, JSON_THROW_ON_ERROR), json_decode($limit, false, 512, JSON_THROW_ON_ERROR)]], JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
+                    $validation[$rule] = \Dmorenof\SdkGenerator\Parsing\DeclarativeSchemaRules::conjoin($validation[$rule], $limit);
                     continue;
                 }
                 $validation[$rule] = isset($validation[$rule]) ? ($rule === 'minProperties' ? max($validation[$rule], $limit) : min($validation[$rule], $limit)) : $limit;

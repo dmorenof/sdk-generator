@@ -251,7 +251,7 @@ final readonly class PhpOperationRequestEmitter
                         ->fqcn($body->schema->reference)
                     : throw new InvalidArgumentException("Missing inline request body type at $operation->operationId"));
             $type = PhpParameterTypeResolver::nullableType($type, !$body->required);
-            $fields[] = ($type === 'array' || $type === '?array' ? "    /** @var list<mixed>" . ($type === '?array' ? '|null' : '') . " */\n" : '') . '    public ' . $type . ' $body;';
+            $fields[] = (PhpDoc::hasArray($type) ? PhpDoc::render([], ['@var ' . PhpDoc::type($type)]) : '') . '    public ' . $type . ' $body;';
             $schema = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($body->schema, $contract->models);
             $rules = $schema->validation;
             if ($schema->pattern !== null) { $rules['pattern'] = $schema->pattern; }

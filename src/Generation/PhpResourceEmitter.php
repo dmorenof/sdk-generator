@@ -254,8 +254,6 @@ PHP;
             $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
                 . $resourceClass . '::class)->' . ($resourceMethod ?? $method)
                 . '(' . implode(', ', $forward) . ')';
-            $paramDoc = $payload !== null && in_array($payload['type'], ['array', '?array'], true) ? '    /** @param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload */' . "\n" : '';
-            $returnDoc = ltrim($returnType, '?') === 'array' ? '    /** @return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') . " */\n" : '';
             $omission = '';
             if ($nativeBody && $payload !== null && $payload['kind'] === 'body' && !$payload['required']) {
                 $absentCall = substr($call, 0, strrpos($call, '(')) . '(' . implode(', ', array_slice($forward, 0, -1)) . ')';
@@ -263,8 +261,8 @@ PHP;
                     . ($success['type'] === null ? "            $absentCall;\n            return;\n" : "            return $absentCall;\n") . "        }\n";
             }
             $docTags = [];
-            if ($paramDoc !== '') { $docTags[] = '@param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload'; }
-            if ($returnDoc !== '') { $docTags[] = '@return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : ''); }
+            if ($payload !== null && PhpDoc::hasArray($payload['type'])) { $docTags[] = '@param ' . PhpDoc::type(PhpParameterTypeResolver::nullableType($payload['type'], !$payload['required'])) . ' $payload'; }
+            if (PhpDoc::hasArray($returnType)) { $docTags[] = '@return ' . PhpDoc::type($returnType); }
             return PhpDoc::render($operation->annotations, $docTags) . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n" . $omission
                 . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";
@@ -443,8 +441,8 @@ PHP;
             $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
         }
         $docTags = [];
-        if (ltrim($returnType, '?') === 'array') { $docTags[] = '@return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : ''); }
-        if ($payload !== null && in_array($payload['type'], ['array', '?array'], true)) { $docTags[] = '@param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload'; }
+        if (PhpDoc::hasArray($returnType)) { $docTags[] = '@return ' . PhpDoc::type($returnType); }
+        if ($payload !== null && PhpDoc::hasArray($payload['type'])) { $docTags[] = '@param ' . PhpDoc::type(PhpParameterTypeResolver::nullableType($payload['type'], !$payload['required'])) . ' $payload'; }
         $source .= PhpDoc::render($operation->annotations, $docTags);
         $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
         $resultType = ltrim($returnType, '?') === 'array' ? 'list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') : $returnType;

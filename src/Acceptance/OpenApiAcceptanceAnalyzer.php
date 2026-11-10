@@ -150,14 +150,14 @@ final class OpenApiAcceptanceAnalyzer
     {
         if ($format === 'json') {
             try {
-                return json_decode($source, true, 512, JSON_THROW_ON_ERROR);
+                return \Dmorenof\SdkGenerator\Parsing\SpecificationData::json($source);
             } catch (JsonException $exception) {
                 throw new InvalidArgumentException('Invalid JSON in acceptance input.', 0, $exception);
             }
         }
         if ($format === 'yaml') {
             try {
-                return Yaml::parse($source, Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+                return \Dmorenof\SdkGenerator\Parsing\SpecificationData::yaml($source);
             } catch (ParseException $exception) {
                 throw new InvalidArgumentException('Invalid YAML in acceptance input.', 0, $exception);
             }

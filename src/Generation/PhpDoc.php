@@ -6,6 +6,17 @@ namespace Dmorenof\SdkGenerator\Generation;
 /** Escape specification prose once for every generated declaration. */
 final class PhpDoc
 {
+    public static function hasArray(string $type): bool
+    {
+        return preg_match('/(?:^|[|?])array(?:$|\|)/', $type) === 1;
+    }
+
+    public static function type(string $type): string
+    {
+        if (str_starts_with($type, '?')) { $type = substr($type, 1) . '|null'; }
+        return preg_replace('/\barray\b/', 'list<mixed>', $type) ?? $type;
+    }
+
     /** @param array<string,mixed> $annotations @param list<string> $tags */
     public static function render(array $annotations, array $tags = [], string $indent = '    '): string
     {
