@@ -239,6 +239,7 @@ final class ContractAuditor
                     $this->$handler($node, JsonPointer::append("/components/$collection", $name), null);
                 }
             }
+            $this->examples($components['examples'] ?? [], '/components/examples', null);
             $this->pathItems($components['pathItems'] ?? [], '/components/pathItems');
             $this->callbacks($components['callbacks'] ?? [], '/components/callbacks', null);
         }
@@ -322,6 +323,7 @@ final class ContractAuditor
 
     private function auditHeader(array $header, string $pointer, ?string $operation): void
     {
+        $this->examples($header['examples'] ?? [], "$pointer/examples", $operation);
         $this->keys($header, ['required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', '$ref'], $pointer, $operation);
         if (isset($header['schema'])) {
             $this->schema($header['schema'], "$pointer/schema", $operation);
@@ -329,18 +331,40 @@ final class ContractAuditor
         $this->content($header['content'] ?? [], "$pointer/content", $operation);
     }
 
+    private function examples(mixed $examples, string $pointer, ?string $operation): void
+    {
+        if (!is_array($examples)) {
+            $this->add('invalid_examples', $pointer, 'Examples must be a map of Example Objects.', $operation);
+            return;
+        }
+        foreach ($examples as $name => $example) {
+            $at = JsonPointer::append($pointer, $name);
+            if (!is_array($example)) {
+                $this->add('invalid_example', $at, 'Example must be an object.', $operation);
+                continue;
+            }
+            $this->resolvedObject($example, 'examples', $at, $operation, function (array $value, string $origin) use ($operation): void {
+                $this->keys($value, ['value', 'externalValue', '$ref'], $origin, $operation);
+                if (array_key_exists('value', $value) && array_key_exists('externalValue', $value)) {
+                    $this->add('invalid_example', $origin, 'Example value and externalValue are mutually exclusive.', $operation);
+                }
+                if (isset($value['externalValue']) && !is_string($value['externalValue'])) {
+                    $this->add('invalid_example', "$origin/externalValue", 'Example externalValue must be a URL string; it is never fetched.', $operation);
+                }
+            });
+        }
+    }
+
     private function link(mixed $link, string $pointer, ?string $operation): void
     {
         if (!is_array($link)) {
             return;
         }
-        $this->keys($link, ['operationRef', 'operationId', 'parameters', 'requestBody', 'server', '$ref'], $pointer, $operation);
-        $this->objectReference($link, $pointer, $operation);
-        // parameters/requestBody contain runtime expressions or literal values,
-        // not Schema Objects or Reference Objects.
-        if (isset($link['server'])) {
-            $this->server($link['server'], "$pointer/server", $operation);
-        }
+        $this->resolvedObject($link, 'links', $pointer, $operation, function (array $value, string $at) use ($operation): void {
+            $this->keys($value, ['operationRef', 'operationId', 'parameters', 'requestBody', 'server', '$ref'], $at, $operation);
+            // Link parameter values and expressions remain data.
+            if (isset($value['server'])) { $this->server($value['server'], "$at/server", $operation); }
+        });
     }
 
     private function callbacks(mixed $callbacks, string $pointer, ?string $operation): void
@@ -545,6 +569,7 @@ final class ContractAuditor
 
     private function parameter(array $parameter, string $at, ?string $operation, ?string $formMedia): void
     {
+        if (($this->document['swagger'] ?? null) !== '2.0') { $this->examples($parameter['examples'] ?? [], "$at/examples", $operation); }
         $formField = ($this->document['swagger'] ?? null) === '2.0' && ($parameter['in'] ?? null) === 'formData';
         $swaggerForm = $formField && \Dmorenof\SdkGenerator\Parsing\FormSupport::swaggerField($parameter, $formMedia);
         if ($formField && !$swaggerForm) {
@@ -627,6 +652,7 @@ final class ContractAuditor
             $form = $request && in_array($media, [\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA, \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART], true)
                 && \Dmorenof\SdkGenerator\Parsing\FormSupport::rawSupported($definition, $this->document, $media === \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART);
             $this->keys($definition, ['schema', 'encoding'], $at, $operation);
+            $this->examples($definition['examples'] ?? [], "$at/examples", $operation);
             if (array_key_exists('schema', $definition)) {
                 $this->schema($definition['schema'], "$at/schema", $operation);
             }
@@ -682,7 +708,9 @@ final class ContractAuditor
             return; // The normalizer retains responsibility for structural schema errors.
         }
         foreach ($schema as $keyword => $_) {
-            if (!in_array($keyword, SpecificationNormalizer::SCHEMA_KEYWORDS, true)) {
+            if (!in_array($keyword, SpecificationNormalizer::SCHEMA_KEYWORDS, true)
+                && !in_array($keyword, ['examples', 'deprecated', 'externalDocs', 'xml', '$comment'], true)
+                && !str_starts_with((string) $keyword, 'x-')) {
                 $this->add('unsupported_schema_keyword', JsonPointer::append($pointer, $keyword), "Unsupported schema keyword '$keyword'.", $operation);
             }
         }

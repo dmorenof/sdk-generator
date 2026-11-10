@@ -108,8 +108,8 @@ final class LocalFileBundler
     private function catalogs(): array
     {
         return $this->swagger ? ['schemas' => ['definitions'], 'parameters' => ['parameters'], 'responses' => ['responses']]
-            : array_combine(['schemas', 'parameters', 'requestBodies', 'responses', 'headers', 'pathItems'],
-                array_map(static fn ($kind): array => ['components', $kind], ['schemas', 'parameters', 'requestBodies', 'responses', 'headers', 'pathItems']));
+            : array_combine(['schemas', 'parameters', 'requestBodies', 'responses', 'headers', 'pathItems', 'examples', 'links'],
+                array_map(static fn ($kind): array => ['components', $kind], ['schemas', 'parameters', 'requestBodies', 'responses', 'headers', 'pathItems', 'examples', 'links']));
     }
 
     private function catalog(array $document, array $path): array
@@ -366,7 +366,7 @@ final class LocalFileBundler
             }
         }
         $kind = $context === 'schema' ? 'schemas' : $context;
-        if (array_key_exists('$ref', $node) && in_array($kind, ['schemas', 'parameters', 'requestBodies', 'responses', 'headers', 'pathItems'], true)) {
+        if (array_key_exists('$ref', $node) && in_array($kind, ['schemas', 'parameters', 'requestBodies', 'responses', 'headers', 'pathItems', 'examples', 'links'], true)) {
             if (!is_string($node['$ref'])) {
                 $this->fail('invalid_reference', 'Reference must be a string.', $file, "$pointer/\$ref", $chain);
             }
@@ -427,19 +427,21 @@ final class LocalFileBundler
         }
         if (in_array($context, ['parameters', 'requestBodies', 'responses', 'headers'], true)) {
             return match ($key) {
-                'schema', 'items' => 'schema', 'content' => 'map:media', 'headers' => 'map:headers', default => null,
+                'schema', 'items' => 'schema', 'content' => 'map:media', 'headers' => 'map:headers',
+                'examples' => $this->swagger ? null : 'map:examples', 'links' => $this->swagger ? null : 'map:links', default => null,
             };
         }
         if ($context === 'media') {
-            return match ($key) { 'schema' => 'schema', 'encoding' => 'map:encoding', default => null };
+            return match ($key) { 'schema' => 'schema', 'encoding' => 'map:encoding', 'examples' => $this->swagger ? null : 'map:examples', default => null };
         }
         if ($context === 'encoding') {
             return $key === 'headers' ? 'map:headers' : null;
         }
         if ($context === 'schema') {
             return match ($key) {
-                'properties' => 'map:schema', 'items', 'additionalProperties' => 'schema',
-                'allOf', 'oneOf', 'anyOf' => 'map:schema', default => null,
+                'properties', 'patternProperties', 'dependentSchemas', '$defs' => 'map:schema',
+                'items', 'additionalProperties', 'not', 'if', 'then', 'else', 'contains', 'propertyNames', 'unevaluatedProperties', 'unevaluatedItems' => 'schema',
+                'allOf', 'oneOf', 'anyOf', 'prefixItems' => 'map:schema', default => null,
             };
         }
         return null;

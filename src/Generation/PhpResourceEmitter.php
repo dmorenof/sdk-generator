@@ -262,7 +262,10 @@ PHP;
                 $omission = '        if (func_num_args() <= ' . ($identifier === null ? '0' : '1') . ") {\n"
                     . ($success['type'] === null ? "            $absentCall;\n            return;\n" : "            return $absentCall;\n") . "        }\n";
             }
-            return $paramDoc . $returnDoc . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n" . $omission
+            $docTags = [];
+            if ($paramDoc !== '') { $docTags[] = '@param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload'; }
+            if ($returnDoc !== '') { $docTags[] = '@return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : ''); }
+            return PhpDoc::render($operation->annotations, $docTags) . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n" . $omission
                 . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";
         }
@@ -439,8 +442,10 @@ PHP;
             }
             $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
         }
-        if (ltrim($returnType, '?') === 'array') { $source .= '    /** @return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') . " */\n"; }
-        if ($payload !== null && in_array($payload['type'], ['array', '?array'], true)) { $source .= '    /** @param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload */' . "\n"; }
+        $docTags = [];
+        if (ltrim($returnType, '?') === 'array') { $docTags[] = '@return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : ''); }
+        if ($payload !== null && in_array($payload['type'], ['array', '?array'], true)) { $docTags[] = '@param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload'; }
+        $source .= PhpDoc::render($operation->annotations, $docTags);
         $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
         $resultType = ltrim($returnType, '?') === 'array' ? 'list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') : $returnType;
         $source .= $success['type'] === null

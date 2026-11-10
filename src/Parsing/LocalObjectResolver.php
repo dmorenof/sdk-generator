@@ -87,7 +87,7 @@ final class LocalObjectResolver
                     && count($tokens) === 3 && array_slice($tokens, 0, 2) === ['components', 'pathItems']);
         }
         $prefix = $swagger ? [$kind] : ['components', $kind];
-        return in_array($kind, $swagger ? ['parameters', 'responses'] : ['parameters', 'requestBodies', 'responses', 'headers', 'securitySchemes'], true)
+        return in_array($kind, $swagger ? ['parameters', 'responses'] : ['parameters', 'requestBodies', 'responses', 'headers', 'securitySchemes', 'examples', 'links', 'callbacks'], true)
             && count($tokens) === count($prefix) + 1 && array_slice($tokens, 0, -1) === $prefix;
     }
 
@@ -148,6 +148,9 @@ final class LocalObjectResolver
                         if (is_array($response['headers'] ?? null)) {
                             $response['headers'] = $this->headers($response['headers'], "$responseAt/headers");
                         }
+                        if (($document['swagger'] ?? null) !== '2.0' && is_array($response['links'] ?? null)) {
+                            $response['links'] = $this->objects($response['links'], 'links', "$responseAt/links");
+                        }
                         $operation['responses'][$status] = $this->contentHeaders($response, $responseAt);
                     }
                 }
@@ -173,17 +176,34 @@ final class LocalObjectResolver
     {
         foreach ($headers as $name => $header) {
             if (is_array($header)) {
-                $headers[$name] = $this->resolve($header, 'headers', JsonPointer::append($pointer, $name))['value'];
+                $at = JsonPointer::append($pointer, $name);
+                $headers[$name] = $this->contentHeaders($this->resolve($header, 'headers', $at)['value'], $at);
             }
         }
         return $headers;
     }
 
+    /** Reference Object maps only: Example.value and Link parameter values stay opaque. */
+    private function objects(array $nodes, string $kind, string $pointer): array
+    {
+        foreach ($nodes as $name => $node) {
+            if (!is_array($node)) { throw new \InvalidArgumentException("Expected $kind object at $pointer."); }
+            $nodes[$name] = $this->resolve($node, $kind, JsonPointer::append($pointer, $name))['value'];
+        }
+        return $nodes;
+    }
+
     private function contentHeaders(array $node, string $pointer): array
     {
+        if (($this->document['swagger'] ?? null) !== '2.0' && is_array($node['examples'] ?? null)) {
+            $node['examples'] = $this->objects($node['examples'], 'examples', "$pointer/examples");
+        }
         foreach ($node['content'] ?? [] as $media => $definition) {
             if (!is_array($definition)) {
                 continue;
+            }
+            if (($this->document['swagger'] ?? null) !== '2.0' && is_array($definition['examples'] ?? null)) {
+                $node['content'][$media]['examples'] = $this->objects($definition['examples'], 'examples', JsonPointer::append("$pointer/content", $media) . '/examples');
             }
             foreach ($definition['encoding'] ?? [] as $name => $encoding) {
                 if (is_array($encoding) && is_array($encoding['headers'] ?? null)) {

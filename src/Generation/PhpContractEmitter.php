@@ -309,8 +309,10 @@ final class PhpContractEmitter
                 }
                 // Deliberately uninitialized when absent, including optional fields.
                 // Calling get_object_vars() preserves the absent-vs-null distinction.
-                if (!$fileList && ltrim($type, '?') === 'array') { $fields[] = '    /** @var list<mixed>' . ($nullable ? '|null' : '') . ' */'; }
-                $fields[] = ($fileList ? '    /** @var list<string|\\Psr\\Http\\Message\\UploadedFileInterface>' . ($nullable ? '|null' : '') . " */\n" : '')
+                $docTags = [];
+                if (!$fileList && ltrim($type, '?') === 'array') { $docTags[] = '@var list<mixed>' . ($nullable ? '|null' : ''); }
+                if ($fileList) { $docTags[] = '@var list<string|\\Psr\\Http\\Message\\UploadedFileInterface>' . ($nullable ? '|null' : ''); }
+                $fields[] = PhpDoc::render(['description' => $property->schema->description ?? $propertySchema->description, 'format' => $propertySchema->format] + $property->schema->annotations, $docTags)
                     . '    public ' . $type . ' $' . $propertyName . ';';
             }
             $propertyValidation = $originalSchema->validation;
@@ -370,6 +372,7 @@ final class PhpContractEmitter
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
         $extends = $parent !== null ? $this->modelNames->fqcn($parent) : '\\' . self::RUNTIME_NAMESPACE . '\\DTO';
         $source = $this->header($namespace)
+            . PhpDoc::render(['title' => $schema->title, 'description' => $schema->description] + $schema->annotations, indent: '')
             . ($extensible ? 'class ' : 'final class ') . $class . ' extends ' . $extends . "\n{\n"
             . "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n";
         if ($schema->discriminator !== null) {
@@ -926,6 +929,10 @@ final class PhpContractEmitter
                 throw new InvalidArgumentException("Unsupported allOf branch at $where.allOf.$index");
             }
             foreach ($branch->validation as $rule => $limit) {
+                if ($rule === 'jsonSchema' && isset($validation[$rule])) {
+                    $validation[$rule] = json_encode(['allOf' => [json_decode($validation[$rule], false, 512, JSON_THROW_ON_ERROR), json_decode($limit, false, 512, JSON_THROW_ON_ERROR)]], JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
+                    continue;
+                }
                 $validation[$rule] = isset($validation[$rule]) ? ($rule === 'minProperties' ? max($validation[$rule], $limit) : min($validation[$rule], $limit)) : $limit;
             }
             foreach ($branch->properties as $property) {
@@ -974,6 +981,7 @@ final class PhpContractEmitter
             properties: array_values($properties),
             additionalProperties: $closed ? false : null,
             discriminator: $schema->discriminator,
+            title: $schema->title, description: $schema->description, annotations: $schema->annotations,
             validation: $validation,
         );
     }
@@ -1007,7 +1015,7 @@ final class PhpContractEmitter
         $rules = $itemValidation;
         ksort($rules);
         // Existing shared collection names describe item types; keep them for old contracts.
-        $collectionRules = array_intersect_key($schema->validation, array_flip(['uniqueItems', 'const']));
+        $collectionRules = array_intersect_key($schema->validation, array_flip(['uniqueItems', 'const', 'jsonSchema']));
         $key = serialize([$itemType, $schema->items->nullable, $rules, $collectionRules]);
         if (isset($this->collectionTypes[$key])) {
             return $this->collectionTypes[$key];

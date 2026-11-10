@@ -300,7 +300,7 @@ final class OpenApiAcceptanceAnalyzer
         }
         $map = in_array($context, ['map', 'links'], true);
         foreach ($value as $key => $child) {
-            if (!$map && (in_array($key, ['example', 'examples', 'default', 'enum', 'value'], true)
+            if (!$map && (in_array($key, ['example', 'examples', 'default', 'enum', 'const', 'value'], true)
                 || ($context === 'link' && in_array($key, ['parameters', 'requestBody'], true))
                 || str_starts_with((string) $key, 'x-'))) {
                 continue;
@@ -308,7 +308,7 @@ final class OpenApiAcceptanceAnalyzer
             $childContext = $context === 'links' ? 'link' : 'object';
             if (!$map && $key === 'links') {
                 $childContext = 'links';
-            } elseif (!$map && in_array($key, ['properties', 'schemas', 'definitions', '$defs', 'headers',
+            } elseif (!$map && in_array($key, ['properties', 'patternProperties', 'dependentSchemas', 'schemas', 'definitions', '$defs', 'headers',
                 'parameters', 'requestBodies', 'responses', 'callbacks', 'pathItems', 'encoding', 'securitySchemes'], true)) {
                 $childContext = 'map';
             }

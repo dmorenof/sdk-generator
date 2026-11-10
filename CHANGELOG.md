@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [Unreleased — implementation in progress, not validated]
+
+- Add self-contained OpenAPI 3.1 assertion guards using the runtime's Opis compiler: negation, conditionals, contains/counts, dependent constraints, property names and tuple prefixes. Preserve original JSON when constructing DTOs and recheck mutable outbound values.
+- Preserve schema documentation/vendor annotations and emit escaped PHPDoc for models, fields and operations, including deprecation and format annotations.
+- Resolve named local Example/Link Object aliases and import fragment-file references without traversing example values or executing link expressions.
+- Runtime coordination remains pending. No tests, analysis or release have run for this accumulated development, at the user's request. See pendientes.md for precise limits and outstanding work.
+
 ## [0.40.0] — 2026-11-10
 
 - Expand OpenAPI server defaults and validate string defaults/enums/placeholders independently at root, Path Item and operation scope. Preserve original metadata and preference order; reuse PHP strtr, existing runtime URL policy and Guzzle URI equivalence. Existing baseUrl/serverOverrides configuration stays unchanged.

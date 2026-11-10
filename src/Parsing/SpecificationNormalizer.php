@@ -44,6 +44,8 @@ final class SpecificationNormalizer
             'minimum', 'maximum', 'minItems', 'maxItems', 'pattern', 'readOnly',
             'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'uniqueItems', 'minProperties', 'maxProperties', 'const',
             'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf', 'discriminator',
+            'not', 'if', 'then', 'else', 'contains', 'minContains', 'maxContains',
+            'dependentRequired', 'dependentSchemas', 'propertyNames', 'prefixItems',
     ];
 
     public function fromYaml(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
@@ -716,6 +718,26 @@ final class SpecificationNormalizer
         }
         if (!is_array($raw)) {
             throw new InvalidArgumentException("Schema must be an object at $where.");
+        }
+
+        $metadata = array_filter($raw, static fn ($key): bool => in_array($key, ['example', 'examples', 'deprecated', 'externalDocs', 'xml', '$comment'], true) || (str_starts_with((string) $key, 'x-') && $key !== 'x-nullable'), ARRAY_FILTER_USE_KEY);
+        if ($metadata !== []) {
+            if (array_key_exists('deprecated', $metadata) && !is_bool($metadata['deprecated'])) {
+                throw new InvalidArgumentException("Invalid schema deprecated flag at $where.");
+            }
+            $schema = $this->schema(array_diff_key($raw, $metadata), $dialect, $where);
+            $arguments = get_object_vars($schema);
+            $arguments['annotations'] = $metadata;
+            return new SchemaDefinition(...$arguments);
+        }
+
+        $declarative = DeclarativeSchemaRules::extract($raw, $this->jsonSchema31, $where);
+        if ($declarative !== null) {
+            [$structural, $guard] = $declarative;
+            $schema = $this->schema($structural, $dialect, $where);
+            $arguments = get_object_vars($schema);
+            $arguments['validation']['jsonSchema'] = $guard;
+            return new SchemaDefinition(...$arguments);
         }
 
         $allowed = self::SCHEMA_KEYWORDS;

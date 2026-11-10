@@ -8,6 +8,20 @@
 >
 > **Principio arquitectónico:** conservar clases API ligeras, namespaces derivados de rutas, DTOs reutilizables y un runtime HTTP común. Las nuevas capacidades de OpenAPI deben implementarse principalmente en el normalizador, contrato intermedio y runtime, sin introducir lógica HTTP duplicada en los métodos generados.
 
+## Trabajo acumulado actual — sin validar ni publicar
+
+Por instrucción expresa del usuario del 2026-11-10, acumular la implementación y revisión del conjunto antes de ejecutar pruebas o publicar versiones. La línea base estable sigue siendo generador v0.40.0 / runtime v0.31.0. No interpretar este apartado como funcionalidad estable ni marcar sus casillas como verificadas.
+
+- JSON Schema 3.1: implementación inicial de `not`, `if`/`then`/`else`, `contains`/`minContains`/`maxContains`, `dependentRequired`, `dependentSchemas`, `propertyNames` y `prefixItems`. Opis compila/evalúa reglas; PHP conserva los tipos existentes y las tuplas usan arrays nativos.
+- Runtime: guard declarativo JSON que conserva objetos/listas del esquema, comprobación sobre JSON original al construir DTOs, revalidación de mutaciones/null, propagación del modo y conjunción de guards al aplanar allOf. Compilación compartida con defaults y extensiones de ejecución de Opis desactivados; `format` continúa como anotación.
+- Metadatos de schema conservados (`example`, `examples`, `deprecated`, `externalDocs`, `xml`, `$comment`, `x-*`); PHPDoc de modelos, propiedades y operaciones con escape de comentarios. No se habilita un codec XML ni aplicación implícita de defaults.
+- Referencias de Example/Link Objects: resolución local con alias y anotaciones por dialecto; importación desde archivos fragmento mediante el bundler existente. Los valores de ejemplos, `externalValue` y expresiones/valores de links siguen siendo datos, sin consultas de red ni ejecución automática.
+- **Límites actuales del bloque:** assertions autocontenidas; referencias/IDs/dirección dentro de esos subesquemas y sus hermanos con composiciones siguen rechazados. Literales complejos const/enum requieren preservar la identidad JSON del origen y siguen pendientes. No implica JSON Schema 2020-12 completo.
+- **Runtime en desarrollo:** [commit fc91030a6a64fa974b7e15d0b3fdff7d6d751bb5](https://github.com/dmorenof/sdk-runtime/commit/fc91030a6a64fa974b7e15d0b3fdff7d6d751bb5) en la rama remota existente `feature/p0-contract-fidelity`; sin PR ni publicación.
+- **Coordinación pendiente:** estas funciones requieren cambios del runtime aún no publicados. Actualizar a su versión estable únicamente al cerrar la implementación y validar el conjunto; no instalar esta rama de desarrollo como una versión estable.
+- **Bloqueo externo identificado:** no hay secretos ni variables de Casafari configurados en el entorno cloud. La migración autenticada necesita el repositorio consumidor y acceso a credenciales de prueba por un mecanismo seguro.
+- **Estado:** no se han ejecutado pruebas, lint, análisis estático, instalación/smoke ni CI para estos cambios. VERSION y tags publicados permanecen intactos.
+
 ## Leyenda
 
 - **P0:** bloqueante para interpretar con fidelidad APIs habituales; abordar primero.
