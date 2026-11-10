@@ -1,0 +1,93 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Swagger Form Block API",
+    "version": "1"
+  },
+  "host": "api.example.test",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/x-www-form-urlencoded"
+  ],
+  "paths": {
+    "/swagger": {
+      "post": {
+        "operationId": "postSwagger",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "csv",
+            "in": "formData",
+            "type": "array",
+            "required": true,
+            "minItems": 1,
+            "items": {
+              "type": "integer"
+            },
+            "collectionFormat": "csv"
+          },
+          {
+            "name": "multi",
+            "in": "formData",
+            "type": "array",
+            "required": true,
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "ssv",
+            "in": "formData",
+            "type": "array",
+            "required": true,
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "ssv"
+          },
+          {
+            "name": "tsv",
+            "in": "formData",
+            "type": "array",
+            "required": true,
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "tsv"
+          },
+          {
+            "name": "pipes",
+            "in": "formData",
+            "type": "array",
+            "required": true,
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "pipes"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          }
+        }
+      }
+    }
+  }
+}

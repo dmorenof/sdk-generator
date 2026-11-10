@@ -445,4 +445,13 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/respo
     $selectionDirectory, 'Example\\SelectionSdk', 'example/published-response-selection']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $selectionDirectory]);
 runPublished([PHP_BINARY, $package . '/tests/response-selection-smoke.php', $selectionDirectory]);
+$formBlockDirectories = [];
+foreach (['openapi31' => 'FormBlockSdk', 'swagger2' => 'SwaggerFormBlockSdk'] as $dialect => $namespace) {
+    $formBlockDirectory = $directory . '/form-block-' . $dialect;
+    runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/form-block-' . $dialect . '.json',
+        $formBlockDirectory, 'Example\\' . $namespace, 'example/published-form-block-' . $dialect]);
+    runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $formBlockDirectory]);
+    $formBlockDirectories[] = $formBlockDirectory;
+}
+runPublished([PHP_BINARY, $package . '/tests/form-block-smoke.php', ...$formBlockDirectories]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

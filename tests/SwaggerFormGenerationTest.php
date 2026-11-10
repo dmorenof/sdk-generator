@@ -155,7 +155,7 @@ final class SwaggerFormGenerationTest extends TestCase
 
     public function testUnsupportedFilesFormatsAndMediaKeepPreciseDiagnostics(): void
     {
-        foreach ([['type' => 'file'], ['type' => 'object'], ['type' => 'array', 'items' => ['type' => 'string'], 'collectionFormat' => 'pipes'],
+        foreach ([['type' => 'file'], ['type' => 'object'], ['type' => 'array', 'items' => ['type' => 'string'], 'collectionFormat' => 'unknown'],
             ['type' => 'array', 'items' => ['type' => 'string'], 'collectionFormat' => null],
             ['type' => 'array', 'items' => ['type' => 'string', 'x-nullable' => true]], ['type' => 'string', 'collectionFormat' => 'csv'],
             ['type' => 'string', 'required' => 'false'], ['type' => 'string', 'allowEmptyValue' => 'true']] as $changes) {

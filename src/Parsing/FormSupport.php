@@ -9,7 +9,7 @@ use Dmorenof\SdkGenerator\Contract\SchemaDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaKind;
 use Dmorenof\SdkGenerator\Diagnostics\JsonPointer;
 
-/** Bounded form bodies share closed, flat schemas and primitive field validation. */
+/** Form encodings reuse parameter expansion and JSON multipart serialization. */
 final class FormSupport
 {
     public const MEDIA = 'application/x-www-form-urlencoded';
@@ -49,7 +49,7 @@ final class FormSupport
                 && ($media !== self::MULTIPART || ($field['items']['format'] ?? null) !== 'binary')
                 && !($field['items']['nullable'] ?? $field['items']['x-nullable'] ?? false)
                 && !is_array($field['items']['type'] ?? null) && empty($field['enum'])
-                && in_array($field['collectionFormat'] ?? 'csv', $media === self::MULTIPART ? ['multi'] : ['csv', 'multi'], true);
+                && in_array($field['collectionFormat'] ?? 'csv', $media === self::MULTIPART ? ['multi'] : ['csv', 'multi', 'ssv', 'tsv', 'pipes'], true);
         }
         return !array_key_exists('collectionFormat', $field) && self::rawScalar($field)
             && is_string($field['type'] ?? null);
@@ -57,7 +57,7 @@ final class FormSupport
 
     /**
      * @param list<ModelDefinition> $models
-     * @return array<string,'multi'|'csv'>|null
+     * @return array<string,string>|null
      */
     public static function formats(RequestBodyDefinition $body, array $models): ?array
     {
@@ -83,10 +83,28 @@ final class FormSupport
         $formats = [];
         foreach ($schema->properties as $property) {
             $field = $property->schema;
+            $fieldEncoding = $encoding[$property->wireName] ?? [];
+            $swaggerFormat = $fieldEncoding['collectionFormat'] ?? null;
+            unset($fieldEncoding['collectionFormat']);
+            if (!self::encoding($fieldEncoding, $multipart)) { return null; }
+            if ($multipart && self::jsonPart($field, $fieldEncoding, $models)) {
+                if (!self::name($property->wireName)) { return null; }
+                continue;
+            }
+            $options = new \Dmorenof\SdkGenerator\Contract\ParameterSerialization(style: $fieldEncoding['style'] ?? 'form', explode: $fieldEncoding['explode'] ?? null);
+            if (!$multipart && QueryObjectSupport::supported(new \Dmorenof\SdkGenerator\Contract\ParameterDefinition(
+                $property->wireName, 'query', $field, $property->required, $options
+            ), $models)) {
+                $formats[$property->wireName] = QueryObjectSupport::format($options, 'query');
+                continue;
+            }
             $array = $field->kind === SchemaKind::Array;
             $binary = self::fileItem($field);
+            if ((!$array && ($fieldEncoding['style'] ?? 'form') !== 'form')
+                || ($array && !in_array($fieldEncoding['style'] ?? 'form', ['form', 'spaceDelimited', 'pipeDelimited'], true))
+                || ($swaggerFormat !== null && !in_array($swaggerFormat, ['csv', 'multi', 'ssv', 'tsv', 'pipes'], true))) { return null; }
             if (($array && ($field->enumValues !== [] || $field->items === null || $field->items->nullable || !self::scalar($field->items)))
-                || (!$array && !self::scalar($field)) || !self::encoding($encoding[$property->wireName] ?? [], $multipart)) {
+                || (!$array && !self::scalar($field)) || !self::encoding($fieldEncoding, $multipart)) {
                 return null;
             }
             if ($multipart && (!self::name($property->wireName)
@@ -97,7 +115,10 @@ final class FormSupport
                 return null;
             }
             if ($array) {
-                $formats[$property->wireName] = ($encoding[$property->wireName]['explode'] ?? true) ? 'multi' : 'csv';
+                $formats[$property->wireName] = $swaggerFormat ?? match ($fieldEncoding['style'] ?? 'form') {
+                    'spaceDelimited' => 'ssv', 'pipeDelimited' => 'pipes',
+                    default => ($fieldEncoding['explode'] ?? true) ? 'multi' : 'csv',
+                };
             }
         }
         return $formats;
@@ -117,7 +138,7 @@ final class FormSupport
         return null;
     }
 
-    /** @param list<ModelDefinition> $models @return array<string,array{contentType:?string,filename?:string}>|null */
+    /** @param list<ModelDefinition> $models @return array<string,array{contentType:?string,filename?:string,json?:bool}>|null */
     public static function parts(RequestBodyDefinition $body, array $models): ?array
     {
         if ($body->mediaType !== self::MULTIPART || self::formats($body, $models) === null) {
@@ -131,6 +152,11 @@ final class FormSupport
         }
         $parts = [];
         foreach (self::schema($body, $models)->properties as $property) {
+            $fieldEncoding = $encoding[$property->wireName] ?? [];
+            if (self::jsonPart($property->schema, $fieldEncoding, $models)) {
+                $parts[$property->wireName] = ['contentType' => $fieldEncoding['contentType'] ?? 'application/json', 'json' => true];
+                continue;
+            }
             $binary = self::fileItem($property->schema) !== null;
             $part = ['contentType' => $encoding[$property->wireName]['contentType'] ?? ($binary ? null : 'text/plain')];
             if ($binary) {
@@ -139,6 +165,43 @@ final class FormSupport
             $parts[$property->wireName] = $part;
         }
         return $parts;
+    }
+
+    private static function jsonMedia(?string $media): bool
+    {
+        return $media !== null && preg_match('~^application/(?:[a-zA-Z0-9!#$&^_.+\\-]+\\+)?json$~D', $media) === 1;
+    }
+
+    private static function jsonPart(SchemaDefinition $schema, array $encoding, array $models): bool
+    {
+        foreach ($models as $model) { if ($schema->kind === SchemaKind::Reference && $model->name === $schema->reference) { $schema = $model->schema; break; } }
+        $item = $schema->kind === SchemaKind::Array ? $schema->items : $schema;
+        foreach ($models as $model) { if ($item?->kind === SchemaKind::Reference && $model->name === $item->reference) { $item = $model->schema; break; } }
+        if (self::fileItem($schema) !== null) { return false; }
+        if (in_array($schema->kind, [SchemaKind::Array, SchemaKind::Object], true) && $schema->enumValues !== []) { return false; }
+        $complex = $item !== null && in_array($item->kind, [SchemaKind::Object, SchemaKind::Array, SchemaKind::AllOf, SchemaKind::AnyOf, SchemaKind::OneOf], true);
+        return self::jsonMedia($encoding['contentType'] ?? ($complex ? 'application/json' : null));
+    }
+
+    private static function rawJsonPart(array $schema, array $encoding, array $document): bool
+    {
+        if (isset($schema['$ref'])) {
+            try { $schema = JsonPointer::resolve($document, $schema['$ref']); }
+            catch (\InvalidArgumentException|\TypeError) { return false; }
+        }
+        if (!is_array($schema)) { return false; }
+        $type = $schema['type'] ?? '';
+        $array = $type === 'array' || (is_array($type) && in_array('array', $type, true));
+        $item = $array ? ($schema['items'] ?? []) : $schema;
+        if (isset($item['$ref'])) {
+            try { $item = JsonPointer::resolve($document, $item['$ref']); }
+            catch (\InvalidArgumentException|\TypeError) { return false; }
+        }
+        if (!is_array($item) || (($array || ($schema['type'] ?? '') === 'object') && array_key_exists('enum', $schema))) { return false; }
+        if (($item['format'] ?? '') === 'binary') { return false; }
+        $complex = isset($item['properties']) || array_key_exists('additionalProperties', $item) || isset($item['allOf']) || isset($item['oneOf']) || isset($item['anyOf'])
+            || in_array($item['type'] ?? null, ['object', 'array'], true);
+        return self::jsonMedia($encoding['contentType'] ?? ($complex ? 'application/json' : null));
     }
 
     public static function fileItem(SchemaDefinition $schema): ?SchemaDefinition
@@ -162,8 +225,10 @@ final class FormSupport
     private static function encoding(mixed $encoding, bool $multipart = false): bool
     {
         return is_array($encoding) && array_diff(array_keys($encoding), $multipart ? ['contentType', 'style', 'explode', 'allowReserved'] : ['style', 'explode', 'allowReserved']) === []
-            && (!array_key_exists('style', $encoding) || $encoding['style'] === 'form')
+            && (!array_key_exists('style', $encoding) || in_array($encoding['style'], $multipart ? ['form'] : ['form', 'spaceDelimited', 'pipeDelimited', 'deepObject'], true))
             && (!array_key_exists('explode', $encoding) || ($multipart ? $encoding['explode'] === true : is_bool($encoding['explode'])))
+            && (!in_array($encoding['style'] ?? 'form', ['spaceDelimited', 'pipeDelimited'], true) || ($encoding['explode'] ?? false) === false)
+            && (($encoding['style'] ?? '') !== 'deepObject' || ($encoding['explode'] ?? false) === true)
             && (!array_key_exists('contentType', $encoding) || (is_string($encoding['contentType'])
                 && preg_match('~^[a-zA-Z0-9!#$&^_.+\-]+/[a-zA-Z0-9!#$&^_.+\-]+$~D', $encoding['contentType']) === 1))
             && (!array_key_exists('allowReserved', $encoding) || $encoding['allowReserved'] === false);
@@ -193,18 +258,27 @@ final class FormSupport
             if (!is_array($field) || !self::encoding($encoding[$name] ?? [], $multipart)) {
                 return false;
             }
+            if ($multipart && self::rawJsonPart($field, $encoding[$name] ?? [], $document)) {
+                if (!self::name((string) $name)) { return false; }
+                continue;
+            }
+            if (!$multipart && QueryObjectSupport::rawSupported([
+                'name' => (string) $name, 'in' => 'query', 'schema' => $field,
+                'style' => $encoding[$name]['style'] ?? 'form', 'explode' => $encoding[$name]['explode'] ?? (($encoding[$name]['style'] ?? '') === 'deepObject' ? true : null),
+            ], $document)) { continue; }
             $type = $field['type'] ?? null;
             $types = is_array($type) ? array_values(array_diff($type, ['null'])) : [$type];
             if (count($types) !== 1) {
                 return false;
             }
             if ($types[0] === 'array') {
+                if (!in_array($encoding[$name]['style'] ?? 'form', ['form', 'spaceDelimited', 'pipeDelimited'], true)) { return false; }
                 if (array_key_exists('enum', $field) || !is_array($field['items'] ?? null)
                     || !self::rawScalar($field['items']) || ($field['items']['nullable'] ?? false)
                     || is_array($field['items']['type'] ?? null)) {
                     return false;
                 }
-            } elseif (!self::rawScalar($field)) {
+            } elseif (($encoding[$name]['style'] ?? 'form') !== 'form' || !self::rawScalar($field)) {
                 return false;
             }
             if ($multipart) {

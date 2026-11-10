@@ -99,3 +99,7 @@ php tests/delimited-parameters-smoke.php "$OUT/delimited-parameters"
 
 analyse response-selection response-selection-openapi31.json 'Example\SelectionSdk'
 php tests/response-selection-smoke.php "$OUT/response-selection"
+
+analyse form-block form-block-openapi31.json 'Example\FormBlockSdk'
+analyse swagger-form-block form-block-swagger2.json 'Example\SwaggerFormBlockSdk'
+php tests/form-block-smoke.php "$OUT/form-block" "$OUT/swagger-form-block"
