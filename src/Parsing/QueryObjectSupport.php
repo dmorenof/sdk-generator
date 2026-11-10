@@ -8,7 +8,6 @@ use Dmorenof\SdkGenerator\Contract\SchemaDefinition;
 use Dmorenof\SdkGenerator\Contract\SchemaKind;
 use Dmorenof\SdkGenerator\Contract\ParameterDefinition;
 use Dmorenof\SdkGenerator\Contract\ParameterSerialization;
-use Dmorenof\SdkGenerator\Diagnostics\JsonPointer;
 
 /** Flat scalar OpenAPI parameter objects share schemas across deepObject/form/simple. */
 final class QueryObjectSupport
@@ -16,14 +15,7 @@ final class QueryObjectSupport
     /** @param list<ModelDefinition> $models */
     public static function nullable(SchemaDefinition $schema, array $models): bool
     {
-        if ($schema->kind === SchemaKind::Reference) {
-            foreach ($models as $model) {
-                if ($model->name === $schema->reference) {
-                    return $model->schema->nullable;
-                }
-            }
-        }
-        return $schema->nullable;
+        return SchemaReferences::resolve($schema, $models)->nullable;
     }
 
     public static function format(ParameterSerialization $options, string $location): ?string
@@ -54,17 +46,8 @@ final class QueryObjectSupport
             || !self::key($parameter->wireName, $format === 'deepObject')) {
             return false;
         }
-        $schema = $parameter->schema;
-        if ($schema->kind === SchemaKind::Reference) {
-            $reference = $schema->reference;
-            $schema = null;
-            foreach ($models as $model) {
-                if ($model->name === $reference) {
-                    $schema = $model->schema;
-                    break;
-                }
-            }
-        }
+        try { $schema = SchemaReferences::resolve($parameter->schema, $models); }
+        catch (\InvalidArgumentException) { return false; }
         if ($schema === null || $schema->kind !== SchemaKind::Object || $schema->discriminator !== null
             || ($parameter->location !== 'query' && $schema->nullable) || $schema->enumValues !== []
             || ($schema->additionalProperties !== false && !($schema->additionalProperties instanceof SchemaDefinition))) {
@@ -103,7 +86,7 @@ final class QueryObjectSupport
         $schema = $parameter['schema'] ?? null;
         if (is_array($schema) && isset($schema['$ref'])) {
             try {
-                $schema = JsonPointer::resolve($document, $schema['$ref']);
+                $schema = SchemaReferences::raw($schema, $document);
             } catch (\InvalidArgumentException|\TypeError) {
                 return false;
             }

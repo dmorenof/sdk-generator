@@ -56,8 +56,9 @@ final class PhpModelNameResolver
         $paths = [];
         $types = [];
         $occupied = [];
-        $prefixes = self::inferFlattenedPrefixes($models);
+        $prefixes = self::inferFlattenedPrefixes(array_values(array_filter($models, static fn (ModelDefinition $model): bool => $model->schema->kind !== \Dmorenof\SdkGenerator\Contract\SchemaKind::Reference)));
         foreach ($models as $model) {
+            if ($model->schema->kind === \Dmorenof\SdkGenerator\Contract\SchemaKind::Reference) { continue; }
             $name = $model->name;
             $sourceSegments = array_map(
                 static fn (string $segment): string => PhpNameTransliterator::pascal($segment, 'schema segment'),
@@ -88,6 +89,14 @@ final class PhpModelNameResolver
             $paths[$name] = $path;
             $types[$name] = $type;
             $this->segments[$name] = explode('.', $generatedName);
+        }
+        foreach ($models as $model) {
+            if ($model->schema->kind !== \Dmorenof\SdkGenerator\Contract\SchemaKind::Reference) { continue; }
+            $target = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($model->schema, $models);
+            if ($target === null || !isset($types[$target])) { throw new InvalidArgumentException('Missing schema alias target.'); }
+            $paths[$model->name] = $paths[$target];
+            $types[$model->name] = $types[$target];
+            $this->segments[$model->name] = $this->segments[$target];
         }
         $this->paths = $paths;
         $this->types = $types;

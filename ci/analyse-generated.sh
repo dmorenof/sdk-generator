@@ -115,3 +115,6 @@ php tests/request-bodies-smoke.php "$OUT/request-bodies"
 
 analyse raw-media raw-media-openapi31.json 'Example\RawSdk'
 php -d memory_limit=16M tests/raw-media-smoke.php "$OUT/raw-media"
+
+analyse schema-aliases schema-aliases-openapi31.json 'Example\AliasSdk'
+php tests/schema-aliases-smoke.php "$OUT/schema-aliases"

@@ -474,4 +474,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/raw-m
     $rawDirectory, 'Example\\RawSdk', 'example/published-raw-media']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $rawDirectory]);
 runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/raw-media-smoke.php', $rawDirectory]);
+$aliasDirectory = $directory . '/schema-aliases';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/schema-aliases-openapi31.json',
+    $aliasDirectory, 'Example\\AliasSdk', 'example/published-schema-aliases']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $aliasDirectory]);
+runPublished([PHP_BINARY, $package . '/tests/schema-aliases-smoke.php', $aliasDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;
