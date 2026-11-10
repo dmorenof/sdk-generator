@@ -26,7 +26,7 @@ Por instrucción expresa del usuario del 2026-11-10, acumular la implementación
 - Swagger 2.0: `schemes` por operación se traduce al enrutamiento común existente, con prioridad sobre la raíz; validación de host/puerto/basePath/schemes sin aceptar credenciales o query/fragment embebidos. Defaults que dependen del origen del documento siguen pendientes.
 - Semántica HTTP: HEAD y estados sin cuerpo (1xx/204/205/304) no hidratan payload; los schemas/MIME declarados permanecen visibles como metadatos. Firmas y respuestas binarias/rangos conservan nulabilidad por 204/205. TRACE rechaza body declarado/enviado. No completa headers tipados, redirecciones ni todos los aspectos de OPTIONS/TRACE.
 - **Coordinación pendiente:** estas funciones requieren cambios del runtime aún no publicados. Actualizar a su versión estable únicamente al cerrar la implementación y validar el conjunto; no instalar esta rama de desarrollo como una versión estable.
-- **Bloqueo externo identificado:** no hay secretos ni variables de Casafari configurados en el entorno cloud. La migración autenticada necesita el repositorio consumidor y acceso a credenciales de prueba por un mecanismo seguro.
+- **Alcance confirmado por el usuario:** la migración de CasafariSDK y las llamadas autenticadas a su API no forman parte de esta entrega ni la bloquean. Repositorio de referencia: [dmorenof/casafari-sdk](https://github.com/dmorenof/casafari-sdk). Se conserva la compatibilidad del generador con su especificación; no se requieren credenciales para continuar este trabajo.
 - **Estado:** no se han ejecutado pruebas, lint, análisis estático, instalación/smoke ni CI para estos cambios. VERSION y tags publicados permanecen intactos.
 
 ## Leyenda
@@ -53,7 +53,6 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [x] FakeRESTApi: generación del contrato original completo y peticiones reales GET individual, GET de lista y POST; no se han probado todas sus operaciones.
 - [x] CI del generador: 145 pruebas / 1.828 aserciones (estado comprobado al elaborar la auditoría).
 - [x] **Entrega coordinada:** `sdk-runtime` **v0.4.0** y `sdk-generator` **v0.3.0**, con herencia compatible, discriminadores locales y dependencia estable `^0.4.0`. Cierre: [Runtime #6](https://github.com/dmorenof/sdk-runtime/pull/6) y [Generator #19](https://github.com/dmorenof/sdk-generator/pull/19).
-- [ ] **Migración de CasafariSDK:** probar operaciones autenticadas reales, revisar compatibilidad de uso/middleware, comparar datos y preparar rollback antes del cambio en producción.
 
 ### Versiones de entrada
 
@@ -585,8 +584,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 - [ ] Tests de formatos de archivo, respuestas inesperadas, timeouts y fallos de red.
 - [ ] Política de reintentos/backoff para rate limits y errores transitorios (capacidad de runtime, no requerida por OAS).
 - [ ] Documentar límites frente a OpenAPI Generator sin atribuir paridad funcional por la reducción de código.
-- [ ] Fijar versión estable del runtime unificado, actualizar dependencias Composer y verificar instalación aislada de Casafari.
-- [ ] Migración real de CasafariSDK con credenciales privadas, smoke de operaciones representativas, comparación de respuestas y rollback.
+- [ ] Al cerrar el conjunto, fijar la nueva versión estable del runtime y actualizar las dependencias Composer del generador y de los SDKs emitidos; verificar su instalación aislada.
 
 ---
 
