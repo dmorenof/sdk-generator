@@ -30,10 +30,11 @@ final readonly class PhpResourceEmitter
         'headerSerialization' => [],
         'queryAllowReserved' => [],
         'parameterContent' => [],
+        'responseValidation' => [],
     ];
 
     /**
-     * @param array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int|string,array{type:?string,schemaNullable:bool}>}> $successTypes
+     * @param array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,rules?:array<string,mixed>,byStatus?:array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>}>}> $successTypes
      * @param array<string,array<string,?string>> $errorTypes
      */
     public function __construct(
@@ -354,6 +355,7 @@ PHP;
             'errors' => $this->errorTypes[$operation->operationId] ?? [],
             'responseType' => isset($success['byStatus']) ? null : $success['type'],
             'responseTypes' => $success['byStatus'] ?? [],
+            'responseValidation' => $success['rules'] ?? [],
             'schemaNullable' => $success['schemaNullable'],
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $validation,

@@ -551,7 +551,7 @@ final class ContractAuditor
         }
         $parameterObject = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::rawSupported($parameter, $this->document);
         $parameterArray = \Dmorenof\SdkGenerator\Parsing\QueryArraySupport::rawSupported($parameter, ($this->document['swagger'] ?? null) === '2.0');
-        $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
+        $this->keys($parameter, ['name', 'in', 'required', 'schema', 'content', 'style', 'explode', 'allowReserved', 'allowEmptyValue', 'collectionFormat', '$ref', 'type', 'format', 'items', 'enum', 'default', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'uniqueItems', 'const', 'minProperties', 'maxProperties', 'minLength', 'maxLength', 'pattern', 'minItems', 'maxItems', 'nullable', 'x-nullable'], $at, $operation);
         foreach (['explode', 'allowReserved', 'allowEmptyValue'] as $flag) {
             if (array_key_exists($flag, $parameter) && !is_bool($parameter[$flag])) {
                 $this->add('invalid_parameter_option', "$at/$flag", "Parameter $flag must be boolean.", $operation);

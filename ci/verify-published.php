@@ -454,4 +454,9 @@ foreach (['openapi31' => 'FormBlockSdk', 'swagger2' => 'SwaggerFormBlockSdk'] as
     $formBlockDirectories[] = $formBlockDirectory;
 }
 runPublished([PHP_BINARY, $package . '/tests/form-block-smoke.php', ...$formBlockDirectories]);
+$schemaDirectory = $directory . '/schema-rules';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/schema-rules-openapi31.json',
+    $schemaDirectory, 'Example\\SchemaRulesSdk', 'example/published-schema-rules']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $schemaDirectory]);
+runPublished([PHP_BINARY, $package . '/tests/schema-rules-smoke.php', $schemaDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

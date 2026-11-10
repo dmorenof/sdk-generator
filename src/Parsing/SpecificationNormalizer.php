@@ -32,6 +32,7 @@ use Symfony\Component\Yaml\Yaml;
  */
 final class SpecificationNormalizer
 {
+    private bool $jsonSchema31 = false;
     private const METHODS = [
         'get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace',
     ];
@@ -41,6 +42,7 @@ final class SpecificationNormalizer
             'enum', 'nullable', 'x-nullable', 'additionalProperties',
             'description', 'title', 'example', 'minLength', 'maxLength',
             'minimum', 'maximum', 'minItems', 'maxItems', 'pattern', 'readOnly',
+            'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'uniqueItems', 'minProperties', 'maxProperties', 'const',
             'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf', 'discriminator',
     ];
 
@@ -94,6 +96,7 @@ final class SpecificationNormalizer
         }
 
         $dialect = $this->dialect($document);
+        $this->jsonSchema31 = str_starts_with($document['openapi'] ?? '', '3.1.');
         if ($strict) {
             $errors = array_values(array_filter(
                 (new \Dmorenof\SdkGenerator\Diagnostics\ContractAuditor())->audit($document, $sourceName),
@@ -869,6 +872,9 @@ final class SpecificationNormalizer
             'maximum' => SchemaKind::Integer,
             'minItems' => SchemaKind::Array,
             'maxItems' => SchemaKind::Array,
+            'multipleOf' => SchemaKind::Number,
+            'minProperties' => SchemaKind::Object,
+            'maxProperties' => SchemaKind::Object,
         ];
         $validation = [];
         foreach ($rules as $rule => $expected) {
@@ -878,18 +884,41 @@ final class SpecificationNormalizer
             $value = $raw[$rule];
             // Numeric bounds also apply to floating-point JSON numbers.
             $applies = $kind === $expected
-                || (in_array($rule, ['minimum', 'maximum'], true) && $kind === SchemaKind::Number);
+                || (in_array($rule, ['minimum', 'maximum', 'multipleOf'], true) && in_array($kind, [SchemaKind::Number, SchemaKind::Integer], true));
             if (!$applies) {
                 throw new InvalidArgumentException("Constraint $rule is not applicable to $kind->value at $where.");
             }
-            $numeric = in_array($rule, ['minimum', 'maximum'], true);
+            $numeric = in_array($rule, ['minimum', 'maximum', 'multipleOf'], true);
             if ($numeric ? (!is_int($value) && !is_float($value))
                 : (!is_int($value) || $value < 0)) {
                 throw new InvalidArgumentException("Invalid $rule limit at $where.");
             }
+            if ($numeric && (!is_finite((float) $value) || ($rule === 'multipleOf' && $value <= 0))) {
+                throw new InvalidArgumentException("Invalid $rule limit at $where.");
+            }
             $validation[$rule] = $value;
         }
-        foreach ([['minLength', 'maxLength'], ['minimum', 'maximum'], ['minItems', 'maxItems']] as [$lower, $upper]) {
+        foreach (['exclusiveMinimum' => 'minimum', 'exclusiveMaximum' => 'maximum'] as $exclusive => $inclusive) {
+            if (!array_key_exists($exclusive, $raw)) { continue; }
+            if (!in_array($kind, [SchemaKind::Integer, SchemaKind::Number], true)) { throw new InvalidArgumentException("Numeric $exclusive requires a numeric type at $where."); }
+            $value = $raw[$exclusive];
+            if (!$this->jsonSchema31) {
+                if (!is_bool($value) || ($value && !isset($validation[$inclusive]))) { throw new InvalidArgumentException("Invalid boolean $exclusive at $where."); }
+                if ($value) { $validation[$exclusive] = $validation[$inclusive]; unset($validation[$inclusive]); }
+            } else {
+                if ((!is_int($value) && !is_float($value)) || !is_finite((float) $value)) { throw new InvalidArgumentException("Invalid numeric $exclusive at $where."); }
+                $validation[$exclusive] = $value;
+            }
+        }
+        if (array_key_exists('uniqueItems', $raw)) {
+            if ($kind !== SchemaKind::Array || !is_bool($raw['uniqueItems'])) { throw new InvalidArgumentException("Invalid uniqueItems at $where."); }
+            $validation['uniqueItems'] = $raw['uniqueItems'];
+        }
+        if (array_key_exists('const', $raw)) {
+            if (!$this->jsonSchema31 || !in_array($kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed], true) || (is_array($raw['const']) || is_object($raw['const']))) { throw new InvalidArgumentException("Only OpenAPI 3.1 scalar/null const values are supported at $where."); }
+            $validation['const'] = $raw['const'];
+        }
+        foreach ([['minLength', 'maxLength'], ['minimum', 'maximum'], ['minItems', 'maxItems'], ['minProperties', 'maxProperties']] as [$lower, $upper]) {
             if (isset($validation[$lower], $validation[$upper]) && $validation[$lower] > $validation[$upper]) {
                 throw new InvalidArgumentException("Contradictory $lower and $upper at $where.");
             }

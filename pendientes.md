@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.32.0** y `dmorenof/sdk-runtime` **v0.25.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.33.0** y `dmorenof/sdk-runtime` **v0.26.1** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -427,7 +427,7 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 - [ ] Unión de tipos arbitrarios: `type: [string, integer, 'null']`.
 - [ ] Esquemas booleanos `true` y `false`.
-- [ ] `const` y `not`.
+- [ ] **Parcial — v0.33.0:** const escalar/null de OAS 3.1 validado sin cambiar el tipo PHP. Quedan const complejo y not.
 - [ ] `if`/`then`/`else`.
 - [ ] `discriminator` con `propertyName`, `mapping` y casos por defecto de nuevas versiones.
 - [ ] `allOf` completo, incluidos hermanos, fusiones y conflictos complejos.
@@ -438,16 +438,16 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 ### Restricciones
 
-- [ ] `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`.
-- [ ] `minProperties`, `maxProperties`.
-- [ ] `uniqueItems`, `contains`, `minContains`, `maxContains`.
+- [x] **v0.33.0 — Límites numéricos:** exclusiveMinimum/exclusiveMaximum/multipleOf en tipos numéricos soportados; diferencias booleanas Swagger/OAS 3.0 y numéricas OAS 3.1 normalizadas. Campos, valores/ítems, parámetros y respuestas raíz conservan reglas. [Contrato](docs/SCHEMA_RULES.md).
+- [x] **v0.33.0 — minProperties/maxProperties:** DTOs y mapas, dirección request/response y mutaciones; intersección de límites en allOf objeto soportado.
+- [ ] **Parcial — v0.33.0:** uniqueItems con igualdad JSON, modelos y colecciones, incluido el control tras mutaciones. Quedan contains/minContains/maxContains.
 - [ ] `dependentRequired`, `dependentSchemas`.
 - [ ] `propertyNames`, `patternProperties`.
 - [ ] `unevaluatedProperties`, `unevaluatedItems`.
 - [ ] `prefixItems` y tuplas.
 - [ ] Semántica completa de `items` y arrays de Draft 2020-12.
 - [ ] `additionalProperties`: restricciones y composición completa.
-- [ ] `minLength`/`maxLength`: conteo correcto según semántica Unicode.
+- [x] **Verificado v0.33.0 — minLength/maxLength:** el runtime ya cuenta puntos de código Unicode, incluidos saltos de línea; no cuenta bytes ni grafemas. Regresión con astrales y caracteres combinados.
 - [ ] `pattern`: diferencias entre regex JSON Schema y PCRE, y sus límites.
 
 ### Format, contenido y anotaciones
@@ -722,3 +722,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - Runtime v0.25.0 publicado primero con 142 pruebas, PHPStan máximo, CI y smoke de instalación/HTTP. Generador/SDKs requieren ^0.25.0 estable.
 - Dos SDKs nuevos independientes llevan la batería a 34; HTTP real comprueba query/body, headers, bytes binarios, JSON direction, Unicode y mutaciones. Actualizados límites históricos que ya no describían lo implementado.
 - La revisión GetParams/PostParams y separación de ubicaciones queda marcada como hecha para el subconjunto publicado. Siguen pendientes root forms abiertos, nesting URL-encoded arbitrario, headers por parte, otros formatos multipart y negociación de representaciones.
+
+
+### Bloque de reglas JSON Schema — v0.33.0 / runtime v0.26.1
+
+- Límites exclusivos/múltiplos, tamaño de objetos, uniqueItems y const escalar/null mediante opis/json-schema; sin implementar otra igualdad JSON ni otra aritmética de validación.
+- Reglas en DTOs, mapas, colecciones, enums nativos, parámetros y respuestas escalares/arrays; mutaciones y ArrayObject exchangeArray comprobados. Nombres públicos de las colecciones existentes preservados.
+- Runtime estable publicado y verificado primero; generador/SDKs usan ^0.26.1. 434 pruebas del generador y SDK número 35 independiente con PHPStan máximo y HTTP real.
+- Const complejo, boolean schemas, tipos unión arbitrarios y otras keywords permanecen separados. La precisión de datos numéricos sigue limitada a los tipos PHP.
