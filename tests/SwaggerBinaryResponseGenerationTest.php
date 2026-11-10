@@ -135,7 +135,6 @@ final class SwaggerBinaryResponseGenerationTest extends TestCase
         }
         $document = self::document(); unset($document['produces']); $variants[] = $document;
         $document = self::document(); $document['paths']['/download']['post']['produces'] = ['application/json']; $variants[] = $document;
-        $document = self::document(); $document['paths']['/download']['get']['responses']['404']['schema'] = ['type' => 'file']; $variants[] = $document;
         $document = self::document(); $document['paths']['/download']['get']['responses']['404']['schema'] = ['$ref' => '#/definitions/Error']; $variants[] = $document;
         $document = self::document(); $document['paths']['/download']['get']['responses']['206']['schema'] = ['type' => 'string', 'format' => 'binary']; $variants[] = $document;
         foreach ($variants as $document) {

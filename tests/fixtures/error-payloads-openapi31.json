@@ -1,0 +1,225 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Error Payload API",
+    "version": "1"
+  },
+  "paths": {
+    "/errors/{id}": {
+      "get": {
+        "operationId": "getError",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "trace",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Test",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "String",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 2
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "List",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Map",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorScores"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nullable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bodyless"
+          },
+          "405": {
+            "description": "Enum",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorCodeAlias"
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "Text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 2
+                }
+              }
+            }
+          },
+          "407": {
+            "description": "Binary",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Composition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "string",
+                      "minLength": 2
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "DTO",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorScores": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "denied",
+          "expired"
+        ]
+      },
+      "ErrorCodeAlias": {
+        "$ref": "#/components/schemas/ErrorCode"
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "requestToken"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 2
+          },
+          "requestToken": {
+            "type": "string",
+            "writeOnly": true
+          }
+        }
+      }
+    }
+  }
+}

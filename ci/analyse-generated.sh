@@ -118,3 +118,6 @@ php -d memory_limit=16M tests/raw-media-smoke.php "$OUT/raw-media"
 
 analyse schema-aliases schema-aliases-openapi31.json 'Example\AliasSdk'
 php tests/schema-aliases-smoke.php "$OUT/schema-aliases"
+
+analyse error-payloads error-payloads-openapi31.json 'Example\ErrorPayloadSdk'
+php tests/error-payloads-smoke.php "$OUT/error-payloads"

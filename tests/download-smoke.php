@@ -11,7 +11,7 @@ $http = empty($argv[2]) ? new class($bytes) implements \Psr\Http\Client\ClientIn
     public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface
     {
         if ($request->getUri()->getQuery() !== 'body=query%20body'
-            || $request->getHeaderLine('Accept') !== 'application/octet-stream'
+            || !in_array($request->getHeaderLine('Accept'), ['application/octet-stream', 'application/json, application/octet-stream'], true)
             || $request->getHeaderLine('X-Trace') !== 'trace'
             || ($request->getMethod() === 'POST' && ((string) $request->getBody() !== '{"name":"export"}'
                 || $request->getHeaderLine('Content-Type') !== 'application/json'))) {

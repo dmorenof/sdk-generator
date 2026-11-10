@@ -479,4 +479,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/schem
     $aliasDirectory, 'Example\\AliasSdk', 'example/published-schema-aliases']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $aliasDirectory]);
 runPublished([PHP_BINARY, $package . '/tests/schema-aliases-smoke.php', $aliasDirectory]);
+$errorDirectory = $directory . '/error-payloads';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/error-payloads-openapi31.json',
+    $errorDirectory, 'Example\\ErrorPayloadSdk', 'example/published-error-payloads']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $errorDirectory]);
+runPublished([PHP_BINARY, $package . '/tests/error-payloads-smoke.php', $errorDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

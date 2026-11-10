@@ -74,6 +74,7 @@ final class PhpExecutableEmitter
                 [],
                 $contract->models,
                 $contractEmitter->operationParameterTypes(),
+                $contractEmitter->operationErrorResponses(),
             ))->emit($contract),
         );
         ksort($files, SORT_STRING);

@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.37.0** y `dmorenof/sdk-runtime` **v0.29.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.38.0** y `dmorenof/sdk-runtime` **v0.30.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -354,7 +354,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] `Set-Cookie` y acceso tipado a metadatos HTTP.
 - [x] **v0.31.0 — Selectores HTTP:** OpenAPI 1XX–5XX con precedencia exacto > rango > default; default puede describir un 2xx no declarado. Swagger admite exactos/default y rechaza rangos. Non-2xx conservan ApiException; errores tipados limitados al subconjunto DTO existente.
 - [ ] Política configurable de redirecciones `3xx`.
-- [ ] Errores con body escalar, array, mapa, no JSON y con media types alternativos.
+- [ ] **Parcial — v0.38.0:** errores JSON escalares/null, arrays/colecciones, mapas, enums, composiciones y DTOs, text/plain y binario acotado; ApiException.payload sin perder error DTO/status/body/causa. Quedan otros MIME, negociación y streaming de errores. [Contrato](docs/ERROR_PAYLOADS.md).
 - [ ] **Parcial — Descargas binarias:** v0.20.0 devuelve ResponseInterface PSR-7 para éxitos application/octet-stream OpenAPI 3.0/3.1 sin materializar bytes completos en el runtime. v0.21.0 añade Swagger type:file con produces octet-stream; quedan otros MIME, negociación y garantías generales de streaming. [Uso y medidas](docs/DOWNLOADS.md).
 - [ ] **Parcial — v0.36.0:** respuestas text/plain como strings con constraints, combinadas por estado con JSON/binario/sin contenido. CSV/XML y otros codecs siguen pendientes. [Contrato](docs/RAW_MEDIA.md).
 - [ ] Negociación `Accept` y uso de `application/*+json` con diversos esquemas.
@@ -762,3 +762,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] JSON Pointer URI/~0/~1 aplicado a schemas y mapping, reutilizando el decodificador existente. Ciclos puros, referencias inexistentes y profundidad excesiva rechazados.
 - Validación: 454 pruebas / 3.572 aserciones del generador, SDK independiente con HTTP y PHPStan max (39 en CI). Sin cambios de runtime ni dependencias temporales. [Contrato](docs/SCHEMA_ALIASES.md).
 - Siguen pendientes ámbitos externos/dinámicos, ubicaciones arbitrarias, hermanos de validación $ref y composiciones no soportadas.
+
+### Payloads de error HTTP — v0.38.0 / runtime v0.30.0
+
+- [x] errorResponses declarativo para JSON general soportado, texto y bytes binarios; precedencia exacto/rango/default y overrides sin body. Reutilizar hidratadores y reglas existentes, sin excepciones por endpoint ni otro transporte.
+- [x] ApiException.payload general y error DTO compatible; causa de JSON inválido/violación de esquema conservada junto a status/body original. Required direccional y mutaciones de DTO de error revalidadas.
+- [x] HTTP real para valores nativos/listas/mapas/enums/oneOf/DTO, null, sin body, raw y errores de decodificación. SDK instalado independiente con PHPStan max (40 en CI).
+- Pruebas conjuntas: generador 459 / 3.691 aserciones; runtime 165 / 926. [Contrato](docs/ERROR_PAYLOADS.md).
+- Binario de error sigue bufferizado; quedan otros MIME/codecs, streaming de errores y negociación de representaciones.

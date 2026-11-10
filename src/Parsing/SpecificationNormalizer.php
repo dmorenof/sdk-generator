@@ -545,9 +545,6 @@ final class SpecificationNormalizer
                 $produces = $operation['produces'] ?? $document['produces'] ?? ['application/json'];
                 $binarySchema = is_array($schema) ? BinaryResponseSupport::swaggerSchema($schema, $produces) : null;
                 if ($binarySchema !== null) {
-                    if (preg_match('/^2(?:[0-9]{2}|XX)$/', $status) !== 1) {
-                        throw new InvalidArgumentException("Binary error responses are unsupported at $where.responses.$status.");
-                    }
                     $schema = $binarySchema;
                 } elseif ($schema !== null) {
                     if (count($produces) !== 1 || !RawMediaSupport::supported(['schema' => $schema], $produces[0] ?? '', $document, false)) {
@@ -558,9 +555,6 @@ final class SpecificationNormalizer
             } else {
                 $representations = $raw['content'] ?? [];
                 $binary = BinaryResponseSupport::selected($representations);
-                if ($binary && preg_match('/^2(?:[0-9]{2}|XX)$/', $status) !== 1) {
-                    throw new InvalidArgumentException("Binary error responses are unsupported at $where.responses.$status.");
-                }
                 $content = $binary
                     ? ['mediaType' => BinaryResponseSupport::MEDIA, 'schema' => $representations[BinaryResponseSupport::MEDIA]['schema']]
                     : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"));

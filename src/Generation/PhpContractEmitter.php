@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.29.0';
+    public const RUNTIME_CONSTRAINT = '^0.30.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -37,6 +37,8 @@ final class PhpContractEmitter
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, ?string>> */
     private array $operationErrorTypes = [];
+    /** @var array<string,array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>> */
+    private array $operationErrorResponses = [];
     /** @var array<string,string> Operation ID => fully-qualified request body DTO. */
     private array $operationBodyTypes = [];
     /** @var array<string,array<string,array<array-key,string>>> Operation ID / location / wire name => object type. */
@@ -83,6 +85,7 @@ final class PhpContractEmitter
         $this->modelDefinitions = [];
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
+        $this->operationErrorResponses = [];
         $this->operationBodyTypes = [];
         $this->operationParameterTypes = [];
         $this->collectionTypes = [];
@@ -193,6 +196,10 @@ final class PhpContractEmitter
     {
         return $this->operationErrorTypes;
     }
+
+    /** @return array<string,array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>> */
+    public function operationErrorResponses(): array { return $this->operationErrorResponses; }
+
     /** @return array<string,string> */
     public function operationBodyTypes(): array
     {
@@ -1180,31 +1187,32 @@ final class PhpContractEmitter
             }
             $return = $this->successResponseType($operation, $files);
             foreach ($operation->responses as $response) {
-                if (preg_match('/^2(?:[0-9]{2}|XX)$/', $response->status) === 1) {
-                    continue;
-                }
-                if ($response->schema === null) {
-                    $this->operationErrorTypes[$operation->operationId][$response->status] = null;
-                    continue;
-                }
-                // An explicit untyped error still blocks a broader range/default.
+                if (preg_match('/^2(?:[0-9]{2}|XX)$/', $response->status) === 1) { continue; }
                 $this->operationErrorTypes[$operation->operationId][$response->status] = null;
-                if ($response->schema->kind === SchemaKind::Reference
-                    && !in_array(\Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($response->schema, $contract->models)->kind, [SchemaKind::Object, SchemaKind::AllOf], true)) { continue; }
-                if ($response->schema->kind === SchemaKind::Reference) {
-                    $this->operationErrorTypes[$operation->operationId][$response->status]
-                        = $this->reference($response->schema);
+                if ($response->schema === null) {
+                    $this->operationErrorResponses[$operation->operationId][$response->status] = ['type' => null, 'schemaNullable' => false];
                     continue;
                 }
-                if (($response->schema->kind === SchemaKind::Object
-                        && !($response->schema->properties === [] && $this->hasOpenAdditionalProperties($response->schema)))
-                    || $response->schema->kind === SchemaKind::AllOf) {
-                    $hint = $this->operationResponseHint($operation, $response->status);
-                    $this->operationErrorTypes[$operation->operationId][$response->status]
-                        = $response->status === 'default'
-                            ? $this->responseSchemaType($response->schema, $hint, $files)
-                            : $this->typeFor($response->schema, $hint, $files, 'Response');
-                }
+                $schema = $this->effectiveSchema($response->schema);
+                $resolved = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($response->schema, $contract->models);
+                $hint = $this->operationResponseHint($operation, $response->status);
+                if ($response->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA) {
+                    $type = 'string';
+                } elseif ($schema->kind === SchemaKind::Reference) {
+                    $type = $this->reference($schema);
+                    if ($resolved->kind === SchemaKind::AllOf || ($resolved->kind === SchemaKind::Object && $resolved->properties !== [])) {
+                        $this->operationErrorTypes[$operation->operationId][$response->status] = $type;
+                    }
+                } elseif (($schema->kind === SchemaKind::Object && !($schema->properties === [] && $this->hasOpenAdditionalProperties($schema))) || $schema->kind === SchemaKind::AllOf) {
+                    $type = $response->status === 'default' ? $this->responseSchemaType($schema, $hint, $files) : $this->typeFor($schema, $hint, $files, 'Response');
+                    $this->operationErrorTypes[$operation->operationId][$response->status] = $type;
+                } else { $type = $this->responseSchemaType($schema, $hint, $files); }
+                $rules = $resolved->validation;
+                if ($resolved->pattern !== null) { $rules['pattern'] = $resolved->pattern; }
+                $entry = ['type' => $type, 'schemaNullable' => $resolved->nullable];
+                if ($rules !== []) { $entry['rules'] = $rules; }
+                if (in_array($response->mediaType, [\Dmorenof\SdkGenerator\Parsing\RawMediaSupport::TEXT, \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA], true)) { $entry['mediaType'] = $response->mediaType; }
+                $this->operationErrorResponses[$operation->operationId][$response->status] = $entry;
             }
             $returnDoc = ltrim($return, '?') === 'array' ? '    /** @return list<mixed>' . (str_starts_with($return, '?') ? '|null' : '') . " */\n" : '';
             $methods[] = $returnDoc . '    public function ' . $methodName
