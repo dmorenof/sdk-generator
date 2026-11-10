@@ -598,6 +598,13 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 ---
 
+## Cierre de 0.2.0 → 1.0.0 (decidido 2026-11-10)
+
+- La línea de trabajo es `release/0.2.0` (generador) coordinada con `feature/p0-contract-fidelity` (runtime). Al terminarla, runtime y generador se publican como **v1.0.0**, runtime primero.
+- **Sin PR:** la entrega es una release (cambio de `VERSION` → tag inmutable y GitHub Release por el workflow existente). Si la protección de `main` exigiera un PR, se trata como trámite técnico (ver [AGENTS.md](AGENTS.md)).
+- Hasta entonces se acumula sin publicar; `VERSION`, tags y la línea base estable (v0.31.0) no se tocan.
+- **Antes de la 1.0.0** (obligatorio): ejecutar por primera vez PHPUnit, PHPStan máximo, matriz PHP 8.3–8.5, dependencias mínimas e instalación aislada sobre todo lo acumulado; fijar la dependencia estable `^1.0.0` del runtime en el generador y en los SDKs emitidos, y confirmar que el SDK de Casafari generado sigue pasando la aceptación.
+
 ## 12. Paquetes de trabajo independientes y orden recomendado
 
 | Orden | Paquete | Prioridad | Principalmente en | Criterio para cerrarlo |
