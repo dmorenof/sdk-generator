@@ -528,7 +528,7 @@ final class SpecificationNormalizer
         $responses = [];
         foreach ($rawResponses as $status => $raw) {
             $status = (string) $status;
-            if ($status !== 'default' && preg_match('/^[1-5][0-9]{2}$/', $status) !== 1) {
+            if ($status !== 'default' && preg_match($dialect === 'swagger2' ? '/^[1-5][0-9]{2}$/' : '/^[1-5](?:[0-9]{2}|XX)$/', $status) !== 1) {
                 throw new InvalidArgumentException("Unsupported response status $status at $where.");
             }
             if (!is_array($raw) || isset($raw['$ref'])) {
@@ -539,7 +539,7 @@ final class SpecificationNormalizer
                 $produces = $operation['produces'] ?? $document['produces'] ?? ['application/json'];
                 $binarySchema = is_array($schema) ? BinaryResponseSupport::swaggerSchema($schema, $produces) : null;
                 if ($binarySchema !== null) {
-                    if (preg_match('/^2[0-9]{2}$/', $status) !== 1) {
+                    if (preg_match('/^2(?:[0-9]{2}|XX)$/', $status) !== 1) {
                         throw new InvalidArgumentException("Binary error responses are unsupported at $where.responses.$status.");
                     }
                     $schema = $binarySchema;
@@ -550,7 +550,7 @@ final class SpecificationNormalizer
             } else {
                 $representations = $raw['content'] ?? [];
                 $binary = BinaryResponseSupport::selected($representations);
-                if ($binary && preg_match('/^2[0-9]{2}$/', $status) !== 1) {
+                if ($binary && preg_match('/^2(?:[0-9]{2}|XX)$/', $status) !== 1) {
                     throw new InvalidArgumentException("Binary error responses are unsupported at $where.responses.$status.");
                 }
                 $content = $binary

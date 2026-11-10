@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.30.0** y `dmorenof/sdk-runtime` **v0.23.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.31.0** y `dmorenof/sdk-runtime` **v0.24.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -349,10 +349,10 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.22.0 — Selección del DTO de respuesta mediante el código HTTP real**, para éxitos numéricos explícitos, con required/validación y nulabilidad por estado.
 - [x] **v0.22.0 — Uniones PHP nativas en firmas de recursos y fachadas** para varias respuestas JSON de éxito representables, incluida herencia y null; sin wrapper de resultado.
 - [ ] **Parcial — Respuestas sin contenido:** v0.22.0 distingue cada estado explícito sin body de otro con JSON; 204 vacío no permite aceptar 200 vacío. Quedan políticas generales para HEAD/205 y otras combinaciones del protocolo.
-- [ ] Mezclar respuestas de éxito JSON/binarias o negociar codecs distintos por estado.
+- [x] **v0.31.0 — JSON/binario/sin contenido por estado:** uniones PHP, PSR-7 binario y null para vacío en operaciones mixtas. Negociar varios MIME en un mismo estado sigue pendiente. [Contrato](docs/RESPONSES.md#response-selection-block--v0310).
 - [ ] Cabeceras de respuesta declaradas en `responses[*].headers`: v0.20.0 permite leer cabeceras PSR de descargas, pero no valida sus esquemas declarados.
 - [ ] `Set-Cookie` y acceso tipado a metadatos HTTP.
-- [ ] Rangos de status `1XX`, `2XX`, `3XX`, `4XX`, `5XX` y `default`.
+- [x] **v0.31.0 — Selectores HTTP:** OpenAPI 1XX–5XX con precedencia exacto > rango > default; default puede describir un 2xx no declarado. Swagger admite exactos/default y rechaza rangos. Non-2xx conservan ApiException; errores tipados limitados al subconjunto DTO existente.
 - [ ] Política configurable de redirecciones `3xx`.
 - [ ] Errores con body escalar, array, mapa, no JSON y con media types alternativos.
 - [ ] **Parcial — Descargas binarias:** v0.20.0 devuelve ResponseInterface PSR-7 para éxitos application/octet-stream OpenAPI 3.0/3.1 sin materializar bytes completos en el runtime. v0.21.0 añade Swagger type:file con produces octet-stream; quedan otros MIME, negociación y garantías generales de streaming. [Uso y medidas](docs/DOWNLOADS.md).
@@ -706,3 +706,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - ssv/tsv/pipes reutilizan QuerySerializer y los mapas existentes de Operation; el generador solo declara tipos y formato por ubicación. CSV/OpenAPI y firmas públicas conservados.
 - JSON/YAML, alias, PathParams, GetParams/PostParams, query llamado body, JSON DTO body, mutaciones y GET/POST HTTP real verificados. El SDK número 31 se instala de forma independiente y pasa PHPStan máximo; smoke de publicación incluido.
 - Runtime v0.23.0 publicado primero y comprobado por instalación/HTTP; generador requiere ^0.23.0 estable. multi path/header, nesting, nullable y otros formatos formData siguen fuera del subconjunto.
+
+
+### Bloque de respuestas HTTP — v0.31.0 / runtime v0.24.0
+
+- Entrega conjunta: rangos/default, precedencia exacta (incluidos errores vacíos) y éxitos JSON/binarios/sin body. Mapas Operation, hidratador y PSR-7 compartidos; uniones nativas sin capas de resultado.
+- Runtime v0.24.0 publicado primero con CI, 138 pruebas y smoke de instalación/HTTP; generador y SDKs requieren ^0.24.0 estable.
+- JSON/YAML, referencias, esquema inválido sin fallback, errores raw, mutación y GetParams/PostParams comprobados. El SDK número 32 pasa PHPStan máximo y nueve escenarios HTTP reales; smoke de publicación incluido.
+- Compatibilidad de SDKs binarios conservada. Siguen pendientes HEAD/205 general, headers tipados, errores escalares/binarios y varios MIME en un estado.

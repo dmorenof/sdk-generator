@@ -65,8 +65,70 @@ including invalid bodies and errors. CI and immutable-publication installation
 run the same status-response consumer independently of the generator. Runtime
 v0.16.0 is published and installed first; generated SDKs require stable ^0.16.0.
 
-Only explicit numeric successful statuses select these JSON types. Status ranges,
-JSON/binary success mixtures, non-JSON codecs/negotiation, declared response-header
+The original v0.22.0 subset used explicit numeric successful statuses. v0.31.0
+adds ranges and JSON/binary success mixtures below. Other codecs/negotiation and declared response-header
 schema validation, and general HEAD/no-content policies remain pending. Existing
 JSON Schema validation limits still apply; this change does not add ignored schema
 keywords or promise complete JSON Schema compliance. JSON/errors remain buffered.
+
+
+## Response selection block — v0.31.0
+
+The generator and emitted SDKs require stable runtime ^0.24.0. The existing
+success, responseTypes and errors maps carry selectors; execution, JSON hydration
+and PSR transport remain shared. No result wrapper, factory or decoder is generated.
+
+OpenAPI 3.0/3.1 supports uppercase 1XX, 2XX, 3XX, 4XX and 5XX in addition to numeric
+HTTP codes and default. An exact entry wins over its range, which wins over default.
+Swagger 2.0 supports exact codes/default; ranges are rejected for that dialect.
+Malformed selectors such as 2xx, 20X and 6XX fail.
+
+2XX describes successful states not listed explicitly. default can describe an
+unmatched 2xx, including operations with only default declared; it does not make
+non-2xx successful. When 2XX already covers all successes, the default schema does
+not widen the success return type. Redirect policy stays in transport configuration.
+
+~~~yaml
+responses:
+  '200':
+    description: Exact JSON
+    content: {application/json: {schema: {$ref: '#/components/schemas/Exact'}}}
+  '201':
+    description: Binary
+    content: {application/octet-stream: {schema: {type: string, format: binary}}}
+  '204': {description: No body}
+  '2XX':
+    description: Other successful JSON
+    content: {application/json: {schema: {$ref: '#/components/schemas/Range'}}}
+  '400': {description: Empty error}
+  '4XX':
+    description: Other client errors
+    content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+  default:
+    description: Other errors
+    content: {application/json: {schema: {$ref: '#/components/schemas/Fallback'}}}
+~~~
+
+This operation returns Exact|ResponseInterface|Range|null. 200 uses Exact, 201
+returns the original PSR response and unread binary stream, 204 returns null, and
+299 uses Range. Accept lists application/json and application/octet-stream.
+Selection uses the HTTP status, not schema guessing. JSON schema nullability and
+response-direction constraints apply; invalid data does not try a broader selector.
+
+The explicit bodyless 400 suppresses 4XX/default hydration; 404 uses Problem and
+500 uses Fallback. ApiException preserves raw status, headers and body when typed
+hydration fails, exposing that failure as its previous exception. An explicit
+unsupported/untyped error also blocks a broader decoder. Error DTOs retain the
+existing object/reference subset; scalar/collection/binary error codecs remain pending.
+
+Binary-only SDKs preserve their PSR return behavior, including bodyless successes.
+Mixed operations return null for declared bodyless successes. PSR-18 binary streams
+return without materialization; the legacy string transport remains buffered.
+Native return unions do not add general oneOf/anyOf model validation.
+
+Both transports, JSON/YAML, local references, empty/invalid bodies and mutations are
+verified. The 32nd independent SDK passes PHPStan maximum and nine actual GET/POST
+HTTP scenarios: query named body, headers, JSON request body, binary bytes/headers,
+typed errors and default-only success. Publication runs the same installed consumer.
+General HEAD/205 rules, same-status MIME negotiation, arbitrary binary MIME and
+declared response-header schema validation remain separate work.

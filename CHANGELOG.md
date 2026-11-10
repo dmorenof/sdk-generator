@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.31.0] — 2026-11-10
+
+- Deliver HTTP response selection as one block: OpenAPI uppercase 1XX–5XX selectors, exact/range/default precedence, default-only successes and JSON/binary/bodyless success mixtures. Swagger keeps exact codes/default and rejects ranges.
+- Reuse operation maps and stable runtime ^0.24.0; emit native return unions and retain PSR-7 binary streams without a response wrapper. Preserve binary-only SDK behavior and existing executor APIs.
+- Exact bodyless/untyped errors block broader fallback hydration. DTO errors retain ApiException raw status/headers/body when decoding fails. Default success applies only to unmatched 2xx; non-2xx remain errors.
+- Add the 32nd independently installed SDK at PHPStan maximum and nine real HTTP scenarios to source and published-package smoke. No binary error codec, same-status MIME negotiation, typed response headers or general HEAD/205 policy is added.
+
 ## [0.30.0] — 2026-11-10
 
 - Execute Swagger 2.0 collectionFormat ssv/tsv/pipes for primitive arrays in path and header parameters, including reusable aliases and JSON/YAML input. Emit existing declarative metadata and reuse stable runtime ^0.23.0; no new DTO wrappers or executor API.

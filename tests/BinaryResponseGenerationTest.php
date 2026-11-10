@@ -110,7 +110,7 @@ final class BinaryResponseGenerationTest extends TestCase
         self::assertStringNotContainsString('ResponseInterface', $files['src/Resources/Download.php']);
         self::assertStringContainsString('DTOs\\Error', $files['src/Resources/Download.php']);
     }
-    public function testUnsupportedSchemasRepresentationsAndMixedSuccessFailVisibly(): void
+    public function testUnsupportedSchemasAndRepresentationsFailVisibly(): void
     {
         $base = self::document();
         $variants = [];
@@ -121,9 +121,6 @@ final class BinaryResponseGenerationTest extends TestCase
         }
         $document = $base;
         $document['components']['responses']['File']['content'] = ['image/png' => ['schema' => ['type' => 'string', 'format' => 'binary']]];
-        $variants[] = $document;
-        $document = $base;
-        $document['paths']['/download']['get']['responses']['206']['content'] = ['application/json' => ['schema' => ['$ref' => '#/components/schemas/Error']]];
         $variants[] = $document;
         $document = $base;
         $document['paths']['/download']['get']['responses']['404'] = $document['paths']['/download']['get']['responses']['206'];
