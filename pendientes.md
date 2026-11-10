@@ -8,6 +8,16 @@
 >
 > **Principio arquitectónico:** conservar clases API ligeras, namespaces derivados de rutas, DTOs reutilizables y un runtime HTTP común. Las nuevas capacidades de OpenAPI deben implementarse principalmente en el normalizador, contrato intermedio y runtime, sin introducir lógica HTTP duplicada en los métodos generados.
 
+## Orden global de trabajo (acordado 2026-11-10)
+
+Idéntico en los tres repositorios ([sdk-runtime](https://github.com/dmorenof/sdk-runtime/blob/main/pendientes.md), este y [casafari-sdk](https://github.com/dmorenof/casafari-sdk/blob/master/pendientes.md)).
+
+1. **sdk-runtime:** cubrir lo necesario para servir a cualquier API y congelar su API pública (1.0).
+2. **sdk-generator (este repositorio):** cumplir las especificaciones más importantes (Swagger 2.0, OpenAPI 3.0/3.1) sobre ese runtime.
+3. **casafari-sdk:** evaluar y, si procede, migrar a un SDK generado.
+
+Consecuencias para este archivo: las tareas que dependen de capacidades de ejecución del runtime (OAuth2, reintentos, headers tipados, negociación, streaming, servidores dinámicos, validadores de `format`) se **bloquean hasta su publicación en el runtime**; la parte del generador es después declarar sus metadatos. La migración real de Casafari (apartados 0 y 11) queda para la fase 3. El SDK de Casafari generado sigue como prueba de aceptación en CI.
+
 ## Leyenda
 
 - **P0:** bloqueante para interpretar con fidelidad APIs habituales; abordar primero.
@@ -655,6 +665,7 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-09 | Generador v0.22.0 + runtime v0.16.0: selección de respuestas JSON por estado HTTP, firmas unión PHP, nulabilidad/ausencia por status y corrección de 200 vacío con 204 alternativo; herencia, DTOs y ejecución común reutilizados. | [Generator v0.22.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.22.0), [Runtime v0.16.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.16.0) |
 | 2026-11-09 | Generador v0.23.0 + runtime v0.17.1: arrays primitivos simple/CSV en path y headers, validación de placeholders y PathParams nativo; reuse de serialización/DTOs y contratos GetParams/PostParams, SDKs equivalentes y HTTP real. | [Generator v0.23.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.23.0), [Runtime v0.17.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.17.1) |
 | 2026-11-09 | Generador v0.24.0 + runtime v0.18.0: objetos planos form/query y simple/path-header con explode/defaults, DTOs/Maps compartidos y validación por ubicación; colisiones query, delimitadores header, mutaciones y contrato GET/POST comprobados. | [Generator v0.24.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.24.0), [Runtime v0.18.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.18.0) |
+| 2026-11-10 | Normalización de los listados de pendientes: leyenda común, orden global runtime → generador → Casafari y nuevo `pendientes.md` en sdk-runtime y casafari-sdk. La rama `release/0.2.0` ya no existe; el desarrollo sigue en `main`. | Conversación de planificación |
 
 ### Paths label/matrix — v0.25.0 / runtime v0.19.0
 
