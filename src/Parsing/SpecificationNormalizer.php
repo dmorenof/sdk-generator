@@ -147,10 +147,19 @@ final class SpecificationNormalizer
         ksort($paths);
         $operations = [];
         $seen = [];
+        $pathIdentities = [];
         foreach ($paths as $path => $pathItem) {
+            if (is_string($path) && str_starts_with($path, 'x-')) { continue; }
             if (!is_string($path) || !str_starts_with($path, '/') || !is_array($pathItem)) {
                 throw new InvalidArgumentException('Invalid path item in paths.');
             }
+            if (strpbrk($path, '?#') !== false || preg_match('/[\x00-\x1f\x7f]/', $path)) {
+                throw new InvalidArgumentException("Path keys cannot contain query, fragment or control bytes: $path.");
+            }
+            $this->pathNames($path);
+            $identity = preg_replace('/\{[^{}]+\}/', '{}', $path);
+            if (isset($pathIdentities[$identity])) { throw new InvalidArgumentException("Equivalent templated paths: {$pathIdentities[$identity]} and $path."); }
+            $pathIdentities[$identity] = $path;
             if (array_key_exists('parameters', $pathItem)
                 && (!is_array($pathItem['parameters']) || !array_is_list($pathItem['parameters']))) {
                 throw new InvalidArgumentException("Parameters must be a list at $path (Path Item).");
@@ -184,15 +193,14 @@ final class SpecificationNormalizer
                     $dialect,
                     "$method $path",
                 );
+                $this->pathParameters($path, $parameters, "$method $path");
                 $responses = $this->responses($raw, $document, $dialect, "$method $path");
                 $serverSource = array_key_exists('servers', $raw) ? 'operation'
                     : (array_key_exists('servers', $pathItem) ? 'path' : 'root');
                 $serverDefinitions = $dialect === 'swagger2'
                     ? array_map(static fn (string $url): array => ['url' => $url], $servers)
-                    : ($raw['servers'] ?? $pathItem['servers'] ?? $document['servers'] ?? []);
-                $operationServers = $serverSource === 'root' ? $servers : array_map(
-                    static fn (array $server): string => rtrim($server['url'], '/'), $serverDefinitions,
-                );
+                    : ($serverSource === 'operation' ? $raw['servers'] : ($serverSource === 'path' ? $pathItem['servers'] : ($document['servers'] ?? [])));
+                $operationServers = $serverSource === 'root' ? $servers : $this->serverUrls($serverDefinitions);
                 $operations[] = new OperationDefinition(
                     $id, strtoupper($method), $path, $parameters, $requestBody, $responses, $security,
                     $operationServers, $serverDefinitions, $serverSource, $this->annotations($raw),
@@ -207,7 +215,7 @@ final class SpecificationNormalizer
             ? array_map(static fn (string $url): array => ['url' => $url], $servers)
             : ($document['servers'] ?? []);
         $contract = new ApiContract($title, $servers, $models, $operations, $securitySchemes, $rootSecurity,
-            $serverDefinitions, ['info' => $info] + $this->annotations($document));
+            $serverDefinitions, ['info' => $info] + $this->annotations($document) + ($this->annotations($paths) === [] ? [] : ['paths' => $this->annotations($paths)]));
         $knownModels = array_fill_keys(array_map(
             static fn (ModelDefinition $model): string => $model->name,
             $models,
@@ -339,6 +347,41 @@ final class SpecificationNormalizer
     }
 
     /** @return list<string> */
+    private function pathNames(string $path): array {
+        preg_match_all('/\{([^{}]+)\}/', $path, $matches);
+        if (strpbrk(preg_replace('/\{[^{}]+\}/', '', $path), '{}') !== false) {
+            throw new InvalidArgumentException("Malformed path template at $path.");
+        }
+        return $matches[1];
+    }
+
+    /** @param list<ParameterDefinition> $parameters */
+    private function pathParameters(string $path, array $parameters, string $where): void {
+        $names = $this->pathNames($path);
+        $declared = [];
+        foreach ($parameters as $parameter) {
+            if ($parameter->location !== 'path') { continue; }
+            if (!$parameter->required) { throw new InvalidArgumentException("Path parameter '$parameter->wireName' must be required at $where."); }
+            if (!in_array($parameter->wireName, $names, true)) { throw new InvalidArgumentException("Path parameter '$parameter->wireName' has no matching placeholder at $where."); }
+            $declared[$parameter->wireName] = true;
+        }
+        foreach ($names as $name) {
+            if (!isset($declared[$name])) { throw new InvalidArgumentException("Missing declared path parameter '$name' at $where."); }
+        }
+    }
+
+    /** @return list<string> */
+    private function serverUrls(mixed $definitions): array {
+        if (!is_array($definitions) || !array_is_list($definitions)) { throw new InvalidArgumentException('Servers must be a list.'); }
+        $urls = [];
+        foreach ($definitions as $server) {
+            if (!is_array($server)) { throw new InvalidArgumentException('Server definitions must be objects.'); }
+            $urls[] = ServerUrl::expand($server);
+        }
+        return $urls;
+    }
+
+    /** @return list<string> */
     private function servers(array $document, string $dialect): array
     {
         if ($dialect === 'swagger2') {
@@ -350,13 +393,7 @@ final class SpecificationNormalizer
             }
             $servers = array_map(static fn ($scheme): string => $scheme . '://' . $host . $basePath, $schemes);
         } else {
-            $servers = [];
-            foreach ($document['servers'] ?? [] as $server) {
-                if (!is_array($server) || !is_string($server['url'] ?? null) || isset($server['variables'])) {
-                    throw new InvalidArgumentException('Only literal OpenAPI server URLs are supported in this slice.');
-                }
-                $servers[] = rtrim($server['url'], '/');
-            }
+            $servers = $this->serverUrls(array_key_exists('servers', $document) ? $document['servers'] : []);
         }
         // Server order is preference order; sorting can change the default host.
         return $servers;
@@ -415,6 +452,7 @@ final class SpecificationNormalizer
                 throw new InvalidArgumentException("OpenAPI style/explode/allowReserved options are not valid Swagger parameters at $where.");
             }
             $loc = $raw['in'];
+            if (array_key_exists('required', $raw) && !is_bool($raw['required'])) { throw new InvalidArgumentException("Parameter required flag must be boolean at $where."); }
             if ($loc === 'formData' && $dialect === 'swagger2') {
                 if (!FormSupport::swaggerField($raw, $formMedia)) {
                     throw new InvalidArgumentException("Unsupported Swagger formData field {$raw['name']} at $where.");

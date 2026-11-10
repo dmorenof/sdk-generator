@@ -209,12 +209,11 @@ PHP;
             $serverUrl = null;
             if ($operation->serverSource !== 'root') {
                 $selected = $operation->servers[0] ?? null;
-                if ($selected === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($selected)
-                    || !empty($operation->serverDefinitions[0]['variables'])) {
-                    throw new InvalidArgumentException("Unsupported operation server at $operation->operationId: only literal absolute HTTP(S) servers are executable.");
+                if ($selected === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($selected)) {
+                    throw new InvalidArgumentException("Unsupported operation server at $operation->operationId: only expanded absolute HTTP(S) servers are executable.");
                 }
                 // Equivalent root declarations still follow the configured client baseUrl.
-                if (rtrim($selected, '/') !== ($rootServer === null ? null : rtrim($rootServer, '/'))) {
+                if ($rootServer === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::same(rtrim($selected, '/'), rtrim($rootServer, '/'))) {
                     $serverUrl = rtrim($selected, '/');
                 }
             }

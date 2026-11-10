@@ -381,6 +381,7 @@ final class LocalFileBundler
         foreach ($ordered as $key => $value) {
             $at = JsonPointer::append($pointer, $key);
             if (str_starts_with($context, 'map:')) {
+                if ($context === 'map:pathItems' && $pointer === '/paths' && is_string($key) && str_starts_with($key, 'x-')) { continue; }
                 $node[$key] = $this->walk($value, substr($context, 4), $file, $at, $chain, $depth + 1);
                 continue;
             }

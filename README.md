@@ -3,7 +3,7 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.39.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+**v0.40.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
 
 The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
 
@@ -178,15 +178,17 @@ Resources methods are instance methods; route facades (such as Users::getById())
 
 Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/sdk-generator/actions/workflows/sdk-preview.yml). Runs provide downloadable source ZIPs for **Accounts** and **Catalog** SDKs. GitHub Actions independently installs and smoke-tests each generated package with *mock HTTP*, so no API credentials or live services are needed. Details: [docs/TRY_WITHOUT_LOCAL_PHP.md](docs/TRY_WITHOUT_LOCAL_PHP.md).
 
+Version 0.40.0 adds [server defaults and coherent routes](docs/SERVER_ROUTES.md): scoped variable/default/enum handling, existing environment overrides, path declaration checks and Paths extensions retained as data. It reuses stable runtime ^0.31.0 unchanged.
+
 ## Supported features and deliberate boundaries
 
-| Area | v0.39.0 (supported subset) |
+| Area | v0.40.0 (supported subset) |
 |---|---|
 | Input dialects | Swagger 2.0, OpenAPI 3.0.x and 3.1.x in **JSON or YAML**, tested common subset |
 | Models | Canonical local aliases, recursive DTOs/maps/collections, enums, compatible single-parent `allOf`, discriminators, original-schema composition validation, primitive type-set unions, boolean schemas and scalar/null const |
 | Endpoints | Bounded scalar/list/flat-object parameter styles, scalar cookies, JSON/text parameter content, general supported JSON bodies, bounded forms/multipart, opaque text/binary MIME, and exact/range/default success/error response selection |
 | Runtime | Inherited shared execution/configuration, Guzzle/PSR-18, directional hydration/validation, binary PSR streams and compatible ApiException payload/error properties |
-| Testing | 464 generator tests; CI installs 41 SDKs with PHPStan maximum and HTTP smoke, including 32 MiB transfers under PHP 16 MiB |
+| Testing | 471 generator tests; CI installs 42 SDKs with PHPStan maximum and HTTP smoke, including 32 MiB transfers under PHP 16 MiB |
 | Not included yet | Remote/dynamic/general reference scopes, arbitrary native object unions, general `not`/complex const/compositions, OAuth2/OIDC flows, structured cookies, advanced forms, non-seekable/general streaming guarantees, MIME wildcards/variant negotiation, structured XML/CSV and full conformance |
 
 The validator **rejects many unsupported constructs explicitly** instead of silently treating them as supported. Generated DTOs validate required fields and supported constraints on construction and before sending, including modified nested values. This is not complete JSON Schema validation. See [the SDK design criteria](docs/SDK_DESIGN.md) and the supported-scope document for the current boundaries.
@@ -205,7 +207,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v0.39.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.39.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^0.31.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v0.40.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.40.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^0.31.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

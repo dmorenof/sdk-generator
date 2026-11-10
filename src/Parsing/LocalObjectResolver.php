@@ -121,6 +121,7 @@ final class LocalObjectResolver
             }
         }
         foreach ($document['paths'] ?? [] as $path => $item) {
+            if (is_string($path) && str_starts_with($path, 'x-')) { continue; }
             if (!is_array($item)) {
                 continue;
             }

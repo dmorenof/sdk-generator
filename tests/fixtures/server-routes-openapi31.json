@@ -1,0 +1,253 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Server Routes API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://{tenant}.{region}.example.test:{port}/{version}",
+      "variables": {
+        "tenant": {
+          "default": "api"
+        },
+        "region": {
+          "default": "eu",
+          "enum": [
+            "eu",
+            "us"
+          ]
+        },
+        "port": {
+          "default": "443"
+        },
+        "version": {
+          "default": "v1",
+          "enum": [
+            "v1",
+            "v2"
+          ]
+        }
+      }
+    },
+    {
+      "url": "https://backup.example.test/{version}",
+      "variables": {
+        "version": {
+          "default": "v2"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/root/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getRoot",
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        }
+      }
+    },
+    "/items/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "servers": [
+        {
+          "url": "https://audit.{region}.example.test/{version}",
+          "variables": {
+            "region": {
+              "default": "us",
+              "enum": [
+                "us",
+                "eu"
+              ]
+            },
+            "version": {
+              "default": "v2"
+            }
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getItem",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postItem",
+        "servers": [
+          {
+            "url": "https://exports.{region}.example.test/{version}",
+            "variables": {
+              "region": {
+                "default": "eu",
+                "enum": [
+                  "eu",
+                  "us"
+                ]
+              },
+              "version": {
+                "default": "v3"
+              }
+            }
+          }
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "minLength": 2
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        }
+      }
+    },
+    "/equivalent/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getEquivalent",
+        "servers": [
+          {
+            "url": "https://API.EU.EXAMPLE.TEST/v1/"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        }
+      }
+    },
+    "/mirror/{id}/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getMirror",
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        }
+      }
+    },
+    "/assets/{stem}.{ext}": {
+      "get": {
+        "operationId": "getAsset",
+        "parameters": [
+          {
+            "name": "stem",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "ext",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        }
+      }
+    },
+    "x-route-notes": {
+      "$ref": "https://example.invalid/do-not-fetch.json",
+      "get": {
+        "description": "annotation data"
+      }
+    },
+    "x-label": "route annotations"
+  },
+  "components": {
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
