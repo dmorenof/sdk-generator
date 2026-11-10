@@ -33,8 +33,8 @@ final readonly class PhpResourceEmitter
     ];
 
     /**
-     * @param array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int,array{type:?string,schemaNullable:bool}>}> $successTypes
-     * @param array<string,array<string,string>> $errorTypes
+     * @param array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int|string,array{type:?string,schemaNullable:bool}>}> $successTypes
+     * @param array<string,array<string,?string>> $errorTypes
      */
     public function __construct(
         private string $namespace,
@@ -342,9 +342,9 @@ PHP;
             }
         }
         $successStatuses = array_values(array_map(
-            static fn ($response): int => (int) $response->status,
+            static fn ($response): int|string => ctype_digit($response->status) ? (int) $response->status : $response->status,
             array_filter($operation->responses, static fn ($response): bool =>
-                preg_match('/^2[0-9]{2}$/', $response->status) === 1),
+                $response->status === 'default' || preg_match('/^2(?:[0-9]{2}|XX)$/', $response->status) === 1),
         ));
         $metadata = [
             'method' => strtoupper($operation->method),

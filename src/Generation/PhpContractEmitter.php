@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^0.23.0';
+    public const RUNTIME_CONSTRAINT = '^0.24.0';
     /**
      * Where Composer finds the runtime until it is registered on Packagist.
      * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
@@ -33,9 +33,9 @@ final class PhpContractEmitter
     private array $modelDefinitions = [];
     /** @var array<string, string> Child schema name => parent schema name. */
     private array $modelParents = [];
-    /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int,array{type:?string,schemaNullable:bool}>}> */
+    /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int|string,array{type:?string,schemaNullable:bool}>}> */
     private array $operationSuccessTypes = [];
-    /** @var array<string, array<string, string>> */
+    /** @var array<string, array<string, ?string>> */
     private array $operationErrorTypes = [];
     /** @var array<string,string> Operation ID => fully-qualified request body DTO. */
     private array $operationBodyTypes = [];
@@ -177,13 +177,13 @@ final class PhpContractEmitter
         return $files;
     }
 
-    /** @return array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int,array{type:?string,schemaNullable:bool}>}> */
+    /** @return array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,byStatus?:array<int|string,array{type:?string,schemaNullable:bool}>}> */
     public function operationSuccessTypes(): array
     {
         return $this->operationSuccessTypes;
     }
 
-    /** @return array<string, array<string, string>> */
+    /** @return array<string, array<string, ?string>> */
     public function operationErrorTypes(): array
     {
         return $this->operationErrorTypes;
@@ -1130,9 +1130,15 @@ final class PhpContractEmitter
             }
             $return = $this->successResponseType($operation, $files);
             foreach ($operation->responses as $response) {
-                if (preg_match('/^2[0-9]{2}$/', $response->status) === 1 || $response->schema === null) {
+                if (preg_match('/^2(?:[0-9]{2}|XX)$/', $response->status) === 1) {
                     continue;
                 }
+                if ($response->schema === null) {
+                    $this->operationErrorTypes[$operation->operationId][$response->status] = null;
+                    continue;
+                }
+                // An explicit untyped error still blocks a broader range/default.
+                $this->operationErrorTypes[$operation->operationId][$response->status] = null;
                 if ($response->schema->kind === SchemaKind::Reference) {
                     $this->operationErrorTypes[$operation->operationId][$response->status]
                         = $this->reference($response->schema);
@@ -1143,7 +1149,9 @@ final class PhpContractEmitter
                     || $response->schema->kind === SchemaKind::AllOf) {
                     $hint = $this->operationResponseHint($operation, $response->status);
                     $this->operationErrorTypes[$operation->operationId][$response->status]
-                        = $this->typeFor($response->schema, $hint, $files, 'Response');
+                        = $response->status === 'default'
+                            ? $this->responseSchemaType($response->schema, $hint, $files)
+                            : $this->typeFor($response->schema, $hint, $files, 'Response');
                 }
             }
             $methods[] = '    public function ' . $methodName
@@ -1211,8 +1219,9 @@ final class PhpContractEmitter
     private function successResponseType(OperationDefinition $operation, array &$files): string
     {
         $success = [];
+        $hasSuccessRange = count(array_filter($operation->responses, static fn ($response): bool => $response->status === '2XX')) > 0;
         foreach ($operation->responses as $response) {
-            if (preg_match('/^2[0-9]{2}$/', $response->status) === 1) {
+            if (($response->status === 'default' && !$hasSuccessRange) || preg_match('/^2(?:[0-9]{2}|XX)$/', $response->status) === 1) {
                 $success[] = $response;
             }
         }
@@ -1240,18 +1249,17 @@ final class PhpContractEmitter
             ];
             return 'void';
         }
-        if (count($success) > 1) {
+        if (count($success) > 1 || in_array($success[0]->status, ['2XX', 'default'], true)) {
             $byStatus = [];
             $types = [];
             $nullable = false;
             foreach ($success as $response) {
-                if ($response->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA) {
-                    throw new InvalidArgumentException("Mixed binary/JSON success responses are unsupported for $operation->operationId");
-                }
                 $schema = $response->schema;
-                $type = $schema === null ? null : $this->responseSchemaType($schema,
-                    $this->operationResponseHint($operation, count($withSchema) > 1 ? $response->status : null), $files);
-                $byStatus[(int) $response->status] = ['type' => $type, 'schemaNullable' => $schema?->nullable ?? false];
+                $type = $response->mediaType === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA
+                    ? '\\Psr\\Http\\Message\\ResponseInterface'
+                    : ($schema === null ? null : $this->responseSchemaType($schema,
+                        $this->operationResponseHint($operation, count($withSchema) > 1 || $response->status === 'default' ? $response->status : null), $files));
+                $byStatus[$response->status] = ['type' => $type, 'schemaNullable' => $schema?->nullable ?? false];
                 $nullable = $nullable || $schema === null || $schema->nullable;
                 if ($type !== null) {
                     $types[] = $type;
@@ -1340,7 +1348,7 @@ final class PhpContractEmitter
         if ($status === null) {
             return implode('.', [...$segments, $verb, 'Response']);
         }
-        if (preg_match('/^2[0-9]{2}$/', $status) === 1) {
+        if (preg_match('/^2(?:[0-9]{2}|XX)$/', $status) === 1) {
             return implode('.', [...$segments, $verb . 'Status' . $status, 'Response']);
         }
         $statusName = preg_match('/^[A-Za-z]/', $status) === 1

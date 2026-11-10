@@ -197,7 +197,7 @@ final class ContractAuditor
             $at = JsonPointer::append("$where/responses", $status);
             $this->response($response, $at, $id);
             // Error media types do not negotiate success representations.
-            if (is_array($response) && preg_match('/^2[0-9]{2}$/', (string) $status) === 1) {
+            if (is_array($response) && ($status === 'default' || preg_match('/^2(?:[0-9]{2}|XX)$/', (string) $status) === 1)) {
                 $this->resolvedObject($response, 'responses', $at, $id,
                     function (array $value, string $source) use ($operation, $where, $document, $id): void {
                         if (($document['swagger'] ?? null) !== '2.0') {

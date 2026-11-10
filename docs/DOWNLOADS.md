@@ -57,8 +57,9 @@ filename-derived writes or automatic file lifecycle is added.
 
 Unsupported: other MIME types, nullable binary schemas,
 byte constraints/enums/compositions/primitive schema references, binary error
-schemas, heterogeneous binary/JSON successes, per-call Accept negotiation,
-status ranges, and declared response-header schema validation. Header values
+schemas, per-call Accept negotiation and declared response-header schema validation.
+OpenAPI status ranges and heterogeneous JSON/binary successes are available in
+[v0.31.0](RESPONSES.md#response-selection-block--v0310). Header values
 remain accessible through PSR, but their schemas are still diagnosed unsupported.
 These limits keep the general response roadmap open.
 

@@ -96,3 +96,6 @@ php tests/parameter-content-smoke.php "$OUT/parameter-content"
 
 analyse delimited-parameters delimited-parameters-swagger2.json 'Example\DelimitedSdk'
 php tests/delimited-parameters-smoke.php "$OUT/delimited-parameters"
+
+analyse response-selection response-selection-openapi31.json 'Example\SelectionSdk'
+php tests/response-selection-smoke.php "$OUT/response-selection"

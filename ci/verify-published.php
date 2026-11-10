@@ -440,4 +440,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/delim
     $delimitedDirectory, 'Example\\DelimitedSdk', 'example/published-delimited-parameters']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $delimitedDirectory]);
 runPublished([PHP_BINARY, $package . '/tests/delimited-parameters-smoke.php', $delimitedDirectory]);
+$selectionDirectory = $directory . '/response-selection';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/response-selection-openapi31.json',
+    $selectionDirectory, 'Example\\SelectionSdk', 'example/published-response-selection']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $selectionDirectory]);
+runPublished([PHP_BINARY, $package . '/tests/response-selection-smoke.php', $selectionDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;
