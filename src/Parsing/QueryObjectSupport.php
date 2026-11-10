@@ -71,15 +71,17 @@ final class QueryObjectSupport
             return false;
         }
         foreach ($schema->properties as $property) {
-            if (!self::key($property->wireName, $format === 'deepObject') || !self::scalar($property->schema)) {
+            if (!self::key($property->wireName, $format === 'deepObject') || !self::scalar($property->schema, $models)) {
                 return false;
             }
         }
-        return !($schema->additionalProperties instanceof SchemaDefinition) || self::scalar($schema->additionalProperties);
+        return !($schema->additionalProperties instanceof SchemaDefinition) || self::scalar($schema->additionalProperties, $models);
     }
 
-    private static function scalar(SchemaDefinition $schema): bool
+    private static function scalar(SchemaDefinition $schema, array $models): bool
     {
+        try { $schema = SchemaReferences::resolve($schema, $models); }
+        catch (\InvalidArgumentException) { return false; }
         return !$schema->nullable && in_array($schema->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean], true)
             && ($schema->enumValues === [] || in_array($schema->kind, [SchemaKind::String, SchemaKind::Integer], true));
     }
@@ -114,16 +116,18 @@ final class QueryObjectSupport
             return false;
         }
         foreach ($schema['properties'] ?? [] as $name => $property) {
-            if (!self::key((string) $name, $deep) || !is_array($property) || !self::rawScalar($property)) {
+            if (!self::key((string) $name, $deep) || !is_array($property) || !self::rawScalar($property, $document)) {
                 return false;
             }
         }
         $additional = $schema['additionalProperties'] ?? null;
-        return $additional === false || (is_array($additional) && self::rawScalar($additional));
+        return $additional === false || (is_array($additional) && self::rawScalar($additional, $document));
     }
 
-    private static function rawScalar(array $schema): bool
+    private static function rawScalar(array $schema, array $document): bool
     {
+        try { $schema = SchemaReferences::raw($schema, $document); }
+        catch (\InvalidArgumentException|\TypeError) { return false; }
         return in_array($schema['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
             && !($schema['nullable'] ?? false)
             && (!array_key_exists('enum', $schema) || ($schema['enum'] !== [] && in_array($schema['type'], ['string', 'integer'], true)));

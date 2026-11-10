@@ -626,7 +626,7 @@ final class SpecificationNormalizer
         }
     }
 
-    /** @return array{mediaType:string,schema:array}|null */
+    /** @return array{mediaType:string,schema:array|bool}|null */
     private function jsonContent(array $content, string $where): ?array
     {
         if ($content === []) {
@@ -637,7 +637,7 @@ final class SpecificationNormalizer
             if (!is_string($mediaType) || !$this->isJsonMediaType($mediaType)) {
                 continue; // XML/text alternatives are not emitted by a JSON SDK.
             }
-            if (!is_array($definition) || !is_array($definition['schema'] ?? null)) {
+            if (!is_array($definition) || (!is_array($definition['schema'] ?? null) && !($this->jsonSchema31 && is_bool($definition['schema'] ?? null)))) {
                 throw new InvalidArgumentException("Missing JSON schema for media type $mediaType at $where.");
             }
             $json[$mediaType] = $definition['schema'];
@@ -677,6 +677,9 @@ final class SpecificationNormalizer
 
     private function schema(mixed $raw, string $dialect, string $where): SchemaDefinition
     {
+        if (is_bool($raw) && $this->jsonSchema31) {
+            return new SchemaDefinition(SchemaKind::Mixed, validation: ['schema' => $raw]);
+        }
         if (!is_array($raw)) {
             throw new InvalidArgumentException("Schema must be an object at $where.");
         }
@@ -691,6 +694,43 @@ final class SpecificationNormalizer
             if (isset($raw[$annotation]) && !is_string($raw[$annotation])) {
                 throw new InvalidArgumentException("Invalid schema $annotation at $where.");
             }
+        }
+
+        if (is_array($raw['type'] ?? null) && !(count($raw['type']) === 2 && in_array('null', $raw['type'], true))) {
+            $types = $raw['type'];
+            if (!$this->jsonSchema31 || !array_is_list($types) || $types === []
+                || array_filter($types, static fn ($type): bool => !is_string($type)) !== []
+                || count(array_unique($types)) !== count($types)
+                || array_diff($types, ['string', 'integer', 'number', 'boolean', 'null']) !== []) {
+                throw new InvalidArgumentException("Unsupported type union at $where.");
+            }
+            $allowed = ['type', 'enum', 'const', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength', 'pattern', 'title', 'description', 'default', 'readOnly', 'writeOnly', 'format'];
+            if (array_diff(array_keys($raw), $allowed) !== []) { throw new InvalidArgumentException("Unsupported union siblings at $where."); }
+            foreach (['readOnly', 'writeOnly'] as $flag) {
+                if (array_key_exists($flag, $raw) && !is_bool($raw[$flag])) { throw new InvalidArgumentException("Invalid $flag at $where."); }
+            }
+            foreach (['title', 'description', 'format'] as $annotation) {
+                if (array_key_exists($annotation, $raw) && !is_string($raw[$annotation])) { throw new InvalidArgumentException("Invalid $annotation at $where."); }
+            }
+            if (isset($raw['enum']) && (!is_array($raw['enum']) || !array_is_list($raw['enum']))) { throw new InvalidArgumentException("Invalid union enum at $where."); }
+            $numeric = array_intersect_key($raw, array_flip(['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf']));
+            $textual = array_intersect_key($raw, array_flip(['minLength', 'maxLength', 'pattern']));
+            if ($numeric !== []) { $this->schema(['type' => 'number'] + $numeric, $dialect, $where . '.numeric'); }
+            if ($textual !== []) { $this->schema(['type' => 'string'] + $textual, $dialect, $where . '.string'); }
+            $guard = array_intersect_key($raw, array_flip(['type', 'enum', 'const', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength', 'pattern']));
+            // Parse each applicable rule with its declared primitive type for structural checks.
+            foreach ($types as $type) {
+                $applicable = array_intersect_key($raw, array_flip(match ($type) {
+                    'integer', 'number' => ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
+                    'string' => ['minLength', 'maxLength', 'pattern'], default => [],
+                }));
+                $this->schema(['type' => $type] + $applicable, $dialect, $where . '.type.' . $type);
+            }
+            return new SchemaDefinition(SchemaKind::AnyOf, validation: ['schema' => $guard],
+                branches: array_map(static fn (string $type): SchemaDefinition => new SchemaDefinition(SchemaKind::from($type)), $types),
+                readOnly: $raw['readOnly'] ?? false, writeOnly: $raw['writeOnly'] ?? false,
+                title: $raw['title'] ?? null, description: $raw['description'] ?? null,
+                format: $raw['format'] ?? null, default: $raw['default'] ?? null, hasDefault: array_key_exists('default', $raw));
         }
 
         $discriminator = null;
@@ -853,7 +893,7 @@ final class SpecificationNormalizer
                 }
             }
         } elseif ($kind === SchemaKind::Array) {
-            if (!is_array($raw['items'] ?? null)) {
+            if (!is_array($raw['items'] ?? null) && !($this->jsonSchema31 && is_bool($raw['items'] ?? null))) {
                 throw new InvalidArgumentException("Array items are missing at $where.");
             }
             $items = $this->schema($raw['items'], $dialect, "$where.items");
@@ -922,6 +962,10 @@ final class SpecificationNormalizer
             if (isset($validation[$lower], $validation[$upper]) && $validation[$lower] > $validation[$upper]) {
                 throw new InvalidArgumentException("Contradictory $lower and $upper at $where.");
             }
+        }
+
+        if ($kind === SchemaKind::Array && $items !== null && array_key_exists('schema', $items->validation)) {
+            $validation['schema'] = ['type' => $nullable ? ['array', 'null'] : 'array', 'items' => $items->validation['schema']];
         }
 
         if ($discriminator !== null && $kind !== SchemaKind::Object) {

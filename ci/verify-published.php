@@ -459,4 +459,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/schem
     $schemaDirectory, 'Example\\SchemaRulesSdk', 'example/published-schema-rules']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $schemaDirectory]);
 runPublished([PHP_BINARY, $package . '/tests/schema-rules-smoke.php', $schemaDirectory]);
+$nativeDirectory = $directory . '/native-schemas';
+runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/native-schemas-openapi31.json',
+    $nativeDirectory, 'Example\\NativeSdk', 'example/published-native-schemas']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $nativeDirectory]);
+runPublished([PHP_BINARY, $package . '/tests/native-schemas-smoke.php', $nativeDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

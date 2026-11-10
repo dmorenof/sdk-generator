@@ -49,13 +49,17 @@ final class QueryArraySupport
         };
     }
 
-    public static function rawSupported(array $parameter, bool $swagger): bool
+    public static function rawSupported(array $parameter, bool $swagger, array $document = []): bool
     {
         $location = $parameter['in'] ?? null;
         if (!in_array($location, ['query', 'path', 'header'], true) || isset($parameter['content'])) {
             return false;
         }
         $schema = $parameter['schema'] ?? $parameter;
+        if (isset($schema['$ref'])) {
+            try { $schema = SchemaReferences::raw($schema, $document); }
+            catch (\InvalidArgumentException|\TypeError) { return false; }
+        }
         if ($location !== 'query' && (($schema['type'] ?? null) !== 'array'
             || ($schema['nullable'] ?? $schema['x-nullable'] ?? false) !== false)) {
             return false;
@@ -67,6 +71,10 @@ final class QueryArraySupport
         $types = $schema['type'] ?? null;
         $array = $types === 'array' || (is_array($types) && count($types) === 2 && in_array('array', $types, true) && in_array('null', $types, true));
         $item = $schema['items'] ?? null;
+        if (is_array($item) && isset($item['$ref'])) {
+            try { $item = SchemaReferences::raw($item, $document); }
+            catch (\InvalidArgumentException|\TypeError) { return false; }
+        }
         if (!$array || array_key_exists('enum', $schema) || !is_array($item)
             || !in_array($item['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
             || ($item['nullable'] ?? $item['x-nullable'] ?? false)

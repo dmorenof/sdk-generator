@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.33.0** y `dmorenof/sdk-runtime` **v0.26.1** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.34.0** y `dmorenof/sdk-runtime` **v0.27.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -425,8 +425,8 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 ### Tipos y composición
 
-- [ ] Unión de tipos arbitrarios: `type: [string, integer, 'null']`.
-- [ ] Esquemas booleanos `true` y `false`.
+- [ ] **Parcial — v0.34.0:** type sets primitivos OpenAPI 3.1 (`string`, `integer`, `number`, `boolean`, `null`) producen uniones PHP nativas con validación del esquema original. Alternativas objeto/array siguen pendientes.
+- [x] **v0.34.0 — Esquemas booleanos `true` y `false`** en modelos, propiedades, ítems de array y respuestas JSON; validar presencia/null y mutaciones sin wrappers. Otros contextos HTTP siguen sujetos a sus límites.
 - [ ] **Parcial — v0.33.0:** const escalar/null de OAS 3.1 validado sin cambiar el tipo PHP. Quedan const complejo y not.
 - [ ] `if`/`then`/`else`.
 - [ ] `discriminator` con `propertyName`, `mapping` y casos por defecto de nuevas versiones.
@@ -730,3 +730,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - Reglas en DTOs, mapas, colecciones, enums nativos, parámetros y respuestas escalares/arrays; mutaciones y ArrayObject exchangeArray comprobados. Nombres públicos de las colecciones existentes preservados.
 - Runtime estable publicado y verificado primero; generador/SDKs usan ^0.26.1. 434 pruebas del generador y SDK número 35 independiente con PHPStan máximo y HTTP real.
 - Const complejo, boolean schemas, tipos unión arbitrarios y otras keywords permanecen separados. La precisión de datos numéricos sigue limitada a los tipos PHP.
+
+### Tipos nativos y alias — v0.34.0 / runtime v0.27.0
+
+- Uniones primitivas OAS 3.1, schemas booleanos y arrays nativos con guards declarativos reutilizando Opis. Hidratación preserva tipos JSON; números integrales finitos admitidos por integer/enums int.
+- Alias escalares encadenados reutilizados en propiedades, respuestas y parámetros/content/forms soportados. No generar DTOs escalares. Comprobación canónica de nombres reservados para clases de recursos.
+- Required nullable HTTP no puede desaparecer silenciosamente; optional null sigue omitido y JSON null conserva su semántica. GetParams/PostParams y separación por ubicación cubiertos.
+- 439 pruebas / 3.480 aserciones conjuntas, runtime 154 / 803; SDK independiente con HTTP y PHPStan max (36 SDKs en CI). [Contrato y límites](docs/NATIVE_SCHEMAS.md).
+- Siguen pendientes cuerpos raíz primitivos/arrays, alias raíz array generales, type sets objeto/array y composiciones generales; los envoltorios de composición existentes conservan su API.

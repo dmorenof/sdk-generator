@@ -252,7 +252,7 @@ final class PhpContractEmitterTest extends TestCase
         self::assertStringContainsString("case New_ = 'new';", $files['src/Enums/UserStatus.php']);
     }
 
-    public function testRejectsNonObjectTopLevelModelUntilAliasesSupported(): void
+    public function testScalarAliasModelsNeedNoWrapperClass(): void
     {
         $raw = json_decode(
             (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
@@ -263,8 +263,7 @@ final class PhpContractEmitterTest extends TestCase
         $raw['components']['schemas']['UserId'] = ['type' => 'integer'];
         $contract = (new SpecificationNormalizer())->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Unsupported non-object model: UserId');
-        (new PhpContractEmitter())->emit($contract);
+        $files = (new PhpContractEmitter())->emit($contract);
+        self::assertArrayNotHasKey('src/DTOs/UserId.php', $files);
     }
 }
