@@ -7,20 +7,28 @@ final class BinaryResponseSupport
 {
     public const MEDIA = 'application/octet-stream';
 
-    public static function selected(array $content): bool
-    {
-        foreach (array_keys($content) as $media) {
-            if (is_string($media) && preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
-                return false;
+    public static function selected(array $content, array $document = []): bool { return self::media($content, $document) !== null; }
+
+    public static function media(array $content, array $document = []): ?string {
+        $candidates = [];
+        foreach ($content as $media => $definition) {
+            if (is_string($media) && RawMediaSupport::json($media)) { return null; }
+            if (!is_string($media) || !is_array($definition) || !RawMediaSupport::rawMedia($media)) { continue; }
+            if (is_array($definition['schema'] ?? null) && isset($definition['schema']['$ref'])) {
+                try { $definition['schema'] = SchemaReferences::raw($definition['schema'], $document); }
+                catch (\InvalidArgumentException) { continue; }
             }
+            if (self::supported($definition)) { $candidates[] = $media; }
         }
-        return isset($content[self::MEDIA]) && is_array($content[self::MEDIA]) && self::supported($content[self::MEDIA]);
+        if (in_array(self::MEDIA, $candidates, true)) { return self::MEDIA; }
+        sort($candidates, SORT_STRING);
+        return $candidates[0] ?? null;
     }
 
     /** Swagger file responses share the existing binary codec, with one explicit representation. */
     public static function swaggerSchema(array $schema, array $mediaTypes): ?array
     {
-        if ($mediaTypes !== [self::MEDIA] || ($schema['type'] ?? null) !== 'file' || array_key_exists('format', $schema)) {
+        if (count($mediaTypes) !== 1 || !is_string($mediaTypes[0] ?? null) || !RawMediaSupport::rawMedia($mediaTypes[0]) || ($schema['type'] ?? null) !== 'file' || array_key_exists('format', $schema)) {
             return null;
         }
         $schema['type'] = 'string';

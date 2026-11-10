@@ -125,7 +125,7 @@ final class SwaggerBinaryResponseGenerationTest extends TestCase
     public function testUnsupportedProducesFileSchemasAndErrorBodiesFailVisibly(): void
     {
         $variants = [];
-        foreach ([['application/json'], ['image/png'], [], ['application/octet-stream', 'application/json']] as $produces) {
+        foreach ([['application/json'], ['image/*'], [], ['application/octet-stream', 'application/json']] as $produces) {
             $document = self::document(); $document['produces'] = $produces; $variants[] = $document;
         }
         foreach ([['enum' => []], ['minLength' => 1], ['nullable' => true], ['x-nullable' => true],
@@ -147,7 +147,7 @@ final class SwaggerBinaryResponseGenerationTest extends TestCase
         self::assertFalse($report['strictlyAccepted']);
         self::assertFalse($report['normalized']);
         self::assertContains('normalization_failed', array_map(static fn ($issue): string => $issue->code, $report['diagnostics']));
-        $document['produces'] = ['image/png'];
+        $document['produces'] = ['image/*'];
         $issues = array_values(array_filter((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['diagnostics'],
             static fn ($issue): bool => $issue->code === 'response_media_type'));
         self::assertNotEmpty($issues);

@@ -630,8 +630,7 @@ final class ContractAuditor
             if (array_key_exists('schema', $definition)) {
                 $this->schema($definition['schema'], "$at/schema", $operation);
             }
-            $binary = $response && $media === \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::MEDIA
-                && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::supported($definition);
+            $binary = $response && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::selected([$media => $definition], $this->document);
             $raw = ($request || $response) && \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::supported($definition, $media, $this->document, $request);
             if (!$form && !$binary && !$raw && !($parameter && strtolower($media) === 'text/plain') && !preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media)) {
                 $this->add('media_type', $at, 'This representation is preserved but has no supported serializer in this position.', $operation, 'warning');
@@ -656,13 +655,13 @@ final class ContractAuditor
             return;
         }
         if (\Dmorenof\SdkGenerator\Parsing\RawMediaSupport::selected($content, $this->document, $request) !== null) { return; }
-        if (!$request && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::selected($content)) {
+        if (!$request && \Dmorenof\SdkGenerator\Parsing\BinaryResponseSupport::selected($content, $this->document)) {
             return;
         }
         $hasJson = $request && count(array_filter(array_keys($content), static fn ($media): bool => is_string($media)
             && preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;|$)~i', $media) === 1)) > 0;
         foreach (array_keys($content) as $media) {
-            if (is_string($media) && strtolower(trim($request ? $media : explode(';', $media, 2)[0])) === 'application/json') {
+            if (is_string($media) && \Dmorenof\SdkGenerator\Parsing\RawMediaSupport::json($media)) {
                 return;
             }
             $formMedia = isset($content[\Dmorenof\SdkGenerator\Parsing\FormSupport::MEDIA]['schema'])

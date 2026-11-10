@@ -202,7 +202,7 @@ final class FormGenerationTest extends TestCase
         self::assertSame('application/json', $post->requestBody->mediaType);
         $document['paths']['/items']['post']['requestBody']['content']['application/vnd.example+json'] = $document['paths']['/items']['post']['requestBody']['content']['application/json'];
         unset($document['paths']['/items']['post']['requestBody']['content']['application/json']);
-        self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
+        self::assertTrue((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);
     }
 
     public function testOmittedArrayEncodingDefaultsToRepeatedFields(): void

@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.38.0** y `dmorenof/sdk-runtime` **v0.30.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.39.0** y `dmorenof/sdk-runtime` **v0.31.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -174,7 +174,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 
 ## 3. [P0] Serialización de parámetros HTTP
 
-**Situación actual:** generador v0.32.0 y runtime v0.25.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
+**Situación actual:** generador v0.39.0 y runtime v0.31.0 ejecutan escalares, arrays query primitivos, objetos query planos deepObject y cuerpos JSON/urlencoded/multipart acotados de OpenAPI y Swagger. v0.18.0 añade streaming multipart por PSR-18; v0.20.0/v0.21.0 incorporan descargas y v0.22.0 selecciona respuestas JSON por estado, manteniendo GetParams/PostParams independientes del body. El paquete sigue parcial para otros objetos, ubicaciones, estilos y escenarios de streaming.
 
 ### Revisión acordada de getParameters y postParameters
 
@@ -354,10 +354,10 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] `Set-Cookie` y acceso tipado a metadatos HTTP.
 - [x] **v0.31.0 — Selectores HTTP:** OpenAPI 1XX–5XX con precedencia exacto > rango > default; default puede describir un 2xx no declarado. Swagger admite exactos/default y rechaza rangos. Non-2xx conservan ApiException; errores tipados limitados al subconjunto DTO existente.
 - [ ] Política configurable de redirecciones `3xx`.
-- [ ] **Parcial — v0.38.0:** errores JSON escalares/null, arrays/colecciones, mapas, enums, composiciones y DTOs, text/plain y binario acotado; ApiException.payload sin perder error DTO/status/body/causa. Quedan otros MIME, negociación y streaming de errores. [Contrato](docs/ERROR_PAYLOADS.md).
-- [ ] **Parcial — Descargas binarias:** v0.20.0 devuelve ResponseInterface PSR-7 para éxitos application/octet-stream OpenAPI 3.0/3.1 sin materializar bytes completos en el runtime. v0.21.0 añade Swagger type:file con produces octet-stream; quedan otros MIME, negociación y garantías generales de streaming. [Uso y medidas](docs/DOWNLOADS.md).
-- [ ] **Parcial — v0.36.0:** respuestas text/plain como strings con constraints, combinadas por estado con JSON/binario/sin contenido. CSV/XML y otros codecs siguen pendientes. [Contrato](docs/RAW_MEDIA.md).
-- [ ] Negociación `Accept` y uso de `application/*+json` con diversos esquemas.
+- [ ] **Parcial — v0.38.0:** errores JSON escalares/null, arrays/colecciones, mapas, enums, composiciones y DTOs, text/plain y binario acotado; ApiException.payload sin perder error DTO/status/body/causa. v0.39.0 amplía MIME concretos con los mismos codecs; quedan negociación, formatos estructurados no JSON y streaming de errores. [Contrato](docs/ERROR_PAYLOADS.md).
+- [ ] **Parcial — Descargas binarias:** v0.20.0 devuelve ResponseInterface PSR-7 para éxitos application/octet-stream OpenAPI 3.0/3.1 sin materializar bytes completos en el runtime. v0.21.0 añade Swagger type:file con produces octet-stream; v0.39.0 amplía MIME binarios concretos y verifica PNG/PDF/SVG con PSR; quedan wildcards, negociación y garantías generales de streaming. [Uso y medidas](docs/DOWNLOADS.md).
+- [ ] **Parcial — v0.36.0:** respuestas text/plain como strings con constraints, combinadas por estado con JSON/binario/sin contenido. v0.39.0 permite CSV/XML como strings opacos y otros MIME concretos; quedan modelos estructurados y codecs adicionales. [Contrato](docs/RAW_MEDIA.md).
+- [ ] **Parcial — v0.39.0:** MIME vendor/problem +json concretos conservan Accept/Content-Type y codec JSON. Siguen pendientes wildcard literal y negociación entre esquemas incompatibles.
 - [ ] Referencias a `components/responses` y `components/headers`.
 
 **Decisión aplicada en v0.22.0:** `200: User` y `201: CreatedUser` producen un retorno nativo `User|CreatedUser`; el runtime conserva la selección del hidratador por status. La unión no modifica la validez de los modelos ni implementa uniones generales de propiedades.
@@ -770,3 +770,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] HTTP real para valores nativos/listas/mapas/enums/oneOf/DTO, null, sin body, raw y errores de decodificación. SDK instalado independiente con PHPStan max (40 en CI).
 - Pruebas conjuntas: generador 459 / 3.691 aserciones; runtime 165 / 926. [Contrato](docs/ERROR_PAYLOADS.md).
 - Binario de error sigue bufferizado; quedan otros MIME/codecs, streaming de errores y negociación de representaciones.
+
+### MIME concretos reutilizando codecs — v0.39.0 / runtime v0.31.0
+
+- [x] CSV/XML y otros MIME de strings opacos, más binarios PNG/PDF/SVG con streams PSR y alias. Preservar parámetros MIME, reglas, headers y separación de query/header/body.
+- [x] Vendor/problem +json reales en Accept/Content-Type; codec por esquema/estado tanto en éxito como en error. Metadata encoding opcional mantiene compatibilidad con SDKs anteriores.
+- [x] HTTP real con subida PNG de 32 MiB y descarga PDF de 32 MiB bajo PHP 16 MiB, mixed responses y errores. Instalación independiente y PHPStan max (41 SDKs en CI).
+- Validación conjunta: generador 464 / 3.728 aserciones; runtime 169 / 954. [Contrato](docs/MIME_MEDIA.md).
+- Quedan wildcard/negociación de variantes, modelos XML/CSV, transcoding, constraints binarios no soportados y streaming de errores. No se añaden conversores ni transportes propios.

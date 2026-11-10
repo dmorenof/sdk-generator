@@ -1,0 +1,306 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MIME Media API",
+    "version": "1"
+  },
+  "paths": {
+    "/csv": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/csv; charset=utf-8": {
+              "schema": {
+                "type": "string",
+                "minLength": 2
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "text/csv; charset=utf-8": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 2
+                }
+              }
+            }
+          }
+        },
+        "operationId": "post_csv"
+      }
+    },
+    "/xml": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/xml": {
+              "schema": {
+                "type": "string",
+                "pattern": "^<",
+                "minLength": 4
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 4
+                }
+              }
+            }
+          }
+        },
+        "operationId": "post_xml"
+      }
+    },
+    "/image/{id}": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "image/png": {
+              "schema": {
+                "$ref": "#/components/schemas/BinaryAlias"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Result",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/BinaryAlias"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Result",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Test",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "post_image_id"
+      }
+    },
+    "/pdf": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/BinaryAlias"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Result",
+            "content": {
+              "image/svg+xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/BinaryAlias"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Result",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 4
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_pdf"
+      }
+    },
+    "/problem": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.example+json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Result",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 2
+                }
+              }
+            }
+          }
+        },
+        "operationId": "post_problem"
+      }
+    },
+    "/mixed": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 4
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Result",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Result",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/BinaryAlias"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Empty"
+          },
+          "406": {
+            "description": "Result",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 2
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Result",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/BinaryAlias"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_mixed"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BinaryData": {
+        "type": "string",
+        "format": "binary"
+      },
+      "BinaryAlias": {
+        "$ref": "#/components/schemas/BinaryData"
+      },
+      "InputModel": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

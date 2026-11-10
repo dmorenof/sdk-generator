@@ -554,9 +554,9 @@ final class SpecificationNormalizer
                 $mediaType = $schema === null ? null : $produces[0];
             } else {
                 $representations = $raw['content'] ?? [];
-                $binary = BinaryResponseSupport::selected($representations);
-                $content = $binary
-                    ? ['mediaType' => BinaryResponseSupport::MEDIA, 'schema' => $representations[BinaryResponseSupport::MEDIA]['schema']]
+                $binary = BinaryResponseSupport::media($representations, $document);
+                $content = $binary !== null
+                    ? ['mediaType' => $binary, 'schema' => $representations[$binary]['schema']]
                     : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"));
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
@@ -668,9 +668,7 @@ final class SpecificationNormalizer
 
     private function isJsonMediaType(string $mediaType): bool
     {
-        // MIME parameters such as "application/json; v=1.0" are legal.
-        $mediaType = strtolower(trim(explode(';', $mediaType, 2)[0]));
-        return preg_match('~^application/(?:[a-z0-9!#$&^_.+-]+\+)?json$~iD', $mediaType) === 1;
+        return RawMediaSupport::json($mediaType);
     }
 
     private function schema(mixed $raw, string $dialect, string $where): SchemaDefinition
