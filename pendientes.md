@@ -2,7 +2,7 @@
 
 > **Estado:** auditoría y hoja de ruta; NO equivale a funcionalidades implementadas.
 >
-> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.39.0** y `dmorenof/sdk-runtime` **v0.31.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
+> **Auditoría inicial:** 2026-11-05 · **Línea base estable:** `dmorenof/sdk-generator` **v0.40.0** y `dmorenof/sdk-runtime` **v0.31.0** (desarrollo en la rama existente `release/0.2.0`; ver historial).
 >
 > **Criterio de actualización:** `[x]` significa implementado y verificado con pruebas y CI en la rama indicada. Registrar el PR y distinguir **en rama / integrado / publicado**; anotar la versión cuando se publique. Las tareas parcialmente cubiertas conservan `[ ]` con el detalle de lo hecho y lo que falta. Volver a contrastar cada apartado con la especificación oficial correspondiente.
 >
@@ -69,7 +69,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 ### Lista de trabajo del paquete 01
 
 - [ ] **Parcial — Conservar toda la serialización de parámetros.** Hecho: conservar `style`, `explode`, `allowReserved`, `allowEmptyValue`, `collectionFormat`, valores `false` explícitos y representaciones de parámetros con `content` JSON. Falta: normalización general de `content` fuera de JSON y referencias. La ejecución general corresponde al paquete 03: v0.10.0 ejecuta arrays query primitivos form/multi/CSV y delimitados por espacio, tabulador o pipe; otros estilos y ubicaciones siguen pendientes.
-- [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. El enrutamiento de servidores literales HTTP(S) está implementado con sustituciones por entorno en el runtime compartido; relativos, plantillas y variables siguen pendientes.
+- [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. El enrutamiento de servidores literales HTTP(S) está implementado con sustituciones por entorno en el runtime compartido; v0.40.0 expande defaults de plantillas y valida enums; relativos y selección dinámica siguen pendientes.
 - [ ] **Parcial — Conservar encabezados, cookies y respuestas diferenciadas.** Hecho: conservar los objetos originales de headers/links; mantener códigos y esquemas de respuesta ya soportados. Falta: normalización tipada general de headers/cookies y todas las formas de respuesta. Conservar headers en el contrato todavía no los expone desde el runtime.
 - [ ] **Parcial — Separar ejecución/validación de anotaciones.** Hecho: conservar anotaciones de documento, operación, parámetros y media types; distinguir las opciones HTTP auditadas y tratar los ejemplos como datos. Falta: completar esa clasificación en todos los componentes anidados y dialectos.
 - [ ] **Parcial — Auditar opciones ignoradas.** Hecho: detectar opciones conocidas de documento, ruta, operación y parámetros; estilos no ejecutados, overrides de servidor, headers/links, encoding y keywords no soportadas. Respetar sobrescrituras para evitar falsos errores. Hecho adicional en v0.4.1: auditar declaraciones reutilizables de parámetros, requestBodies, respuestas, headers, links y Path Items; cabeceras anidadas en encoding, callbacks y esquemas/requisitos de seguridad. Falta: validación estructural por dialecto y cobertura exhaustiva de la semántica HTTP restante.
@@ -92,7 +92,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 | Caso | Antes de PR #20 | En esta rama | Trabajo restante |
 | --- | --- | --- | --- |
 | Parámetro con `allowReserved: true` | La opción podía desaparecer del contrato sin aviso. | Se conserva y se diagnostica; el modo estricto bloquea la generación. | Implementar su serialización HTTP. |
-| Ruta con servidor distinto del raíz | El cliente usaba el servidor raíz y podía pasar la aceptación. | Se conserva y ejecuta el servidor efectivo con precedencia operación → ruta → raíz; configurable por entorno. | Relativos, variables y selección dinámica entre servidores. |
+| Ruta con servidor distinto del raíz | El cliente usaba el servidor raíz y podía pasar la aceptación. | Se conserva y ejecuta el servidor efectivo con precedencia operación → ruta → raíz; configurable por entorno. | Relativos y selección dinámica; defaults/enum de variables cubiertos en v0.40.0. |
 | Revisar una especificación sin generar un SDK | Faltaba este modo de inspección en el generador. | `--inspect` devuelve un informe de compatibilidad sin crear archivos. | Ampliar la cobertura de la auditoría. |
 | Analizar por separado una operación polimórfica | La selección de esquemas podía eliminar subclases necesarias. | Se conserva el cierre de discriminadores explícitos/implícitos y los metadatos de ruta. | Resolución general de referencias del paquete 02. |
 
@@ -105,7 +105,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [x] Permitir sustituciones por entorno con `serverOverrides` por conexión y `Configuration::$serverOverrides`, compartidas por sus recursos y aisladas entre clientes.
 - [x] Comprobar los siete métodos reales de Casafari con HTTP simulado y aceptación estricta de las 46 operaciones. Código validado: generador `7aa5593` y runtime `09ce07f`.
 
-Los servidores relativos, las plantillas/variables y la selección dinámica entre varios servidores permanecen pendientes en el apartado 7.
+Los defaults/enum de plantillas se completan en v0.40.0. Relativos y selección dinámica entre servidores permanecen pendientes en el apartado 7.
 
 Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.md). Las casillas resueltas están publicadas en **v0.4.0 / v0.5.0**. P0 y el paquete 01 conservan sus tareas futuras abiertas.
 
@@ -490,12 +490,12 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 ## 7. [P1] Servidores, rutas y operaciones
 
-- [ ] Variables de `servers`, valores por defecto y `enum`.
+- [x] **v0.40.0 — Defaults de variables de servers y enum:** expansión por ámbito, validación de defaults, bindings completos y metadatos conservados. Entornos mediante baseUrl/serverOverrides existentes, sin API nueva de bindings individuales. [Contrato](docs/SERVER_ROUTES.md).
 - [ ] Servidores relativos y resolución frente al documento o base URL.
-- [x] **Publicado en v0.4.0 / v0.5.0:** servidores literales HTTP(S) por Path Item y operación, precedencia operación → ruta → raíz y `serverOverrides` por conexión para otros entornos. Relativos/variables siguen en sus tareas separadas.
-- [ ] Manejo de operaciones con varios servidores disponibles.
+- [x] **Publicado en v0.4.0 / v0.5.0:** servidores literales HTTP(S) por Path Item y operación, precedencia operación → ruta → raíz y `serverOverrides` por conexión para otros entornos. Defaults de variables se cubren en v0.40.0; relativos siguen pendientes.
+- [ ] **Parcial — Varios servidores:** orden de preferencia y defaults conservados; se selecciona el primero y existen overrides de URL por entorno. Selección dinámica por índice/variable individual pendiente.
 - [ ] **Parcial — Referencias a Path Item:** referencias locales completas en v0.6.0 (ver paquete 02); faltan documentos externos y ubicaciones arbitrarias.
-- [ ] Detección de rutas ambiguas, placeholders inconsistentes y nombres PHP en conflicto.
+- [ ] **Parcial — v0.40.0:** equivalencia de jerarquías templadas, placeholders inválidos/requeridos/inexistentes y parámetros sobrantes rechazados; conflictos PHP ya diagnosticados por el emisor. Queda análisis general de otros solapamientos de rutas.
 - [ ] Semántica de `HEAD`, `OPTIONS` y `TRACE` más allá de reconocer el verbo.
 - [ ] Metadatos de ruta/operación: `summary`, `description`, `tags`, `deprecated`, `externalDocs`.
 - [ ] PHPDoc enriquecido sin cambiar los namespaces derivados de URL.
@@ -778,3 +778,11 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 - [x] HTTP real con subida PNG de 32 MiB y descarga PDF de 32 MiB bajo PHP 16 MiB, mixed responses y errores. Instalación independiente y PHPStan max (41 SDKs en CI).
 - Validación conjunta: generador 464 / 3.728 aserciones; runtime 169 / 954. [Contrato](docs/MIME_MEDIA.md).
 - Quedan wildcard/negociación de variantes, modelos XML/CSV, transcoding, constraints binarios no soportados y streaming de errores. No se añaden conversores ni transportes propios.
+
+### Servidores y coherencia de rutas — v0.40.0 / runtime estable v0.31.0
+
+- [x] Defaults de server variables y enum, metadatos y orden preservados, precedencia raíz/ruta/operación y entornos mediante configuración existente. Reutilizar PHP, URI Guzzle y política URL del runtime.
+- [x] Rutas/parametrización coherentes: placeholders, required booleano, declaraciones efectivas y jerarquías equivalentes; repetidos/embebidos válidos. Extensiones Paths x-... conservadas como datos, sin interpretar referencias u operaciones.
+- [x] JSON/YAML, OAS 3.0/3.1, archivo local, snapshots de configuración y HTTP GET/POST con query/header/body y mutaciones; SDK independiente con PHPStan máximo (42 en CI).
+- Validación: 471 pruebas / 3.770 aserciones. Sin cambios de runtime ni dependencia temporal. [Contrato y límites](docs/SERVER_ROUTES.md).
+- Quedan URLs relativas, selección dinámica de servidor, API de bindings individuales y otros solapamientos de rutas; no se amplían los verbos/protocolos en este bloque.

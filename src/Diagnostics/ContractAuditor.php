@@ -35,7 +35,7 @@ final class ContractAuditor
         $this->activeObjects = [];
         $this->keys($document, ['openapi', 'swagger', 'info', 'servers', 'host', 'basePath', 'schemes', 'paths', 'components', 'definitions', 'security', 'securityDefinitions', 'consumes', 'produces',
             ...(($document['swagger'] ?? null) === '2.0' ? ['parameters', 'responses'] : [])], '');
-        $this->servers($document['servers'] ?? [], '/servers', null, null);
+        $this->servers(array_key_exists('servers', $document) ? $document['servers'] : [], '/servers', null, null);
         $this->securityRequirements($document['security'] ?? [], '/security', null);
         $this->pathItems($document['paths'] ?? [], '/paths');
         $this->components();
@@ -62,6 +62,7 @@ final class ContractAuditor
             return;
         }
         foreach ($paths as $path => $item) {
+            if ($base === '/paths' && is_string($path) && str_starts_with($path, 'x-')) { continue; }
             if (!is_array($item)) {
                 continue;
             }
@@ -100,7 +101,7 @@ final class ContractAuditor
             array_key_exists('parameters', $item) ? $item['parameters'] : [], $parameterOrigin['pointer'] . '/parameters', null));
         if (isset($item['parameters']) && !is_array($item['parameters'])) { $item['parameters'] = []; }
         $serverOrigin = $origins['servers'] ?? $fallback;
-        $this->withOrigin($outer, $serverOrigin, fn () => $this->servers($item['servers'] ?? null, $serverOrigin['pointer'] . '/servers', null, null));
+        if (array_key_exists('servers', $item)) { $this->withOrigin($outer, $serverOrigin, fn () => $this->servers($item['servers'], $serverOrigin['pointer'] . '/servers', null, null)); }
         foreach (self::METHODS as $method) {
             $operation = $item[$method] ?? null;
             if (!is_array($operation)) {
@@ -474,11 +475,8 @@ final class ContractAuditor
 
     private function servers(mixed $servers, string $pointer, ?string $operation, mixed $root): void
     {
-        if ($servers === null) {
-            return;
-        }
-        if (!is_array($servers)) {
-            $this->add('invalid_servers', $pointer, 'Servers must be an array.', $operation);
+        if (!is_array($servers) || !array_is_list($servers)) {
+            $this->add('invalid_servers', $pointer, 'Servers must be a list.', $operation);
             return;
         }
         if ($root !== null && $servers === []) {
@@ -494,12 +492,14 @@ final class ContractAuditor
         if (is_array($server)) {
             $this->keys($server, ['url', 'variables'], $pointer, $operation);
         }
-        $url = is_array($server) ? ($server['url'] ?? null) : null;
-        if (!is_string($url) || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($url)) {
-            $this->add('unsupported_server_url', "$pointer/url", 'Only literal absolute HTTP(S) server URLs without credentials, query or fragment are executable.', $operation);
+        if (!is_array($server)) { $this->add('unsupported_server_url', "$pointer/url", 'Server definitions require a URL object.', $operation); return; }
+        foreach (is_array($server['variables'] ?? null) ? $server['variables'] : [] as $name => $variable) {
+            if (is_array($variable)) { $this->keys($variable, ['default', 'enum'], JsonPointer::append("$pointer/variables", $name), $operation); }
         }
-        if (is_array($server) && isset($server['variables'])) {
-            $this->add('server_variables', "$pointer/variables", 'Server variables are not expanded.', $operation);
+        try { \Dmorenof\SdkGenerator\Parsing\ServerUrl::expand($server); }
+        catch (\InvalidArgumentException $error) {
+            $variables = array_key_exists('variables', $server);
+            $this->add($variables ? 'invalid_server_variables' : 'unsupported_server_url', $pointer . ($variables ? '/variables' : '/url'), $error->getMessage(), $operation);
         }
     }
 

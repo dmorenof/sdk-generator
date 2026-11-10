@@ -76,7 +76,7 @@ final class OpenApiAcceptanceAnalyzer
             }
         }
         $unresolvedPaths = 0;
-        $paths = $document['paths'];
+        $paths = array_filter($document['paths'], static fn ($path): bool => !is_string($path) || !str_starts_with($path, 'x-'), ARRAY_FILTER_USE_KEY);
         ksort($paths, SORT_STRING);
         foreach ($paths as $path => $pathItem) {
             if (!is_array($pathItem)) {

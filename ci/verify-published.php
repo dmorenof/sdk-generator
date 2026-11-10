@@ -489,4 +489,9 @@ runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/mime-
     $mimeDirectory, 'Example\\MimeMediaSdk', 'example/published-mime-media']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $mimeDirectory]);
 runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/mime-media-smoke.php', $mimeDirectory]);
+$serverRoutesDirectory = $directory . '/server-routes';
+runPublished([PHP_BINARY, $binary, '--strict', '--resolve-local-references', $package . '/tests/fixtures/server-routes-openapi31.json',
+    $serverRoutesDirectory, 'Example\\ServerRoutesSdk', 'example/published-server-routes']);
+runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $serverRoutesDirectory]);
+runPublished([PHP_BINARY, $package . '/tests/server-routes-smoke.php', $serverRoutesDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;

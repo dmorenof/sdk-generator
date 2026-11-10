@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [0.40.0] — 2026-11-10
+
+- Expand OpenAPI server defaults and validate string defaults/enums/placeholders independently at root, Path Item and operation scope. Preserve original metadata and preference order; reuse PHP strtr, existing runtime URL policy and Guzzle URI equivalence. Existing baseUrl/serverOverrides configuration stays unchanged.
+- Reject malformed path templates, missing/extra or optional path declarations, non-boolean required flags, query/fragment/control bytes and equivalent templated hierarchies. Preserve valid repeated/embedded templates and operation parameter overrides.
+- Treat Paths Object extensions as annotation data through normalization, acceptance isolation and local file bundling, without interpreting their $ref/get-shaped data. Named Path Item components starting x- stay supported.
+- Reuse stable runtime ^0.31.0 without runtime changes. Verify 471 tests / 3,770 assertions, GET/POST HTTP routing and configuration snapshots, and a 42nd independently installed SDK at PHPStan maximum. Relative URLs, named variable-binding APIs and dynamic server selection retain explicit limits in docs/SERVER_ROUTES.md.
+
 ## [0.39.0] — 2026-11-10
 
 - Retain concrete MIME types with existing JSON, opaque string and PSR binary codecs. CSV/XML string bodies/responses retain bytes and constraints; PNG/PDF/SVG and other bounded binary media retain streams and binary aliases. Swagger file responses support a single explicit concrete produces MIME.

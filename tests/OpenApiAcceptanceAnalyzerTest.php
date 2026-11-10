@@ -123,7 +123,7 @@ final class OpenApiAcceptanceAnalyzerTest extends TestCase
         $document = self::spec();
         $document['paths']['/users/{id}']['servers'] = [['url' => '/relative-server']];
         $report = (new OpenApiAcceptanceAnalyzer())->analyze(json_encode($document, JSON_THROW_ON_ERROR));
-        self::assertSame(1, $report['summary']['generation_failed']);
+        self::assertSame(1, $report['summary']['normalization_failed']);
         self::assertFalse($report['accepted']);
         self::assertSame('/paths/~1users~1{id}/servers/0/url', $report['operations'][1]['diagnostics'][0]->pointer);
     }
