@@ -87,7 +87,7 @@ final class SchemaRulesGenerationTest extends TestCase {
         self::assertStringContainsString("'rules' =>", self::files($document)['src/Resources/Scalar.php']);
     }
     public function testInvalidRulesAndDialectMismatchesAreRejected(): void {
-        foreach ([['multipleOf' => 0], ['multipleOf' => -1], ['exclusiveMinimum' => true], ['exclusiveMaximum' => false], ['uniqueItems' => 1], ['const' => []]] as $rules) {
+        foreach ([['multipleOf' => 0], ['multipleOf' => -1], ['exclusiveMinimum' => true], ['exclusiveMaximum' => false], ['uniqueItems' => 1]] as $rules) { // a complex const such as [] is a supported guard now
             $document = self::document(); $document['components']['schemas']['Record']['properties']['amount'] = ['type' => 'number'] + $rules;
             try { self::files($document); self::fail('Invalid rule accepted.'); } catch (\InvalidArgumentException) { self::assertTrue(true); }
         }

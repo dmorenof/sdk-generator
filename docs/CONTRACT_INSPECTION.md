@@ -131,7 +131,7 @@ on cycles without fetching external documents.
 Example payloads and link parameter/request-body expressions or literal values
 are not traversed as schemas or references. A literal `$ref` in those payloads
 never triggers a fetch or unresolved-reference error. General reference execution,
-OAuth, typed response headers and callback generation remain separate roadmap
+OAuth and callback generation remain separate roadmap
 work. Unlocalized legacy normalization/emission errors still use the root pointer.
 
 

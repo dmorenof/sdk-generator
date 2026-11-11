@@ -139,7 +139,7 @@ final class PathItemHeaderReferencesTest extends TestCase
         self::assertNotEmpty(self::issues($document, 'reference_cycle'));
     }
 
-    public function testHeaderAliasesResolveToTheSameMetadataButRemainUnexposedAtRuntime(): void
+    public function testHeaderAliasesResolveToTheSameMetadataAndAreTypedAtRuntime(): void
     {
         $document = self::document();
         $header = ['description' => 'Page', 'schema' => ['type' => 'integer', 'minimum' => 1]];
@@ -147,9 +147,10 @@ final class PathItemHeaderReferencesTest extends TestCase
         $document['components']['responses']['User/~']['headers'] = ['X-Page' => ['$ref' => '#/components/headers/PageAlias']];
         $contract = (new SpecificationNormalizer())->fromJson(self::source($document));
         self::assertSame($header, $contract->operations[1]->responses[0]->headers['X-Page']);
-        $issues = self::issues($document, 'response_headers');
-        self::assertNotEmpty($issues);
+        self::assertSame([], self::issues($document, 'response_headers'), 'an integer header is typed by the runtime');
         self::assertSame([], self::issues($document, 'unsupported_reference'));
+        $document['components']['headers']['Page'] = ['schema' => ['type' => 'object']];
+        self::assertNotEmpty(self::issues($document, 'response_headers'), 'an object header stays raw text and is reported through its alias');
     }
 
     public function testHeadersInsideEncodingResolveAndRetainLiteralExamples(): void
@@ -169,11 +170,11 @@ final class PathItemHeaderReferencesTest extends TestCase
     public function testHeaderSchemaDiagnosticsIncludeTheWholeHttpReferenceChain(): void
     {
         $document = self::document();
-        $document['components']['headers']['Page'] = ['schema' => ['type' => 'integer', 'not' => ['type' => 'null']]];
+        $document['components']['headers']['Page'] = ['schema' => ['type' => 'integer', 'contentSchema' => ['type' => 'null']]];
         $document['components']['responses']['User/~']['headers'] = ['X-Page' => ['$ref' => '#/components/headers/Page']];
         $issues = self::issues($document, 'unsupported_schema_keyword');
         $issue = array_values(array_filter($issues, static fn ($issue): bool => count($issue->referenceChain) === 5))[0];
-        self::assertSame('/components/headers/Page/schema/not', $issue->pointer);
+        self::assertSame('/components/headers/Page/schema/contentSchema', $issue->pointer);
         self::assertSame('getUser', $issue->operationId);
         self::assertSame(['#/components/pathItems/ReadAlias', '#/components/pathItems/ReadUser',
             '#/components/responses/ReadAlias', '#/components/responses/User~1~0', '#/components/headers/Page'], $issue->referenceChain);

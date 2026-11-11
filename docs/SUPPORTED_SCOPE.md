@@ -133,8 +133,9 @@ An unresolved route cannot pass acceptance as a zero-operation SDK.
 OpenAPI `components/headers` references resolve through aliases in response
 headers and media encoding headers, with the Reference Object annotation rules
 already used for parameters/bodies/responses. Their raw schema/content metadata
-is retained. This does **not** expose typed response headers from the runtime or
-execute encoding rules; inspection still diagnoses those limitations. Recursive
+is retained. Response headers with a scalar, scalar-list or enum schema are emitted as runtime
+`responseHeaders` metadata (typed through `lastResponse()->headers`). This does **not**
+execute encoding rules or type object/union/`content` headers; inspection still diagnoses those limitations. Recursive
 HTTP-metadata graphs terminate with an explicit diagnostic, while supported
 recursive Schema Objects keep their existing identity.
 

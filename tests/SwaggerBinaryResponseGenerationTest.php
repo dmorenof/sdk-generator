@@ -112,6 +112,7 @@ final class SwaggerBinaryResponseGenerationTest extends TestCase
             try {
                 $response = $resource->get();
                 self::assertLessThan(400, $status);
+                if ($status === 204) { self::assertNull($response, 'a 204 has no body to hand over'); continue; }
                 self::assertSame($status, $response->getStatusCode());
                 self::assertSame('', (string) $response->getBody());
             } catch (ApiException $e) {

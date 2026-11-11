@@ -91,7 +91,11 @@ final class BinaryResponseGenerationTest extends TestCase
                 { return new Response($this->status, [], $this->status === 404 ? '{"message":"missing"}' : ''); }
             };
             $resource = \Example\DownloadSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\DownloadSdk\Resources\Download::class);
-            try { self::assertSame($status, $resource->get()->getStatusCode()); self::assertNotSame(404, $status); }
+            try {
+                $response = $resource->get();
+                if ($status === 204) { self::assertNull($response, 'a 204 has no body to hand over'); } else { self::assertSame($status, $response->getStatusCode()); }
+                self::assertNotSame(404, $status);
+            }
             catch (ApiException $e) {
                 self::assertSame(404, $status);
                 self::assertInstanceOf(\Example\DownloadSdk\DTOs\Error::class, $e->error);
@@ -130,7 +134,7 @@ final class BinaryResponseGenerationTest extends TestCase
             'content' => ['application/octet-stream' => ['schema' => ['type' => 'string', 'format' => 'binary']]]];
         $variants[] = $document;
         $document = $base;
-        $document['components']['responses']['File']['headers'] = ['X-Size' => ['schema' => ['type' => 'integer']]];
+        $document['components']['responses']['File']['headers'] = ['X-Size' => ['schema' => ['type' => 'object']]]; // a scalar header is typed now; an object one is not
         $variants[] = $document;
         $variants[] = ['swagger' => '2.0', 'info' => ['title' => 'Download', 'version' => '1'],
             'produces' => ['image/png'], 'paths' => ['/download' => ['get' => ['operationId' => 'download',

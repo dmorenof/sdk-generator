@@ -92,7 +92,7 @@ final class LocalFileReferencesTest extends TestCase
         $report = (new DocumentInspector())->inspectBundle($bundle);
         self::assertSame(hash_file('sha256', "$this->directory/api.json"), $report['sourceSha256']);
         self::assertSame(hash('sha256', json_encode($bundle->document, JSON_THROW_ON_ERROR)), $report['bundleSha256']);
-        $this->edit('models/User.json', static fn ($doc) => $doc + ['not' => []]);
+        $this->edit('models/User.json', static fn ($doc) => $doc + ['contentSchema' => []]);
         self::assertTrue((new DocumentInspector())->inspectBundle($bundle)['strictlyAccepted']);
         self::assertFalse((new DocumentInspector())->inspectFile("$this->directory/api.json")['strictlyAccepted']);
     }
@@ -133,13 +133,13 @@ final class LocalFileReferencesTest extends TestCase
     public function testDiagnosticsAndStrictErrorsPointToTheOriginalExternalSchema(): void
     {
         $this->edit('models/User.json', static function ($doc) {
-            $doc['properties']['id']['not'] = ['type' => 'null'];
+            $doc['properties']['id']['contentSchema'] = ['type' => 'null'];
             return $doc;
         });
         $report = (new DocumentInspector())->inspectFile("$this->directory/api.json");
         $issue = array_values(array_filter($report['diagnostics'], static fn ($issue): bool => $issue->code === 'unsupported_schema_keyword'))[0];
         self::assertSame("$this->directory/models/User.json", $issue->source);
-        self::assertSame('/properties/id/not', $issue->pointer);
+        self::assertSame('/properties/id/contentSchema', $issue->pointer);
         try {
             (new SpecificationNormalizer())->fromFile("$this->directory/api.json", strict: true);
             self::fail('Unsupported schema accepted.');

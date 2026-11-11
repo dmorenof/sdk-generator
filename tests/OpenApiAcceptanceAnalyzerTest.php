@@ -73,7 +73,10 @@ final class OpenApiAcceptanceAnalyzerTest extends TestCase
         $raw = self::spec();
         $raw['paths']['/users']['post']['operationId'] = 'operation-with-hyphens';
         $raw['paths']['/users']['post']['requestBody']['content']['application/json']['schema'] = [
-            'allOf' => [['type' => 'string'], ['type' => 'integer']],
+            'allOf' => [
+                ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]],
+                ['type' => 'object', 'properties' => ['id' => ['type' => 'string']]],
+            ],
         ];
         $report = (new OpenApiAcceptanceAnalyzer())->analyze(json_encode($raw, JSON_THROW_ON_ERROR));
         self::assertFalse($report['accepted']);
@@ -85,7 +88,7 @@ final class OpenApiAcceptanceAnalyzerTest extends TestCase
             static fn (array $operation): bool => $operation['status'] === 'generation_failed',
         ));
         self::assertCount(1, $bad);
-        self::assertStringContainsString('Unsupported allOf branch', $bad[0]['error']['message']);
+        self::assertStringContainsString('Conflicting allOf property', $bad[0]['error']['message']);
     }
 
     public function testUnusedUnsupportedSchemaDoesNotHideIndividualOperationSuccess(): void

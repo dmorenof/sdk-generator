@@ -380,7 +380,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.22.0 — Uniones PHP nativas en firmas de recursos y fachadas** para varias respuestas JSON de éxito representables, incluida herencia y null; sin wrapper de resultado.
 - [ ] **Parcial — Respuestas sin contenido:** v0.22.0 distingue cada estado explícito sin body de otro con JSON; 204 vacío no permite aceptar 200 vacío. Quedan políticas generales para HEAD/205 y otras combinaciones del protocolo.
 - [x] **v0.31.0 — JSON/binario/sin contenido por estado:** uniones PHP, PSR-7 binario y null para vacío en operaciones mixtas. Negociar varios MIME en un mismo estado sigue pendiente. [Contrato](docs/RESPONSES.md#response-selection-block--v0310).
-- [ ] Cabeceras de respuesta declaradas en `responses[*].headers`: v0.20.0 permite leer cabeceras PSR de descargas, pero no valida sus esquemas declarados.
+- [x] Cabeceras de respuesta declaradas en `responses[*].headers`: se emiten como metadatos `responseHeaders` del runtime (tipado, `required` y reglas al leer con `lastResponse()->headers->get()`); las no tipables siguen diagnosticadas.
 - [ ] `Set-Cookie` y acceso tipado a metadatos HTTP.
 - [x] **v0.31.0 — Selectores HTTP:** OpenAPI 1XX–5XX con precedencia exacto > rango > default; default puede describir un 2xx no declarado. Swagger admite exactos/default y rechaza rangos. Non-2xx conservan ApiException; errores tipados limitados al subconjunto DTO existente.
 - [ ] Política configurable de redirecciones `3xx`.

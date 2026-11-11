@@ -4,6 +4,7 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 ## [Unreleased — implementation in progress, not validated]
 
+- Emit declared response headers (`responses[*].headers`, OpenAPI and Swagger 2) as runtime `responseHeaders` metadata so `lastResponse()->headers->get()` converts and checks them by schema; `Content-Type` is ignored and the `response_headers` diagnostic now only flags headers that cannot be typed (object, nested array, type union, `content`, non-representable `collectionFormat`).
 - Add self-contained OpenAPI 3.1 assertion guards using the runtime's Opis compiler: negation, conditionals, contains/counts, dependent constraints, property names and tuple prefixes. Preserve original JSON when constructing DTOs and recheck mutable outbound values.
 - Preserve schema documentation/vendor annotations and emit escaped PHPDoc for models, fields and operations, including deprecation and format annotations.
 - Resolve named local Example/Link Object aliases and import fragment-file references without traversing example values or executing link expressions.

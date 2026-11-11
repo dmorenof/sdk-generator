@@ -35,6 +35,8 @@ final readonly class PhpResourceEmitter
         'responseMediaType' => 'application/json',
         'errorResponses' => [],
         'responseEncoding' => 'json',
+        'responseHeaders' => [],
+        'servers' => [],
     ];
 
     /**
@@ -375,6 +377,7 @@ PHP;
             'responseValidation' => $success['rules'] ?? [],
             'responseMediaType' => $success['mediaType'] ?? 'application/json',
             'responseEncoding' => $success['encoding'] ?? 'json',
+            'responseHeaders' => \Dmorenof\SdkGenerator\Parsing\ResponseHeaderSupport::forResponses($operation->responses),
             'schemaNullable' => $success['schemaNullable'],
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $validation,

@@ -48,8 +48,9 @@ final class RawMediaGenerationTest extends TestCase {
         $http->status = 204; $http->body = ''; $binary = $client->resource(\Example\RawSdk\Resources\Binary::class); $binary->postById(7, $params);
         self::assertSame($stream, $http->calls[1]->getBody()); self::assertSame("\0\xffbytes", (string) $http->calls[1]->getBody());
         self::assertSame('https://example.test/binary/7?body=separate', (string) $http->calls[1]->getUri()); self::assertSame('header', $http->calls[1]->getHeaderLine('X-Test'));
-        $params->body = new \GuzzleHttp\Psr7\NoSeekStream(\GuzzleHttp\Psr7\Utils::streamFor('invalid retry'));
-        try { $binary->postById(7, $params); self::fail('Non-seekable body reached HTTP.'); } catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
+        $unreadable = \GuzzleHttp\Psr7\Utils::streamFor('invalid'); $unreadable->close(); // a non-seekable stream is accepted and sent once; an unreadable one never is
+        $params->body = $unreadable;
+        try { $binary->postById(7, $params); self::fail('Unreadable body reached HTTP.'); } catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
         $optional = $client->resource(\Example\RawSdk\Resources\Optional::class); $optional->post(); $optional->post('');
         self::assertFalse($http->calls[2]->hasHeader('Content-Type')); self::assertSame('text/plain', $http->calls[3]->getHeaderLine('Content-Type'));
         try { $optional->post(null); self::fail('Null was omitted.'); } catch (\UnexpectedValueException) { self::assertCount(4, $http->calls); }

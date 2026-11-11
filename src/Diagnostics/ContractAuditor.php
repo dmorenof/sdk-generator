@@ -6,6 +6,7 @@ namespace Dmorenof\SdkGenerator\Diagnostics;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use Dmorenof\SdkGenerator\Parsing\LocalObjectResolver;
 use Dmorenof\SdkGenerator\Parsing\LocalReferenceException;
+use Dmorenof\SdkGenerator\Parsing\ResponseHeaderSupport;
 
 /** Audit HTTP-affecting options which the current executable pipeline would ignore. */
 final class ContractAuditor
@@ -291,18 +292,44 @@ final class ContractAuditor
     private function auditResponse(array $response, string $pointer, ?string $operation): void
     {
         $this->keys($response, ['content', 'schema', 'headers', 'links', '$ref', 'examples'], $pointer, $operation);
-        foreach (['headers', 'links'] as $keyword) {
-            if (!empty($response[$keyword])) {
-                $this->add('response_' . $keyword, "$pointer/$keyword", ($keyword === 'headers' ? 'Declared response header schemas are preserved but not validated by the runtime.' : 'Response links are preserved but not executed by the runtime.'), $operation);
-            }
+        if (!empty($response['links'])) {
+            $this->add('response_links', "$pointer/links", 'Response links are preserved but not executed by the runtime.', $operation);
         }
         $this->content($response['content'] ?? [], "$pointer/content", $operation, response: true);
         if (isset($response['schema'])) {
             $this->schema($response['schema'], "$pointer/schema", $operation);
         }
-        $this->headers($response['headers'] ?? [], "$pointer/headers", $operation);
+        $this->responseHeaders($response['headers'] ?? [], "$pointer/headers", $operation);
         foreach ($response['links'] ?? [] as $name => $link) {
             $this->link($link, JsonPointer::append("$pointer/links", $name), $operation);
+        }
+    }
+
+    /** Audits each declared response header and reports the ones the runtime cannot type. */
+    private function responseHeaders(mixed $headers, string $pointer, ?string $operation): void
+    {
+        if (!is_array($headers)) {
+            return;
+        }
+        foreach ($headers as $name => $header) {
+            $at = JsonPointer::append($pointer, $name);
+            $this->header($header, $at, $operation);
+            $this->untypedResponseHeader((string) $name, $header, $at, $operation);
+        }
+    }
+
+    private function untypedResponseHeader(string $name, mixed $header, string $pointer, ?string $operation): void
+    {
+        if (!is_array($header) || strcasecmp($name, 'Content-Type') === 0) {
+            return; // the Content-Type response header is ignored by the specification
+        }
+        try {
+            $resolved = isset($header['$ref']) ? (new LocalObjectResolver($this->document))->resolve($header, 'headers', $pointer)['value'] : $header;
+        } catch (LocalReferenceException) {
+            return; // header() already reported the broken reference
+        }
+        if (is_array($resolved) && ResponseHeaderSupport::spec($resolved) === null) {
+            $this->add('response_headers', $pointer, 'This response header cannot be typed by the runtime (only scalar and comma-separated scalar-list schemas can be); it stays readable as raw text.', $operation);
         }
     }
 
