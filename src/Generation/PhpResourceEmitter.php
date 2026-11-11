@@ -74,7 +74,7 @@ final readonly class PhpResourceEmitter
         $resolved = PhpRouteNameResolver::resolve($contract);
         $root = PhpApiNameResolver::sdkClassFromTitle($contract->title);
         $files = [
-            'src/Client.php' => $this->renderConnector(),
+            'src/Client.php' => $this->renderConnector($contract),
             'src/Configuration.php' => $this->renderConfiguration($contract),
             "src/$root.php" => $this->renderSdkRoot($contract),
         ];
@@ -107,7 +107,7 @@ final readonly class PhpResourceEmitter
             . "}\n";
     }
 
-    private function renderConnector(): string
+    private function renderConnector(ApiContract $contract): string
     {
         $schemes = [];
         foreach ($this->securitySchemes as $scheme) {
@@ -154,6 +154,8 @@ PHP;
         return $this->header($this->namespace)
             . 'class Client extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE . "\\ApiClient\n{\n"
             . '    protected const array SECURITY_SCHEMES = ' . PhpLiteral::export($schemes) . ";\n"
+            . (\Dmorenof\SdkGenerator\Parsing\ServerSupport::isDynamic($contract->serverDefinitions)
+                ? '    protected const array SERVERS = ' . PhpLiteral::export(\Dmorenof\SdkGenerator\Parsing\ServerSupport::specs($contract->serverDefinitions)) . ";\n" : '')
             . $methods . "\n}\n";
     }
 
@@ -209,7 +211,10 @@ PHP;
             $method = $operationMethods[$operation->operationId]
                 ?? throw new InvalidArgumentException("Missing route method: $operation->operationId");
             $serverUrl = null;
-            if ($operation->serverSource !== 'root') {
+            $servers = [];
+            if ($operation->serverSource !== 'root' && \Dmorenof\SdkGenerator\Parsing\ServerSupport::isDynamic($operation->serverDefinitions)) {
+                $servers = \Dmorenof\SdkGenerator\Parsing\ServerSupport::specs($operation->serverDefinitions);
+            } elseif ($operation->serverSource !== 'root') {
                 $selected = $operation->servers[0] ?? null;
                 if ($selected === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($selected)) {
                     throw new InvalidArgumentException("Unsupported operation server at $operation->operationId: only expanded absolute HTTP(S) servers are executable.");
@@ -219,12 +224,12 @@ PHP;
                     $serverUrl = rtrim($selected, '/');
                 }
             }
-            $source .= $this->renderOperation($operation, $method, serverUrl: $serverUrl);
+            $source .= $this->renderOperation($operation, $method, serverUrl: $serverUrl, servers: $servers);
         }
         return $source . "}\n";
     }
 
-    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false, ?string $serverUrl = null): string
+    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false, ?string $serverUrl = null, array $servers = []): string
     {
         $signature = $this->requestTypes[$operation->operationId]
             ?? throw new InvalidArgumentException("Missing operation signature: $operation->operationId");
@@ -382,6 +387,7 @@ PHP;
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $validation,
             'serverUrl' => $serverUrl,
+            'servers' => $servers,
             'querySerialization' => $querySerialization,
             'queryAllowReserved' => $queryAllowReserved,
             'parameterContent' => $parameterContent,
