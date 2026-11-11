@@ -611,6 +611,7 @@ final class SpecificationNormalizer
             if (!is_array($raw) || isset($raw['$ref'])) {
                 throw new InvalidArgumentException("Unsupported response reference at $where.");
             }
+            $declared = null;
             $bodyless = $head || $status === '1XX' || (ctype_digit($status)
                 && !\Dmorenof\SdkRuntime\Operation::allowsResponseBody('GET', (int) $status));
             if ($bodyless) {
@@ -631,10 +632,14 @@ final class SpecificationNormalizer
             } else {
                 $representations = $raw['content'] ?? [];
                 $binary = BinaryResponseSupport::media($representations, $document);
-                $streamed = preg_match('/^2\d\d$/', $status) === 1 && is_array($representations) ? StreamingSupport::selected($representations) : null;
-                $content = $streamed ?? ($binary !== null
+                $isSuccess = preg_match('/^2\d\d$/', $status) === 1 && is_array($representations);
+                $streamed = $isSuccess ? StreamingSupport::selected($representations) : null;
+                $declared = $isSuccess && $streamed === null ? AlternativesSupport::select($representations, $document) : null;
+                $content = $declared !== null
+                    ? ['mediaType' => $declared[0]['mediaType'], 'schema' => $declared[0]['schema']]
+                    : ($streamed ?? ($binary !== null
                     ? ['mediaType' => $binary, 'schema' => $representations[$binary]['schema']]
-                    : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status")));
+                    : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"))));
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
             }
@@ -647,6 +652,10 @@ final class SpecificationNormalizer
                     ? (!is_array($schemaForContent) ? [] : $this->swaggerContent($operation['produces'] ?? $document['produces'] ?? ['application/json'], $schemaForContent, $dialect, "$where.responses.$status"))
                     : $this->mediaContent($raw['content'] ?? [], $dialect, "$where.responses.$status"),
                 $raw['headers'] ?? [], $raw['links'] ?? [], $this->annotations($raw) + ($bodyless ? ['bodySuppressedByHttp' => true] : []),
+                array_map(fn (array $alternative): array => [
+                    'mediaType' => $alternative['mediaType'], 'encoding' => $alternative['encoding'],
+                    'schema' => $alternative['schema'] === null ? null : $this->schema($alternative['schema'], $dialect, "$where.responses.$status.content.{$alternative['mediaType']}"),
+                ], $declared ?? []),
             );
         }
         return $responses;

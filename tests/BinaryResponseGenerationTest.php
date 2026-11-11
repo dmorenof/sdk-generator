@@ -103,7 +103,7 @@ final class BinaryResponseGenerationTest extends TestCase
             }
         }
     }
-    public function testJsonRepresentationRetainsPriority(): void
+    public function testJsonAndBinaryRepresentationsOfOneStatusBecomeAlternatives(): void
     {
         $document = self::document();
         $json = ['schema' => ['$ref' => '#/components/schemas/Error']];
@@ -111,7 +111,7 @@ final class BinaryResponseGenerationTest extends TestCase
         $document['components']['responses']['File']['content']['application/json'] = $json;
         $document['paths']['/download']['post']['responses']['200']['content']['application/json'] = $json;
         $files = self::files($document);
-        self::assertStringNotContainsString('ResponseInterface', $files['src/Resources/Download.php']);
+        self::assertStringContainsString("'alternatives' =>", $files['src/Resources/Download.php']);
         self::assertStringContainsString('DTOs\\Error', $files['src/Resources/Download.php']);
     }
     public function testUnsupportedSchemasAndRepresentationsFailVisibly(): void

@@ -1323,6 +1323,32 @@ final class PhpContractEmitter
             $success,
             static fn ($response): bool => $response->schema !== null,
         ));
+        if (count($success) === 1 && $success[0]->alternatives !== [] && ctype_digit($success[0]->status)) {
+            $alternatives = [];
+            $types = [];
+            foreach ($success[0]->alternatives as $alternative) {
+                $schema = $alternative['schema'] === null ? null : $this->effectiveSchema($alternative['schema']);
+                $type = match ($alternative['encoding']) {
+                    'binary' => '\\Psr\\Http\\Message\\ResponseInterface',
+                    'text' => 'string',
+                    default => $this->responseSchemaType($schema, $this->operationResponseHint($operation), $files),
+                };
+                $entry = ['type' => $type, 'schemaNullable' => $schema?->nullable ?? false, 'mediaType' => $alternative['mediaType'], 'encoding' => $alternative['encoding']];
+                if ($alternative['encoding'] === 'json' && $schema?->validation) { $entry['rules'] = $schema->validation; }
+                $alternatives[] = $entry;
+                $types[] = $type;
+            }
+            $types = array_values(array_unique($types));
+            if (in_array('mixed', $types, true)) { $types = ['mixed']; }
+            $nullable = count(array_filter($alternatives, static fn (array $entry): bool => $entry['schemaNullable'])) > 0;
+            if ($nullable && count($types) > 1) { $types[] = 'null'; $nullable = false; }
+            $type = implode('|', $types);
+            $this->operationSuccessTypes[$operation->operationId] = [
+                'type' => $type, 'nullable' => $nullable, 'schemaNullable' => false, 'noContentAllowed' => false,
+                'byStatus' => [$success[0]->status => ['type' => null, 'schemaNullable' => false, 'alternatives' => $alternatives]],
+            ];
+            return ($nullable ? '?' : '') . $type;
+        }
         $encoding = count($success) === 1 && !$hasSuccessRange ? \Dmorenof\SdkGenerator\Parsing\StreamingSupport::encoding($success[0]->mediaType) : null;
         if ($encoding !== null) {
             $schema = $success[0]->schema === null ? null : $this->effectiveSchema($success[0]->schema);
