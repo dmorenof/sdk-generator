@@ -1323,6 +1323,16 @@ final class PhpContractEmitter
             $success,
             static fn ($response): bool => $response->schema !== null,
         ));
+        $encoding = count($success) === 1 && !$hasSuccessRange ? \Dmorenof\SdkGenerator\Parsing\StreamingSupport::encoding($success[0]->mediaType) : null;
+        if ($encoding !== null) {
+            $schema = $success[0]->schema === null ? null : $this->effectiveSchema($success[0]->schema);
+            $this->operationSuccessTypes[$operation->operationId] = [
+                'type' => $schema === null ? null : $this->responseSchemaType($schema, $this->operationResponseHint($operation), $files),
+                'nullable' => false, 'schemaNullable' => $schema?->nullable ?? false, 'noContentAllowed' => false,
+                'rules' => $schema?->validation ?? [], 'mediaType' => $success[0]->mediaType, 'encoding' => $encoding, 'stream' => true,
+            ];
+            return '\\Generator';
+        }
         if ($withSchema !== [] && count($withSchema) === count($success) && !$hasSuccessRange
             && count(array_filter($success, static fn ($response): bool => $response->status === 'default')) === 0
             && count(array_filter($withSchema, fn ($response): bool => $this->binaryResponse($response))) === count($withSchema)

@@ -625,9 +625,10 @@ final class SpecificationNormalizer
             } else {
                 $representations = $raw['content'] ?? [];
                 $binary = BinaryResponseSupport::media($representations, $document);
-                $content = $binary !== null
+                $streamed = preg_match('/^2\d\d$/', $status) === 1 && is_array($representations) ? StreamingSupport::selected($representations) : null;
+                $content = $streamed ?? ($binary !== null
                     ? ['mediaType' => $binary, 'schema' => $representations[$binary]['schema']]
-                    : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"));
+                    : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status")));
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
             }

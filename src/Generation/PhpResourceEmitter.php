@@ -251,7 +251,9 @@ PHP;
         }
         $success = $this->successTypes[$operation->operationId]
             ?? throw new InvalidArgumentException("Missing success response metadata at $operation->operationId");
-        $returnType = $success['type'] ?? 'void';
+        $streamed = $success['stream'] ?? false;
+        $returns = $streamed || $success['type'] !== null;
+        $returnType = $streamed ? '\\Generator' : ($success['type'] ?? 'void');
         if ($success['nullable'] && $success['type'] !== null) {
             $returnType = PhpParameterTypeResolver::nullableType($returnType, true);
         }
@@ -265,13 +267,14 @@ PHP;
             if ($nativeBody && $payload !== null && $payload['kind'] === 'body' && !$payload['required']) {
                 $absentCall = substr($call, 0, strrpos($call, '(')) . '(' . implode(', ', array_slice($forward, 0, -1)) . ')';
                 $omission = '        if (func_num_args() <= ' . ($identifier === null ? '0' : '1') . ") {\n"
-                    . ($success['type'] === null ? "            $absentCall;\n            return;\n" : "            return $absentCall;\n") . "        }\n";
+                    . (!$returns ? "            $absentCall;\n            return;\n" : "            return $absentCall;\n") . "        }\n";
             }
             $docTags = [];
             if ($payload !== null && PhpDoc::hasArray($payload['type'])) { $docTags[] = '@param ' . PhpDoc::type(PhpParameterTypeResolver::nullableType($payload['type'], !$payload['required'])) . ' $payload'; }
-            if (PhpDoc::hasArray($returnType)) { $docTags[] = '@return ' . PhpDoc::type($returnType); }
+            if ($streamed) { $docTags[] = '@return ' . self::streamDoc($success); }
+            elseif (PhpDoc::hasArray($returnType)) { $docTags[] = '@return ' . PhpDoc::type($returnType); }
             return PhpDoc::render($operation->annotations, $docTags) . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n" . $omission
-                . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
+                . (!$returns ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";
         }
 
@@ -450,15 +453,27 @@ PHP;
             $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
         }
         $docTags = [];
-        if (PhpDoc::hasArray($returnType)) { $docTags[] = '@return ' . PhpDoc::type($returnType); }
+        if ($streamed) { $docTags[] = '@return ' . self::streamDoc($success); }
+        elseif (PhpDoc::hasArray($returnType)) { $docTags[] = '@return ' . PhpDoc::type($returnType); }
         if ($payload !== null && PhpDoc::hasArray($payload['type'])) { $docTags[] = '@param ' . PhpDoc::type(PhpParameterTypeResolver::nullableType($payload['type'], !$payload['required'])) . ' $payload'; }
         $source .= PhpDoc::render($operation->annotations, $docTags);
         $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
-        $resultType = ltrim($returnType, '?') === 'array' ? 'list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') : $returnType;
-        $source .= $success['type'] === null
+        $resultType = $streamed ? self::streamDoc($success) : (ltrim($returnType, '?') === 'array' ? 'list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') : $returnType);
+        $source .= !$returns
             ? "        $call;\n        return;\n"
             : "        /** @var $resultType \$result */\n        \$result = $call;\n        return \$result;\n";
         return $source . "    }\n\n";
+    }
+
+    /**
+     * What a streamed response yields: the declared item type, or a ServerSentEvent for event streams (which carry the item in `item`).
+     *
+     * @param array{type: ?string, encoding?: string} $success
+     */
+    private static function streamDoc(array $success): string
+    {
+        $event = '\\' . PhpContractEmitter::RUNTIME_NAMESPACE . '\\Streaming\\ServerSentEvent';
+        return '\\Generator<int, ' . (($success['encoding'] ?? '') === 'sse' || $success['type'] === null ? $event : PhpDoc::type($success['type'])) . '>';
     }
 
     private function header(string $namespace): string
