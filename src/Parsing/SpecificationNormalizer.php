@@ -33,6 +33,12 @@ use Symfony\Component\Yaml\Yaml;
 final class SpecificationNormalizer
 {
     private bool $jsonSchema31 = false;
+
+    /** Formats that only document a value: the runtime never asserts them, so no rule is worth emitting. */
+    private const array ANNOTATION_FORMATS = ['binary', 'password', 'float', 'double'];
+
+    /** @param bool $validateFormats Emit a runtime `format` rule for string and integer schemas, so declared formats are asserted (they are annotations otherwise). */
+    public function __construct(private readonly bool $validateFormats = false) {}
     private const METHODS = [
         'get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace',
     ];
@@ -1105,6 +1111,11 @@ final class SpecificationNormalizer
 
         if ($discriminator !== null && $kind !== SchemaKind::Object) {
             throw new InvalidArgumentException("Discriminator requires an object schema at $where.");
+        }
+        $format = $raw['format'] ?? null;
+        if ($this->validateFormats && is_string($format) && in_array($kind, [SchemaKind::String, SchemaKind::Integer], true)
+            && !in_array($format, self::ANNOTATION_FORMATS, true)) {
+            $validation['format'] = $format;
         }
         return new SchemaDefinition(
             kind: $kind,
