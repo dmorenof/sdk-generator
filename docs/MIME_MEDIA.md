@@ -21,7 +21,7 @@ The shared Guzzle/PSR transport preserves streams and rewinding. Source and inst
 smoke transfer a 32 MiB PNG body and 32 MiB PDF response under PHP 16 MiB, alongside
 raw text, vendor JSON, mixed statuses and general error payloads.
 
-Stable dependency: sdk-runtime ^0.31.0. Wildcard media selection, incompatible
+Stable dependency: sdk-runtime ^1.0.0. Wildcard media selection, incompatible
 request representations, structured XML/CSV models and charset transcoding remain
 pending. Declared MIME parameters are preserved; opaque string bytes are supplied
 by the caller. Binary constraints retain their prior bounded schema restrictions,

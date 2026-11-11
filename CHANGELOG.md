@@ -2,7 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
-## [Unreleased — implementation in progress, not validated]
+## [1.0.0] — 2026-11-11
+
+First stable release, built on sdk-runtime 1.0.0 (generated SDKs require `^1.0.0`). It accumulates the former 0.2.0 development line, including typed response headers, dynamic and relative servers, streaming responses, representation alternatives and opt-in `--validate-formats`. The generated Casafari SDK is code-identical to the previous generator apart from PHPDoc.
+
 
 - Emit declared response headers (`responses[*].headers`, OpenAPI and Swagger 2) as runtime `responseHeaders` metadata so `lastResponse()->headers->get()` converts and checks them by schema; `Content-Type` is ignored and the `response_headers` diagnostic now only flags headers that cannot be typed (object, nested array, type union, `content`, non-representable `collectionFormat`).
 - Emit dynamic servers: operations (or path items) that declare several servers or server variables get runtime `servers` metadata (`useServer()`, `withServerVariables()`, enum-checked), and root declarations of that kind add `Client::SERVERS` so `Client::serverUrl('…', [...])` builds the base URL. A single plain server keeps the previous `serverUrl`/base URL behavior.
