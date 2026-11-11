@@ -35,6 +35,8 @@ final readonly class PhpResourceEmitter
         'responseMediaType' => 'application/json',
         'errorResponses' => [],
         'responseEncoding' => 'json',
+        'responseHeaders' => [],
+        'servers' => [],
     ];
 
     /**
@@ -72,7 +74,7 @@ final readonly class PhpResourceEmitter
         $resolved = PhpRouteNameResolver::resolve($contract);
         $root = PhpApiNameResolver::sdkClassFromTitle($contract->title);
         $files = [
-            'src/Client.php' => $this->renderConnector(),
+            'src/Client.php' => $this->renderConnector($contract),
             'src/Configuration.php' => $this->renderConfiguration($contract),
             "src/$root.php" => $this->renderSdkRoot($contract),
         ];
@@ -105,7 +107,7 @@ final readonly class PhpResourceEmitter
             . "}\n";
     }
 
-    private function renderConnector(): string
+    private function renderConnector(ApiContract $contract): string
     {
         $schemes = [];
         foreach ($this->securitySchemes as $scheme) {
@@ -152,12 +154,16 @@ PHP;
         return $this->header($this->namespace)
             . 'class Client extends \\' . PhpContractEmitter::RUNTIME_NAMESPACE . "\\ApiClient\n{\n"
             . '    protected const array SECURITY_SCHEMES = ' . PhpLiteral::export($schemes) . ";\n"
+            . (\Dmorenof\SdkGenerator\Parsing\ServerSupport::isDynamic($contract->serverDefinitions)
+                ? '    protected const array SERVERS = ' . PhpLiteral::export(\Dmorenof\SdkGenerator\Parsing\ServerSupport::specs($contract->serverDefinitions)) . ";\n" : '')
             . $methods . "\n}\n";
     }
 
     private function renderConfiguration(ApiContract $contract): string
     {
-        $baseUrl = PhpLiteral::export($contract->servers[0] ?? '');
+        // A relative root server has no origin to default to: the application supplies the base URL it resolves against.
+        $root = $contract->servers[0] ?? '';
+        $baseUrl = PhpLiteral::export(\Dmorenof\SdkGenerator\Parsing\ServerUrl::isRelative($root) ? '' : $root);
         return $this->header($this->namespace)
             . "final class Configuration extends \\Dmorenof\\SdkRuntime\\Configuration\n{\n"
             . "    public string \$baseUrl = $baseUrl;\n}\n";
@@ -207,22 +213,25 @@ PHP;
             $method = $operationMethods[$operation->operationId]
                 ?? throw new InvalidArgumentException("Missing route method: $operation->operationId");
             $serverUrl = null;
-            if ($operation->serverSource !== 'root') {
+            $servers = [];
+            if ($operation->serverSource !== 'root' && \Dmorenof\SdkGenerator\Parsing\ServerSupport::isDynamic($operation->serverDefinitions)) {
+                $servers = \Dmorenof\SdkGenerator\Parsing\ServerSupport::specs($operation->serverDefinitions);
+            } elseif ($operation->serverSource !== 'root') {
                 $selected = $operation->servers[0] ?? null;
                 if ($selected === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($selected)) {
-                    throw new InvalidArgumentException("Unsupported operation server at $operation->operationId: only expanded absolute HTTP(S) servers are executable.");
+                    throw new InvalidArgumentException("Unsupported operation server at $operation->operationId: only expanded HTTP(S) or relative path servers are executable.");
                 }
                 // Equivalent root declarations still follow the configured client baseUrl.
                 if ($rootServer === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::same(rtrim($selected, '/'), rtrim($rootServer, '/'))) {
-                    $serverUrl = rtrim($selected, '/');
+                    $serverUrl = \Dmorenof\SdkGenerator\Parsing\ServerUrl::isRelative($selected) ? $selected : rtrim($selected, '/');
                 }
             }
-            $source .= $this->renderOperation($operation, $method, serverUrl: $serverUrl);
+            $source .= $this->renderOperation($operation, $method, serverUrl: $serverUrl, servers: $servers);
         }
         return $source . "}\n";
     }
 
-    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false, ?string $serverUrl = null): string
+    private function renderOperation(OperationDefinition $operation, string $method, ?string $resourceClass = null, ?string $resourceMethod = null, bool $grouped = false, ?string $serverUrl = null, array $servers = []): string
     {
         $signature = $this->requestTypes[$operation->operationId]
             ?? throw new InvalidArgumentException("Missing operation signature: $operation->operationId");
@@ -244,7 +253,9 @@ PHP;
         }
         $success = $this->successTypes[$operation->operationId]
             ?? throw new InvalidArgumentException("Missing success response metadata at $operation->operationId");
-        $returnType = $success['type'] ?? 'void';
+        $streamed = $success['stream'] ?? false;
+        $returns = $streamed || $success['type'] !== null;
+        $returnType = $streamed ? '\\Generator' : ($success['type'] ?? 'void');
         if ($success['nullable'] && $success['type'] !== null) {
             $returnType = PhpParameterTypeResolver::nullableType($returnType, true);
         }
@@ -254,16 +265,18 @@ PHP;
             $call = ($grouped ? '' : '\\' . $this->namespace . '\\') . $connector . '->resource('
                 . $resourceClass . '::class)->' . ($resourceMethod ?? $method)
                 . '(' . implode(', ', $forward) . ')';
-            $paramDoc = $payload !== null && in_array($payload['type'], ['array', '?array'], true) ? '    /** @param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload */' . "\n" : '';
-            $returnDoc = ltrim($returnType, '?') === 'array' ? '    /** @return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') . " */\n" : '';
             $omission = '';
             if ($nativeBody && $payload !== null && $payload['kind'] === 'body' && !$payload['required']) {
                 $absentCall = substr($call, 0, strrpos($call, '(')) . '(' . implode(', ', array_slice($forward, 0, -1)) . ')';
                 $omission = '        if (func_num_args() <= ' . ($identifier === null ? '0' : '1') . ") {\n"
-                    . ($success['type'] === null ? "            $absentCall;\n            return;\n" : "            return $absentCall;\n") . "        }\n";
+                    . (!$returns ? "            $absentCall;\n            return;\n" : "            return $absentCall;\n") . "        }\n";
             }
-            return $paramDoc . $returnDoc . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n" . $omission
-                . ($success['type'] === null ? "        $call;\n" : "        return $call;\n")
+            $docTags = [];
+            if ($payload !== null && PhpDoc::hasArray($payload['type'])) { $docTags[] = '@param ' . PhpDoc::type(PhpParameterTypeResolver::nullableType($payload['type'], !$payload['required'])) . ' $payload'; }
+            if ($streamed) { $docTags[] = '@return ' . self::streamDoc($success); }
+            elseif (PhpDoc::hasArray($returnType)) { $docTags[] = '@return ' . PhpDoc::type($returnType); }
+            return PhpDoc::render($operation->annotations, $docTags) . "    public static function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n" . $omission
+                . (!$returns ? "        $call;\n" : "        return $call;\n")
                 . "    }\n\n";
         }
 
@@ -374,10 +387,12 @@ PHP;
             'responseValidation' => $success['rules'] ?? [],
             'responseMediaType' => $success['mediaType'] ?? 'application/json',
             'responseEncoding' => $success['encoding'] ?? 'json',
+            'responseHeaders' => \Dmorenof\SdkGenerator\Parsing\ResponseHeaderSupport::forResponses($operation->responses),
             'schemaNullable' => $success['schemaNullable'],
             'noContentAllowed' => $success['noContentAllowed'],
             'validation' => $validation,
             'serverUrl' => $serverUrl,
+            'servers' => $servers,
             'querySerialization' => $querySerialization,
             'queryAllowReserved' => $queryAllowReserved,
             'parameterContent' => $parameterContent,
@@ -439,14 +454,28 @@ PHP;
             }
             $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
         }
-        if (ltrim($returnType, '?') === 'array') { $source .= '    /** @return list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') . " */\n"; }
-        if ($payload !== null && in_array($payload['type'], ['array', '?array'], true)) { $source .= '    /** @param list<mixed>' . (!$payload['required'] || str_starts_with($payload['type'], '?') ? '|null' : '') . ' $payload */' . "\n"; }
+        $docTags = [];
+        if ($streamed) { $docTags[] = '@return ' . self::streamDoc($success); }
+        elseif (PhpDoc::hasArray($returnType)) { $docTags[] = '@return ' . PhpDoc::type($returnType); }
+        if ($payload !== null && PhpDoc::hasArray($payload['type'])) { $docTags[] = '@param ' . PhpDoc::type(PhpParameterTypeResolver::nullableType($payload['type'], !$payload['required'])) . ' $payload'; }
+        $source .= PhpDoc::render($operation->annotations, $docTags);
         $source .= "    public function $method(" . implode(', ', $arguments) . "): $returnType\n    {\n";
-        $resultType = ltrim($returnType, '?') === 'array' ? 'list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') : $returnType;
-        $source .= $success['type'] === null
+        $resultType = $streamed ? self::streamDoc($success) : (ltrim($returnType, '?') === 'array' ? 'list<mixed>' . (str_starts_with($returnType, '?') ? '|null' : '') : $returnType);
+        $source .= !$returns
             ? "        $call;\n        return;\n"
             : "        /** @var $resultType \$result */\n        \$result = $call;\n        return \$result;\n";
         return $source . "    }\n\n";
+    }
+
+    /**
+     * What a streamed response yields: the declared item type, or a ServerSentEvent for event streams (which carry the item in `item`).
+     *
+     * @param array{type: ?string, encoding?: string} $success
+     */
+    private static function streamDoc(array $success): string
+    {
+        $event = '\\' . PhpContractEmitter::RUNTIME_NAMESPACE . '\\Streaming\\ServerSentEvent';
+        return '\\Generator<int, ' . (($success['encoding'] ?? '') === 'sse' || $success['type'] === null ? $event : PhpDoc::type($success['type'])) . '>';
     }
 
     private function header(string $namespace): string

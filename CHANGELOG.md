@@ -2,6 +2,26 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.0.0] — 2026-11-11
+
+First stable release, built on sdk-runtime 1.0.0 (generated SDKs require `^1.0.0`). It accumulates the former 0.2.0 development line, including typed response headers, dynamic and relative servers, streaming responses, representation alternatives and opt-in `--validate-formats`. The generated Casafari SDK is code-identical to the previous generator apart from PHPDoc.
+
+
+- Emit declared response headers (`responses[*].headers`, OpenAPI and Swagger 2) as runtime `responseHeaders` metadata so `lastResponse()->headers->get()` converts and checks them by schema; `Content-Type` is ignored and the `response_headers` diagnostic now only flags headers that cannot be typed (object, nested array, type union, `content`, non-representable `collectionFormat`).
+- Emit dynamic servers: operations (or path items) that declare several servers or server variables get runtime `servers` metadata (`useServer()`, `withServerVariables()`, enum-checked), and root declarations of that kind add `Client::SERVERS` so `Client::serverUrl('…', [...])` builds the base URL. A single plain server keeps the previous `serverUrl`/base URL behavior.
+- Emit streaming responses: a single 2xx response whose only media type is `application/jsonl`, `application/x-ndjson`, `application/json-seq` or `text/event-stream` (item schema from `itemSchema` or `schema`; none needed for events) returns a lazy `\Generator` with `responseEncoding` `jsonl`/`json-seq`/`sse`. **Behavior change:** `text/event-stream` responses with a string schema were previously returned as text. Error statuses are never streamed; a JSON alternative or several success statuses keep the buffered value.
+- Add opt-in `--validate-formats` (`new SpecificationNormalizer(validateFormats: true)`): string and integer schemas with a `format` (date-time, uuid, email, int64, ...) get a runtime `format` rule, so models, parameters and responses assert it. `binary`, `password`, `float` and `double` stay annotations; without the option nothing changes.
+- Emit response representation alternatives: a single 2xx status that declares two or more decodable media types (JSON, text, binary incl. wildcards like `image/*`) gets runtime `alternatives`; the `Content-Type` picks the codec, `Accept` lists all of them and the return type is the union. **Behavior change:** JSON no longer silently wins over text/binary in the same status (return types widen). If any media type is undecodable (e.g. XML with an object schema) or is a stream/form, the previous single-JSON choice stays.
+- Support relative servers (`/v2`, `v2`, `../v2`, templated like `/{env}`): operation and path servers are resolved by the runtime against the configured base URL; a relative root server leaves `Configuration::$baseUrl` empty for the application to supply. Relative servers with whitespace, query or fragment, and absolute non-HTTP(S) URLs, are still rejected.
+- Add self-contained OpenAPI 3.1 assertion guards using the runtime's Opis compiler: negation, conditionals, contains/counts, dependent constraints, property names and tuple prefixes. Preserve original JSON when constructing DTOs and recheck mutable outbound values.
+- Preserve schema documentation/vendor annotations and emit escaped PHPDoc for models, fields and operations, including deprecation and format annotations.
+- Resolve named local Example/Link Object aliases and import fragment-file references without traversing example values or executing link expressions.
+- Extend self-contained object/array type sets to native stdClass/array unions; retain complete schema guards for pattern/unevaluated assertions. Preserve complex const/enum JSON literal identity through JSON/YAML and fragment-file loading, reusing Opis JSON equality.
+- Execute Swagger operation-specific HTTP(S) schemes through existing shared server routing and validate host/port/basePath without inventing missing document-origin defaults.
+- Apply shared HTTP body eligibility to HEAD and 1xx/204/205/304, retain declared representation metadata, correct binary/range nullable signatures and reject TRACE request bodies.
+- Represent newly supported self-contained OAS 3.1 non-object allOf and composition siblings using native PHP kinds plus the complete declarative schema. Preserve oneOf exclusivity and existing composition class APIs. Contextual references/directional guards remain explicit limits.
+- Runtime coordination remains pending. No tests, analysis or release have run for this accumulated development, at the user's request. See pendientes.md for precise limits and outstanding work.
+
 ## [0.40.0] — 2026-11-10
 
 - Expand OpenAPI server defaults and validate string defaults/enums/placeholders independently at root, Path Item and operation scope. Preserve original metadata and preference order; reuse PHP strtr, existing runtime URL policy and Guzzle URI equivalence. Existing baseUrl/serverOverrides configuration stays unchanged.

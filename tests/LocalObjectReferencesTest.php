@@ -215,7 +215,7 @@ final class LocalObjectReferencesTest extends TestCase
     public function testIsolationDoesNotInterpretExampleOrLinkPayloadsAsSchemaReferences(): void
     {
         $document = self::document();
-        $document['components']['schemas']['UnusedUnsupported'] = ['not' => ['type' => 'null']];
+        $document['components']['schemas']['UnusedUnsupported'] = ['contentSchema' => ['type' => 'null']];
         $literal = ['$ref' => '#/components/schemas/UnusedUnsupported'];
         $document['components']['responses']['Unused'] = ['description' => 'Example', 'examples' => ['application/json' => $literal]];
         $document['components']['links']['Unused'] = ['operationId' => 'getUser', 'parameters' => ['id' => $literal], 'requestBody' => $literal];

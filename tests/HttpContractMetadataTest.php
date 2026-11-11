@@ -95,7 +95,7 @@ final class HttpContractMetadataTest extends TestCase
         $body['description'] = 'Create';
         $response = &$document['paths']['/users/{id}']['get']['responses']['200'];
         $response['content']['application/xml'] = ['schema' => ['type' => 'string'], 'example' => '<user/>'];
-        $response['content']['application/x-other'] = ['schema' => ['not' => ['type' => 'null']]];
+        $response['content']['application/x-other'] = ['schema' => ['contentSchema' => ['type' => 'null']]];
         $response['headers'] = ['Set-Cookie' => ['schema' => ['type' => 'string'], 'description' => 'Session']];
         $response['links'] = ['next' => ['operationId' => 'getUser']];
         $contract = self::normalize($document);
@@ -106,7 +106,7 @@ final class HttpContractMetadataTest extends TestCase
         self::assertCount(3, $response->content);
         self::assertSame('application/json', $response->mediaType);
         self::assertSame('<user/>', $response->content[1]->annotations['example']);
-        self::assertSame(['not' => ['type' => 'null']], $response->content[2]->unparsedSchema);
+        self::assertSame(['contentSchema' => ['type' => 'null']], $response->content[2]->unparsedSchema);
         self::assertSame('Session', $response->headers['Set-Cookie']['description']);
         self::assertSame('getUser', $response->links['next']['operationId']);
     }
@@ -186,10 +186,10 @@ final class HttpContractMetadataTest extends TestCase
     public function testUnsupportedSchemaKeywordHasItsExactPointerAndOperation(): void
     {
         $document = self::document();
-        $document['paths']['/users/{id}']['get']['parameters'][1]['schema']['not'] = ['type' => 'null'];
+        $document['paths']['/users/{id}']['get']['parameters'][1]['schema']['contentSchema'] = ['type' => 'null'];
         $report = (new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR));
         $issues = array_values(array_filter($report['diagnostics'], static fn ($issue): bool => $issue->code === 'unsupported_schema_keyword'));
-        self::assertSame('/paths/~1users~1{id}/get/parameters/1/schema/not', $issues[0]->pointer);
+        self::assertSame('/paths/~1users~1{id}/get/parameters/1/schema/contentSchema', $issues[0]->pointer);
         self::assertSame('getUser', $issues[0]->operationId);
     }
 }

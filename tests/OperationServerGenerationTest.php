@@ -89,11 +89,17 @@ final class OperationServerGenerationTest extends TestCase
         self::assertSame(0, $report['summary']['compatibility_failed']);
     }
 
-    public function testRelativeAndTemplateOperationServersRemainExplicitlyRejected(): void
+    public function testMalformedRelativeOperationServersAreStillRejected(): void
     {
-        $source = json_decode(self::source(), true, 512, JSON_THROW_ON_ERROR);
-        $source['paths']['/items/{id}']['get']['servers'] = [['url' => '/relative']];
-        $this->expectException(\Dmorenof\SdkGenerator\Diagnostics\CompatibilityException::class);
-        (new SpecificationNormalizer())->fromJson(json_encode($source, JSON_THROW_ON_ERROR), strict: true);
+        foreach (['/relative?x=1', '/rel ative', '', '/a#b'] as $url) {
+            $source = json_decode(self::source(), true, 512, JSON_THROW_ON_ERROR);
+            $source['paths']['/items/{id}']['get']['servers'] = [['url' => $url]];
+            try {
+                (new SpecificationNormalizer())->fromJson(json_encode($source, JSON_THROW_ON_ERROR), strict: true);
+                self::fail("'$url' accepted");
+            } catch (\InvalidArgumentException | \Dmorenof\SdkGenerator\Diagnostics\CompatibilityException) {
+                self::assertTrue(true);
+            }
+        }
     }
 }

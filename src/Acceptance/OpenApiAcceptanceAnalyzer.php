@@ -150,14 +150,14 @@ final class OpenApiAcceptanceAnalyzer
     {
         if ($format === 'json') {
             try {
-                return json_decode($source, true, 512, JSON_THROW_ON_ERROR);
+                return \Dmorenof\SdkGenerator\Parsing\SpecificationData::json($source);
             } catch (JsonException $exception) {
                 throw new InvalidArgumentException('Invalid JSON in acceptance input.', 0, $exception);
             }
         }
         if ($format === 'yaml') {
             try {
-                return Yaml::parse($source, Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+                return \Dmorenof\SdkGenerator\Parsing\SpecificationData::yaml($source);
             } catch (ParseException $exception) {
                 throw new InvalidArgumentException('Invalid YAML in acceptance input.', 0, $exception);
             }
@@ -300,7 +300,7 @@ final class OpenApiAcceptanceAnalyzer
         }
         $map = in_array($context, ['map', 'links'], true);
         foreach ($value as $key => $child) {
-            if (!$map && (in_array($key, ['example', 'examples', 'default', 'enum', 'value'], true)
+            if (!$map && (in_array($key, ['example', 'examples', 'default', 'enum', 'const', 'value'], true)
                 || ($context === 'link' && in_array($key, ['parameters', 'requestBody'], true))
                 || str_starts_with((string) $key, 'x-'))) {
                 continue;
@@ -308,7 +308,7 @@ final class OpenApiAcceptanceAnalyzer
             $childContext = $context === 'links' ? 'link' : 'object';
             if (!$map && $key === 'links') {
                 $childContext = 'links';
-            } elseif (!$map && in_array($key, ['properties', 'schemas', 'definitions', '$defs', 'headers',
+            } elseif (!$map && in_array($key, ['properties', 'patternProperties', 'dependentSchemas', 'schemas', 'definitions', '$defs', 'headers',
                 'parameters', 'requestBodies', 'responses', 'callbacks', 'pathItems', 'encoding', 'securitySchemes'], true)) {
                 $childContext = 'map';
             }

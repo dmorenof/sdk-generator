@@ -33,6 +33,12 @@ use Symfony\Component\Yaml\Yaml;
 final class SpecificationNormalizer
 {
     private bool $jsonSchema31 = false;
+
+    /** Formats that only document a value: the runtime never asserts them, so no rule is worth emitting. */
+    private const array ANNOTATION_FORMATS = ['binary', 'password', 'float', 'double'];
+
+    /** @param bool $validateFormats Emit a runtime `format` rule for string and integer schemas, so declared formats are asserted (they are annotations otherwise). */
+    public function __construct(private readonly bool $validateFormats = false) {}
     private const METHODS = [
         'get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace',
     ];
@@ -44,12 +50,14 @@ final class SpecificationNormalizer
             'minimum', 'maximum', 'minItems', 'maxItems', 'pattern', 'readOnly',
             'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'uniqueItems', 'minProperties', 'maxProperties', 'const',
             'writeOnly', 'default', 'anyOf', 'oneOf', 'allOf', 'discriminator',
+            'not', 'if', 'then', 'else', 'contains', 'minContains', 'maxContains',
+            'dependentRequired', 'dependentSchemas', 'propertyNames', 'prefixItems', 'patternProperties', 'unevaluatedProperties', 'unevaluatedItems',
     ];
 
     public function fromYaml(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
     {
         try {
-            $document = Yaml::parse($source, Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE);
+            $document = SpecificationData::yaml($source);
             $json = json_encode($document, JSON_THROW_ON_ERROR);
         } catch (ParseException|JsonException $exception) {
             throw new InvalidArgumentException('Invalid specification YAML.', 0, $exception);
@@ -86,7 +94,7 @@ final class SpecificationNormalizer
     public function fromJson(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
     {
         try {
-            $document = json_decode($source, true, 512, JSON_THROW_ON_ERROR);
+            $document = SpecificationData::json($source);
         } catch (JsonException $exception) {
             throw new InvalidArgumentException('Invalid specification JSON.', 0, $exception);
         }
@@ -193,14 +201,22 @@ final class SpecificationNormalizer
                     $dialect,
                     "$method $path",
                 );
+                if ($method === 'trace' && $requestBody !== null) {
+                    throw new InvalidArgumentException("TRACE cannot declare a request body at $path.");
+                }
                 $this->pathParameters($path, $parameters, "$method $path");
-                $responses = $this->responses($raw, $document, $dialect, "$method $path");
+                $responses = $this->responses($raw, $document, $dialect, "$method $path", $method === 'head');
                 $serverSource = array_key_exists('servers', $raw) ? 'operation'
                     : (array_key_exists('servers', $pathItem) ? 'path' : 'root');
                 $serverDefinitions = $dialect === 'swagger2'
                     ? array_map(static fn (string $url): array => ['url' => $url], $servers)
                     : ($serverSource === 'operation' ? $raw['servers'] : ($serverSource === 'path' ? $pathItem['servers'] : ($document['servers'] ?? [])));
                 $operationServers = $serverSource === 'root' ? $servers : $this->serverUrls($serverDefinitions);
+                if ($dialect === 'swagger2' && array_key_exists('schemes', $raw)) {
+                    $operationServers = $this->servers(array_replace($document, ['schemes' => $raw['schemes']]), $dialect);
+                    $serverDefinitions = array_map(static fn (string $url): array => ['url' => $url], $operationServers);
+                    $serverSource = 'operation';
+                }
                 $operations[] = new OperationDefinition(
                     $id, strtoupper($method), $path, $parameters, $requestBody, $responses, $security,
                     $operationServers, $serverDefinitions, $serverSource, $this->annotations($raw),
@@ -387,11 +403,28 @@ final class SpecificationNormalizer
         if ($dialect === 'swagger2') {
             $host = $document['host'] ?? null;
             $schemes = $document['schemes'] ?? [];
-            $basePath = rtrim((string) ($document['basePath'] ?? ''), '/');
-            if (!is_string($host) || $host === '' || !is_array($schemes)) {
-                throw new InvalidArgumentException('Swagger 2.0 fixture requires explicit host and schemes.');
+            $basePath = $document['basePath'] ?? '';
+            if (!is_string($host) || $host === '' || !is_array($schemes) || !array_is_list($schemes) || $schemes === []
+                || !is_string($basePath) || ($basePath !== '' && !str_starts_with($basePath, '/'))
+                || preg_match('/[?#\x00-\x20\x7f{}]/', $basePath)) {
+                throw new InvalidArgumentException('Swagger 2.0 requires an explicit host, HTTP(S) schemes and a valid absolute basePath; source-relative defaults need document-origin resolution.');
             }
-            $servers = array_map(static fn ($scheme): string => $scheme . '://' . $host . $basePath, $schemes);
+            try {
+                $authority = new \GuzzleHttp\Psr7\Uri('//' . $host);
+                if ($authority->getHost() === '' || $authority->getUserInfo() !== '' || $authority->getPath() !== ''
+                    || $authority->getQuery() !== '' || $authority->getFragment() !== '') {
+                    throw new InvalidArgumentException('Swagger host must contain only a hostname and optional port.');
+                }
+            } catch (\Throwable $error) {
+                throw new InvalidArgumentException('Invalid Swagger host: ' . $error->getMessage(), 0, $error);
+            }
+            $servers = [];
+            foreach ($schemes as $scheme) {
+                if (!is_string($scheme) || !in_array($scheme, ['http', 'https'], true)) {
+                    throw new InvalidArgumentException('Swagger transfer schemes currently support only http and https.');
+                }
+                $servers[] = \Dmorenof\SdkRuntime\ServerUrl::normalize($scheme . '://' . $host . $basePath);
+            }
         } else {
             $servers = $this->serverUrls(array_key_exists('servers', $document) ? $document['servers'] : []);
         }
@@ -562,7 +595,7 @@ final class SpecificationNormalizer
     }
 
     /** @return list<ResponseDefinition> */
-    private function responses(array $operation, array $document, string $dialect, string $where): array
+    private function responses(array $operation, array $document, string $dialect, string $where, bool $head = false): array
     {
         $rawResponses = $operation['responses'] ?? null;
         if (!is_array($rawResponses) || $rawResponses === []) {
@@ -578,7 +611,13 @@ final class SpecificationNormalizer
             if (!is_array($raw) || isset($raw['$ref'])) {
                 throw new InvalidArgumentException("Unsupported response reference at $where.");
             }
-            if ($dialect === 'swagger2') {
+            $declared = null;
+            $bodyless = $head || $status === '1XX' || (ctype_digit($status)
+                && !\Dmorenof\SdkRuntime\Operation::allowsResponseBody('GET', (int) $status));
+            if ($bodyless) {
+                $schema = null;
+                $mediaType = null;
+            } elseif ($dialect === 'swagger2') {
                 $schema = $raw['schema'] ?? null;
                 $produces = $operation['produces'] ?? $document['produces'] ?? ['application/json'];
                 $binarySchema = is_array($schema) ? BinaryResponseSupport::swaggerSchema($schema, $produces) : null;
@@ -593,20 +632,30 @@ final class SpecificationNormalizer
             } else {
                 $representations = $raw['content'] ?? [];
                 $binary = BinaryResponseSupport::media($representations, $document);
-                $content = $binary !== null
+                $isSuccess = preg_match('/^2\d\d$/', $status) === 1 && is_array($representations);
+                $streamed = $isSuccess ? StreamingSupport::selected($representations) : null;
+                $declared = $isSuccess && $streamed === null ? AlternativesSupport::select($representations, $document) : null;
+                $content = $declared !== null
+                    ? ['mediaType' => $declared[0]['mediaType'], 'schema' => $declared[0]['schema']]
+                    : ($streamed ?? ($binary !== null
                     ? ['mediaType' => $binary, 'schema' => $representations[$binary]['schema']]
-                    : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"));
+                    : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"))));
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
             }
+            $schemaForContent = $bodyless && $dialect === 'swagger2' ? ($raw['schema'] ?? null) : $schema;
             $responses[] = new ResponseDefinition(
                 $status,
                 $mediaType,
                 $schema === null ? null : $this->schema($schema, $dialect, "$where.responses.$status"),
                 $dialect === 'swagger2'
-                    ? ($schema === null ? [] : $this->swaggerContent($operation['produces'] ?? $document['produces'] ?? ['application/json'], $schema, $dialect, "$where.responses.$status"))
+                    ? (!is_array($schemaForContent) ? [] : $this->swaggerContent($operation['produces'] ?? $document['produces'] ?? ['application/json'], $schemaForContent, $dialect, "$where.responses.$status"))
                     : $this->mediaContent($raw['content'] ?? [], $dialect, "$where.responses.$status"),
-                $raw['headers'] ?? [], $raw['links'] ?? [], $this->annotations($raw),
+                $raw['headers'] ?? [], $raw['links'] ?? [], $this->annotations($raw) + ($bodyless ? ['bodySuppressedByHttp' => true] : []),
+                array_map(fn (array $alternative): array => [
+                    'mediaType' => $alternative['mediaType'], 'encoding' => $alternative['encoding'],
+                    'schema' => $alternative['schema'] === null ? null : $this->schema($alternative['schema'], $dialect, "$where.responses.$status.content.{$alternative['mediaType']}"),
+                ], $declared ?? []),
             );
         }
         return $responses;
@@ -718,6 +767,36 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException("Schema must be an object at $where.");
         }
 
+        $metadata = array_filter($raw, static fn ($key): bool => in_array($key, ['example', 'examples', 'deprecated', 'externalDocs', 'xml', '$comment'], true) || (str_starts_with((string) $key, 'x-') && $key !== 'x-nullable'), ARRAY_FILTER_USE_KEY);
+        if ($metadata !== []) {
+            if (array_key_exists('deprecated', $metadata) && !is_bool($metadata['deprecated'])) {
+                throw new InvalidArgumentException("Invalid schema deprecated flag at $where.");
+            }
+            $schema = $this->schema(array_diff_key($raw, $metadata), $dialect, $where);
+            $arguments = get_object_vars($schema);
+            $arguments['annotations'] = $metadata;
+            return new SchemaDefinition(...$arguments);
+        }
+
+        $compositionKeywords = array_values(array_intersect(['allOf', 'oneOf', 'anyOf'], array_keys($raw)));
+        if ($this->jsonSchema31 && $compositionKeywords !== []) {
+            $siblings = array_diff(array_keys($raw), [...$compositionKeywords, 'title', 'description', 'discriminator']);
+            $nonObjectAllOf = isset($raw['allOf']) && is_array($raw['allOf'])
+                && count(array_filter($raw['allOf'], static fn ($branch): bool => !DeclarativeSchemaRules::objectBranch($branch))) > 0;
+            if (count($compositionKeywords) > 1 || $siblings !== [] || $nonObjectAllOf) {
+                return DeclarativeSchemaRules::native($raw, $where);
+            }
+        }
+
+        $declarative = DeclarativeSchemaRules::extract($raw, $this->jsonSchema31, $where);
+        if ($declarative !== null) {
+            [$structural, $guard] = $declarative;
+            $schema = $this->schema($structural, $dialect, $where);
+            $arguments = get_object_vars($schema);
+            $arguments['validation']['jsonSchema'] = DeclarativeSchemaRules::conjoin($arguments['validation']['jsonSchema'] ?? null, $guard);
+            return new SchemaDefinition(...$arguments);
+        }
+
         $allowed = self::SCHEMA_KEYWORDS;
         foreach (array_keys($raw) as $key) {
             if (!in_array($key, $allowed, true)) {
@@ -728,6 +807,32 @@ final class SpecificationNormalizer
             if (isset($raw[$annotation]) && !is_string($raw[$annotation])) {
                 throw new InvalidArgumentException("Invalid schema $annotation at $where.");
             }
+        }
+
+        if ($this->jsonSchema31 && is_array($raw['type'] ?? null) && array_is_list($raw['type']) && count($raw['type']) === 1) {
+            $raw['type'] = $raw['type'][0];
+            return $this->schema($raw, $dialect, $where);
+        }
+
+        if ($this->jsonSchema31 && is_array($raw['type'] ?? null)
+            && count($raw['type']) > 1 && array_intersect($raw['type'], ['object', 'array']) !== []
+            && !(count($raw['type']) === 2 && in_array('null', $raw['type'], true))) {
+            $types = $raw['type'];
+            if (!array_is_list($types) || count(array_filter($types, 'is_string')) !== count($types)
+                || count(array_unique($types)) !== count($types)
+                || array_diff($types, ['string', 'integer', 'number', 'boolean', 'null', 'object', 'array']) !== []) {
+                throw new InvalidArgumentException("Invalid JSON Schema type set at $where.");
+            }
+            foreach (['readOnly', 'writeOnly'] as $flag) {
+                if (array_key_exists($flag, $raw) && !is_bool($raw[$flag])) { throw new InvalidArgumentException("Invalid $flag at $where."); }
+            }
+            $guard = DeclarativeSchemaRules::encode(array_diff_key($raw, array_flip(['readOnly', 'writeOnly'])), $where);
+            return new SchemaDefinition(SchemaKind::AnyOf,
+                validation: ['schema' => true, 'jsonSchema' => $guard],
+                readOnly: $raw['readOnly'] ?? false, writeOnly: $raw['writeOnly'] ?? false,
+                branches: array_map(static fn (string $type): SchemaDefinition => new SchemaDefinition(SchemaKind::from($type)), $types),
+                title: $raw['title'] ?? null, description: $raw['description'] ?? null,
+                default: $raw['default'] ?? null, hasDefault: array_key_exists('default', $raw));
         }
 
         if (is_array($raw['type'] ?? null) && !(count($raw['type']) === 2 && in_array('null', $raw['type'], true))) {
@@ -760,7 +865,7 @@ final class SpecificationNormalizer
                 }));
                 $this->schema(['type' => $type] + $applicable, $dialect, $where . '.type.' . $type);
             }
-            return new SchemaDefinition(SchemaKind::AnyOf, validation: ['schema' => $guard],
+            return new SchemaDefinition(SchemaKind::AnyOf, validation: ['schema' => true, 'jsonSchema' => DeclarativeSchemaRules::encode($guard, $where)],
                 branches: array_map(static fn (string $type): SchemaDefinition => new SchemaDefinition(SchemaKind::from($type)), $types),
                 readOnly: $raw['readOnly'] ?? false, writeOnly: $raw['writeOnly'] ?? false,
                 title: $raw['title'] ?? null, description: $raw['description'] ?? null,
@@ -922,6 +1027,7 @@ final class SpecificationNormalizer
                 }
             }
         } elseif ($kind === SchemaKind::Array) {
+            if ($this->jsonSchema31 && !array_key_exists('items', $raw)) { $raw['items'] = true; }
             if (!is_array($raw['items'] ?? null) && !($this->jsonSchema31 && is_bool($raw['items'] ?? null))) {
                 throw new InvalidArgumentException("Array items are missing at $where.");
             }
@@ -929,7 +1035,7 @@ final class SpecificationNormalizer
         }
 
         $enumValues = $raw['enum'] ?? [];
-        if (!is_array($enumValues)) {
+        if (!is_array($enumValues) || !array_is_list($enumValues) || (array_key_exists('enum', $raw) && $enumValues === [])) {
             throw new InvalidArgumentException("Invalid enum at $where.");
         }
         usort($enumValues, static fn ($a, $b): int => strcmp(json_encode($a), json_encode($b)));
@@ -984,8 +1090,19 @@ final class SpecificationNormalizer
             $validation['uniqueItems'] = $raw['uniqueItems'];
         }
         if (array_key_exists('const', $raw)) {
-            if (!$this->jsonSchema31 || !in_array($kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean, SchemaKind::Null, SchemaKind::Mixed], true) || (is_array($raw['const']) || is_object($raw['const']))) { throw new InvalidArgumentException("Only OpenAPI 3.1 scalar/null const values are supported at $where."); }
-            $validation['const'] = $raw['const'];
+            if (!$this->jsonSchema31) { throw new InvalidArgumentException("Const requires OpenAPI 3.1 at $where."); }
+            if (is_array($raw['const']) || is_object($raw['const'])) {
+                $validation['jsonSchema'] = DeclarativeSchemaRules::encode(['const' => $raw['const']], $where);
+            } else {
+                $validation['const'] = $raw['const'];
+            }
+        }
+        $backedEnum = ($kind === SchemaKind::String && count(array_filter($enumValues, 'is_string')) === count($enumValues))
+            || ($kind === SchemaKind::Integer && count(array_filter($enumValues, 'is_int')) === count($enumValues));
+        if ($enumValues !== [] && !$backedEnum) {
+            $validation['jsonSchema'] = DeclarativeSchemaRules::conjoin($validation['jsonSchema'] ?? null,
+                DeclarativeSchemaRules::encode(['enum' => $enumValues], $where));
+            $enumValues = [];
         }
         foreach ([['minLength', 'maxLength'], ['minimum', 'maximum'], ['minItems', 'maxItems'], ['minProperties', 'maxProperties']] as [$lower, $upper]) {
             if (isset($validation[$lower], $validation[$upper]) && $validation[$lower] > $validation[$upper]) {
@@ -997,8 +1114,17 @@ final class SpecificationNormalizer
             $validation['schema'] = ['type' => $nullable ? ['array', 'null'] : 'array', 'items' => $items->validation['schema']];
         }
 
+        if ($kind === SchemaKind::Array && $items !== null && isset($items->validation['jsonSchema'])) {
+            $validation['jsonSchema'] = DeclarativeSchemaRules::conjoin($validation['jsonSchema'] ?? null, json_encode(['items' => json_decode($items->validation['jsonSchema'], false, 512, JSON_THROW_ON_ERROR)], JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
+        }
+
         if ($discriminator !== null && $kind !== SchemaKind::Object) {
             throw new InvalidArgumentException("Discriminator requires an object schema at $where.");
+        }
+        $format = $raw['format'] ?? null;
+        if ($this->validateFormats && is_string($format) && in_array($kind, [SchemaKind::String, SchemaKind::Integer], true)
+            && !in_array($format, self::ANNOTATION_FORMATS, true)) {
+            $validation['format'] = $format;
         }
         return new SchemaDefinition(
             kind: $kind,

@@ -12,12 +12,15 @@ $arguments = [];
 $inspect = false;
 $strict = false;
 $resolveLocal = false;
+$validateFormats = false;
 $referenceRoot = null;
 foreach (array_slice($argv, 1) as $argument) {
     if (in_array($argument, ['--inspect', '--dry-run'], true)) {
         $inspect = true;
     } elseif ($argument === '--strict') {
         $strict = true;
+    } elseif ($argument === '--validate-formats') {
+        $validateFormats = true;
     } elseif ($argument === '--resolve-local-references') {
         $resolveLocal = true;
     } elseif (str_starts_with($argument, '--reference-root=')) {
@@ -27,8 +30,9 @@ foreach (array_slice($argv, 1) as $argument) {
     }
 }
 if (($referenceRoot !== null && !$resolveLocal) || ($inspect && count($arguments) !== 1) || (!$inspect && !in_array(count($arguments), [3, 4], true))) {
-    fwrite(STDERR, "Usage: generate-sdk.php [--strict] <spec.json|yaml> <output-directory> [Php\\Namespace] <vendor/package>\n"
+    fwrite(STDERR, "Usage: generate-sdk.php [--strict] [--validate-formats] <spec.json|yaml> <output-directory> [Php\\Namespace] <vendor/package>\n"
         . "       generate-sdk.php --inspect|--dry-run <spec.json|yaml>\n"
+        . "       Add --validate-formats to assert declared string/integer formats (date-time, uuid, email, ...) at runtime.\n"
         . "       Add --resolve-local-references [--reference-root=directory] for confined local JSON/YAML files.\n");
     exit(2);
 }
@@ -84,7 +88,7 @@ try {
     }
 
     // Build and validate all files before writing anything to disk.
-    $normalizer = new SpecificationNormalizer();
+    $normalizer = new SpecificationNormalizer($validateFormats);
     $extension = strtolower(pathinfo($input, PATHINFO_EXTENSION));
     $contract = $bundle === null && in_array($extension, ['yaml', 'yml'], true)
         ? $normalizer->fromYaml($source)

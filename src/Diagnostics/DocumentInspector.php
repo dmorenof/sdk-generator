@@ -42,8 +42,8 @@ final class DocumentInspector
         $generated = false;
         try {
             $document = match ($format) {
-                'json' => json_decode($source, true, 512, JSON_THROW_ON_ERROR),
-                'yaml' => Yaml::parse($source, Yaml::PARSE_EXCEPTION_ON_INVALID_TYPE),
+                'json' => \Dmorenof\SdkGenerator\Parsing\SpecificationData::json($source),
+                'yaml' => \Dmorenof\SdkGenerator\Parsing\SpecificationData::yaml($source),
                 default => throw new \InvalidArgumentException("Unsupported input format: $format"),
             };
             if (!is_array($document) || array_is_list($document)) {

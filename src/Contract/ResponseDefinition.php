@@ -17,5 +17,7 @@ final readonly class ResponseDefinition
         public array $links = [],
         /** @var array<string, mixed> */
         public array $annotations = [],
+        /** @var list<array{mediaType: string, encoding: string, schema: ?SchemaDefinition}> Decodable representations of one status, when it has several. */
+        public array $alternatives = [],
     ) {}
 }

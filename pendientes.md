@@ -8,6 +8,37 @@
 >
 > **Principio arquitectónico:** conservar clases API ligeras, namespaces derivados de rutas, DTOs reutilizables y un runtime HTTP común. Las nuevas capacidades de OpenAPI deben implementarse principalmente en el normalizador, contrato intermedio y runtime, sin introducir lógica HTTP duplicada en los métodos generados.
 
+## Orden global de trabajo (acordado 2026-11-10)
+
+Idéntico en los tres repositorios ([sdk-runtime](https://github.com/dmorenof/sdk-runtime/blob/main/pendientes.md), este y [casafari-sdk](https://github.com/dmorenof/casafari-sdk/blob/master/pendientes.md)).
+
+1. **sdk-runtime:** cubrir lo necesario para servir a cualquier API y congelar su API pública (1.0).
+2. **sdk-generator (este repositorio):** cumplir las especificaciones más importantes (Swagger 2.0, OpenAPI 3.0/3.1) sobre ese runtime.
+3. **casafari-sdk:** evaluar y, si procede, migrar a un SDK generado.
+
+Consecuencias para este archivo: las tareas que dependen de capacidades de ejecución del runtime (OAuth2, reintentos, headers tipados, negociación, streaming, servidores dinámicos, validadores de `format`) se **bloquean hasta su publicación en el runtime**; la parte del generador es después declarar sus metadatos. La migración de CasafariSDK no forma parte de esta entrega ni la bloquea (alcance confirmado por el usuario; ver más abajo) y queda como fase 3; el SDK de Casafari generado sigue como prueba de aceptación en CI.
+
+## Trabajo acumulado actual — sin validar ni publicar
+
+Por instrucción expresa del usuario del 2026-11-10, acumular la implementación y revisión del conjunto antes de ejecutar pruebas o publicar versiones. La línea base estable sigue siendo generador v0.40.0 / runtime v0.31.0. No interpretar este apartado como funcionalidad estable ni marcar sus casillas como verificadas.
+
+- JSON Schema 3.1: implementación inicial de `not`, `if`/`then`/`else`, `contains`/`minContains`/`maxContains`, `dependentRequired`, `dependentSchemas`, `propertyNames` y `prefixItems`. Opis compila/evalúa reglas; PHP conserva los tipos existentes y las tuplas usan arrays nativos.
+- Runtime: guard declarativo JSON que conserva objetos/listas del esquema, comprobación sobre JSON original al construir DTOs, revalidación de mutaciones/null, propagación del modo y conjunción de guards al aplanar allOf. Compilación compartida con defaults y extensiones de ejecución de Opis desactivados; `format` continúa como anotación.
+- Metadatos de schema conservados (`example`, `examples`, `deprecated`, `externalDocs`, `xml`, `$comment`, `x-*`); PHPDoc de modelos, propiedades y operaciones con escape de comentarios. No se habilita un codec XML ni aplicación implícita de defaults.
+- Referencias de Example/Link Objects: resolución local con alias y anotaciones por dialecto; importación desde archivos fragmento mediante el bundler existente. Los valores de ejemplos, `externalValue` y expresiones/valores de links siguen siendo datos, sin consultas de red ni ejecución automática.
+- Segunda parte acumulada: tipos unión de OpenAPI 3.1 con `object`/`array` mediante `stdClass`/arrays nativos, preservando valores y constraints; PHPDoc de listas también dentro de uniones. No convierte automáticamente esas ramas en modelos DTO.
+- `patternProperties`, `unevaluatedProperties` y `unevaluatedItems` autocontenidos conservan el esquema completo para la evaluación de propiedades/items; no se evalúan aisladamente de sus hermanos. Por ahora requieren `type: object` / `type: array` explícitos.
+- Lectura compartida JSON/YAML conserva objetos/listas en literales `const`/`enum`, incluida su identidad `{}` frente a `[]`, también desde archivos fragmento. Const complejo y enums no representables como backed enums usan guards Opis; los backed enums string/int conservan sus clases. `enum` usa igualdad JSON también durante la evaluación de composiciones.
+- Arrays OAS 3.1 sin `items` y sets de un solo tipo se normalizan sin inventar restricciones. Guards de items/uniones/contenedores se combinan por conjunción.
+- Composiciones autocontenidas OAS 3.1 que antes se rechazaban (allOf no objeto, operadores simultáneos y restricciones hermanas) usan tipos nativos y guard completo, manteniendo la exclusividad de oneOf. No cambia las clases/envoltorios de composiciones que ya tenían API pública.
+- **Límites actuales del bloque:** referencias/IDs/dirección dentro de guards completos siguen rechazados; no se aplica esta ampliación a grafos contextuales/dinámicos. No implica JSON Schema 2020-12 completo. La validación estructural exhaustiva de documentos, referencias contextuales y composiciones con grafos de modelos sigue pendiente.
+- **Runtime en desarrollo:** [commit 4fff41f41e9a406434f0034c4679de3523b84e9a](https://github.com/dmorenof/sdk-runtime/commit/4fff41f41e9a406434f0034c4679de3523b84e9a) en la rama remota existente `feature/p0-contract-fidelity`; sin PR ni publicación.
+- Swagger 2.0: `schemes` por operación se traduce al enrutamiento común existente, con prioridad sobre la raíz; validación de host/puerto/basePath/schemes sin aceptar credenciales o query/fragment embebidos. Defaults que dependen del origen del documento siguen pendientes.
+- Semántica HTTP: HEAD y estados sin cuerpo (1xx/204/205/304) no hidratan payload; los schemas/MIME declarados permanecen visibles como metadatos. Firmas y respuestas binarias/rangos conservan nulabilidad por 204/205. TRACE rechaza body declarado/enviado. No completa headers tipados, redirecciones ni todos los aspectos de OPTIONS/TRACE.
+- **Coordinación pendiente:** estas funciones requieren cambios del runtime aún no publicados. Actualizar a su versión estable únicamente al cerrar la implementación y validar el conjunto; no instalar esta rama de desarrollo como una versión estable.
+- **Alcance confirmado por el usuario:** la migración de CasafariSDK y las llamadas autenticadas a su API no forman parte de esta entrega ni la bloquean. Repositorio de referencia: [dmorenof/casafari-sdk](https://github.com/dmorenof/casafari-sdk). Se conserva la compatibilidad del generador con su especificación; no se requieren credenciales para continuar este trabajo.
+- **Estado:** no se han ejecutado pruebas, lint, análisis estático, instalación/smoke ni CI para estos cambios. VERSION y tags publicados permanecen intactos.
+
 ## Leyenda
 
 - **P0:** bloqueante para interpretar con fidelidad APIs habituales; abordar primero.
@@ -32,7 +63,6 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 - [x] FakeRESTApi: generación del contrato original completo y peticiones reales GET individual, GET de lista y POST; no se han probado todas sus operaciones.
 - [x] CI del generador: 145 pruebas / 1.828 aserciones (estado comprobado al elaborar la auditoría).
 - [x] **Entrega coordinada:** `sdk-runtime` **v0.4.0** y `sdk-generator` **v0.3.0**, con herencia compatible, discriminadores locales y dependencia estable `^0.4.0`. Cierre: [Runtime #6](https://github.com/dmorenof/sdk-runtime/pull/6) y [Generator #19](https://github.com/dmorenof/sdk-generator/pull/19).
-- [ ] **Migración de CasafariSDK:** probar operaciones autenticadas reales, revisar compatibilidad de uso/middleware, comparar datos y preparar rollback antes del cambio en producción.
 
 ### Versiones de entrada
 
@@ -69,7 +99,7 @@ Estas capacidades están comprobadas para el **subconjunto soportado**; no impli
 ### Lista de trabajo del paquete 01
 
 - [ ] **Parcial — Conservar toda la serialización de parámetros.** Hecho: conservar `style`, `explode`, `allowReserved`, `allowEmptyValue`, `collectionFormat`, valores `false` explícitos y representaciones de parámetros con `content` JSON. Falta: normalización general de `content` fuera de JSON y referencias. La ejecución general corresponde al paquete 03: v0.10.0 ejecuta arrays query primitivos form/multi/CSV y delimitados por espacio, tabulador o pipe; otros estilos y ubicaciones siguen pendientes.
-- [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. El enrutamiento de servidores literales HTTP(S) está implementado con sustituciones por entorno en el runtime compartido; v0.40.0 expande defaults de plantillas y valida enums; relativos y selección dinámica siguen pendientes.
+- [ ] **Parcial — Conservar servidores, media types y metadatos de request/response.** Hecho: conservar servidores efectivos con precedencia raíz/ruta/operación y orden de preferencia; media types, encoding y anotaciones de las representaciones normalizables. Las alternativas no soportadas quedan explícitas en `unparsedSchema`. Falta: normalización general de representaciones sin JSON, variantes incompatibles y particularidades de dialecto. El enrutamiento de servidores literales HTTP(S) está implementado con sustituciones por entorno en el runtime compartido; v0.40.0 expande defaults de plantillas y valida enums; la selección dinámica entre servidores y variables (`servers` por operación, `Client::SERVERS`/`serverUrl()`) se emite hacia el runtime; los servidores relativos siguen pendientes (el normalizador exige URLs absolutas).
 - [ ] **Parcial — Conservar encabezados, cookies y respuestas diferenciadas.** Hecho: conservar los objetos originales de headers/links; mantener códigos y esquemas de respuesta ya soportados. Falta: normalización tipada general de headers/cookies y todas las formas de respuesta. Conservar headers en el contrato todavía no los expone desde el runtime.
 - [ ] **Parcial — Separar ejecución/validación de anotaciones.** Hecho: conservar anotaciones de documento, operación, parámetros y media types; distinguir las opciones HTTP auditadas y tratar los ejemplos como datos. Falta: completar esa clasificación en todos los componentes anidados y dialectos.
 - [ ] **Parcial — Auditar opciones ignoradas.** Hecho: detectar opciones conocidas de documento, ruta, operación y parámetros; estilos no ejecutados, overrides de servidor, headers/links, encoding y keywords no soportadas. Respetar sobrescrituras para evitar falsos errores. Hecho adicional en v0.4.1: auditar declaraciones reutilizables de parámetros, requestBodies, respuestas, headers, links y Path Items; cabeceras anidadas en encoding, callbacks y esquemas/requisitos de seguridad. Falta: validación estructural por dialecto y cobertura exhaustiva de la semántica HTTP restante.
@@ -262,6 +292,10 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [ ] **Parcial — Subida de archivos binarios:** v0.17.0 acepta strings o UploadedFileInterface con nombres/MIME configurables y streams de entrada readable/seekable. v0.18.0 preserva streams por PSR-18 y verifica 32 MiB bajo límite PHP 16 MiB; solo los transportes personalizados antiguos mantienen el string completo. v0.19.0 añade listas OpenAPI. Quedan nesting, entradas no seekables y garantías generales para otros clientes/middleware/respuestas.
 - [x] **v0.19.0 — Listas de archivos OpenAPI:** arrays nativos string|UploadedFileInterface, nombres de parte repetidos, MIME/nombre por archivo, validación/mutaciones/herencia y memoria comprobada. Swagger 2.0 no define arrays de file válidos.
 - [x] **v0.18.0 — Streaming multipart PSR-18:** adaptador existente, archivos seekables, rebobinado tras middleware y repetición; compatibilidad de transportes antiguos y prueba de memoria en instalación independiente.
+- [x] **Servidores relativos (generador):** admitidos en operación/ruta (con o sin variables) y como raíz (sin `baseUrl` por defecto). Resueltos por el runtime contra la URL base.
+- [x] **Alternativas por estado (generador):** varias representaciones decodificables (JSON/texto/binario) de un mismo 2xx se emiten como `alternatives` del runtime. Pendiente: alternativas en errores y en varios estados a la vez, y mezclar con streaming.
+- [x] **`--validate-formats` (generador):** opt-in; emite reglas `format` del runtime para esquemas string/integer. Pendiente: formatos en `number`, y decidir si pasa a ser el valor por defecto en 1.0.
+- [x] **Streaming de respuestas (generador):** una única respuesta 2xx con `application/jsonl`, `application/x-ndjson`, `application/json-seq` o `text/event-stream` se emite como `\Generator` con `responseEncoding` `jsonl`/`json-seq`/`sse`. Pendiente: alternativas JSON+stream en un mismo estado, varios estados de éxito y Swagger 2.
 - [ ] **Parcial — v0.35.0:** body JSON directo array, mapa, escalar y null, sin DTO envoltorio; reutiliza colecciones/mapas existentes. v0.36.0 añade text/plain y application/octet-stream con strings/streams PSR-7; quedan otros MIME y negociación. [Contrato](docs/REQUEST_BODIES.md).
 - [ ] Selección explícita de `Content-Type` entre representaciones alternativas.
 - [ ] Múltiples representaciones JSON con esquemas distintos.
@@ -350,7 +384,7 @@ Detalle técnico y comandos: [inspección de contrato](docs/CONTRACT_INSPECTION.
 - [x] **v0.22.0 — Uniones PHP nativas en firmas de recursos y fachadas** para varias respuestas JSON de éxito representables, incluida herencia y null; sin wrapper de resultado.
 - [ ] **Parcial — Respuestas sin contenido:** v0.22.0 distingue cada estado explícito sin body de otro con JSON; 204 vacío no permite aceptar 200 vacío. Quedan políticas generales para HEAD/205 y otras combinaciones del protocolo.
 - [x] **v0.31.0 — JSON/binario/sin contenido por estado:** uniones PHP, PSR-7 binario y null para vacío en operaciones mixtas. Negociar varios MIME en un mismo estado sigue pendiente. [Contrato](docs/RESPONSES.md#response-selection-block--v0310).
-- [ ] Cabeceras de respuesta declaradas en `responses[*].headers`: v0.20.0 permite leer cabeceras PSR de descargas, pero no valida sus esquemas declarados.
+- [x] Cabeceras de respuesta declaradas en `responses[*].headers`: se emiten como metadatos `responseHeaders` del runtime (tipado, `required` y reglas al leer con `lastResponse()->headers->get()`); las no tipables siguen diagnosticadas.
 - [ ] `Set-Cookie` y acceso tipado a metadatos HTTP.
 - [x] **v0.31.0 — Selectores HTTP:** OpenAPI 1XX–5XX con precedencia exacto > rango > default; default puede describir un 2xx no declarado. Swagger admite exactos/default y rechaza rangos. Non-2xx conservan ApiException; errores tipados limitados al subconjunto DTO existente.
 - [ ] Política configurable de redirecciones `3xx`.
@@ -564,10 +598,16 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 - [ ] Tests de formatos de archivo, respuestas inesperadas, timeouts y fallos de red.
 - [ ] Política de reintentos/backoff para rate limits y errores transitorios (capacidad de runtime, no requerida por OAS).
 - [ ] Documentar límites frente a OpenAPI Generator sin atribuir paridad funcional por la reducción de código.
-- [ ] Fijar versión estable del runtime unificado, actualizar dependencias Composer y verificar instalación aislada de Casafari.
-- [ ] Migración real de CasafariSDK con credenciales privadas, smoke de operaciones representativas, comparación de respuestas y rollback.
+- [ ] Al cerrar el conjunto, fijar la nueva versión estable del runtime y actualizar las dependencias Composer del generador y de los SDKs emitidos; verificar su instalación aislada.
 
 ---
+
+## Cierre de 0.2.0 → 1.0.0 (decidido 2026-11-10)
+
+- La línea de trabajo es `release/0.2.0` (generador) coordinada con `feature/p0-contract-fidelity` (runtime). Al terminarla, runtime y generador se publican como **v1.0.0**, runtime primero.
+- **Sin PR:** la entrega es una release (cambio de `VERSION` → tag inmutable y GitHub Release por el workflow existente). Si la protección de `main` exigiera un PR, se trata como trámite técnico (ver [AGENTS.md](AGENTS.md)).
+- Hasta entonces se acumula sin publicar; `VERSION`, tags y la línea base estable (v0.31.0) no se tocan.
+- **Antes de la 1.0.0** (obligatorio): ejecutar por primera vez PHPUnit, PHPStan máximo, matriz PHP 8.3–8.5, dependencias mínimas e instalación aislada sobre todo lo acumulado; fijar la dependencia estable `^1.0.0` del runtime en el generador y en los SDKs emitidos, y confirmar que el SDK de Casafari generado sigue pasando la aceptación.
 
 ## 12. Paquetes de trabajo independientes y orden recomendado
 
@@ -655,6 +695,7 @@ Desarrollar en `release/0.2.0` sin crear ramas por funcionalidad. Mantenerla ali
 | 2026-11-09 | Generador v0.22.0 + runtime v0.16.0: selección de respuestas JSON por estado HTTP, firmas unión PHP, nulabilidad/ausencia por status y corrección de 200 vacío con 204 alternativo; herencia, DTOs y ejecución común reutilizados. | [Generator v0.22.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.22.0), [Runtime v0.16.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.16.0) |
 | 2026-11-09 | Generador v0.23.0 + runtime v0.17.1: arrays primitivos simple/CSV en path y headers, validación de placeholders y PathParams nativo; reuse de serialización/DTOs y contratos GetParams/PostParams, SDKs equivalentes y HTTP real. | [Generator v0.23.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.23.0), [Runtime v0.17.1](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.17.1) |
 | 2026-11-09 | Generador v0.24.0 + runtime v0.18.0: objetos planos form/query y simple/path-header con explode/defaults, DTOs/Maps compartidos y validación por ubicación; colisiones query, delimitadores header, mutaciones y contrato GET/POST comprobados. | [Generator v0.24.0](https://github.com/dmorenof/sdk-generator/releases/tag/v0.24.0), [Runtime v0.18.0](https://github.com/dmorenof/sdk-runtime/releases/tag/v0.18.0) |
+| 2026-11-10 | Normalización de los listados de pendientes: leyenda común, orden global runtime → generador → Casafari y nuevo `pendientes.md` en sdk-runtime y casafari-sdk. La rama `release/0.2.0` ya no existe; el desarrollo sigue en `main`. | Conversación de planificación |
 
 ### Paths label/matrix — v0.25.0 / runtime v0.19.0
 
