@@ -142,7 +142,7 @@ final class NestedContractAuditTest extends TestCase
         $document = self::document();
         $response = &$document['paths']['/users/{id}']['get']['responses']['200'];
         $response['headers']['X-Page'] = ['schema' => ['type' => 'integer'], 'unknownHeader' => true];
-        $response['links']['Next/~'] = ['operationId' => 'getUser', 'server' => ['url' => '/relative']];
+        $response['links']['Next/~'] = ['operationId' => 'getUser', 'server' => ['url' => 'ftp://files.example.test/api']];
         self::assertSame('/paths/~1users~1{id}/get/responses/200/headers/X-Page/unknownHeader',
             self::issues($document, 'unsupported_keyword')[0]->pointer);
         $issue = self::issues($document, 'unsupported_server_url')[0];

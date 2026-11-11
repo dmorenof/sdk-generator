@@ -5,7 +5,7 @@ namespace Dmorenof\SdkGenerator\Parsing;
 /** Compile OpenAPI server defaults; the shared runtime retains URL execution policy. */
 final class ServerUrl {
     public static function isSupported(string $url): bool {
-        try { \Dmorenof\SdkRuntime\ServerUrl::normalize($url); return true; }
+        try { self::checked($url); return true; }
         catch (\InvalidArgumentException) { return false; }
     }
 
@@ -32,7 +32,23 @@ final class ServerUrl {
         foreach ($matches[1] as $name) {
             if (!array_key_exists('{' . $name . '}', $bindings)) { throw new \InvalidArgumentException("Missing server variable '$name'."); }
         }
-        return \Dmorenof\SdkRuntime\ServerUrl::normalize(strtr($url, $bindings));
+        return self::checked(strtr($url, $bindings));
+    }
+
+    /**
+     * An absolute server must be literal HTTP(S); a relative one is kept as written, because the runtime resolves it
+     * against the client base URL (so it is only checked for characters that could not form a path).
+     */
+    private static function checked(string $url): string {
+        if (\Dmorenof\SdkRuntime\ServerUrl::isAbsolute($url)) { return \Dmorenof\SdkRuntime\ServerUrl::normalize($url); }
+        if ($url === '' || preg_match('/[\x00-\x20\x7f{}?#]/', $url) === 1) {
+            throw new \InvalidArgumentException('A relative server must be a plain path without whitespace, query or fragment.');
+        }
+        return $url;
+    }
+
+    public static function isRelative(string $url): bool {
+        return !\Dmorenof\SdkRuntime\ServerUrl::isAbsolute($url);
     }
 
     public static function same(string $left, string $right): bool {

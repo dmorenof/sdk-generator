@@ -141,4 +141,30 @@ final class DynamicServersGenerationTest extends TestCase
         self::assertFalse(ServerSupport::isDynamic([['url' => 'https://a.example.test']]));
         self::assertFalse(ServerSupport::isDynamic([]));
     }
+
+    public function testRelativeOperationServersResolveAgainstTheConfiguredBaseUrl(): void
+    {
+        foreach ([['/sandbox', 'https://api.example.test/sandbox/users/1'], ['v2', 'https://api.example.test/v1/v2/users/1'], ['../v3', 'https://api.example.test/v3/users/1']] as [$relative, $expected]) {
+            [$users, $urls] = self::load(self::document(operation: [['url' => $relative]]));
+            $users->getById(1);
+            self::assertSame([$expected], $urls->getArrayCopy(), $relative);
+        }
+    }
+
+    public function testRelativeServersMayBeTemplated(): void
+    {
+        [$users, $urls] = self::load(self::document(operation: [['url' => '/{env}', 'variables' => ['env' => ['default' => 'live', 'enum' => ['live', 'test']]]]]));
+
+        $users->getById(1);
+        $users->withServerVariables(['env' => 'test'])->getById(1);
+
+        self::assertSame(['https://api.example.test/live/users/1', 'https://api.example.test/test/users/1'], $urls->getArrayCopy());
+    }
+
+    public function testARelativeRootServerLeavesTheBaseUrlToTheApplication(): void
+    {
+        $files = self::emit(self::document([['url' => '/api/v2']]));
+
+        self::assertStringContainsString("public string \$baseUrl = '';", $files['src/Configuration.php']);
+    }
 }

@@ -161,7 +161,9 @@ PHP;
 
     private function renderConfiguration(ApiContract $contract): string
     {
-        $baseUrl = PhpLiteral::export($contract->servers[0] ?? '');
+        // A relative root server has no origin to default to: the application supplies the base URL it resolves against.
+        $root = $contract->servers[0] ?? '';
+        $baseUrl = PhpLiteral::export(\Dmorenof\SdkGenerator\Parsing\ServerUrl::isRelative($root) ? '' : $root);
         return $this->header($this->namespace)
             . "final class Configuration extends \\Dmorenof\\SdkRuntime\\Configuration\n{\n"
             . "    public string \$baseUrl = $baseUrl;\n}\n";
@@ -217,11 +219,11 @@ PHP;
             } elseif ($operation->serverSource !== 'root') {
                 $selected = $operation->servers[0] ?? null;
                 if ($selected === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::isSupported($selected)) {
-                    throw new InvalidArgumentException("Unsupported operation server at $operation->operationId: only expanded absolute HTTP(S) servers are executable.");
+                    throw new InvalidArgumentException("Unsupported operation server at $operation->operationId: only expanded HTTP(S) or relative path servers are executable.");
                 }
                 // Equivalent root declarations still follow the configured client baseUrl.
                 if ($rootServer === null || !\Dmorenof\SdkGenerator\Parsing\ServerUrl::same(rtrim($selected, '/'), rtrim($rootServer, '/'))) {
-                    $serverUrl = rtrim($selected, '/');
+                    $serverUrl = \Dmorenof\SdkGenerator\Parsing\ServerUrl::isRelative($selected) ? $selected : rtrim($selected, '/');
                 }
             }
             $source .= $this->renderOperation($operation, $method, serverUrl: $serverUrl, servers: $servers);
