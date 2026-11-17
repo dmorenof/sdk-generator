@@ -32,11 +32,11 @@ The generated package uses Guzzle 7 by default, with optional PSR-18 dependency 
 use Example\ReadySdk\Client;
 use Example\ReadySdk\Api\Users\User;
 
-$client = Client::connect(
-    'https://api.example.com',
-    $customPsr18Client,
-    ['Authorization' => 'Bearer ' . $token],
-);
+$config = new \Dmorenof\SdkRuntime\Configuration();
+$config->baseUrl = 'https://api.example.com';
+$config->httpClient = $customPsr18Client;
+$config->headers = ['Authorization' => 'Bearer ' . $token];
+$client = Client::connect($config);
 
 $user = $client->resource(User::class)->getById(88);
 ~~~
@@ -45,7 +45,7 @@ Resources can also be instantiated directly. Every independent `Client::connect(
 
 ## HTTP middleware and DTO behavior
 
-Attach custom PSR-18/Guzzle HandlerStack middlewares, or register SDK middleware with `$client->withMiddleware($middleware)`. SDK middleware offers `beforeRequest(RequestInterface $request)` and `afterResponse(RequestInterface $request, ResponseInterface $response)` hooks; middleware is reused by the resource classes sharing that client. Logs should not record authorization secrets or sensitive payloads by default.
+Attach custom PSR-18/Guzzle HandlerStack middlewares, or register SDK middleware with `$config->middleware = [$middleware]` before connecting. SDK middleware offers `beforeRequest(RequestInterface $request)` and `afterResponse(RequestInterface $request, ResponseInterface $response)` hooks; middleware is reused by the resource classes sharing that client. Logs should not record authorization secrets or sensitive payloads by default.
 
 Resource methods contain generated typed argument and return declarations; HTTP execution lives in `Dmorenof\SdkRuntime\ApiClient`. DTOs, requests and responses inherit hydration, validation and JSON serialization from the shared `Dmorenof\SdkRuntime\DTO` hierarchy. The generator is required only at build time; generated packages depend on the separate versioned runtime package.
 

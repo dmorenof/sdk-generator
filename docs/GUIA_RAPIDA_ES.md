@@ -35,11 +35,11 @@ La especificación de demostración es **sintética**: esa URL es ilustrativa y 
 ### Cliente HTTP opcional
 
 ~~~php
-$client = Client::connect(
-    'https://api.example.com/v1',
-    $customPsr18Client,
-    ['Authorization' => 'Bearer ' . $token]
-);
+$config = new \Dmorenof\SdkRuntime\Configuration();
+$config->baseUrl = 'https://api.example.com/v1';
+$config->httpClient = $customPsr18Client;
+$config->headers = ['Authorization' => 'Bearer ' . $token];
+$client = Client::connect($config);
 ~~~
 
 Se puede inyectar Guzzle con middlewares o cualquier implementación PSR-18 compatible. Las operaciones son métodos de instancia: cada cliente conserva su conexión y credenciales. También puedes crear directamente una clase de ruta con `new User($server)` o compartir la configuración de un cliente mediante `$client->resource(User::class)`. Las operaciones protegidas aplican los `securitySchemes` de OpenAPI; los flujos para obtener tokens OAuth2/OpenID Connect no están implementados.
