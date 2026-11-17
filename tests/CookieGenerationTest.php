@@ -85,7 +85,7 @@ final class CookieGenerationTest extends TestCase
         $values['queryBody'] = $values['body'];
         $values['body'] = (object) ['name' => 'body name'];
         $post = new \Example\CookieSdk\PostParams\Items((object) $values);
-        $resource = \Example\CookieSdk\Client::connect($config->baseUrl, httpClient: $http, headers: $config->headers, securityCredentials: $config->securityCredentials)->resource(\Example\CookieSdk\Resources\Items::class);
+        $resource = \Example\CookieSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($config->baseUrl, httpClient: $http, headers: $config->headers, securityCredentials: $config->securityCredentials))->resource(\Example\CookieSdk\Resources\Items::class);
         $resource->post($post);
         foreach ($http->requests as $request) {
             self::assertSame('https://example.test/items?body=query%20body', (string) $request->getUri());

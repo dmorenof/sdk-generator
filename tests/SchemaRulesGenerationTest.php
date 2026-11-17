@@ -79,7 +79,7 @@ final class SchemaRulesGenerationTest extends TestCase {
                 public function __construct(private float|int $number) {}
                 public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { return new \GuzzleHttp\Psr7\Response(200, [], json_encode($this->number, JSON_THROW_ON_ERROR)); }
             };
-            $resource = \Example\SchemaRulesSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\SchemaRulesSdk\Resources\Scalar::class);
+            $resource = \Example\SchemaRulesSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\SchemaRulesSdk\Resources\Scalar::class);
             try { self::assertSame(0.3, $resource->get()); self::assertSame(0.3, $number); }
             catch (\UnexpectedValueException) { self::assertNotSame(0.3, $number); }
         }

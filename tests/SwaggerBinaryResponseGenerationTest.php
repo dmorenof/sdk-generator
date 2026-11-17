@@ -82,7 +82,7 @@ final class SwaggerBinaryResponseGenerationTest extends TestCase
         self::assertSame($http->response, $get);
         self::assertSame(['one', 'two'], $get->getHeader('X-Values'));
         self::assertSame("\x00\xff\r\n", $get->getBody()->getContents());
-        $resource = \Example\SwaggerDownloadSdk\Client::connect($config->baseUrl, httpClient: $http)->resource(\Example\SwaggerDownloadSdk\Resources\Download::class);
+        $resource = \Example\SwaggerDownloadSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($config->baseUrl, httpClient: $http))->resource(\Example\SwaggerDownloadSdk\Resources\Download::class);
         $params = new \Example\SwaggerDownloadSdk\PostParams\Download((object) [
             'queryBody' => 'query body', 'X-Trace' => 'trace', 'body' => (object) ['name' => 'export']]);
         foreach ([1, 2] as $_) {
@@ -108,7 +108,7 @@ final class SwaggerBinaryResponseGenerationTest extends TestCase
                 public function sendRequest(RequestInterface $request): ResponseInterface
                 { return new Response($this->status, ['X-Status' => (string) $this->status], $this->status >= 400 ? 'raw error' : ''); }
             };
-            $resource = \Example\SwaggerDownloadSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\SwaggerDownloadSdk\Resources\Download::class);
+            $resource = \Example\SwaggerDownloadSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\SwaggerDownloadSdk\Resources\Download::class);
             try {
                 $response = $resource->get();
                 self::assertLessThan(400, $status);

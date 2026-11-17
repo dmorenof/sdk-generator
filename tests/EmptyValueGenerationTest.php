@@ -113,7 +113,7 @@ final class EmptyValueGenerationTest extends TestCase
             $get = new $getType((object) $values);
             $facade = $namespace.'\\Items';
             $facade::get($get);
-            $client = $clientType::connect($configuration->baseUrl, httpClient: $http);
+            $client = $clientType::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($configuration->baseUrl, httpClient: $http));
             $resource = $client->resource($namespace.'\\Resources\\Items');
             $get->q = null;
             $get->labels = [];

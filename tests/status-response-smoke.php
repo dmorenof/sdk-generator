@@ -28,7 +28,7 @@ $http = empty($argv[2]) ? new class($cases) implements \Psr\Http\Client\ClientIn
         return new \GuzzleHttp\Psr7\Response($status, ['Content-Type' => 'application/json'], $body);
     }
 } : null;
-$resource = \Example\StatusSdk\Client::connect(empty($argv[2]) ? 'https://api.example.test/v1' : $argv[2], httpClient: $http)
+$resource = \Example\StatusSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(empty($argv[2]) ? 'https://api.example.test/v1' : $argv[2], httpClient: $http))
     ->resource(\Example\StatusSdk\Resources\Users::class);
 foreach (['GET', 'POST'] as $verb) {
     foreach ($cases as $scenario => [$status, $body]) {

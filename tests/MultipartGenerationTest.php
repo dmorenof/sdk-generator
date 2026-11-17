@@ -104,7 +104,7 @@ final class MultipartGenerationTest extends TestCase
         $history = [];
         $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([new \GuzzleHttp\Psr7\Response(204)]));
         $stack->push(\GuzzleHttp\Middleware::history($history));
-        $client = \Example\Multipart\Client::connect('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack]));
+        $client = \Example\Multipart\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack])));
         $client->resource(\Example\Multipart\Resources\Items::class)->post(new \Example\Multipart\PostParams\Items((object) [
             'body' => (object) ['name' => 'Ada', 'file' => "\x00\xff"],
         ]));
@@ -119,7 +119,7 @@ final class MultipartGenerationTest extends TestCase
     public function testOptionalEmptyFieldsAndBodyOnlyDto(): void
     {
         $transport = new MultipartGenerationTransport();
-        $client = \Example\Multipart\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\Multipart\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $optional = $client->resource(\Example\Multipart\Resources\Optional::class);
         $optional->post();
         $optional->post(new \Example\Multipart\DTOs\OptionalForm());
@@ -138,7 +138,7 @@ final class MultipartGenerationTest extends TestCase
     public function testRequiredConstraintsEnumsAndMutationsFailBeforeSending(): void
     {
         $transport = new MultipartGenerationTransport();
-        $items = \Example\Multipart\Client::connect('https://api.example.test/v1', transport: $transport)->resource(\Example\Multipart\Resources\Items::class);
+        $items = \Example\Multipart\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport))->resource(\Example\Multipart\Resources\Items::class);
         foreach ([(object) [], (object) ['name' => ''], (object) ['name' => 'Ada', 'ids' => [0]],
             (object) ['name' => 'Ada', 'state' => 'unknown'], (object) ['name' => 'Ada', 'extra' => 'x']] as $body) {
             try {
@@ -217,7 +217,7 @@ final class MultipartGenerationTest extends TestCase
             new \GuzzleHttp\Psr7\Response(204), new \GuzzleHttp\Psr7\Response(204), new \GuzzleHttp\Psr7\Response(204),
         ]));
         $stack->push(\GuzzleHttp\Middleware::history($history));
-        $client = \Example\Multipart\Client::connect('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack]));
+        $client = \Example\Multipart\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack])));
         $items = $client->resource(\Example\Multipart\Resources\Items::class);
         $upload = new \GuzzleHttp\Psr7\UploadedFile(\GuzzleHttp\Psr7\Utils::streamFor("\x00\xff\r\n"), 4, UPLOAD_ERR_OK, 'original.png', 'image/png');
         $params = new \Example\Multipart\PostParams\Items((object) [

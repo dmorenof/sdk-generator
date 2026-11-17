@@ -19,7 +19,7 @@ final class RequestBodiesGenerationTest extends TestCase {
             public array $calls = [];
             public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { $this->calls[] = $request; return new \GuzzleHttp\Psr7\Response(204); }
         };
-        return [\Example\BodySdk\Client::connect('https://example.test', httpClient: $http), $http];
+        return [\Example\BodySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http)), $http];
     }
     public function testJsonYamlAndNamedArraysReuseExistingCollectionTypes(): void {
         self::assertSame(self::files(self::document()), (new PhpExecutableEmitter('Example\\BodySdk', 'example/body'))->emit((new SpecificationNormalizer())->fromYaml(Yaml::dump(self::document(), 40), strict: true)));

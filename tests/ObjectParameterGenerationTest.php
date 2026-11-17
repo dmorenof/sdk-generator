@@ -57,7 +57,7 @@ final class ObjectParameterGenerationTest extends TestCase {
         $get = new \Example\ObjectSdk\GetParams\Items\BySelector((object) ['X-Filter' => $filter, 'filter' => $filter, 'labels' => (object) ['tag' => 'x y'], 'body' => 'query body']);
         \Example\ObjectSdk\Items::getBySelector($path, $get);
         $post = new \Example\ObjectSdk\PostParams\Items\BySelector((object) ['X-Filter' => $filter, 'filter' => $filter, 'labels' => (object) ['tag' => 'x y'], 'queryBody' => 'query body', 'body' => (object) ['name' => 'body name']]);
-        $resource = \Example\ObjectSdk\Client::connect($config->baseUrl, httpClient: $http)->resource(\Example\ObjectSdk\Resources\Items::class);
+        $resource = \Example\ObjectSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($config->baseUrl, httpClient: $http))->resource(\Example\ObjectSdk\Resources\Items::class);
         $resource->postBySelector($path, $post);
         foreach ($http->calls as $request) {
             self::assertSame('https://api.example.test/v1/items/active,false,code,a%2Cb%2F%C3%B1,count,0?body=query%20body&filter=active,false,code,safe,count,0&tag=x%20y', (string) $request->getUri());
@@ -94,7 +94,7 @@ final class ObjectParameterGenerationTest extends TestCase {
                 $this->calls[] = compact('url', 'headers'); return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
             }
         };
-        $resource = \Example\ExplodedObjectSdk\Client::connect('https://example.test', transport: $transport)->resource(\Example\ExplodedObjectSdk\Resources\Items::class);
+        $resource = \Example\ExplodedObjectSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', transport: $transport))->resource(\Example\ExplodedObjectSdk\Resources\Items::class);
         $resource->getBySelector(new \Example\ExplodedObjectSdk\PathParams\Items\BySelector((object) ['selector' => (object) ['code' => 'a,b', 'active' => false, 'count' => 0]]),
             new \Example\ExplodedObjectSdk\GetParams\Items\BySelector((object) ['X-Filter' => (object) ['code' => 'header=value', 'active' => false, 'count' => 0], 'filter' => (object) ['code' => 'safe', 'active' => false, 'count' => 0]]));
         self::assertSame('https://example.test/items/active=false,code=a%2Cb,count=0?active=false&code=safe&count=0', $transport->calls[0]['url']);
@@ -107,7 +107,7 @@ final class ObjectParameterGenerationTest extends TestCase {
                 $this->calls[] = compact('url', 'headers'); return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
             }
         };
-        $resource = \Example\ObjectSdk\Client::connect('https://example.test', transport: $transport)->resource(\Example\ObjectSdk\Resources\Items::class);
+        $resource = \Example\ObjectSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', transport: $transport))->resource(\Example\ObjectSdk\Resources\Items::class);
         $path = new \Example\ObjectSdk\PathParams\Items\BySelector((object) ['selector' => (object) ['code' => 'safe', 'active' => false]]);
         $resource->getBySelector($path);
         $resource->getBySelector($path, new \Example\ObjectSdk\GetParams\Items\BySelector((object) ['X-Filter' => null, 'filter' => null, 'labels' => (object) []]));

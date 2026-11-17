@@ -47,7 +47,7 @@ final class DynamicServersGenerationTest extends TestCase
     }
 
     /** @return array{object, \ArrayObject<int, string>, string} resource, requested URLs, client class */
-    private static function load(array $document): array
+    private static function load(array $document, int|string|null $server = null, array $variables = []): array
     {
         $files = self::emit($document);
         $namespace = 'Example\\ServersSdk' . self::$loaded;
@@ -71,7 +71,7 @@ final class DynamicServersGenerationTest extends TestCase
             }
         };
         $client = $namespace . '\\Client';
-        return [$client::connect('https://api.example.test/v1', $http)->resource($namespace . '\\Resources\\Users'), $urls, $client];
+        return [$client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', $http, server: $server, serverVariables: $variables))->resource($namespace . '\\Resources\\Users'), $urls, $client];
     }
 
     public function testRootServersBecomeAClientServerUrlHelper(): void
@@ -87,25 +87,26 @@ final class DynamicServersGenerationTest extends TestCase
 
     public function testOperationServersAreSelectableAndTemplated(): void
     {
-        [$users, $urls] = self::load(self::document(operation: self::TEMPLATED));
-
-        $users->getById(1);
-        $users->withServerVariables(['region' => 'us'])->getById(1);
-        $users->useServer(1)->getById(1);
+        $urls = [];
+        foreach ([[null, []], [null, ['region' => 'us']], [1, []]] as [$server, $variables]) {
+            [$users, $sent] = self::load(self::document(operation: self::TEMPLATED), $server, $variables);
+            $users->getById(1);
+            $urls[] = $sent[0];
+        }
 
         self::assertSame([
             'https://eu.api.example.test/v1/users/1',
             'https://us.api.example.test/v1/users/1',
             'https://sandbox.example.test/v1/users/1',
-        ], $urls->getArrayCopy());
+        ], $urls);
     }
 
     public function testVariablesAreCheckedAgainstTheirEnum(): void
     {
-        [$users] = self::load(self::document(operation: self::TEMPLATED));
+        [$users] = self::load(self::document(operation: self::TEMPLATED), variables: ['region' => 'asia']);
 
         $this->expectException(\InvalidArgumentException::class);
-        $users->withServerVariables(['region' => 'asia'])->getById(1);
+        $users->getById(1);
     }
 
     public function testPlainDeclarationsKeepTheirCurrentShape(): void
@@ -153,12 +154,15 @@ final class DynamicServersGenerationTest extends TestCase
 
     public function testRelativeServersMayBeTemplated(): void
     {
-        [$users, $urls] = self::load(self::document(operation: [['url' => '/{env}', 'variables' => ['env' => ['default' => 'live', 'enum' => ['live', 'test']]]]]));
+        $document = self::document(operation: [['url' => '/{env}', 'variables' => ['env' => ['default' => 'live', 'enum' => ['live', 'test']]]]]);
+        $urls = [];
+        foreach ([[], ['env' => 'test']] as $variables) {
+            [$users, $sent] = self::load($document, variables: $variables);
+            $users->getById(1);
+            $urls[] = $sent[0];
+        }
 
-        $users->getById(1);
-        $users->withServerVariables(['env' => 'test'])->getById(1);
-
-        self::assertSame(['https://api.example.test/live/users/1', 'https://api.example.test/test/users/1'], $urls->getArrayCopy());
+        self::assertSame(['https://api.example.test/live/users/1', 'https://api.example.test/test/users/1'], $urls);
     }
 
     public function testARelativeRootServerLeavesTheBaseUrlToTheApplication(): void

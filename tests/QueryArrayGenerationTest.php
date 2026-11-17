@@ -57,7 +57,7 @@ final class QueryArrayGenerationTest extends TestCase
     public function testActualGeneratedMethodBuildsRepeatedAndCsvQueryWithEncodedItems(): void
     {
         $transport = new QueryProbeTransport();
-        $client = \Example\QueryLists\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\QueryLists\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $params = new \Example\QueryLists\GetParams\Items((object) [
             'ids' => [1, 2], 'codes' => ['a,b', 'x y'], 'flags' => [true, false], 'weights' => [0.5, 2], 'q' => 'ñ &+',
         ]);
@@ -68,7 +68,7 @@ final class QueryArrayGenerationTest extends TestCase
     public function testOptionalEmptyListsAndNullOmitButScalarEmptyStringIsSent(): void
     {
         $transport = new QueryProbeTransport();
-        $client = \Example\QueryLists\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\QueryLists\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $client->resource(\Example\QueryLists\Resources\Items::class)->get(new \Example\QueryLists\GetParams\Items((object) [
             'ids' => [1], 'codes' => [], 'flags' => null, 'q' => '',
         ]));
@@ -80,7 +80,7 @@ final class QueryArrayGenerationTest extends TestCase
         $history = [];
         $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([new \GuzzleHttp\Psr7\Response(204)]));
         $stack->push(\GuzzleHttp\Middleware::history($history));
-        $client = \Example\QueryLists\Client::connect('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack]));
+        $client = \Example\QueryLists\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack])));
         $client->resource(\Example\QueryLists\Resources\Items::class)->get(new \Example\QueryLists\GetParams\Items((object) ['ids' => [1, 2], 'codes' => ['a,b', 'x y']]));
         self::assertSame('https://api.example.test/v1/items?codes=a%2Cb,x%20y&ids=1&ids=2', (string) $history[0]['request']->getUri());
     }
@@ -88,7 +88,7 @@ final class QueryArrayGenerationTest extends TestCase
     public function testArrayBoundsItemTypesEnumsAndMutationFailBeforeHttp(): void
     {
         $transport = new QueryProbeTransport();
-        $client = \Example\QueryLists\Client::connect('https://api.example.test', transport: $transport);
+        $client = \Example\QueryLists\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test', transport: $transport));
         foreach ([['ids' => []], ['ids' => [1, 2, 3, 4]], ['ids' => [0]], ['ids' => ['1']],
             ['ids' => [1], 'codes' => ['invalid']], ['ids' => [1], 'flags' => ['false']],
             ['ids' => [1], 'weights' => [-1]]] as $data) {

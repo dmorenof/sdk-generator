@@ -10,7 +10,7 @@ if (!is_resource($process)) { throw new RuntimeException('Cannot start HTTP serv
 try {
     stream_set_timeout($pipes[1], 15); $port = trim((string) fgets($pipes[1]));
     if (!ctype_digit($port)) { throw new RuntimeException('Missing port.'); }
-    $client = \Example\SchemaRulesSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\SchemaRulesSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     $params = new \Example\SchemaRulesSdk\PostParams\Rules((object) ['amount' => 0.3, 'body' => (object) [
         'id' => 8, 'amount' => 0.3, 'rows' => [1, 2], 'tag' => 7, 'profile' => (object) ['only' => 1], 'label' => 'ñ']]);
     $resource = $client->resource(\Example\SchemaRulesSdk\Resources\Rules::class);

@@ -6,7 +6,7 @@ $process = proc_open([PHP_BINARY, $sdk . '/vendor/dmorenof/sdk-runtime/tests/raw
 if (!is_resource($process)) { throw new RuntimeException('Cannot start server.'); }
 try {
     stream_set_timeout($pipes[1], 20); $port = trim((string) fgets($pipes[1])); if (!ctype_digit($port)) { throw new RuntimeException('Missing port.'); }
-    $client = \Example\RawSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\RawSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     if ($client->resource(\Example\RawSdk\Resources\Text::class)->post("ñ text\n") !== "sin JSON ñ\n") { throw new RuntimeException('Text was JSON encoded/decoded.'); }
     $optional = $client->resource(\Example\RawSdk\Resources\Optional::class); $optional->post(); $optional->post('');
     $file = tmpfile(); if ($file === false) { throw new RuntimeException('Missing temporary upload.'); }

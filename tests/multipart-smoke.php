@@ -17,8 +17,8 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
 };
 $realHttp = isset($argv[2]) && $argv[2] !== '';
 $fileContentType = $argv[3] ?? 'image/png';
-$client = \Example\MultipartSdk\Client::connect($realHttp ? $argv[2] : 'https://api.example.test/v1',
-    transport: $realHttp ? null : $transport);
+$client = \Example\MultipartSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($realHttp ? $argv[2] : 'https://api.example.test/v1',
+    transport: $realHttp ? null : $transport));
 $items = $client->resource(\Example\MultipartSdk\Resources\Items::class);
 $params = new \Example\MultipartSdk\PostParams\Items((object) [
     'name' => 'query name', 'queryBody' => 'query-body', 'X-Trace' => 'trace',

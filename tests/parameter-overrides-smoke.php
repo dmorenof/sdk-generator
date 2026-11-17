@@ -15,7 +15,7 @@ try {
     if (!ctype_digit($port)) {
         throw new RuntimeException('Missing HTTP port.');
     }
-    $client = \Example\OverrideSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\OverrideSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     $resource = $client->resource(\Example\OverrideSdk\Resources\Items::class);
     $get = new \Example\OverrideSdk\GetParams\Items\ById((object) ['querySelector' => [0], 'selector' => 'hdr', 'body' => 'query body', 'theme' => 'dark']);
     $resource->getById('a', $get);

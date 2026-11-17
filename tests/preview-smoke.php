@@ -28,7 +28,7 @@ if ($api === 'accounts') {
             );
         }
     };
-    $client = \Preview\AccountsSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+    $client = \Preview\AccountsSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
     $user = $client->resource(\Preview\AccountsSdk\Resources\Users::class)->getById(27, new \Preview\AccountsSdk\GetParams\Users\ById((object) ['verbose' => true]));
     checkPreview($user instanceof \Preview\AccountsSdk\DTOs\User, 'Accounts DTO type mismatch');
     checkPreview($user->role === \Preview\AccountsSdk\Enums\User\RoleEnum::Admin, 'Accounts enum mismatch');
@@ -62,7 +62,7 @@ if ($api === 'accounts') {
             );
         }
     };
-    $client = \Preview\CatalogSdk\Client::connect('https://catalog.example.test/api/v2', transport: $transport);
+    $client = \Preview\CatalogSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://catalog.example.test/api/v2', transport: $transport));
     $book = $client->resource(\Preview\CatalogSdk\Resources\Books::class)->getBySku('BOOK-09', new \Preview\CatalogSdk\GetParams\Books\BySku((object) ['expand' => false]));
     checkPreview($book instanceof \Preview\CatalogSdk\DTOs\Book, 'Catalog DTO type mismatch');
     checkPreview($book->price === 19.75, 'Catalog float mismatch');
@@ -111,11 +111,11 @@ if ($api === 'accounts') {
         }
     ));
 
-    $client = \Preview\AccountsSdk\Client::connect(
+    $client = \Preview\AccountsSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
         'https://api.example.test/v1',
         new \GuzzleHttp\Client(['handler' => $stack]),
         ['Authorization' => 'Bearer example'],
-    );
+    ));
     $result = $client->resource(\Preview\AccountsSdk\Resources\Users::class)->getById(27);
     checkPreview($result->name === 'Standalone', 'Ready-to-use Accounts DTO mismatch');
     checkPreview($events === ['before', 'after'], 'Guzzle middleware chain did not run');
@@ -130,10 +130,10 @@ if ($api === 'accounts') {
     $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([
         new \GuzzleHttp\Psr7\Response(200, [], $payload),
     ]));
-    $client = \Preview\CatalogSdk\Client::connect(
+    $client = \Preview\CatalogSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
         'https://catalog.example.test/api/v2',
         new \GuzzleHttp\Client(['handler' => $stack]),
-    );
+    ));
     $result = $client->resource(\Preview\CatalogSdk\Resources\Books::class)->getBySku('BOOK-09');
     checkPreview($result->title === 'Ready', 'Ready-to-use Catalog DTO mismatch');
 }

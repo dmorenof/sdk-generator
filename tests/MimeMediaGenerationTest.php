@@ -19,7 +19,7 @@ final class MimeMediaGenerationTest extends TestCase {
             public array $calls = []; public int $status = 200; public string $body = 'reply';
             public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { $this->calls[] = $request; return new \GuzzleHttp\Psr7\Response($this->status, [], $this->body); }
         };
-        return [\Example\MimeMediaSdk\Client::connect('https://example.test', httpClient: $http), $http];
+        return [\Example\MimeMediaSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http)), $http];
     }
     public function testJsonYamlAndOpenApi30RetainTheSameMediaContract(): void {
         $document = self::document(); $files = self::files($document);

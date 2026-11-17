@@ -2,6 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [Unreleased — for runtime 2.0.0]
+
+- Generated code targets the redesigned runtime: methods call `executeArguments(operation, path:, parameters:, body:)` and `executeBody(operation, body, path:, parameters:)`, an optional body that the caller omits goes through `executeArguments()`, and `Client::configure()` is `self::connect($configuration)`. The constraint on `dmorenof/sdk-runtime` moves to `^2.0.0` when that version is published.
+
 ## [1.0.0] — 2026-11-11
 
 First stable release, built on sdk-runtime 1.0.0 (generated SDKs require `^1.0.0`). It accumulates the former 0.2.0 development line, including typed response headers, dynamic and relative servers, streaming responses, representation alternatives and opt-in `--validate-formats`. The generated Casafari SDK is code-identical to the previous generator apart from PHPDoc.

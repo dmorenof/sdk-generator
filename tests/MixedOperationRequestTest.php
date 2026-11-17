@@ -61,7 +61,7 @@ final class MixedOperationRequestTest extends TestCase
             }
         };
 
-        $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\MixedSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $body = new \Example\MixedSdk\DTOs\NewUser((object) ['name' => 'Ada', 'role' => 'viewer']);
 
         $params = new \Example\MixedSdk\PostParams\Groups\ByGroup\Users();
@@ -90,7 +90,7 @@ final class MixedOperationRequestTest extends TestCase
                 throw new \LogicException('Request should have been blocked');
             }
         };
-        $client = \Example\MixedSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\MixedSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         try {
             $client->resource(\Example\MixedSdk\Resources\Groups\ByGroup\Users::class)->post(
                 params: new \Example\MixedSdk\PostParams\Groups\ByGroup\Users((object) [

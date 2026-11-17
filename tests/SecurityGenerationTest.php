@@ -44,7 +44,7 @@ final class SecurityGenerationTest extends TestCase
         $history = [];
         $stack = HandlerStack::create(new MockHandler([self::response()]));
         $stack->push(Middleware::history($history));
-        $client = \Example\SecuritySdk\Client::connect(
+        $client = \Example\SecuritySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             ['Authorization' => 'caller-value'],
@@ -52,7 +52,7 @@ final class SecurityGenerationTest extends TestCase
                 'Bearer' => 'test-token',
                 'HeaderKey' => 'test-key',
             ]),
-        );
+        ));
 
         $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);
 
@@ -67,12 +67,12 @@ final class SecurityGenerationTest extends TestCase
         $history = [];
         $stack = HandlerStack::create(new MockHandler([self::response()]));
         $stack->push(Middleware::history($history));
-        $client = \Example\SecuritySdk\Client::connect(
+        $client = \Example\SecuritySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             [],
             new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['QueryKey' => 'query-key']),
-        );
+        ));
 
         $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);
 
@@ -87,14 +87,14 @@ final class SecurityGenerationTest extends TestCase
         $history = [];
         $stack = HandlerStack::create(new MockHandler([self::response()]));
         $stack->push(Middleware::history($history));
-        $client = \Example\SecuritySdk\Client::connect(
+        $client = \Example\SecuritySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             [],
             new \Dmorenof\SdkRuntime\Security\SecurityCredentials([
                 'Basic' => new \Dmorenof\SdkRuntime\Security\BasicAuthCredentials('user', 'secret'),
             ]),
-        );
+        ));
 
         $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);
 
@@ -103,10 +103,10 @@ final class SecurityGenerationTest extends TestCase
 
     public function testMissingCredentialsFailBeforeSendingRequest(): void
     {
-        $client = \Example\SecuritySdk\Client::connect(
+        $client = \Example\SecuritySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
             'https://api.example.test/v1',
             new Client(['handler' => HandlerStack::create(new MockHandler([]))]),
-        );
+        ));
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('No configured credentials satisfy');
@@ -115,9 +115,9 @@ final class SecurityGenerationTest extends TestCase
 
     public function testBaseDefinitionCredentialsDoNotReplaceTheRequiredAliasCredentials(): void
     {
-        $client = \Example\SecuritySdk\Client::connect('https://api.example.test/v1',
+        $client = \Example\SecuritySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1',
             new Client(['handler' => HandlerStack::create(new MockHandler([]))]), [],
-            new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['BearerBase' => 'base-token', 'HeaderKeyBase' => 'base-key']));
+            new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['BearerBase' => 'base-token', 'HeaderKeyBase' => 'base-key'])));
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('No configured credentials satisfy');
         $client->resource(\Example\SecuritySdk\Resources\Users::class)->getById(88);

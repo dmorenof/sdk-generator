@@ -6,7 +6,7 @@ $process = proc_open([PHP_BINARY, __DIR__ . '/schema-aliases-http-server.php'], 
 if (!is_resource($process)) { throw new RuntimeException('Cannot start server.'); }
 try {
     stream_set_timeout($pipes[1], 15); $port = trim((string) fgets($pipes[1])); if (!ctype_digit($port)) { throw new RuntimeException('Missing port.'); }
-    $client = \Example\AliasSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\AliasSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     $child = new \Example\AliasSdk\DTOs\ChildRecord((object) ['id' => 1, 'name' => 'Alice', 'status' => 'open']);
     $result = $client->resource(\Example\AliasSdk\Resources\Record::class)->post($child);
     if (!$result instanceof \Example\AliasSdk\DTOs\BaseRecord || $result->status !== \Example\AliasSdk\Enums\StatusCode::Open) { throw new RuntimeException('Canonical alias inheritance/enum changed.'); }

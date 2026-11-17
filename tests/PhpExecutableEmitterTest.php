@@ -127,10 +127,10 @@ final class PhpExecutableEmitterTest extends TestCase
                     throw new \RuntimeException('Valid enum value reached transport.');
                 }
             };
-            $client = \Example\EnumParameterSdk\Client::connect(
+            $client = \Example\EnumParameterSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
                 'https://api.example.test',
                 transport: $transport,
-            );
+            ));
             $client->resource(\Example\EnumParameterSdk\Resources\Users::class)->getById(1, new \Example\EnumParameterSdk\GetParams\Users\ById((object) ['verbose' => 'invalid']));
             self::fail('An enum value outside the declared set was accepted.');
         } catch (\UnexpectedValueException $exception) {
@@ -266,7 +266,7 @@ final class PhpExecutableEmitterTest extends TestCase
                 );
             }
         };
-        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1/', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1/', transport: $fake));
         $user = $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(42, new \Example\ExecutableSdk\GetParams\Users\ById((object) ['verbose' => false]));
         self::assertInstanceOf(\Example\ExecutableSdk\DTOs\User::class, $user);
         self::assertSame(42, $user->id);
@@ -308,7 +308,7 @@ final class PhpExecutableEmitterTest extends TestCase
                 return new \Dmorenof\SdkRuntime\Transport\HttpResponse(404, '{"error":"not found"}');
             }
         };
-        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $fake));
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from GET /users/{id}: 404');
         $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
@@ -325,7 +325,7 @@ final class PhpExecutableEmitterTest extends TestCase
                 return new \Dmorenof\SdkRuntime\Transport\HttpResponse(429, '{"reason":"throttled"}');
             }
         };
-        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $fake));
         try {
             $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
             self::fail('Unexpected status did not throw');
@@ -347,7 +347,7 @@ final class PhpExecutableEmitterTest extends TestCase
                 return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '{"name":"Ada"}');
             }
         };
-        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $fake));
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Required JSON property');
         $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
@@ -364,7 +364,7 @@ final class PhpExecutableEmitterTest extends TestCase
                 return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '{"id":"oops","name":"Ada"}');
             }
         };
-        $client = \Example\ExecutableSdk\Client::connect('https://api.example.test/v1', transport: $fake);
+        $client = \Example\ExecutableSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $fake));
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('Invalid scalar value');
         $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);

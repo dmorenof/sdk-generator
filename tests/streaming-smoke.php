@@ -50,7 +50,7 @@ try {
     }
     $body = (object) ['name' => 'body name'];
     $body->{$list ? 'attachments' : 'file'} = $list ? $uploads : $uploads[0];
-    $client = \Example\MultipartSdk\Client::connect($realHttp ? $argv[2] : 'https://api.example.test/v1', $http);
+    $client = \Example\MultipartSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($realHttp ? $argv[2] : 'https://api.example.test/v1', $http));
     $items = $client->resource(\Example\MultipartSdk\Resources\Items::class);
     $params = new \Example\MultipartSdk\PostParams\Items((object) [
         'name' => 'query name', 'queryBody' => 'query-body', 'X-Trace' => 'trace',

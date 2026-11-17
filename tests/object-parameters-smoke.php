@@ -16,7 +16,7 @@ $http = empty($argv[2]) ? new class implements \Psr\Http\Client\ClientInterface 
         return new \GuzzleHttp\Psr7\Response(204);
     }
 } : null;
-$resource = \Example\ObjectSdk\Client::connect(empty($argv[2]) ? 'https://api.example.test/v1' : $argv[2], httpClient: $http)->resource(\Example\ObjectSdk\Resources\Items::class);
+$resource = \Example\ObjectSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(empty($argv[2]) ? 'https://api.example.test/v1' : $argv[2], httpClient: $http))->resource(\Example\ObjectSdk\Resources\Items::class);
 $path = new \Example\ObjectSdk\PathParams\Items\BySelector((object) ['selector' => (object) ['code' => 'a,b/ñ', 'active' => false, 'count' => 0, 'server-id' => 'hidden,field']]);
 $filter = (object) ['code' => 'safe', 'active' => false, 'count' => 0, 'server-id' => 'hidden,field'];
 $get = new \Example\ObjectSdk\GetParams\Items\BySelector((object) ['X-Filter' => $filter, 'filter' => $filter, 'labels' => (object) ['tag' => 'x y'], 'body' => 'query body']);

@@ -63,7 +63,7 @@ final class NativeSchemasGenerationTest extends TestCase {
             public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { $this->calls[] = $request; return new \GuzzleHttp\Psr7\Response(200, [], '"result"'); }
         };
         $params = new \Example\NativeSdk\GetParams\Param\ById((object) ['value' => false, 'json' => 1.0, 'plain' => 'hello', 'X-Alias' => 'ab', 'session' => 'ab']);
-        $resource = \Example\NativeSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\NativeSdk\Resources\Param::class);
+        $resource = \Example\NativeSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\NativeSdk\Resources\Param::class);
         self::assertSame('result', $resource->getById(1, $params));
         parse_str($http->calls[0]->getUri()->getQuery(), $query);
         self::assertSame(['value' => 'false', 'json' => '1', 'plain' => 'hello'], array_replace(['value' => null, 'json' => null, 'plain' => null], $query));
@@ -81,7 +81,7 @@ final class NativeSchemasGenerationTest extends TestCase {
                 public function __construct(private string $body) {}
                 public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { return new \GuzzleHttp\Psr7\Response(200, [], $this->body); }
             };
-            $client = \Example\NativeSdk\Client::connect('https://example.test', httpClient: $http);
+            $client = \Example\NativeSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http));
             $class = 'Example\\NativeSdk\\Resources\\' . ucfirst($route);
             self::assertEquals($expected, $client->resource($class)->get());
         }
@@ -89,7 +89,7 @@ final class NativeSchemasGenerationTest extends TestCase {
             public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { return new \GuzzleHttp\Psr7\Response(200, [], 'null'); }
         };
         $this->expectException(\UnexpectedValueException::class);
-        \Example\NativeSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\NativeSdk\Resources\NeverResource::class)->get();
+        \Example\NativeSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\NativeSdk\Resources\NeverResource::class)->get();
     }
     public function testInvalidTypeListsAndOldDialectBooleanSchemasFail(): void {
         foreach ([[], ['string', 'string'], ['string', 'object'], ['integer', false]] as $types) {

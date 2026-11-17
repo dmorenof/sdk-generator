@@ -8,7 +8,7 @@ if (!is_resource($process)) { throw new RuntimeException('Cannot start HTTP serv
 try {
     stream_set_timeout($pipes[1], 15); $port = trim((string) fgets($pipes[1]));
     if (!ctype_digit($port)) { throw new RuntimeException('Missing port.'); }
-    $client = \Example\NativeSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\NativeSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     $native = $client->resource(\Example\NativeSdk\Resources\Native::class);
     $record = $native->get();
     if ($record->id !== 1) { throw new RuntimeException('Integral JSON number lost its integer value.'); }

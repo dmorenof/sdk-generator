@@ -15,7 +15,7 @@ try {
     if (!ctype_digit($port)) {
         throw new RuntimeException('Missing HTTP port.');
     }
-    $client = \Example\EmptySdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\EmptySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     $resource = $client->resource(\Example\EmptySdk\Resources\Items::class);
     $values = ['requiredEmpty' => '', 'q' => '', 'body' => '', 'nullable' => null, 'count' => 0, 'enabled' => false, 'labels' => [''], 'csv' => [''], 'strict' => 'x', 'X-Trace' => 'trace'];
     $get = new \Example\EmptySdk\GetParams\Items((object) $values);

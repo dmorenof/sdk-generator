@@ -16,7 +16,7 @@ try {
     $headers = array_fill_keys(['X-Spaces', 'X-Tabs', 'X-Pipes'], ['alpha', 'beta']);
     $get = new \Example\DelimitedSdk\GetParams\Items\BySpaces\ByTabs\ByPipes((object) ($headers + ['body' => 'query body']));
     $post = new \Example\DelimitedSdk\PostParams\Items\BySpaces\ByTabs\ByPipes((object) ($headers + ['queryBody' => 'query body', 'body' => (object) ['name' => 'Ada']]));
-    $resource = \Example\DelimitedSdk\Client::connect('http://127.0.0.1:' . $port)->resource(\Example\DelimitedSdk\Resources\Items\BySpaces\ByTabs::class);
+    $resource = \Example\DelimitedSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port))->resource(\Example\DelimitedSdk\Resources\Items\BySpaces\ByTabs::class);
     $resource->getByPipes($path, $get); $resource->postByPipes($path, $post);
     foreach (['spaces' => 'a b', 'tabs' => "a\tb", 'pipes' => 'a|b'] as $field => $value) {
         $path->$field = [$value];

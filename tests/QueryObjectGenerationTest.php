@@ -69,7 +69,7 @@ final class QueryObjectGenerationTest extends TestCase
             }
         }
         $transport = new DeepQueryTransport();
-        $client = \Example\NullableDeepQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\NullableDeepQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         try {
             $client->resource(\Example\NullableDeepQuery\Resources\Items::class)->get(new \Example\NullableDeepQuery\GetParams\Items((object) ['filter' => null]));
             self::fail('Required parameter disappeared from the request.');
@@ -81,7 +81,7 @@ final class QueryObjectGenerationTest extends TestCase
     public function testGetQueryBodyNameIsNotSentAsAJsonRequestBody(): void
     {
         $transport = new DeepQueryTransport();
-        $client = \Example\DeepQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\DeepQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $params = new \Example\DeepQuery\GetParams\Items((object) [
             'body' => (object) ['city-name' => 'Madrid'],
             'filter' => (object) ['city-name' => 'ñ &+', 'active' => false, 'state' => 'open', 'internal' => 'hidden', 'secret' => 'yes'],
@@ -118,7 +118,7 @@ final class QueryObjectGenerationTest extends TestCase
         $history = [];
         $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([new \GuzzleHttp\Psr7\Response(204)]));
         $stack->push(\GuzzleHttp\Middleware::history($history));
-        $client = \Example\DeepQuery\Client::connect('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack]));
+        $client = \Example\DeepQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack])));
         $params = new \Example\DeepQuery\PostParams\Items((object) [
             'filter' => (object) ['city-name' => 'Madrid'], 'body' => (object) ['filter' => 'json'],
         ]);
@@ -130,7 +130,7 @@ final class QueryObjectGenerationTest extends TestCase
     public function testAbsentNullAndEmptyMapOmitQueryButEmptyStringValueIsExplicit(): void
     {
         $transport = new DeepQueryTransport();
-        $client = \Example\DeepQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\DeepQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $resource = $client->resource(\Example\DeepQuery\Resources\Items::class);
         $resource->get(new \Example\DeepQuery\GetParams\Items((object) ['filter' => null, 'options' => (object) []]));
         self::assertSame('https://api.example.test/v1/items', $transport->calls[0]['url']);
@@ -142,7 +142,7 @@ final class QueryObjectGenerationTest extends TestCase
     public function testInvalidEnumsRulesUnknownFieldsAndMapMutationsFailBeforeHttp(): void
     {
         $transport = new DeepQueryTransport();
-        $client = \Example\DeepQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\DeepQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         foreach ([['filter' => (object) []], ['filter' => (object) ['city-name' => '']],
             ['filter' => (object) ['city-name' => 'Madrid', 'state' => 'unknown']],
             ['filter' => (object) ['city-name' => 'Madrid', 'unknown' => 'x']],
