@@ -39,31 +39,36 @@ final readonly class PhpResourceEmitter
         'servers' => [],
     ];
 
-    /**
-     * @param array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,rules?:array<string,mixed>,byStatus?:array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>}>}> $successTypes
-     * @param array<string,array<string,?string>> $errorTypes
-     */
+    /** @var list<\Dmorenof\SdkGenerator\Contract\SecuritySchemeDefinition> */
+    private array $securitySchemes;
+    /** @var array<string,array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,rules?:array<string,mixed>,byStatus?:array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>}> */
+    private array $successTypes;
+    /** @var array<string,array<string,?string>> */
+    private array $errorTypes;
+    /** @var array<string,string> */
+    private array $groupOverrides;
+    /** @var array<string,array{identifier:?array,payload:?array}> operationId => public arguments */
+    private array $requestTypes;
+    /** @var list<\Dmorenof\SdkGenerator\Contract\ModelDefinition> */
+    private array $formModels;
+    /** @var array<string,array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>> */
+    private array $errorResponses;
+    private ParameterTypes $parameterTypes;
+
     public function __construct(
         private string $namespace,
-        private array $securitySchemes,
-        private array $successTypes,
-        private array $errorTypes,
         private PhpModelNameResolver $modelNames,
-        /** @var array<string,string> */
-        private array $groupOverrides = [],
-        /** @var array<string,array{identifier:?array,payload:?array}> operationId => public arguments */
-        private array $requestTypes = [],
-        /** @var array<string,array<string,string>> */
-        private array $queryTypes = [],
-        /** @var list<\Dmorenof\SdkGenerator\Contract\ModelDefinition> */
-        private array $formModels = [],
-        /** @var array<string,array<string,array<array-key,string>>> */
-        private array $parameterTypes = [],
-        /** @var array<string,array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>> */
-        private array $errorResponses = [],
-        /** @var array<string,array<string,array<string,string>>> Operation ID / location / wire name => enum type. */
-        private array $parameterEnums = [],
-    ) {}
+        ResourceContext $context,
+    ) {
+        $this->securitySchemes = $context->securitySchemes;
+        $this->successTypes = $context->successTypes;
+        $this->errorTypes = $context->errorTypes;
+        $this->groupOverrides = $context->groupOverrides;
+        $this->requestTypes = $context->requestTypes;
+        $this->formModels = $context->formModels;
+        $this->errorResponses = $context->errorResponses;
+        $this->parameterTypes = $context->parameterTypes;
+    }
 
     /** @return array<string,string> */
     public function emit(ApiContract $contract): array
@@ -291,14 +296,13 @@ PHP;
             if ($parameter->location === 'query' && $parameter->serialization->allowReserved === true) {
                 $queryAllowReserved[] = $parameter->wireName;
             }
-            $objectType = $this->parameterTypes[$operation->operationId][$parameter->location][$parameter->wireName]
-                ?? ($parameter->location === 'query' ? ($this->queryTypes[$operation->operationId][$parameter->wireName] ?? null) : null);
+            $objectType = $this->parameterTypes->objects[$operation->operationId][$parameter->location][$parameter->wireName] ?? null;
             if ($parameter->content !== []) {
                 $parameterContent[$parameter->location][$parameter->wireName] = strtolower($parameter->content[0]->mediaType);
                 if ($parameter->location === 'path' && $objectType === null) {
                     $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, false, $this->formModels);
                     $rules = $resolved['validation'] ?? $parameter->schema->validation;
-                    if ($resolved['enumValues'] !== [] && !isset($this->parameterEnums[$operation->operationId]['path'][$parameter->wireName])) { $rules['enum'] = $resolved['enumValues']; }
+                    if ($resolved['enumValues'] !== [] && !isset($this->parameterTypes->enums[$operation->operationId]['path'][$parameter->wireName])) { $rules['enum'] = $resolved['enumValues']; }
                     if ($rules !== []) { $validation[$parameter->wireName] = $rules; }
                 }
                 continue;
@@ -350,7 +354,7 @@ PHP;
                 }
             }
             $rules = $resolved['validation'] ?? $parameter->schema->validation;
-            if ($resolved['enumValues'] !== [] && !isset($this->parameterEnums[$operation->operationId][$parameter->location][$parameter->wireName])) {
+            if ($resolved['enumValues'] !== [] && !isset($this->parameterTypes->enums[$operation->operationId][$parameter->location][$parameter->wireName])) {
                 $rules['enum'] = $resolved['enumValues'];
             }
             if ($rules !== []) {
