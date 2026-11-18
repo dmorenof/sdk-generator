@@ -22,12 +22,6 @@ final class PhpContractEmitter
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
     public const RUNTIME_CONSTRAINT = '^1.1.0';
-    /**
-     * Where Composer finds the runtime until it is registered on Packagist.
-     * Set to null once Packagist serves it; generated SDKs then need no repositories entry.
-     */
-    public const RUNTIME_REPOSITORY = 'https://github.com/dmorenof/sdk-runtime';
-
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
@@ -172,10 +166,6 @@ final class PhpContractEmitter
             'require' => ['dmorenof/sdk-runtime' => self::RUNTIME_CONSTRAINT, 'php' => '^8.3'],
             'autoload' => ['psr-4' => [$this->namespace . '\\' => 'src/']],
         ];
-        if (self::RUNTIME_REPOSITORY !== null) {
-            // no-api: plain git over HTTPS; the GitHub API rate limit would otherwise make Composer fall back to SSH.
-            $manifest['repositories'] = [['type' => 'vcs', 'url' => self::RUNTIME_REPOSITORY, 'no-api' => true]];
-        }
         $files['composer.json'] = json_encode(
             $manifest,
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
