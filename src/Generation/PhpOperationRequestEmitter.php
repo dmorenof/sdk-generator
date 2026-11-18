@@ -159,16 +159,6 @@ final readonly class PhpOperationRequestEmitter
         return '\\' . $this->namespace . '\\Api\\Requests\\' . self::name($operation);
     }
 
-    public static function requiresRequest(OperationDefinition $operation): bool
-    {
-        foreach ($operation->parameters as $parameter) {
-            if ($parameter->required) {
-                return true;
-            }
-        }
-        return $operation->requestBody?->required ?? false;
-    }
-
     /** @return list<string> */
     private static function segments(string $path): array
     {

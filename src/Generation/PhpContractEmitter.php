@@ -196,18 +196,6 @@ final class PhpContractEmitter
         return $this->operationBodyTypes;
     }
 
-    /** @return array<string,array<string,string>> */
-    public function operationQueryTypes(): array
-    {
-        $queries = [];
-        foreach ($this->operationParameterTypes as $operation => $locations) {
-            if (isset($locations['query'])) {
-                $queries[$operation] = $locations['query'];
-            }
-        }
-        return $queries;
-    }
-
     /** @return array<string,array<string,array<array-key,string>>> */
     public function operationParameterTypes(): array
     {
@@ -1221,20 +1209,6 @@ final class PhpContractEmitter
             . "/** Typed operation signatures; runtime/transport implementation follows separately. */\n"
             . "interface Operations\n{\n"
             . implode("\n", $methods) . "\n}\n";
-    }
-
-    private function primitiveParameterType(SchemaDefinition $schema, string $where): string
-    {
-        if ($schema->nullable || $schema->enumValues !== []) {
-            throw new InvalidArgumentException("Unsupported optional/enum parameter schema at $where");
-        }
-        return match ($schema->kind) {
-            SchemaKind::String => 'string',
-            SchemaKind::Integer => 'int',
-            SchemaKind::Number => 'float',
-            SchemaKind::Boolean => 'bool',
-            default => throw new InvalidArgumentException("Unsupported complex parameter schema at $where"),
-        };
     }
 
     /** @param array<string,string> $files */

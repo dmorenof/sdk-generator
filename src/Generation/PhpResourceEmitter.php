@@ -465,9 +465,4 @@ PHP;
             . "declare(strict_types=1);\n\n"
             . "namespace $namespace;\n\n";
     }
-
-    private static function variableName(string $wireName): string
-    {
-        return PhpNameTransliterator::property($wireName);
-    }
 }
