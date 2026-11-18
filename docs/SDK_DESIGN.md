@@ -31,7 +31,6 @@ El uso estático mantiene una conexión activa por contexto de ejecución PHP y 
 
 La caché de reflexión guarda tipos por clase y campo, nunca instancias de DTO. No se cachea que un objeto mutable ya fue validado: cada nueva operación comprueba sus valores actuales. Una serialización valida el árbol completo y después convierte ese mismo árbol sin revalidar cada subárbol.
 
-Las mediciones reproducibles y sus límites se documentan en [benchmark/DTO_REFACTOR.md](../benchmark/DTO_REFACTOR.md). La revisión y las pruebas de esta entrega usan PHP 8.5.11; la matriz existente de CI sigue cubriendo PHP 8.3–8.5.
 
 ## Reutilización y revisión
 
