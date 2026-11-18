@@ -90,7 +90,7 @@ final class PhpExecutableEmitterTest extends TestCase
         );
     }
 
-    public function testEnumHttpParametersAreValidatedAsTheirPrimitiveType(): void
+    public function testEnumHttpParametersAreEnums(): void
     {
         $raw = json_decode(
             (string) file_get_contents(__DIR__ . '/fixtures/accounts-openapi30.json'),
@@ -108,33 +108,31 @@ final class PhpExecutableEmitterTest extends TestCase
             'example/enum-parameter-sdk',
         ))->emit($contract);
 
-        self::assertStringContainsString(
-            "'enum' => [",
-            $files['src/GetParams/Users/ById.php'],
-        );
-        self::assertStringContainsString("'brief'", $files['src/GetParams/Users/ById.php']);
-        self::assertStringContainsString("'full'", $files['src/GetParams/Users/ById.php']);
+        // The parameter is an enum, which already refuses any other value, so no rule repeats the list.
+        self::assertStringNotContainsString("'enum' => [", $files['src/GetParams/Users/ById.php']);
+        $enumFiles = array_values(array_filter(array_keys($files), static fn (string $path): bool => str_starts_with($path, 'src/Enums/') && str_contains($path, '/Query/')));
+        self::assertCount(1, $enumFiles);
+        self::assertStringContainsString("case Brief = 'brief';", $files[$enumFiles[0]]);
+        self::assertStringContainsString("case Full = 'full';", $files[$enumFiles[0]]);
 
-        foreach ([
-            'src/Client.php', 'src/Resources/Users.php', 'src/GetParams/Users/ById.php',
-        ] as $file) {
+        foreach ([...$enumFiles, 'src/Client.php', 'src/Resources/Users.php', 'src/GetParams/Users/ById.php'] as $file) {
             eval(substr($files[$file], strlen('<?php')));
         }
+        $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
+            public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
+            {
+                throw new \RuntimeException('Valid enum value reached transport.');
+            }
+        };
+        $client = \Example\EnumParameterSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
+            'https://api.example.test',
+            transport: $transport,
+        ));
         try {
-            $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
-                public function send(string $method, string $url, array $headers, ?string $body): \Dmorenof\SdkRuntime\Transport\HttpResponse
-                {
-                    throw new \RuntimeException('Valid enum value reached transport.');
-                }
-            };
-            $client = \Example\EnumParameterSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
-                'https://api.example.test',
-                transport: $transport,
-            ));
-            $client->resource(\Example\EnumParameterSdk\Resources\Users::class)->getById(1, new \Example\EnumParameterSdk\GetParams\Users\ById((object) ['verbose' => 'invalid']));
-            self::fail('An enum value outside the declared set was accepted.');
-        } catch (\UnexpectedValueException $exception) {
-            self::assertStringContainsString('Validation enum failed', $exception->getMessage());
+            new \Example\EnumParameterSdk\GetParams\Users\ById((object) ['verbose' => 'invalid']);
+            self::fail('A value outside the declared set was accepted.');
+        } catch (\ValueError) {
+            self::assertTrue(true);
         }
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Valid enum value reached transport.');

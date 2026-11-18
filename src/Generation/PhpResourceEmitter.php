@@ -61,6 +61,8 @@ final readonly class PhpResourceEmitter
         private array $parameterTypes = [],
         /** @var array<string,array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>> */
         private array $errorResponses = [],
+        /** @var array<string,array<string,array<string,string>>> Operation ID / location / wire name => enum type. */
+        private array $parameterEnums = [],
     ) {}
 
     /** @return array<string,string> */
@@ -296,7 +298,7 @@ PHP;
                 if ($parameter->location === 'path' && $objectType === null) {
                     $resolved = PhpParameterTypeResolver::resolve($parameter->schema, $operation->operationId . '.' . $parameter->wireName, false, $this->formModels);
                     $rules = $resolved['validation'] ?? $parameter->schema->validation;
-                    if ($resolved['enumValues'] !== []) { $rules['enum'] = $resolved['enumValues']; }
+                    if ($resolved['enumValues'] !== [] && !isset($this->parameterEnums[$operation->operationId]['path'][$parameter->wireName])) { $rules['enum'] = $resolved['enumValues']; }
                     if ($rules !== []) { $validation[$parameter->wireName] = $rules; }
                 }
                 continue;
@@ -348,7 +350,7 @@ PHP;
                 }
             }
             $rules = $resolved['validation'] ?? $parameter->schema->validation;
-            if ($resolved['enumValues'] !== []) {
+            if ($resolved['enumValues'] !== [] && !isset($this->parameterEnums[$operation->operationId][$parameter->location][$parameter->wireName])) {
                 $rules['enum'] = $resolved['enumValues'];
             }
             if ($rules !== []) {

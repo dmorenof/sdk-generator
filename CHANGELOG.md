@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.5.0] — 2026-11-18
+
+Generated SDKs require `dmorenof/sdk-runtime` `^1.2.0`.
+
+- **Enum parameters.** A path, query, header or cookie parameter whose schema lists its values (strings or integers) is a generated enum, like a model field: `getByState(StateEnum::Open)`, `$params->sort = SortEnum::Desc`. The request carries the backing value (the runtime 1.2 accepts enum cases in parameters) and the enum replaces the validation rule that repeated the list. Lists of enum values (array parameters) stay lists of strings with a rule; a parameter whose schema is a nullable `anyOf` keeps its previous typing.
+- Existing SDKs are not affected until regenerated; regenerating changes the argument types of operations that have enum parameters.
+
 ## [1.4.0] — 2026-11-18
 
 Generated models are smaller and more often enums. Output changes (regenerate to get them); the runtime requirement is unchanged.
