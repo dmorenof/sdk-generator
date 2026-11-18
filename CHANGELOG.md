@@ -2,6 +2,16 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.4.0] — 2026-11-18
+
+Generated models are smaller and more often enums. Output changes (regenerate to get them); the runtime requirement is unchanged.
+
+- A field whose values PHP can hold as a backed enum is an enum in more cases: an enum whose values include `null` becomes a nullable enum (`?SortByEnum`), and an enum with no declared type is an enum when all its values are strings, or all integers. Lists PHP cannot hold (fractional numbers, booleans, mixed kinds) stay plain types with a JSON Schema guard.
+- Enum case names are always valid and unique: an empty value is `Empty`, a value starting with a digit gets a `Value` prefix, a value with no usable characters is `Value<n>`; before, such a value made generation fail.
+- An enum-typed field no longer repeats its values as a validation rule: the type already refuses anything else. (In the Casafari CRM SDK: 23 rules fewer.)
+- A model with no required fields no longer declares an empty `REQUIRED_FIELDS`; the runtime treats a missing one as empty. A subclass keeps its own, because an empty list overrides what its parent requires. Same for parameter objects. (In the Casafari CRM SDK: 83 files fewer carry it, and the SDK is 10% fewer lines.)
+- Not yet: HTTP parameters (path, query, header) whose schema is an enum are still a plain string or integer with a validation rule; making them enums needs the runtime to accept enum values in parameters.
+
 ## [1.3.1] — 2026-11-18
 
 Found by regenerating the contract of the hand-written casafari-sdk (Swagger 2.0, 14 operations, 82 schemas), which the generator used to refuse:

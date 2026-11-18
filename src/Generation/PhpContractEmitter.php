@@ -297,9 +297,6 @@ final class PhpContractEmitter
             if ($fileList) {
                 $propertyValidation['items'] = ['type' => 'binary', 'rules' => []];
             }
-            if ($propertySchema->enumValues !== []) {
-                $propertyValidation['enum'] = $propertySchema->enumValues;
-            }
             if ($nullableBranch !== null) {
                 $propertyValidation += $nullableBranch->validation;
                 if ($nullableBranch->pattern !== null) {
@@ -352,7 +349,9 @@ final class PhpContractEmitter
         $source = $this->header($namespace)
             . PhpDoc::render(['title' => $schema->title, 'description' => $schema->description] + $schema->annotations, indent: '')
             . ($extensible ? 'class ' : 'final class ') . $class . ' extends ' . $extends . "\n{\n"
-            . "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n";
+            // The runtime reads REQUIRED_FIELDS from the model when it declares them; an empty list is the default.
+            // A subclass keeps its own, because an empty one overrides what its parent requires.
+            . ($required === [] && $parent === null ? '' : "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n");
         if ($schema->discriminator !== null) {
             $mapping = $this->discriminatorMapping($schema, $hint);
             $source .= "    public const string DISCRIMINATOR_BASE = self::class;\n"
@@ -1048,7 +1047,13 @@ final class PhpContractEmitter
             $case = is_string($value)
                 ? preg_replace('/[^A-Za-z0-9]+/', '', ucwords(PhpNameTransliterator::latin($value), '-_ '))
                 : 'Value' . ($value < 0 ? 'Neg' . abs($value) : $value);
-            if ($case === '' || preg_match(self::IDENTIFIER, $case) !== 1) {
+            // The backing value is what matters; the case name only has to be a unique, valid identifier.
+            if ($case === '') {
+                $case = $value === '' ? 'Empty' : 'Value' . (count($cases) + 1);
+            } elseif (preg_match('/^[0-9]/', $case) === 1) {
+                $case = 'Value' . $case;
+            }
+            if (preg_match(self::IDENTIFIER, $case) !== 1) {
                 throw new InvalidArgumentException("Cannot safely name enum case in $name");
             }
             if (in_array(strtolower($case), self::PHP_KEYWORDS, true)) {
