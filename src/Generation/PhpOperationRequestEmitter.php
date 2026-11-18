@@ -25,6 +25,8 @@ final readonly class PhpOperationRequestEmitter
         private array $queryTypes = [],
         /** @var array<string,array<string,array<array-key,string>>> */
         private array $parameterTypes = [],
+        /** @var array<string,array<string,array<string,string>>> Operation ID / location / wire name => enum type. */
+        private array $parameterEnums = [],
     ) {}
 
     /** @return array<string,string> */
@@ -85,7 +87,7 @@ final readonly class PhpOperationRequestEmitter
                 $variable = PhpNameTransliterator::property($parameter->wireName);
                 $identifier = [
                     'kind' => 'scalar',
-                    'type' => $resolved['type'],
+                    'type' => $this->parameterEnums[$operation->operationId]['path'][$parameter->wireName] ?? $resolved['type'],
                     'name' => $variable === 'payload' || $variable === 'params'
                         ? 'identifier' : $variable,
                     'wireName' => $parameter->wireName,
@@ -217,6 +219,11 @@ final readonly class PhpOperationRequestEmitter
                 : PhpParameterTypeResolver::resolve(
                     $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true, $contract->models,
                 );
+            $enumType = $this->parameterEnums[$operation->operationId][$parameter->location][$parameter->wireName] ?? null;
+            if ($enumType !== null) {
+                $resolved['type'] = $enumType; // the enum already refuses any other value, so no rule repeats the list
+                $resolved['enumValues'] = [];
+            }
             $nullable = !$parameter->required || $resolved['nullable'];
             if (isset($resolved['phpDoc'])) {
                 $fields[] = '    /** @var ' . $resolved['phpDoc'] . ($nullable ? '|null' : '') . ' */';

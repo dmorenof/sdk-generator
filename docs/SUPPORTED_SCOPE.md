@@ -1,6 +1,6 @@
 # v0.40.0 supported scope and known limitations
 
-**Stable dependency: sdk-runtime ^1.1.0. Support remains bounded; this is not full OpenAPI/JSON Schema conformance.**
+**Stable dependency: sdk-runtime ^1.2.0. Support remains bounded; this is not full OpenAPI/JSON Schema conformance.**
 
 ## Current verified coverage
 

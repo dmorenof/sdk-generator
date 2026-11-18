@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^1.1.0';
+    public const RUNTIME_CONSTRAINT = '^1.2.0';
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
@@ -37,6 +37,8 @@ final class PhpContractEmitter
     private array $operationBodyTypes = [];
     /** @var array<string,array<string,array<array-key,string>>> Operation ID / location / wire name => object type. */
     private array $operationParameterTypes = [];
+    /** @var array<string,array<string,array<string,string>>> Operation ID / location / wire name => enum type of a scalar parameter. */
+    private array $operationParameterEnums = [];
     /** @var array<string, string> Collection item type and rules => generated FQCN. */
     private array $collectionTypes = [];
     /** @var array<int,true> Body schema identities requiring native multipart file lists. */
@@ -82,6 +84,7 @@ final class PhpContractEmitter
         $this->operationErrorResponses = [];
         $this->operationBodyTypes = [];
         $this->operationParameterTypes = [];
+        $this->operationParameterEnums = [];
         $this->collectionTypes = [];
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
@@ -157,7 +160,7 @@ final class PhpContractEmitter
 
         $files['src/Api/Operations.php'] = $this->renderOperations($contract, $files);
         $files = array_replace($files,
-            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes, [], $this->operationParameterTypes))->emit($contract));
+            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes, [], $this->operationParameterTypes, $this->operationParameterEnums))->emit($contract));
         $files['src/Api/OperationCatalog.php'] = $this->renderCatalog($contract);
         $manifest = [
             'name' => $this->packageName,
@@ -200,6 +203,12 @@ final class PhpContractEmitter
     public function operationParameterTypes(): array
     {
         return $this->operationParameterTypes;
+    }
+
+    /** @return array<string,array<string,array<string,string>>> Enum class of each path, query, header and cookie parameter whose schema is an enum. */
+    public function operationParameterEnums(): array
+    {
+        return $this->operationParameterEnums;
     }
 
 
@@ -1133,6 +1142,14 @@ final class PhpContractEmitter
                     $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
                     $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), ucfirst($parameter->location), ucfirst($parameter->wireName)]);
                     $this->operationParameterTypes[$operation->operationId][$parameter->location][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
+                } else {
+                    // A scalar parameter with a list of allowed values is an enum, like a model field; the runtime sends its backing value.
+                    $base = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($parameter->schema, $contract->models);
+                    if (in_array($base->kind, [SchemaKind::String, SchemaKind::Integer], true) && $base->enumValues !== []) {
+                        $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
+                        $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), ucfirst($parameter->location), ucfirst($parameter->wireName)]);
+                        $this->operationParameterEnums[$operation->operationId][$parameter->location][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
+                    }
                 }
             }
             if (array_diff($matches[1], $pathNames) !== [] || array_diff($pathNames, $matches[1]) !== []) {
