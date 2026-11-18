@@ -2,7 +2,9 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
-## [Unreleased — next 1.x release]
+## [1.1.0] — 2026-11-18
+
+Built on sdk-runtime 1.1.0 (generated SDKs require `^1.1.0`). Generated calls go through `self::operation(...)`, which the runtime builds once per class and route.
 
 - Generated code targets the redesigned runtime: methods call `executeArguments(operation, path:, parameters:, body:)` and `executeBody(operation, body, path:, parameters:)`, an optional body that the caller omits goes through `executeArguments()`, and `Client::configure()` is `self::connect($configuration)`. The constraint on `dmorenof/sdk-runtime` moves to the matching 1.x release when it is published.
 
