@@ -2,6 +2,14 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.3.1] — 2026-11-18
+
+Found by regenerating the contract of the hand-written casafari-sdk (Swagger 2.0, 14 operations, 82 schemas), which the generator used to refuse:
+
+- A `$ref` property with `readOnly` or `writeOnly` beside it (Swashbuckle's way of marking a model-typed property) is accepted, and the property is read-only or write-only. Other siblings of a `$ref` are still refused.
+- A Swagger 2 `consumes` or `produces` that lists several names for JSON (`application/json` and `text/json`, as ASP.NET tooling emits) is one JSON representation. A mix of JSON and other media types is still refused.
+- The contract is now a test fixture: it must generate strictly into 14 resources.
+
 ## [1.3.0] — 2026-11-18
 
 - Add `oauth2` and `openIdConnect` security schemes. They are validated (flows and their endpoints, `openIdConnectUrl`, Swagger 2 `flow`) and emitted like the other schemes; the runtime applies a token or a token provider as a Bearer token. Operations may now list scopes for these schemes (they stay in the contract metadata); scopes on `apiKey` or `http` schemes are still refused. The auditor no longer reports these schemes as unsupported. Endpoints and scopes are not generated into the SDK: build the provider with `OAuth2ClientCredentials` or `OAuth2AuthorizationCode`.
