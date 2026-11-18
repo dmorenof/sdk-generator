@@ -49,6 +49,6 @@ Attach custom PSR-18/Guzzle HandlerStack middlewares, or register SDK middleware
 
 Resource methods contain generated typed argument and return declarations; HTTP execution lives in `Dmorenof\SdkRuntime\ApiClient`. DTOs, requests and responses inherit hydration, validation and JSON serialization from the shared `Dmorenof\SdkRuntime\DTO` hierarchy. The generator is required only at build time; generated packages depend on the separate versioned runtime package.
 
-OpenAPI security schemes are applied to secured operations. Supply already-issued credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`; OAuth2 and OpenID Connect token acquisition are not included.
+OpenAPI security schemes are applied to secured operations. Supply already-issued credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`; `oauth2` and `openIdConnect` schemes are supported: give their name a token string or a runtime token provider (`OAuth2ClientCredentials`, `OAuth2AuthorizationCode`, see the runtime's authentication guide).
 
 Automated tests simulate HTTP without real API credentials. The published 0.1.0 tag remains unchanged.

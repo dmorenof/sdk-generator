@@ -189,7 +189,7 @@ Version 0.40.0 adds [server defaults and coherent routes](docs/SERVER_ROUTES.md)
 | Endpoints | Bounded scalar/list/flat-object parameter styles, scalar cookies, JSON/text parameter content, general supported JSON bodies, bounded forms/multipart, opaque text/binary MIME, and exact/range/default success/error response selection |
 | Runtime | Inherited shared execution/configuration, Guzzle/PSR-18, directional hydration/validation, binary PSR streams and compatible ApiException payload/error properties |
 | Testing | 471 generator tests; CI installs 42 SDKs with PHPStan maximum and HTTP smoke, including 32 MiB transfers under PHP 16 MiB |
-| Not included yet | Remote/dynamic/general reference scopes, arbitrary native object unions, general `not`/complex const/compositions, OAuth2/OIDC flows, structured cookies, advanced forms, non-seekable/general streaming guarantees, MIME wildcards/variant negotiation, structured XML/CSV and full conformance |
+| Not included yet | Remote/dynamic/general reference scopes, arbitrary native object unions, general `not`/complex const/compositions, structured cookies, advanced forms, non-seekable/general streaming guarantees, MIME wildcards/variant negotiation, structured XML/CSV and full conformance |
 
 The validator **rejects many unsupported constructs explicitly** instead of silently treating them as supported. Generated DTOs validate required fields and supported constraints on construction and before sending, including modified nested values. This is not complete JSON Schema validation. See [the SDK design criteria](docs/SDK_DESIGN.md) and the supported-scope document for the current boundaries.
 
@@ -207,7 +207,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v1.2.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.2.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.1.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v1.3.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.3.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.1.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 
