@@ -35,9 +35,9 @@ $logger = new class implements HttpMiddlewareInterface {
     }
 };
 
-StaticClient::configure(
-    Client::connect('https://api.example.com/v1')->withMiddleware($logger),
-);
+$config = new Configuration();            // the SDK's own Configuration class
+$config->middleware = [$logger];
+StaticClient::configure($config);
 $user = User::getById(88);
 ~~~
 

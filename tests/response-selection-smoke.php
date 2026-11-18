@@ -2,6 +2,7 @@
 declare(strict_types=1);
 $sdk = $argv[1] ?? throw new RuntimeException('Missing SDK.');
 require $sdk . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Selection SDK must run independently with stable runtime.');
@@ -12,7 +13,7 @@ if (!is_resource($process)) { throw new RuntimeException('Cannot start HTTP serv
 try {
     stream_set_timeout($pipes[1], 15); $port = trim((string) fgets($pipes[1]));
     if (!ctype_digit($port)) { throw new RuntimeException('Missing port.'); }
-    $client = \Example\SelectionSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\SelectionSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     $resource = $client->resource(\Example\SelectionSdk\Resources\Responses::class);
     foreach ([200, 201, 204, 299, 400, 404, 500] as $status) {
         $params = new \Example\SelectionSdk\GetParams\Responses((object) ['status' => $status, 'body' => 'query body', 'X-Trace' => 'trace']);

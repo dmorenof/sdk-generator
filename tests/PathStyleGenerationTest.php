@@ -76,7 +76,7 @@ final class PathStyleGenerationTest extends TestCase
         $get = new \Example\PathSdk\GetParams\Items\ByCode\ByIds\BySelector((object)['body' => 'query body','ids' => [2,3],'X-Trace' => 'trace']);
         \Example\PathSdk\Items\ByCode\ByIds::getBySelector($path, $get);
         $post = new \Example\PathSdk\PostParams\Items\ByCode\ByIds\BySelector((object)['queryBody' => 'query body','ids' => [2,3],'X-Trace' => 'trace','body' => (object)['name' => 'body name']]);
-        $resource = \Example\PathSdk\Client::connect($config->baseUrl, httpClient:$http)->resource(\Example\PathSdk\Resources\Items\ByCode\ByIds::class);
+        $resource = \Example\PathSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($config->baseUrl, httpClient:$http))->resource(\Example\PathSdk\Resources\Items\ByCode\ByIds::class);
         $resource->postBySelector($path, $post);
         foreach ($http->calls as $r) {
             self::assertSame('https://api.example.test/v1/items/.x%2Fy/;ids=a%2Cb;ids=%C3%B1/.active=false.code=a%2Fb.count=0?body=query%20body&ids=2&ids=3', (string)$r->getUri());

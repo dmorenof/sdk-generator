@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 // Runs in a separate PHP process with only the independently installed SDK.
 require ($argv[1] ?? throw new RuntimeException('Missing SDK directory.')) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Multipart SDK must run independently with a stable runtime.');
@@ -17,8 +18,8 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
 };
 $realHttp = isset($argv[2]) && $argv[2] !== '';
 $fileContentType = $argv[3] ?? 'image/png';
-$client = \Example\MultipartSdk\Client::connect($realHttp ? $argv[2] : 'https://api.example.test/v1',
-    transport: $realHttp ? null : $transport);
+$client = \Example\MultipartSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($realHttp ? $argv[2] : 'https://api.example.test/v1',
+    transport: $realHttp ? null : $transport));
 $items = $client->resource(\Example\MultipartSdk\Resources\Items::class);
 $params = new \Example\MultipartSdk\PostParams\Items((object) [
     'name' => 'query name', 'queryBody' => 'query-body', 'X-Trace' => 'trace',

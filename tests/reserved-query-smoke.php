@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require ($argv[1] ?? throw new RuntimeException('Missing SDK directory.')) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Independent stable SDK required.');
 }
@@ -15,7 +16,7 @@ try {
     if (!ctype_digit($port)) {
         throw new RuntimeException('Missing HTTP port.');
     }
-    $client = \Example\ReservedSdk\Client::connect('http://127.0.0.1:' . $port, securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['Key' => '%2F']));
+    $client = \Example\ReservedSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port, securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['Key' => '%2F'])));
     $resource = $client->resource(\Example\ReservedSdk\Resources\Items::class);
     $values = ['q' => 'a/b%26c?x', 'body' => 'query/body', 'labels' => ['a/b', 'c?d'], 'filter' => (object) ['code' => 'x/y'], 'plain' => 'a/b', 'k' => 'ignored/value', 'X-Trace' => 'h/x', 'theme' => 'a/b'];
     $get = new \Example\ReservedSdk\GetParams\Items((object) $values);

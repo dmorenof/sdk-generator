@@ -1,12 +1,13 @@
 <?php
 declare(strict_types=1);
 $sdk = $argv[1] ?? throw new RuntimeException('Missing SDK.'); require $sdk . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) { throw new RuntimeException('MIME SDK needs independent stable dependencies.'); }
 $process = proc_open([PHP_BINARY, $sdk . '/vendor/dmorenof/sdk-runtime/tests/mime-media-http-server.php'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
 if (!is_resource($process)) { throw new RuntimeException('Cannot start server.'); }
 try {
     stream_set_timeout($pipes[1], 20); $port = trim((string) fgets($pipes[1])); if (!ctype_digit($port)) { throw new RuntimeException('Missing port.'); }
-    $client = \Example\MimeMediaSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\MimeMediaSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     if ($client->resource(\Example\MimeMediaSdk\Resources\Csv::class)->post("a,b\n1,2\n") !== "a,b\n3,4\n" || $client->resource(\Example\MimeMediaSdk\Resources\Xml::class)->post('<input>ñ</input>') !== '<reply/>') { throw new RuntimeException('Raw CSV/XML codecs changed.'); }
     $file = tmpfile(); if ($file === false) { throw new RuntimeException('Missing upload.'); } for ($n = 0; $n < 4096; ++$n) { fwrite($file, str_repeat('x', 8192)); }
     $stream = \GuzzleHttp\Psr7\Utils::streamFor($file); $stream->seek(100);

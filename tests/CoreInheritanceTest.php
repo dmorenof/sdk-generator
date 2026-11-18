@@ -113,7 +113,7 @@ final class CoreInheritanceTest extends TestCase
                 throw new \LogicException('Should not send invalid DTO');
             }
         };
-        $client = \Example\InheritanceSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\InheritanceSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         try {
             $client->resource(\Example\InheritanceSdk\Resources\Users::class)->post(new \Example\InheritanceSdk\DTOs\NewUser());
             self::fail('Missing required field was transmitted');

@@ -74,13 +74,13 @@ final class DelimitedQueryGenerationTest extends TestCase
         ]);
         $expected = 'https://api.example.test/v1/items?codes=a%2Cb%7C%C3%B1%2B%26%7C%257C&flags=true%20false&ids=1%202&q=a%20b%7Cc&weights=0.5%7C2';
         $transport = new DelimitedQueryTransport();
-        $client = \Example\DelimitedQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\DelimitedQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $client->resource(\Example\DelimitedQuery\Resources\Items::class)->get($params);
         self::assertSame([$expected], $transport->urls);
         $history = [];
         $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([new \GuzzleHttp\Psr7\Response(204)]));
         $stack->push(\GuzzleHttp\Middleware::history($history));
-        $client = \Example\DelimitedQuery\Client::connect('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack]));
+        $client = \Example\DelimitedQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack])));
         $client->resource(\Example\DelimitedQuery\Resources\Items::class)->get($params);
         self::assertSame($expected, (string) $history[0]['request']->getUri());
     }
@@ -88,7 +88,7 @@ final class DelimitedQueryGenerationTest extends TestCase
     public function testEmptyListsNullAndEmptyStringItemsKeepTheirExpansionRules(): void
     {
         $transport = new DelimitedQueryTransport();
-        $client = \Example\DelimitedQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\DelimitedQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $resource = $client->resource(\Example\DelimitedQuery\Resources\Items::class);
         $resource->get(new \Example\DelimitedQuery\GetParams\Items((object) ['ids' => [1], 'codes' => [], 'q' => null]));
         $resource->get(new \Example\DelimitedQuery\GetParams\Items((object) ['ids' => [1], 'codes' => ['', 'x'], 'flags' => null]));
@@ -98,7 +98,7 @@ final class DelimitedQueryGenerationTest extends TestCase
     public function testAmbiguousValuesAndMutationsAreRejectedBeforeTransport(): void
     {
         $transport = new DelimitedQueryTransport();
-        $client = \Example\DelimitedQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\DelimitedQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $resource = $client->resource(\Example\DelimitedQuery\Resources\Items::class);
         $params = new \Example\DelimitedQuery\GetParams\Items((object) ['ids' => [1], 'codes' => ['a']]);
         foreach (['a|b', 'x|'] as $value) {
@@ -140,7 +140,7 @@ final class DelimitedQueryGenerationTest extends TestCase
         $document['paths']['/items']['get']['parameters'][1]['collectionFormat'] = 'tsv';
         self::load(self::files($document, 'Example\\TabQuery'));
         $transport = new DelimitedQueryTransport();
-        $client = \Example\TabQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\TabQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $resource = $client->resource(\Example\TabQuery\Resources\Items::class);
         $params = new \Example\TabQuery\GetParams\Items((object) ['ids' => [1], 'codes' => ['a b|c', 'ñ']]);
         $resource->get($params);

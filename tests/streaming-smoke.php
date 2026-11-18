@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 // An independent generated SDK must stream a file larger than this process's memory limit.
 require ($argv[1] ?? throw new RuntimeException('Missing SDK directory.')) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Streaming SDK must run independently with a stable runtime.');
@@ -50,7 +51,7 @@ try {
     }
     $body = (object) ['name' => 'body name'];
     $body->{$list ? 'attachments' : 'file'} = $list ? $uploads : $uploads[0];
-    $client = \Example\MultipartSdk\Client::connect($realHttp ? $argv[2] : 'https://api.example.test/v1', $http);
+    $client = \Example\MultipartSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($realHttp ? $argv[2] : 'https://api.example.test/v1', $http));
     $items = $client->resource(\Example\MultipartSdk\Resources\Items::class);
     $params = new \Example\MultipartSdk\PostParams\Items((object) [
         'name' => 'query name', 'queryBody' => 'query-body', 'X-Trace' => 'trace',

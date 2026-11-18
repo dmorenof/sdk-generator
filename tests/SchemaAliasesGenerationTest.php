@@ -36,7 +36,7 @@ final class SchemaAliasesGenerationTest extends TestCase {
                 return new \GuzzleHttp\Psr7\Response(200, [], $request->getMethod() === 'GET' ? '"open"' : (string) $request->getBody());
             }
         };
-        $client = \Example\AliasSdk\Client::connect('https://example.test', httpClient: $http);
+        $client = \Example\AliasSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http));
         $child = new \Example\AliasSdk\DTOs\ChildRecord((object) ['id' => 1, 'name' => 'Alice', 'status' => 'open']);
         $result = $client->resource(\Example\AliasSdk\Resources\Record::class)->post($child); self::assertInstanceOf($child::class, $result); self::assertSame($child->status, $result->status);
         self::assertSame(\Example\AliasSdk\Enums\StatusCode::Open, $client->resource(\Example\AliasSdk\Resources\Status::class)->post($child->status));

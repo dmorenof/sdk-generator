@@ -125,22 +125,7 @@ final readonly class PhpResourceEmitter
     /** Replace the current connection using a snapshot of the configuration. */
     public static function configure(Configuration $configuration): void
     {
-        if ($configuration->baseUrl === '') {
-            throw new \InvalidArgumentException('Configuration::baseUrl must not be empty.');
-        }
-
-        $client = self::connect(
-            $configuration->baseUrl,
-            $configuration->httpClient,
-            $configuration->headers,
-            $configuration->securityCredentials,
-            $configuration->transport,
-            $configuration->serverOverrides,
-        );
-        foreach ($configuration->middleware as $middleware) {
-            $client->withMiddleware($middleware);
-        }
-        self::$currentConnection = $client;
+        self::$currentConnection = self::connect($configuration);
     }
 
     public static function current(): self
@@ -430,27 +415,23 @@ PHP;
         }
         $constant = strtoupper(preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $method));
         $source = '    private const array ' . $constant . ' = ' . PhpLiteral::export($metadata, 1) . ";\n\n";
+        $path = $identifier === null ? null : ($identifier['kind'] === 'scalar'
+            ? 'path: [' . var_export($identifier['wireName'], true) . ' => $' . $identifier['name'] . ']'
+            : 'path: $' . $identifier['name']);
+        $built = 'self::operation(self::' . $constant . ')'; // built once per class and route by the runtime
         if ($nativeBody && $payload !== null && $payload['kind'] === 'body') {
-            $parts = ['self::' . $constant, 'body: $payload', 'bodyPresent: func_num_args() > ' . ($identifier === null ? '0' : '1')];
-            if ($identifier !== null) {
-                $parts[] = 'identifier: $' . $identifier['name'];
-                if ($identifier['kind'] === 'scalar') { $parts[] = 'identifierName: ' . var_export($identifier['wireName'], true); }
+            $call = '$this->executeBody(' . implode(', ', array_filter([$built, '$payload', $path])) . ')';
+            if (!$operation->requestBody->required) {
+                // An optional body is left out when the caller passes no argument for it.
+                $omitted = '$this->executeArguments(' . implode(', ', array_filter([$built, $path])) . ')';
+                $call = 'func_num_args() > ' . ($identifier === null ? '0' : '1') . ' ? ' . $call . ' : ' . $omitted;
             }
-            $call = '$this->executeBody(' . implode(', ', $parts) . ')';
         } elseif ($identifier === null && $payload === null) {
-            $call = '$this->executeOperation(self::' . $constant . ')';
-        } elseif ($identifier === null && $payload['kind'] === 'body') {
-            $call = '$this->executeOperation(self::' . $constant . ', body: $payload)';
+            $call = '$this->executeOperation(' . $built . ')';
         } else {
-            $parts = ['self::' . $constant];
-            if ($identifier !== null) {
-                $parts[] = 'identifier: $' . $identifier['name'];
-                if ($identifier['kind'] === 'scalar') {
-                    $parts[] = 'identifierName: ' . var_export($identifier['wireName'], true);
-                }
-            }
+            $parts = array_filter([$built, $path]);
             if ($payload !== null) {
-                $parts[] = $payload['kind'] === 'body' ? 'body: $payload' : 'payload: $params';
+                $parts[] = $payload['kind'] === 'body' ? 'body: $payload' : 'parameters: $params';
             }
             $call = '$this->executeArguments(' . implode(', ', $parts) . ')';
         }

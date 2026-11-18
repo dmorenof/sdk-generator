@@ -64,7 +64,7 @@ final class ReadyToUseClientTest extends TestCase
 
     public function testDefaultFactoryConstructsGuzzleAutomaticallyWithoutNetwork(): void
     {
-        $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1');
+        $client = $connection = \Example\ReadySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1'));
         self::assertInstanceOf(\Dmorenof\SdkRuntime\ApiClient::class, $connection);
         $adapter = (new \ReflectionProperty($connection, 'transport'))->getValue($connection);
         self::assertInstanceOf(\Dmorenof\SdkRuntime\Transport\Psr18Transport::class, $adapter);
@@ -85,11 +85,11 @@ final class ReadyToUseClientTest extends TestCase
             return $response;
         }));
         $stack->push(Middleware::history($history));
-        $client = \Example\ReadySdk\Client::connect(
+        $client = \Example\ReadySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
             'https://api.example.test/v1',
             new Client(['handler' => $stack]),
             ['Authorization' => 'Bearer demo'],
-        );
+        ));
         $user = $client->resource(\Example\ReadySdk\Resources\Users::class)->getById(88, new \Example\ReadySdk\GetParams\Users\ById((object) ['verbose' => false]));
         self::assertInstanceOf(\Example\ReadySdk\DTOs\User::class, $user);
         self::assertSame('Madrid', $user->profile->city);
@@ -124,7 +124,7 @@ final class ReadyToUseClientTest extends TestCase
                 return ReadyToUseClientTest::response(201);
             }
         };
-        $client = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
+        $client = \Example\ReadySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', $http));
         $request = new \Example\ReadySdk\DTOs\NewUser();
         $request->name = 'Grace';
         $result = $client->resource(\Example\ReadySdk\Resources\Users::class)->post($request);
@@ -137,7 +137,7 @@ final class ReadyToUseClientTest extends TestCase
         $http = new Client(['handler' => HandlerStack::create(new MockHandler([
             new Response(404, [], '{"error":"missing"}'),
         ]))]);
-        $client = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
+        $client = \Example\ReadySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', $http));
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Unexpected HTTP status from GET /users/{id}: 404');
         $client->resource(\Example\ReadySdk\Resources\Users::class)->getById(88);
@@ -149,10 +149,9 @@ final class ReadyToUseClientTest extends TestCase
         $stack = HandlerStack::create(new MockHandler([self::response()]));
         $stack->push(Middleware::history($history));
         $http = new Client(['handler' => $stack]);
-        $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
 
         $events = new \ArrayObject();
-        $connection->withMiddleware(new class($events) implements \Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface {
+        $middleware = new class($events) implements \Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface {
             public function __construct(private \ArrayObject $events) {}
 
             public function beforeRequest(RequestInterface $request): RequestInterface
@@ -166,7 +165,8 @@ final class ReadyToUseClientTest extends TestCase
                 $this->events->append('after:' . $request->getHeaderLine('X-Sdk-Core'));
                 return $response->withHeader('X-Sdk-Core-Response', 'processed');
             }
-        });
+        };
+        $client = $connection = \Example\ReadySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', $http, middleware: [$middleware]));
 
         self::assertInstanceOf(\Dmorenof\SdkRuntime\ApiClient::class, $connection);
         self::assertSame('Ada', $client->resource(\Example\ReadySdk\Resources\Users::class)->getById(88)->name);
@@ -185,9 +185,8 @@ final class ReadyToUseClientTest extends TestCase
                 throw new \LogicException('Transport must not be called');
             }
         };
-        $client = $connection = \Example\ReadySdk\Client::connect('https://api.example.test/v1', $http);
         $exception = new \DomainException('SDK middleware stopped request');
-        $connection->withMiddleware(new class($exception) implements \Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface {
+        $middleware = new class($exception) implements \Dmorenof\SdkRuntime\Transport\HttpMiddlewareInterface {
             public function __construct(private \DomainException $reason) {}
             public function beforeRequest(RequestInterface $request): RequestInterface
             {
@@ -197,7 +196,8 @@ final class ReadyToUseClientTest extends TestCase
             {
                 return $response;
             }
-        });
+        };
+        $client = $connection = \Example\ReadySdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', $http, middleware: [$middleware]));
         try {
             $client->resource(\Example\ReadySdk\Resources\Users::class)->getById(88);
             self::fail('Middleware failed to abort the request');

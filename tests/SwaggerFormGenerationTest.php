@@ -60,7 +60,7 @@ final class SwaggerFormGenerationTest extends TestCase
     public function testGetParamsIgnoreConsumesWithoutFormFieldsAndRemainQuery(): void
     {
         $transport = new SwaggerFormTransport();
-        $client = \Example\SwaggerForms\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\SwaggerForms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $client->resource(\Example\SwaggerForms\Resources\Items::class)->get(new \Example\SwaggerForms\GetParams\Items((object) ['name' => 'get +']));
         self::assertSame('https://api.example.test/v1/items?name=get%20%2B', $transport->calls[0]['url']);
         self::assertNull($transport->calls[0]['body']);
@@ -91,7 +91,7 @@ final class SwaggerFormGenerationTest extends TestCase
         $history = [];
         $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([new \GuzzleHttp\Psr7\Response(204)]));
         $stack->push(\GuzzleHttp\Middleware::history($history));
-        $client = \Example\SwaggerForms\Client::connect('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack]));
+        $client = \Example\SwaggerForms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack])));
         $client->resource(\Example\SwaggerForms\Resources\Items::class)->post(new \Example\SwaggerForms\PostParams\Items((object) [
             'name' => 'query', 'body' => (object) ['name' => 'Ada +', 'codes' => ['a,b', 'x y'], 'ids' => [1, 2]],
         ]));
@@ -103,7 +103,7 @@ final class SwaggerFormGenerationTest extends TestCase
     public function testOptionalFormsAndOperationOverridesPreserveRequiredAndEmptyValues(): void
     {
         $transport = new SwaggerFormTransport();
-        $client = \Example\SwaggerForms\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\SwaggerForms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $optional = $client->resource(\Example\SwaggerForms\Resources\Optional::class);
         $optional->post();
         $optional->post(new \Example\SwaggerForms\Requests\Optional\Post((object) ['note' => null, 'labels' => []]));
@@ -118,7 +118,7 @@ final class SwaggerFormGenerationTest extends TestCase
     public function testConstraintsEnumsRequiredAndMutationsFailBeforeTransport(): void
     {
         $transport = new SwaggerFormTransport();
-        $client = \Example\SwaggerForms\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\SwaggerForms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         foreach ([(object) [], (object) ['name' => ''], (object) ['name' => 'Ada', 'state' => 'invalid'],
             (object) ['name' => 'Ada', 'ids' => [0]]] as $body) {
             try {

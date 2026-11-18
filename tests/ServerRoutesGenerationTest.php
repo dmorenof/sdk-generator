@@ -21,7 +21,7 @@ final class ServerRoutesGenerationTest extends TestCase {
             public array $calls = [];
             public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { $this->calls[] = $request; return new \GuzzleHttp\Psr7\Response(204); }
         };
-        return [\Example\ServerRoutesSdk\Client::connect('https://configured.test/v9', httpClient: $http), $http];
+        return [\Example\ServerRoutesSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://configured.test/v9', httpClient: $http)), $http];
     }
     public function testDefaultExpansionScopeAndJsonYamlDialects(): void {
         $document = self::document(); $contract = self::contract($document); $files = self::files($document);

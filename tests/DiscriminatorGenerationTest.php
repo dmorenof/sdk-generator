@@ -235,7 +235,7 @@ final class DiscriminatorGenerationTest extends TestCase
             new \GuzzleHttp\Psr7\Response(200, ['Content-Type' => 'application/json'], '{"pet_type":"canine","bark":true}'),
             new \GuzzleHttp\Psr7\Response(200, ['Content-Type' => 'application/json'], '{"pet_type":"feline"}'),
         ]))]);
-        $client = \Example\DiscriminatedPets\Client::connect('https://example.test', $http);
+        $client = \Example\DiscriminatedPets\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', $http));
         self::assertInstanceOf(\Example\DiscriminatedPets\DTOs\Dog::class, $client->resource(\Example\DiscriminatedPets\Resources\Pet::class)->get());
         $choice = $client->resource(\Example\DiscriminatedPets\Resources\Choice::class)->get();
         self::assertInstanceOf(\Example\DiscriminatedPets\DTOs\Cat::class, $choice->matchedVariants()[0]);
@@ -246,7 +246,7 @@ final class DiscriminatorGenerationTest extends TestCase
         $http = new \GuzzleHttp\Client(['handler' => \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([
             new \GuzzleHttp\Psr7\Response(200, ['Content-Type' => 'application/json'], '{"pet_type":"Dog"}'),
         ]))]);
-        $client = \Example\AmbiguousPets\Client::connect('https://example.test', $http);
+        $client = \Example\AmbiguousPets\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', $http));
         $this->expectException(\UnexpectedValueException::class);
         $this->expectExceptionMessage('found 2');
         $client->resource(\Example\AmbiguousPets\Resources\Choice::class)->get();

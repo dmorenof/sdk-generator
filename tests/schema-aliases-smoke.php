@@ -1,12 +1,13 @@
 <?php
 declare(strict_types=1);
 $sdk = $argv[1] ?? throw new RuntimeException('Missing SDK.'); require $sdk . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) { throw new RuntimeException('Alias SDK needs independent stable dependencies.'); }
 $process = proc_open([PHP_BINARY, __DIR__ . '/schema-aliases-http-server.php'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
 if (!is_resource($process)) { throw new RuntimeException('Cannot start server.'); }
 try {
     stream_set_timeout($pipes[1], 15); $port = trim((string) fgets($pipes[1])); if (!ctype_digit($port)) { throw new RuntimeException('Missing port.'); }
-    $client = \Example\AliasSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\AliasSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     $child = new \Example\AliasSdk\DTOs\ChildRecord((object) ['id' => 1, 'name' => 'Alice', 'status' => 'open']);
     $result = $client->resource(\Example\AliasSdk\Resources\Record::class)->post($child);
     if (!$result instanceof \Example\AliasSdk\DTOs\BaseRecord || $result->status !== \Example\AliasSdk\Enums\StatusCode::Open) { throw new RuntimeException('Canonical alias inheritance/enum changed.'); }

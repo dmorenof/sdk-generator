@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require ($argv[1] ?? throw new RuntimeException('Missing SDK directory.')).'/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string)\Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('SDK must be independent and stable.');
 }
@@ -17,7 +18,7 @@ $http = empty($argv[2]) ? new class () implements \Psr\Http\Client\ClientInterfa
         return new \GuzzleHttp\Psr7\Response(204);
     }
 } : null;
-$r = \Example\PathSdk\Client::connect(empty($argv[2]) ? 'https://api.example.test/v1' : $argv[2], httpClient:$http)->resource(\Example\PathSdk\Resources\Items\ByCode\ByIds::class);
+$r = \Example\PathSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(empty($argv[2]) ? 'https://api.example.test/v1' : $argv[2], httpClient:$http))->resource(\Example\PathSdk\Resources\Items\ByCode\ByIds::class);
 $p = new \Example\PathSdk\PathParams\Items\ByCode\ByIds\BySelector((object)['code' => 'x/y','ids' => ['a,b','ñ'],'selector' => (object)['active' => false,'code' => 'a/b','count' => 0]]);
 $get = new \Example\PathSdk\GetParams\Items\ByCode\ByIds\BySelector((object)['body' => 'query body','ids' => [2,3],'X-Trace' => 'trace']);
 $post = new \Example\PathSdk\PostParams\Items\ByCode\ByIds\BySelector((object)['queryBody' => 'query body','ids' => [2,3],'X-Trace' => 'trace','body' => (object)['name' => 'body name']]);

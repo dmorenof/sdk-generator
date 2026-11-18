@@ -104,7 +104,7 @@ final class FileListGenerationTest extends TestCase
     public function testOptionalAbsentNullEmptyListsAndEmptyFiles(): void
     {
         $transport = new FileListGenerationTransport();
-        $client = \Example\FileLists\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\FileLists\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $optional = $client->resource(\Example\FileLists\Resources\Optional::class);
         $optional->post();
         foreach ([null, [], ['']] as $value) {
@@ -123,7 +123,7 @@ final class FileListGenerationTest extends TestCase
     public function testRequiredItemsBoundsAndMutationsAreValidatedBeforeHttp(): void
     {
         $transport = new FileListGenerationTransport();
-        $items = \Example\FileLists\Client::connect('https://api.example.test/v1', transport: $transport)->resource(\Example\FileLists\Resources\Items::class);
+        $items = \Example\FileLists\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport))->resource(\Example\FileLists\Resources\Items::class);
         foreach ([[], [null], [1], ['key' => 'bytes'], [[1]], ['a', 'b', 'c']] as $value) {
             try {
                 $items->post(new \Example\FileLists\PostParams\Items((object) ['body' => (object) ['name' => 'Ada', 'attachments' => $value]]));

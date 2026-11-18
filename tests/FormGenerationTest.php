@@ -70,7 +70,7 @@ final class FormGenerationTest extends TestCase
     public function testGetParamsRemainQueryAndDoNotBecomeFormFields(): void
     {
         $transport = new FormGenerationTransport();
-        $client = \Example\Forms\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\Forms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $client->resource(\Example\Forms\Resources\Items::class)->get(new \Example\Forms\GetParams\Items((object) ['name' => 'get +~']));
         self::assertSame('https://api.example.test/v1/items?name=get%20%2B~', $transport->calls[0]['url']);
         self::assertNull($transport->calls[0]['body']);
@@ -103,7 +103,7 @@ final class FormGenerationTest extends TestCase
         $history = [];
         $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler([new \GuzzleHttp\Psr7\Response(204)]));
         $stack->push(\GuzzleHttp\Middleware::history($history));
-        $client = \Example\Forms\Client::connect('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack]));
+        $client = \Example\Forms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', new \GuzzleHttp\Client(['handler' => $stack])));
         $client->resource(\Example\Forms\Resources\Items::class)->post(new \Example\Forms\PostParams\Items((object) [
             'name' => 'query', 'body' => (object) ['name' => 'Ada +', 'ids' => [1, 2]],
         ]));
@@ -115,7 +115,7 @@ final class FormGenerationTest extends TestCase
     public function testOptionalAbsentEmptyNullAndEmptyStringFormsRemainDistinct(): void
     {
         $transport = new FormGenerationTransport();
-        $client = \Example\Forms\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\Forms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $resource = $client->resource(\Example\Forms\Resources\Optional::class);
         $resource->post();
         $resource->post(new \Example\Forms\DTOs\OptionalForm());
@@ -129,7 +129,7 @@ final class FormGenerationTest extends TestCase
     public function testBodyOnlyOperationsReuseTheirNamedFormDto(): void
     {
         $transport = new FormGenerationTransport();
-        $client = \Example\Forms\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\Forms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $client->resource(\Example\Forms\Resources\BodyOnly::class)->post(new \Example\Forms\DTOs\Form((object) ['name' => 'Ada']));
         self::assertSame('name=Ada', $transport->calls[0]['body']);
         self::assertSame('https://api.example.test/v1/body-only', $transport->calls[0]['url']);
@@ -138,7 +138,7 @@ final class FormGenerationTest extends TestCase
     public function testRequiredFieldsEnumsAndListMutationsFailBeforeHttp(): void
     {
         $transport = new FormGenerationTransport();
-        $client = \Example\Forms\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\Forms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         foreach ([(object) [], (object) ['name' => ''], (object) ['name' => 'Ada', 'ids' => [0]],
             (object) ['name' => 'Ada', 'state' => 'unknown'], (object) ['name' => 'Ada', 'extra' => 1]] as $body) {
             try {
@@ -211,7 +211,7 @@ final class FormGenerationTest extends TestCase
         unset($document['paths']['/items']['post']['requestBody']['content']['application/x-www-form-urlencoded']['encoding']['codes']);
         self::load(self::files($document, 'Example\\DefaultForms'));
         $transport = new FormGenerationTransport();
-        $client = \Example\DefaultForms\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\DefaultForms\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $client->resource(\Example\DefaultForms\Resources\Items::class)->post(new \Example\DefaultForms\PostParams\Items((object) [
             'body' => (object) ['name' => 'Ada', 'codes' => ['a,b', 'x y']],
         ]));

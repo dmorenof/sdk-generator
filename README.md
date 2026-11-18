@@ -165,11 +165,11 @@ $stack->push(Middleware::mapRequest(
 ));
 $http = new GuzzleClient(['handler' => $stack]);
 
-$client = Client::connect(
-    'https://api.example.com/v1',
-    $http,
-    ['Authorization' => 'Bearer ' . $accessToken],
-);
+$config = new \Dmorenof\SdkRuntime\Configuration();
+$config->baseUrl = 'https://api.example.com/v1';
+$config->httpClient = $http;
+$config->headers = ['Authorization' => 'Bearer ' . $accessToken];
+$client = Client::connect($config);
 ~~~
 
 Resources methods are instance methods; route facades (such as Users::getById()) are static. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
@@ -207,7 +207,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v1.0.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.0.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.0.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v1.1.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.1.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.1.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 

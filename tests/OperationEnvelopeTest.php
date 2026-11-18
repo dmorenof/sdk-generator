@@ -170,10 +170,10 @@ final class OperationEnvelopeTest extends TestCase
                     );
                 }
             };
-            $client = \Example\EnvelopeSDK\Client::connect(
+            $client = \Example\EnvelopeSDK\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(
                 'https://envelope.test',
                 transport: $transport,
-            );
+            ));
             $resource = $client->resource(\Example\EnvelopeSDK\Resources\Api\V1\User::class);
 
             $user = new \Example\EnvelopeSDK\DTOs\Api\V1\User((object) ['name' => 'Ada']);

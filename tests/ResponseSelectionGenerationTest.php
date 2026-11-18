@@ -43,7 +43,7 @@ final class ResponseSelectionGenerationTest extends TestCase {
                     return new \GuzzleHttp\Psr7\Response($this->status, ['X-Result' => 'preserved'], $this->body);
                 }
             };
-            $resource = \Example\SelectionSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\SelectionSdk\Resources\Responses::class);
+            $resource = \Example\SelectionSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\SelectionSdk\Resources\Responses::class);
             try {
                 $result = $resource->get(new \Example\SelectionSdk\GetParams\Responses((object) ['status' => $status]));
                 self::assertLessThan(400, $status);
@@ -65,7 +65,7 @@ final class ResponseSelectionGenerationTest extends TestCase {
                 public function __construct(private int $status) {}
                 public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { return new \GuzzleHttp\Psr7\Response($this->status, [], '{}'); }
             };
-            $resource = \Example\SelectionSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\SelectionSdk\Resources\Responses::class);
+            $resource = \Example\SelectionSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\SelectionSdk\Resources\Responses::class);
             try { $resource->get(new \Example\SelectionSdk\GetParams\Responses((object) ['status' => $status])); self::fail('Invalid selected schema accepted.'); }
             catch (\Dmorenof\SdkRuntime\ApiException $error) { self::assertGreaterThanOrEqual(400, $status); self::assertSame('{}', $error->response->body); self::assertNotNull($error->getPrevious()); }
             catch (\UnexpectedValueException) { self::assertLessThan(400, $status); }

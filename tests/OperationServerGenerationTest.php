@@ -47,7 +47,7 @@ final class OperationServerGenerationTest extends TestCase
     public function testOperationThenPathThenRootServersAreUsedOnTheWire(): void
     {
         $transport = self::transport();
-        $client = \Example\OperationServers\Client::connect('https://configured.example.test/v9', transport: $transport);
+        $client = \Example\OperationServers\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://configured.example.test/v9', transport: $transport));
         $items = $client->resource(\Example\OperationServers\Resources\Items::class);
         $items->getById('a/b', new \Example\OperationServers\GetParams\Items\ById((object) ['q' => 'a b']));
         $items->postById('a/b');

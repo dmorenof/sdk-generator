@@ -68,7 +68,7 @@ final class ResponseHeadersGenerationTest extends TestCase
                 return new Response(200, $this->headers, '{"id":1,"name":"Ada"}');
             }
         };
-        $client = ($namespace . '\\Client')::connect('https://api.example.test/v1', $http);
+        $client = ($namespace . '\\Client')::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', $http));
         return $client->resource(($namespace . '\\Resources\\Users'));
     }
 

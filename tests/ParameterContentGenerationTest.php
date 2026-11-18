@@ -72,7 +72,7 @@ final class ParameterContentGenerationTest extends TestCase
         $values['queryBody'] = $values['body'];
         $values['body'] = (object) ['id' => 9, 'name' => 'body/x'];
         $post = new \Example\ContentSdk\PostParams\Items\BySelector\ByToken((object) $values);
-        $client = \Example\ContentSdk\Client::connect($config->baseUrl, httpClient: $http, headers: $config->headers, securityCredentials: $config->securityCredentials);
+        $client = \Example\ContentSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($config->baseUrl, httpClient: $http, headers: $config->headers, securityCredentials: $config->securityCredentials));
         $resource = $client->resource(\Example\ContentSdk\Resources\Items\BySelector::class);
         $resource->postByToken($path, $post);
         $expectedQuery = 'active=false&body='.rawurlencode('{"name":"query\/x"}').'&empty=%5B%5D&plain=100%25%20%2F%20%C3%B1&records='.rawurlencode('[{"name":"row\/x"}]').'&scalar=%22%22&values='.rawurlencode('{"0":"zero"}');

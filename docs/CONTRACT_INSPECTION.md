@@ -96,9 +96,10 @@ path prefix before adding the operation path and encoded parameters.
 Environment substitutions are per connection and are copied to shared resources:
 
 ```php
-$client = Client::connect('https://root.staging.test', serverOverrides: [
-    'https://platform.casafari.com' => 'https://platform.staging.test',
-]);
+$config = new \Dmorenof\SdkRuntime\Configuration();
+$config->baseUrl = 'https://root.staging.test';
+$config->serverOverrides = ['https://platform.casafari.com' => 'https://platform.staging.test'];
+$client = Client::connect($config);
 ```
 
 Static facades support the same mapping through `Configuration::$serverOverrides`.

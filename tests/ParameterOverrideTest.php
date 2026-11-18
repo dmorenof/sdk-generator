@@ -130,7 +130,7 @@ final class ParameterOverrideTest extends TestCase
         $get = new \Example\OverrideSdk\GetParams\Items\ById((object) ['querySelector' => [0], 'selector' => 'hdr', 'body' => 'query body', 'theme' => 'dark']);
         \Example\OverrideSdk\Items::getById('a', $get);
         $post = new \Example\OverrideSdk\PostParams\Items\ById((object) ['querySelector' => 'x/y', 'selector' => 'h', 'queryBody' => 'query body', 'theme' => 'dark', 'body' => (object) ['name' => 'body name']]);
-        $resource = \Example\OverrideSdk\Client::connect($configuration->baseUrl, httpClient: $http)->resource(\Example\OverrideSdk\Resources\Items::class);
+        $resource = \Example\OverrideSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($configuration->baseUrl, httpClient: $http))->resource(\Example\OverrideSdk\Resources\Items::class);
         $resource->postById('a', $post);
         self::assertSame('https://example.test/items/.a?body=query%20body&selector=0', (string) $http->requests[0]->getUri());
         self::assertSame('hdr', $http->requests[0]->getHeaderLine('selector'));

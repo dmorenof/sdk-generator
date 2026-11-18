@@ -55,7 +55,7 @@ final class FormEncodingBlockGenerationTest extends TestCase {
         $params = new \Example\FormBlockSdk\PostParams\Form((object) ['queryBody' => 'query body', 'X-Trace' => 'trace', 'body' => (object) [
             'body' => 'form body', 'space' => ['one', 'two'], 'pipe' => ['a/b', '%2F'], 'filter' => (object) ['code' => 'a/b', 'flag' => false],
             'expanded' => (object) ['city' => 'Madrid', 'zip' => 0], 'deep' => (object) ['name' => 'niño']]]);
-        $resource = \Example\FormBlockSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\FormBlockSdk\Resources\Form::class);
+        $resource = \Example\FormBlockSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\FormBlockSdk\Resources\Form::class);
         $resource->post($params);
         self::assertSame('body=query%20body', $http->calls[0]->getUri()->getQuery());
         self::assertSame('trace', $http->calls[0]->getHeaderLine('X-Trace'));
@@ -76,7 +76,7 @@ final class FormEncodingBlockGenerationTest extends TestCase {
         $profile = (object) ['id' => 7, 'code' => 'a/b', 'nested' => (object) ['flag' => false]];
         $params = new \Example\FormBlockSdk\PostParams\Multipart((object) ['queryBody' => 'query body', 'X-Trace' => 'trace', 'body' => (object) [
             'profile' => $profile, 'batch' => [$profile, $profile], 'asJson' => 'quoted', 'document' => "\x00\xfffile", 'count' => 0]]);
-        $resource = \Example\FormBlockSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\FormBlockSdk\Resources\Multipart::class);
+        $resource = \Example\FormBlockSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\FormBlockSdk\Resources\Multipart::class);
         $resource->post($params); $mime = (string) $http->calls[0]->getBody();
         self::assertSame(3, substr_count($mime, '{"code":"a\/b","nested":{"flag":false}}'));
         self::assertStringNotContainsString('"id"', $mime);

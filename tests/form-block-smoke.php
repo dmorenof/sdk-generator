@@ -3,6 +3,7 @@ declare(strict_types=1);
 $openapi = $argv[1] ?? throw new RuntimeException('Missing OpenAPI SDK.');
 $swagger = $argv[2] ?? throw new RuntimeException('Missing Swagger SDK.');
 require $openapi . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 require $swagger . '/vendor/autoload.php';
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
@@ -15,7 +16,7 @@ try {
     stream_set_timeout($pipes[1], 15); $port = trim((string) fgets($pipes[1]));
     if (!ctype_digit($port)) { throw new RuntimeException('Missing port.'); }
     $url = 'http://127.0.0.1:' . $port;
-    $client = \Example\FormBlockSdk\Client::connect($url);
+    $client = \Example\FormBlockSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($url));
     $form = new \Example\FormBlockSdk\PostParams\Form((object) ['queryBody' => 'query body', 'X-Trace' => 'trace', 'body' => (object) [
         'body' => 'form body', 'space' => ['one', 'two'], 'pipe' => ['a/b', '%2F'], 'filter' => (object) ['code' => 'a/b', 'flag' => false],
         'expanded' => (object) ['city' => 'Madrid', 'zip' => 0], 'deep' => (object) ['name' => 'niño']]]);
@@ -28,7 +29,7 @@ try {
     $multipartResource->post($multipart);
     $swaggerParams = new \Example\SwaggerFormBlockSdk\PostParams\Swagger((object) ['queryBody' => 'query body', 'X-Trace' => 'trace', 'body' => (object) [
         'csv' => [1, 2], 'multi' => ['x', 'y'], 'ssv' => ['one', 'two'], 'tsv' => ['one', 'two'], 'pipes' => ['a/b', '%2F']]]);
-    $swaggerResource = \Example\SwaggerFormBlockSdk\Client::connect($url)->resource(\Example\SwaggerFormBlockSdk\Resources\Swagger::class);
+    $swaggerResource = \Example\SwaggerFormBlockSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($url))->resource(\Example\SwaggerFormBlockSdk\Resources\Swagger::class);
     $swaggerResource->post($swaggerParams);
     $form->body->filter->code = '';
     try { $formResource->post($form); throw new RuntimeException('Invalid form mutation reached HTTP.'); } catch (UnexpectedValueException) {}

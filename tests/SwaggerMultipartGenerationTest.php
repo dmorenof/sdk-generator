@@ -89,7 +89,7 @@ final class SwaggerMultipartGenerationTest extends TestCase
     public function testOptionalNullableEmptyFilesAndEffectiveOverrides(): void
     {
         $transport = new SwaggerMultipartTransport();
-        $client = \Example\SwaggerMultipart\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\SwaggerMultipart\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $optional = $client->resource(\Example\SwaggerMultipart\Resources\Optional::class);
         $optional->post();
         $optional->post(new \Example\SwaggerMultipart\Requests\Optional\Post((object) ['file' => null, 'labels' => []]));
@@ -110,7 +110,7 @@ final class SwaggerMultipartGenerationTest extends TestCase
     public function testRequiredFilesConstraintsAndMutationsFailBeforeHttp(): void
     {
         $transport = new SwaggerMultipartTransport();
-        $items = \Example\SwaggerMultipart\Client::connect('https://api.example.test/v1', transport: $transport)->resource(\Example\SwaggerMultipart\Resources\Items::class);
+        $items = \Example\SwaggerMultipart\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport))->resource(\Example\SwaggerMultipart\Resources\Items::class);
         foreach ([(object) ['name' => 'Ada'], (object) ['name' => 'Ada', 'file' => null],
             (object) ['name' => '', 'file' => ''], (object) ['name' => 'Ada', 'file' => '', 'state' => 'invalid'],
             (object) ['name' => 'Ada', 'file' => '', 'ids' => [0]]] as $body) {
@@ -199,7 +199,7 @@ final class SwaggerMultipartGenerationTest extends TestCase
     public function testSwaggerUsesPsrFilenameAndMimeWithoutInventingAnUploadClass(): void
     {
         $transport = new SwaggerMultipartTransport();
-        $client = \Example\SwaggerMultipart\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\SwaggerMultipart\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $upload = new \GuzzleHttp\Psr7\UploadedFile(\GuzzleHttp\Psr7\Utils::streamFor("\x00\xff"), 2, UPLOAD_ERR_OK, 'report.pdf', 'application/pdf');
         $optional = new \Example\SwaggerMultipart\Requests\Optional\Post((object) ['file' => $upload]);
         self::assertSame($upload, $optional->file);

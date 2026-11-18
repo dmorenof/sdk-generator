@@ -48,14 +48,13 @@ This example specification is **synthetic**. Replace the host with a real API co
 ## 4. Advanced: PSR-18 client and headers
 
 ~~~php
-$client = \Example\AccountsSdk\Client::connect(
-    'https://api.example.com/v1',
-    $yourPsr18Client, // e.g. Guzzle with a configured HandlerStack
-    [],
-    new \Example\AccountsSdk\Core\SecurityCredentials([
-        'bearerAuth' => $token,
-    ]),
-);
+$config = new \Dmorenof\SdkRuntime\Configuration();
+$config->baseUrl = 'https://api.example.com/v1';
+$config->httpClient = $yourPsr18Client; // e.g. Guzzle with a configured HandlerStack
+$config->securityCredentials = new \Dmorenof\SdkRuntime\Security\SecurityCredentials([
+    'bearerAuth' => $token,
+]);
+$client = \Example\AccountsSdk\Client::connect($config);
 ~~~
 
 The credential keys are security scheme names from the OpenAPI document. API keys use the same string form; HTTP Basic uses `new Core\BasicAuthCredentials($username, $password)`. The generated client applies credentials only to secured operations and honors OpenAPI's AND/OR requirement semantics. A missing complete credential alternative fails before sending the request. Query API keys become part of the URL and should be used with care in logs.

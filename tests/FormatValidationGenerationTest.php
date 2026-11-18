@@ -57,7 +57,7 @@ final class FormatValidationGenerationTest extends TestCase
             }
         };
         $client = $namespace . '\\Client';
-        return $client::connect('https://api.example.test/v1', $http)->resource($namespace . '\\Resources\\Users');
+        return $client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', $http))->resource($namespace . '\\Resources\\Users');
     }
 
     public function testFormatsAreAssertedWhenRequested(): void

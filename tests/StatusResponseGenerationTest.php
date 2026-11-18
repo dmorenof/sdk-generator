@@ -39,7 +39,7 @@ final class StatusResponseGenerationTest extends TestCase
             public function __construct(private int $status, private string $body) {}
             public function sendRequest(RequestInterface $request): ResponseInterface { return new Response($this->status, [], $this->body); }
         };
-        return \Example\StatusSdk\Client::connect('https://api.example.test/v1', httpClient: $http)->resource(\Example\StatusSdk\Resources\Users::class);
+        return \Example\StatusSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', httpClient: $http))->resource(\Example\StatusSdk\Resources\Users::class);
     }
     public function testVersionsJsonYamlNativeSignaturesAndDistinctInlineStatusNames(): void
     {
@@ -139,7 +139,7 @@ final class StatusResponseGenerationTest extends TestCase
         $get = \Example\StatusSdk\Users::get(new \Example\StatusSdk\GetParams\Users((object) ['body' => 'query body', 'X-Trace' => 'trace']));
         self::assertSame(\Example\StatusSdk\DTOs\CreatedUser::class, $get::class);
         $params = new \Example\StatusSdk\PostParams\Users((object) ['queryBody' => 'query body', 'X-Trace' => 'trace', 'body' => (object) ['name' => 'export']]);
-        $resource = \Example\StatusSdk\Client::connect($config->baseUrl, httpClient: $http)->resource(\Example\StatusSdk\Resources\Users::class);
+        $resource = \Example\StatusSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($config->baseUrl, httpClient: $http))->resource(\Example\StatusSdk\Resources\Users::class);
         self::assertSame(\Example\StatusSdk\DTOs\CreatedUser::class, $resource->post($params)::class);
         self::assertSame('body=query%20body', $http->calls[0]->getUri()->getQuery());
         self::assertSame('body=query%20body', $http->calls[1]->getUri()->getQuery());

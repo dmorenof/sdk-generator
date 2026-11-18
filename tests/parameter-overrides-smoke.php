@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require ($argv[1] ?? throw new RuntimeException('Missing SDK directory.')) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Independent stable SDK required.');
 }
@@ -15,7 +16,7 @@ try {
     if (!ctype_digit($port)) {
         throw new RuntimeException('Missing HTTP port.');
     }
-    $client = \Example\OverrideSdk\Client::connect('http://127.0.0.1:' . $port);
+    $client = \Example\OverrideSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port));
     $resource = $client->resource(\Example\OverrideSdk\Resources\Items::class);
     $get = new \Example\OverrideSdk\GetParams\Items\ById((object) ['querySelector' => [0], 'selector' => 'hdr', 'body' => 'query body', 'theme' => 'dark']);
     $resource->getById('a', $get);

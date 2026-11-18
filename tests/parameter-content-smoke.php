@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require ($argv[1] ?? throw new RuntimeException('Missing SDK directory.')) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Independent stable SDK required.');
 }
@@ -15,7 +16,7 @@ try {
     if (!ctype_digit($port)) {
         throw new RuntimeException('Missing port.');
     }
-    $client = \Example\ContentSdk\Client::connect('http://127.0.0.1:' . $port, headers: ['Cookie' => 'default=base'], securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['Key' => 'token+/==']));
+    $client = \Example\ContentSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port, headers: ['Cookie' => 'default=base'], securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['Key' => 'token+/=='])));
     $resource = $client->resource(\Example\ContentSdk\Resources\Items\BySelector::class);
     $path = new \Example\ContentSdk\PathParams\Items\BySelector\ByToken((object) ['selector' => (object) ['code' => 'path/x', 'flag' => false], 'token' => 'a/b%']);
     $values = ['body' => (object) ['id' => 7, 'name' => 'query/x'], 'records' => [(object) ['id' => 8, 'name' => 'row/x']], 'empty' => [], 'scalar' => '', 'active' => false, 'values' => (object) ['0' => 'zero'], 'plain' => '100% / ñ', 'optional' => null, 'X-JSON' => (object) ['code' => 'header/x', 'flag' => false], 'X-Trace' => 'h,/=x', 'session' => 'a+/b==', 'theme' => 'a/b'];

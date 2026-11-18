@@ -175,7 +175,7 @@ final class HierarchicalNamesTest extends TestCase
                 );
             }
         };
-        $client = \CasafariCrmApi\Client::connect('https://api.example.test', transport: $transport);
+        $client = \CasafariCrmApi\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test', transport: $transport));
         $response = $client->resource(\CasafariCrmApi\Resources\Agencies::class)->postById(27, $agency);
         self::assertSame('An agency', $response->name);
         // JSON objects are unordered; preserve the order-sensitive list assertions above.

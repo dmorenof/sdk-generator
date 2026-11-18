@@ -2,6 +2,7 @@
 declare(strict_types=1);
 $sdk = $argv[1] ?? throw new RuntimeException('Missing SDK directory.');
 require $sdk . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Delimited SDK must run independently with stable runtime.');
@@ -16,7 +17,7 @@ try {
     $headers = array_fill_keys(['X-Spaces', 'X-Tabs', 'X-Pipes'], ['alpha', 'beta']);
     $get = new \Example\DelimitedSdk\GetParams\Items\BySpaces\ByTabs\ByPipes((object) ($headers + ['body' => 'query body']));
     $post = new \Example\DelimitedSdk\PostParams\Items\BySpaces\ByTabs\ByPipes((object) ($headers + ['queryBody' => 'query body', 'body' => (object) ['name' => 'Ada']]));
-    $resource = \Example\DelimitedSdk\Client::connect('http://127.0.0.1:' . $port)->resource(\Example\DelimitedSdk\Resources\Items\BySpaces\ByTabs::class);
+    $resource = \Example\DelimitedSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('http://127.0.0.1:' . $port))->resource(\Example\DelimitedSdk\Resources\Items\BySpaces\ByTabs::class);
     $resource->getByPipes($path, $get); $resource->postByPipes($path, $post);
     foreach (['spaces' => 'a b', 'tabs' => "a\tb", 'pipes' => 'a|b'] as $field => $value) {
         $path->$field = [$value];

@@ -86,7 +86,7 @@ final class SimpleParameterGenerationTest extends TestCase {
                 $this->calls[] = compact('url', 'headers'); return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
             }
         };
-        $resource = \Example\NumericSimpleSdk\Client::connect('https://example.test', transport: $transport)->resource(\Example\NumericSimpleSdk\Resources\Items::class);
+        $resource = \Example\NumericSimpleSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', transport: $transport))->resource(\Example\NumericSimpleSdk\Resources\Items::class);
         $resource->getByResource0(new \Example\NumericSimpleSdk\PathParams\Items\ByResource0((object) ['0' => ['a,b', 'c/d']]),
             new \Example\NumericSimpleSdk\GetParams\Items\ByResource0((object) ['0' => ['alpha', 'beta']]));
         self::assertSame('https://example.test/items/a%2Cb,c%2Fd', $transport->calls[0]['url']);
@@ -116,7 +116,7 @@ final class SimpleParameterGenerationTest extends TestCase {
         $path = new \Example\SimpleSdk\PathParams\Items\ByIds((object) ['ids' => ['a,b', 'c/d', '%2F', 'ñ']]);
         \Example\SimpleSdk\Items::getByIds($path, new \Example\SimpleSdk\GetParams\Items\ByIds((object) ['body' => 'query body', 'ids' => [2, 3], 'X-Codes' => ['alpha', 'x y']]));
         $params = new \Example\SimpleSdk\PostParams\Items\ByIds((object) ['queryBody' => 'query body', 'ids' => [2, 3], 'X-Codes' => ['alpha', 'x y'], 'body' => (object) ['name' => 'body name']]);
-        $resource = \Example\SimpleSdk\Client::connect($config->baseUrl, httpClient: $http)->resource(\Example\SimpleSdk\Resources\Items::class);
+        $resource = \Example\SimpleSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($config->baseUrl, httpClient: $http))->resource(\Example\SimpleSdk\Resources\Items::class);
         $resource->postByIds($path, $params);
         foreach ($http->calls as $call) {
             self::assertSame('https://api.example.test/v1/items/a%2Cb,c%2Fd,%252F,%C3%B1?body=query%20body&ids=2&ids=3', (string) $call->getUri());

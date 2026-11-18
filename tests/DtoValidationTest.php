@@ -221,7 +221,7 @@ final class DtoValidationTest extends TestCase
                 throw new \LogicException('Unexpected HTTP');
             }
         };
-        $client = \Example\ConstraintSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\ConstraintSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         try {
             $client->resource(\Example\ConstraintSdk\Resources\Users::class)->getById(0);
             self::fail('Expected validation error');
@@ -241,7 +241,7 @@ final class DtoValidationTest extends TestCase
                 throw new \LogicException('Unexpected HTTP');
             }
         };
-        $client = \Example\ConstraintSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+        $client = \Example\ConstraintSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $dto = new \Example\ConstraintSdk\DTOs\NewUser();
         $dto->name = 'Li';
         try {

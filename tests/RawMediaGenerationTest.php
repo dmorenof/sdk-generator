@@ -19,7 +19,7 @@ final class RawMediaGenerationTest extends TestCase {
             public array $calls = []; public int $status = 200; public string $body = 'reply';
             public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { $this->calls[] = $request; return new \GuzzleHttp\Psr7\Response($this->status, [], $this->body); }
         };
-        return [\Example\RawSdk\Client::connect('https://example.test', httpClient: $http), $http];
+        return [\Example\RawSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http)), $http];
     }
     public function testJsonYamlAndOpenApi30GenerateTheSameRawContract(): void {
         $document = self::document(); $files = self::files($document);

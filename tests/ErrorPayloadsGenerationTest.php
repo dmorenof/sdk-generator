@@ -24,7 +24,7 @@ final class ErrorPayloadsGenerationTest extends TestCase {
                 return new \GuzzleHttp\Psr7\Response($this->status, ['X-Trace' => 'trace'], $this->body);
             }
         };
-        try { \Example\ErrorPayloadSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\ErrorPayloadSdk\Resources\Errors::class)->getById($status); self::fail('HTTP error became success.'); }
+        try { \Example\ErrorPayloadSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\ErrorPayloadSdk\Resources\Errors::class)->getById($status); self::fail('HTTP error became success.'); }
         catch (ApiException $error) { self::assertSame($status, $error->getCode()); self::assertSame($body, $error->response->body); return $error; }
     }
     public function testJsonYamlAndOpenApi30PreserveGeneralErrorDescriptors(): void {

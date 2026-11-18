@@ -67,7 +67,7 @@ final class BinaryResponseGenerationTest extends TestCase
             public function __construct(private ClientInterface $http) {}
             public function sendRequest(RequestInterface $request): ResponseInterface { return $this->http->sendRequest($request)->withStatus(200); }
         };
-        $client = \Example\DownloadSdk\Client::connect($config->baseUrl, httpClient: $postHttp);
+        $client = \Example\DownloadSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($config->baseUrl, httpClient: $postHttp));
         $resource = $client->resource(\Example\DownloadSdk\Resources\Download::class);
         $post = $resource->post($params);
         self::assertSame('attachment; filename="file.bin"', $post->getHeaderLine('Content-Disposition'));
@@ -90,7 +90,7 @@ final class BinaryResponseGenerationTest extends TestCase
                 public function sendRequest(RequestInterface $request): ResponseInterface
                 { return new Response($this->status, [], $this->status === 404 ? '{"message":"missing"}' : ''); }
             };
-            $resource = \Example\DownloadSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\DownloadSdk\Resources\Download::class);
+            $resource = \Example\DownloadSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\DownloadSdk\Resources\Download::class);
             try {
                 $response = $resource->get();
                 if ($status === 204) { self::assertNull($response, 'a 204 has no body to hand over'); } else { self::assertSame($status, $response->getStatusCode()); }

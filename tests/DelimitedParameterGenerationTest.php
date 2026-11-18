@@ -58,7 +58,7 @@ final class DelimitedParameterGenerationTest extends TestCase {
         $headers = array_fill_keys(['X-Spaces', 'X-Tabs', 'X-Pipes'], ['alpha', 'beta']);
         $get = new \Example\DelimitedSdk\GetParams\Items\BySpaces\ByTabs\ByPipes((object) ($headers + ['body' => 'query body']));
         $post = new \Example\DelimitedSdk\PostParams\Items\BySpaces\ByTabs\ByPipes((object) ($headers + ['queryBody' => 'query body', 'body' => (object) ['name' => 'Ada']]));
-        $resource = \Example\DelimitedSdk\Client::connect('https://example.test', httpClient: $http)->resource(\Example\DelimitedSdk\Resources\Items\BySpaces\ByTabs::class);
+        $resource = \Example\DelimitedSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\DelimitedSdk\Resources\Items\BySpaces\ByTabs::class);
         $resource->getByPipes($path, $get); $resource->postByPipes($path, $post);
         foreach ($http->calls as $call) {
             self::assertSame('https://example.test/items/a%2Fb%20%252F%20%C3%B1/a%2Fb%09%252F%09%C3%B1/a%2Fb%7C%252F%7C%C3%B1?body=query%20body', (string) $call->getUri());

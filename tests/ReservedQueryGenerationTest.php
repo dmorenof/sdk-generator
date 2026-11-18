@@ -92,7 +92,7 @@ final class ReservedQueryGenerationTest extends TestCase
         $values['queryBody'] = $values['body'];
         $values['body'] = (object) ['name' => 'body/x'];
         $post = new \Example\ReservedSdk\PostParams\Items((object) $values);
-        $resource = \Example\ReservedSdk\Client::connect($configuration->baseUrl, httpClient: $http, securityCredentials: $configuration->securityCredentials)->resource(\Example\ReservedSdk\Resources\Items::class);
+        $resource = \Example\ReservedSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($configuration->baseUrl, httpClient: $http, securityCredentials: $configuration->securityCredentials))->resource(\Example\ReservedSdk\Resources\Items::class);
         $resource->post($post);
         foreach ($http->requests as $request) {
             self::assertSame('https://example.test/items?body=query/body&filter%5Bcode%5D=x/y&k=%252F&labels=a/b&labels=c?d&plain=a%2Fb&q=a/b%26c?x', (string) $request->getUri());

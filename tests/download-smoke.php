@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require ($argv[1] ?? throw new RuntimeException('Missing SDK directory.')) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Download SDK must run independently with a stable runtime.');
@@ -23,7 +24,7 @@ $http = empty($argv[2]) ? new class($bytes) implements \Psr\Http\Client\ClientIn
             'Content-Disposition' => 'attachment; filename="large.bin"'], \GuzzleHttp\Psr7\Utils::streamFor($file));
     }
 } : null;
-$client = \Example\DownloadSdk\Client::connect(empty($argv[2]) ? 'https://api.example.test/v1' : $argv[2], httpClient: $http);
+$client = \Example\DownloadSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make(empty($argv[2]) ? 'https://api.example.test/v1' : $argv[2], httpClient: $http));
 $resource = $client->resource(\Example\DownloadSdk\Resources\Download::class);
 $expected = hash_init('sha256');
 for ($i = 0; $i < $bytes / 65536; ++$i) { hash_update($expected, str_repeat("\0", 65536)); }

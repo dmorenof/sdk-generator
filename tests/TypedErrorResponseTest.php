@@ -63,7 +63,7 @@ final class TypedErrorResponseTest extends TestCase
                 );
             }
         };
-        return \Example\ErrorSdk\Client::connect('https://api.example.test/v1', transport: $transport);
+        return \Example\ErrorSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
     }
 
     public function testDeclaredErrorResponseHydratesTypedDTOAndRetainsRawHTTP(): void

@@ -59,7 +59,7 @@ final class StreamingResponseGenerationTest extends TestCase
             }
         };
         $client = $namespace . '\\Client';
-        return [$client::connect('https://api.example.test/v1', $http)->resource($namespace . '\\Resources\\Users'), $sent];
+        return [$client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', $http))->resource($namespace . '\\Resources\\Users'), $sent];
     }
 
     /** @return iterable<string, array{string, string, string}> */
