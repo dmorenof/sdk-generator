@@ -24,7 +24,7 @@
 - Nested/unconstrained HTTP structures, structured/JSON cookies, advanced multipart headers/explode behavior, non-seekable inputs and general nullable collection-item support remain limited. See each serializer's contract.
 - Wildcard MIME selection, incompatible representation negotiation, structured XML/CSV models and charset transcoding remain pending. Binary schemas retain their bounded rules. Binary error bodies remain buffered in HttpResponse; legacy custom transports materialize string bodies.
 - Declared response header schemas are preserved but are not generally validated/exposed through a typed response wrapper. General cookie persistence, redirect policy and protocol edge cases remain pending.
-- OAuth2/OIDC token acquisition, relative servers, named variable-binding APIs and dynamic server selection and live authenticated Casafari migration are not completed. No production migration or authenticated acceptance is claimed by mock/TCP tests.
+- Relative servers, named variable-binding APIs and dynamic server selection and live authenticated Casafari migration are not completed. No production migration or authenticated acceptance is claimed by mock/TCP tests.
 
 Use [pendientes.md](../pendientes.md) for the remaining roadmap and the focused contracts: [schema rules](SCHEMA_RULES.md), [native types](NATIVE_SCHEMAS.md), [JSON bodies](REQUEST_BODIES.md), [aliases](SCHEMA_ALIASES.md), [errors](ERROR_PAYLOADS.md), [MIME](MIME_MEDIA.md), [forms](FORMS.md) and [parameter serialization](OBJECT_PARAMETERS.md).
 

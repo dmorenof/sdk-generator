@@ -123,10 +123,11 @@ final class SpecificationNormalizer
 
         $servers = $this->servers($document, $dialect);
         $securitySchemes = $this->securitySchemes($document, $dialect);
-        $securitySchemeNames = array_fill_keys(
-            array_map(static fn (SecuritySchemeDefinition $scheme): string => $scheme->name, $securitySchemes),
-            true,
-        );
+        // Scheme name => whether its requirements may list scopes (only OAuth2 and OpenID Connect use them).
+        $securitySchemeNames = [];
+        foreach ($securitySchemes as $scheme) {
+            $securitySchemeNames[$scheme->name] = in_array($scheme->type, ['oauth2', 'openIdConnect'], true);
+        }
         $rootSecurity = $this->securityRequirements(
             $document['security'] ?? [],
             $securitySchemeNames,
@@ -320,6 +321,18 @@ final class SpecificationNormalizer
                     throw new InvalidArgumentException("Unsupported API key security scheme at $name.");
                 }
                 $schemes[] = new SecuritySchemeDefinition($name, 'apiKey', null, $location, $parameterName);
+            } elseif ($type === 'oauth2') {
+                $problem = OAuthSchemeRules::oauth2Problem($definition, $dialect === 'swagger2');
+                if ($problem !== null) {
+                    throw new InvalidArgumentException("$problem (security scheme $name)");
+                }
+                $schemes[] = new SecuritySchemeDefinition($name, 'oauth2');
+            } elseif ($type === 'openIdConnect' && $dialect !== 'swagger2') {
+                $problem = OAuthSchemeRules::openIdConnectProblem($definition);
+                if ($problem !== null) {
+                    throw new InvalidArgumentException("$problem (security scheme $name)");
+                }
+                $schemes[] = new SecuritySchemeDefinition($name, 'openIdConnect');
             } else {
                 throw new InvalidArgumentException("Unsupported security scheme type at $name.");
             }
@@ -329,7 +342,7 @@ final class SpecificationNormalizer
 
     /**
      * @param mixed $raw
-     * @param array<string, true> $knownSchemes
+     * @param array<string, bool> $knownSchemes Scheme name => whether its requirements may list scopes.
      * @return list<array<string, list<string>>>
      */
     private function securityRequirements(mixed $raw, array $knownSchemes, string $where): array
@@ -352,10 +365,10 @@ final class SpecificationNormalizer
                     || array_filter($scopes, static fn ($scope): bool => !is_string($scope)) !== []) {
                     throw new InvalidArgumentException("Invalid security scopes for $name at $where.");
                 }
-                if ($scopes !== []) {
-                    throw new InvalidArgumentException("OAuth security scopes are unsupported at $where.");
+                if ($scopes !== [] && !$knownSchemes[$name]) {
+                    throw new InvalidArgumentException("Scopes are only valid for OAuth2 and OpenID Connect schemes ($name at $where).");
                 }
-                $normalized[$name] = [];
+                $normalized[$name] = $scopes;
             }
             $requirements[] = $normalized;
         }

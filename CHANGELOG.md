@@ -2,8 +2,9 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
-## Unreleased
+## [1.3.0] — 2026-11-18
 
+- Add `oauth2` and `openIdConnect` security schemes. They are validated (flows and their endpoints, `openIdConnectUrl`, Swagger 2 `flow`) and emitted like the other schemes; the runtime applies a token or a token provider as a Bearer token. Operations may now list scopes for these schemes (they stay in the contract metadata); scopes on `apiKey` or `http` schemes are still refused. The auditor no longer reports these schemes as unsupported. Endpoints and scopes are not generated into the SDK: build the provider with `OAuth2ClientCredentials` or `OAuth2AuthorizationCode`.
 - Removed unreferenced code found by a sweep of `src/` (the class `PhpApiGroupingResolver` and five unused methods). No behavior change.
 
 ## [1.2.0] — 2026-11-18

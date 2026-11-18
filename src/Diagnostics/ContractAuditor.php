@@ -5,6 +5,7 @@ namespace Dmorenof\SdkGenerator\Diagnostics;
 
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use Dmorenof\SdkGenerator\Parsing\LocalObjectResolver;
+use Dmorenof\SdkGenerator\Parsing\OAuthSchemeRules;
 use Dmorenof\SdkGenerator\Parsing\LocalReferenceException;
 use Dmorenof\SdkGenerator\Parsing\ResponseHeaderSupport;
 
@@ -448,6 +449,13 @@ final class ContractAuditor
             if (!in_array(strtolower((string) ($scheme['scheme'] ?? '')), ['basic', 'bearer'], true)) {
                 $this->add('unsupported_security_scheme', "$pointer/scheme", 'Only HTTP Basic and Bearer schemes are executable.');
             }
+        } elseif ($type === 'oauth2' || $type === 'openIdConnect' && ($this->document['swagger'] ?? null) !== '2.0') {
+            $problem = $type === 'oauth2'
+                ? OAuthSchemeRules::oauth2Problem($scheme, ($this->document['swagger'] ?? null) === '2.0')
+                : OAuthSchemeRules::openIdConnectProblem($scheme);
+            if ($problem !== null) {
+                $this->add('unsupported_security_scheme', $pointer, $problem);
+            }
         } elseif ($type !== 'basic' || ($this->document['swagger'] ?? null) !== '2.0') {
             $this->add('unsupported_security_scheme', "$pointer/type", 'This security scheme is not executable.');
         }
@@ -469,11 +477,26 @@ final class ContractAuditor
                 if (!array_key_exists($name, $schemes)) {
                     $this->add('unknown_security_scheme', $at, 'Security requirement names an undefined scheme.', $operation);
                 }
-                if (is_array($scopes) && $scopes !== []) {
-                    $this->add('unsupported_security_scopes', $at, 'OAuth security scopes are not executed.', $operation);
+                $usesScopes = in_array($this->securitySchemeType($schemes[$name] ?? null), ['oauth2', 'openIdConnect'], true);
+                if (is_array($scopes) && $scopes !== [] && !$usesScopes) {
+                    $this->add('unsupported_security_scopes', $at, 'Scopes are only valid for OAuth2 and OpenID Connect schemes.', $operation);
                 }
             }
         }
+    }
+
+    /** The type of a security scheme, following a local reference when the scheme is one. */
+    private function securitySchemeType(mixed $node): ?string
+    {
+        if (!is_array($node)) {
+            return null;
+        }
+        try {
+            $value = (new LocalObjectResolver($this->document))->resolve($node, 'securitySchemes', '')['value'];
+        } catch (LocalReferenceException) {
+            return null; // The scheme audit reports the failure with its source pointer.
+        }
+        return is_string($value['type'] ?? null) ? $value['type'] : null;
     }
 
     private function parameterIdentity(mixed $node): ?string

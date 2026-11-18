@@ -88,7 +88,7 @@ final class NestedContractAuditTest extends TestCase
     public function testSecurityFailuresAreLocatedAtTheSchemeAndRequirement(): void
     {
         $document = self::document();
-        $document['components']['securitySchemes']['OAuth/~'] = ['type' => 'oauth2', 'flows' => []];
+        $document['components']['securitySchemes']['OAuth/~'] = ['type' => 'mutualTLS'];
         $document['paths']['/users/{id}']['get']['security'] = [['OAuth/~' => ['read:users']]];
         self::assertSame('/components/securitySchemes/OAuth~1~0/type', self::issues($document, 'unsupported_security_scheme')[0]->pointer);
         $issue = self::issues($document, 'unsupported_security_scopes')[0];
