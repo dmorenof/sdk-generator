@@ -53,6 +53,15 @@ file_put_contents($directory . '/server-consumer.php', <<<'PHP'
 <?php
 declare(strict_types=1);
 require __DIR__ . '/servers/vendor/autoload.php';
+function publishedConfiguration(string $baseUrl, ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null, array $serverOverrides = [], ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null): \Dmorenof\SdkRuntime\Configuration
+{
+    $configuration = new \Dmorenof\SdkRuntime\Configuration();
+    $configuration->baseUrl = $baseUrl;
+    $configuration->transport = $transport;
+    $configuration->serverOverrides = $serverOverrides;
+    $configuration->securityCredentials = $securityCredentials;
+    return $configuration;
+}
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Generated SDK must run independently with a stable runtime.');
@@ -71,8 +80,8 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
         return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
     }
 };
-$client = \Example\PublishedServers\Client::connect('https://configured.test/v9', transport: $transport,
-    serverOverrides: ['https://operation.example.test/v3' => 'https://staging.test/v8']);
+$client = \Example\PublishedServers\Client::connect(publishedConfiguration('https://configured.test/v9', transport: $transport,
+    serverOverrides: ['https://operation.example.test/v3' => 'https://staging.test/v8']));
 $items = $client->resource(\Example\PublishedServers\Resources\Items::class);
 $items->getById('a/b');
 $items->postById('id');
@@ -111,6 +120,15 @@ file_put_contents($directory . '/security-consumer.php', <<<'PHP'
 <?php
 declare(strict_types=1);
 require __DIR__ . '/security/vendor/autoload.php';
+function publishedConfiguration(string $baseUrl, ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null, array $serverOverrides = [], ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null): \Dmorenof\SdkRuntime\Configuration
+{
+    $configuration = new \Dmorenof\SdkRuntime\Configuration();
+    $configuration->baseUrl = $baseUrl;
+    $configuration->transport = $transport;
+    $configuration->serverOverrides = $serverOverrides;
+    $configuration->securityCredentials = $securityCredentials;
+    return $configuration;
+}
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')) {
     throw new RuntimeException('Security SDK must run independently.');
 }
@@ -125,8 +143,8 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
         return new \Dmorenof\SdkRuntime\Transport\HttpResponse(200, '{"id":88,"name":"Ada"}');
     }
 };
-$client = \Example\PublishedSecurity\Client::connect('https://api.example.test/v1', transport: $transport,
-    securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['Bearer' => 'alias-token', 'HeaderKey' => 'alias-key']));
+$client = \Example\PublishedSecurity\Client::connect(publishedConfiguration('https://api.example.test/v1', transport: $transport,
+    securityCredentials: new \Dmorenof\SdkRuntime\Security\SecurityCredentials(['Bearer' => 'alias-token', 'HeaderKey' => 'alias-key'])));
 if ($client->resource(\Example\PublishedSecurity\Resources\Users::class)->getById(88)->id !== 88) {
     throw new RuntimeException('Published security SDK hydration failed.');
 }
@@ -141,6 +159,15 @@ file_put_contents($directory . '/query-consumer.php', <<<'PHP'
 <?php
 declare(strict_types=1);
 require __DIR__ . '/query/vendor/autoload.php';
+function publishedConfiguration(string $baseUrl, ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null, array $serverOverrides = [], ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null): \Dmorenof\SdkRuntime\Configuration
+{
+    $configuration = new \Dmorenof\SdkRuntime\Configuration();
+    $configuration->baseUrl = $baseUrl;
+    $configuration->transport = $transport;
+    $configuration->serverOverrides = $serverOverrides;
+    $configuration->securityCredentials = $securityCredentials;
+    return $configuration;
+}
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Query SDK must use only a stable independent runtime.');
@@ -154,7 +181,7 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
         return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
     }
 };
-$client = \Example\PublishedQuery\Client::connect('https://api.example.test/v1', transport: $transport);
+$client = \Example\PublishedQuery\Client::connect(publishedConfiguration('https://api.example.test/v1', transport: $transport));
 $params = new \Example\PublishedQuery\GetParams\Items((object) ['ids' => [1, 2], 'codes' => ['a,b', 'x y'], 'flags' => [true, false]]);
 $client->resource(\Example\PublishedQuery\Resources\Items::class)->get($params);
 echo "PUBLISHED_QUERY_ARRAY_SDK_OK", PHP_EOL;
@@ -168,6 +195,15 @@ file_put_contents($directory . '/delimited-consumer.php', <<<'PHP'
 <?php
 declare(strict_types=1);
 require __DIR__ . '/delimited/vendor/autoload.php';
+function publishedConfiguration(string $baseUrl, ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null, array $serverOverrides = [], ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null): \Dmorenof\SdkRuntime\Configuration
+{
+    $configuration = new \Dmorenof\SdkRuntime\Configuration();
+    $configuration->baseUrl = $baseUrl;
+    $configuration->transport = $transport;
+    $configuration->serverOverrides = $serverOverrides;
+    $configuration->securityCredentials = $securityCredentials;
+    return $configuration;
+}
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Delimited SDK must run independently with a stable runtime.');
@@ -183,7 +219,7 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
         return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
     }
 };
-$client = \Example\PublishedDelimited\Client::connect('https://api.example.test/v1', transport: $transport);
+$client = \Example\PublishedDelimited\Client::connect(publishedConfiguration('https://api.example.test/v1', transport: $transport));
 $params = new \Example\PublishedDelimited\GetParams\Items((object) ['ids' => [1, 2], 'codes' => ['a,b', 'ñ+&']]);
 $resource = $client->resource(\Example\PublishedDelimited\Resources\Items::class);
 $resource->get($params);
@@ -207,6 +243,15 @@ file_put_contents($directory . '/objects-consumer.php', <<<'PHP'
 <?php
 declare(strict_types=1);
 require __DIR__ . '/objects/vendor/autoload.php';
+function publishedConfiguration(string $baseUrl, ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null, array $serverOverrides = [], ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null): \Dmorenof\SdkRuntime\Configuration
+{
+    $configuration = new \Dmorenof\SdkRuntime\Configuration();
+    $configuration->baseUrl = $baseUrl;
+    $configuration->transport = $transport;
+    $configuration->serverOverrides = $serverOverrides;
+    $configuration->securityCredentials = $securityCredentials;
+    return $configuration;
+}
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Object SDK must run independently with a stable runtime.');
@@ -219,7 +264,7 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
         return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
     }
 };
-$client = \Example\PublishedObjects\Client::connect('https://api.example.test/v1', transport: $transport);
+$client = \Example\PublishedObjects\Client::connect(publishedConfiguration('https://api.example.test/v1', transport: $transport));
 $resource = $client->resource(\Example\PublishedObjects\Resources\Items::class);
 $resource->get(new \Example\PublishedObjects\GetParams\Items((object) ['body' => (object) ['city-name' => 'Madrid']]));
 $params = new \Example\PublishedObjects\PostParams\Items((object) [
@@ -254,6 +299,15 @@ file_put_contents($directory . '/forms-consumer.php', <<<'PHP'
 <?php
 declare(strict_types=1);
 require __DIR__ . '/forms/vendor/autoload.php';
+function publishedConfiguration(string $baseUrl, ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null, array $serverOverrides = [], ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null): \Dmorenof\SdkRuntime\Configuration
+{
+    $configuration = new \Dmorenof\SdkRuntime\Configuration();
+    $configuration->baseUrl = $baseUrl;
+    $configuration->transport = $transport;
+    $configuration->serverOverrides = $serverOverrides;
+    $configuration->securityCredentials = $securityCredentials;
+    return $configuration;
+}
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Form SDK must run independently with a stable runtime.');
@@ -266,7 +320,7 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
         return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
     }
 };
-$client = \Example\PublishedForms\Client::connect('https://api.example.test/v1', transport: $transport);
+$client = \Example\PublishedForms\Client::connect(publishedConfiguration('https://api.example.test/v1', transport: $transport));
 $items = $client->resource(\Example\PublishedForms\Resources\Items::class);
 $items->get(new \Example\PublishedForms\GetParams\Items((object) ['name' => 'query name']));
 $params = new \Example\PublishedForms\PostParams\Items((object) [
@@ -302,6 +356,15 @@ file_put_contents($directory . '/swagger-forms-consumer.php', <<<'PHP'
 <?php
 declare(strict_types=1);
 require __DIR__ . '/swagger-forms/vendor/autoload.php';
+function publishedConfiguration(string $baseUrl, ?\Dmorenof\SdkRuntime\Transport\TransportInterface $transport = null, array $serverOverrides = [], ?\Dmorenof\SdkRuntime\Security\SecurityCredentials $securityCredentials = null): \Dmorenof\SdkRuntime\Configuration
+{
+    $configuration = new \Dmorenof\SdkRuntime\Configuration();
+    $configuration->baseUrl = $baseUrl;
+    $configuration->transport = $transport;
+    $configuration->serverOverrides = $serverOverrides;
+    $configuration->securityCredentials = $securityCredentials;
+    return $configuration;
+}
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Swagger form SDK must run independently with a stable runtime.');
@@ -314,7 +377,7 @@ $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterf
         return new \Dmorenof\SdkRuntime\Transport\HttpResponse(204, '');
     }
 };
-$client = \Example\PublishedSwaggerForms\Client::connect('https://api.example.test/v1', transport: $transport);
+$client = \Example\PublishedSwaggerForms\Client::connect(publishedConfiguration('https://api.example.test/v1', transport: $transport));
 $items = $client->resource(\Example\PublishedSwaggerForms\Resources\Items::class);
 $items->get(new \Example\PublishedSwaggerForms\GetParams\Items((object) ['name' => 'query name']));
 $params = new \Example\PublishedSwaggerForms\PostParams\Items((object) [
