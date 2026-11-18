@@ -27,13 +27,6 @@
     "scripts": {
         "validate": "@composer validate --strict --no-check-lock"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/dmorenof/sdk-runtime",
-            "no-api": true
-        }
-    ],
     "keywords": [
         "sdk",
         "generator",

@@ -64,7 +64,7 @@ php bin/generate-sdk.php \
 
 **Arguments:** input JSON, YAML (`.yaml`/`.yml`) specification, output directory (must be empty or absent), PHP root namespace, Composer package name. The executable is also exposed to Composer as a binary when the generator is installed as a package.
 
-When installing the generator into another Composer project before Packagist registration, declare both GitHub VCS repositories (sdk-generator and sdk-runtime) in that project: Composer ignores repositories declared by dependencies.
+The generator and the runtime are on Packagist: `composer require dmorenof/sdk-generator` needs no extra repository entry.
 
 The command generates a standalone Composer package at build/accounts-sdk. Install its own runtime dependencies:
 
@@ -207,7 +207,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v1.1.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.1.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.1.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v1.2.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.2.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.1.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 
