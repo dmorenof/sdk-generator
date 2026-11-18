@@ -418,17 +418,18 @@ PHP;
         $path = $identifier === null ? null : ($identifier['kind'] === 'scalar'
             ? 'path: [' . var_export($identifier['wireName'], true) . ' => $' . $identifier['name'] . ']'
             : 'path: $' . $identifier['name']);
+        $built = 'self::operation(self::' . $constant . ')'; // built once per class and route by the runtime
         if ($nativeBody && $payload !== null && $payload['kind'] === 'body') {
-            $call = '$this->executeBody(' . implode(', ', array_filter(['self::' . $constant, '$payload', $path])) . ')';
+            $call = '$this->executeBody(' . implode(', ', array_filter([$built, '$payload', $path])) . ')';
             if (!$operation->requestBody->required) {
                 // An optional body is left out when the caller passes no argument for it.
-                $omitted = '$this->executeArguments(' . implode(', ', array_filter(['self::' . $constant, $path])) . ')';
+                $omitted = '$this->executeArguments(' . implode(', ', array_filter([$built, $path])) . ')';
                 $call = 'func_num_args() > ' . ($identifier === null ? '0' : '1') . ' ? ' . $call . ' : ' . $omitted;
             }
         } elseif ($identifier === null && $payload === null) {
-            $call = '$this->executeOperation(self::' . $constant . ')';
+            $call = '$this->executeOperation(' . $built . ')';
         } else {
-            $parts = array_filter(['self::' . $constant, $path]);
+            $parts = array_filter([$built, $path]);
             if ($payload !== null) {
                 $parts[] = $payload['kind'] === 'body' ? 'body: $payload' : 'parameters: $params';
             }
