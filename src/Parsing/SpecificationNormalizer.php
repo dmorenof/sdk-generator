@@ -1080,6 +1080,17 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException("Invalid enum at $where.");
         }
         usort($enumValues, static fn ($a, $b): int => strcmp(json_encode($a), json_encode($b)));
+        // A null among the values means the field may be null; the other values can still be a backed enum.
+        $enumHasNull = in_array(null, $enumValues, true);
+        $enumCandidates = array_values(array_filter($enumValues, static fn ($value): bool => $value !== null));
+        if ($kind === SchemaKind::Mixed && $enumCandidates !== []) {
+            // An enum with no declared type is still an enum of strings (or of integers) when all its values are.
+            if (count(array_filter($enumCandidates, 'is_string')) === count($enumCandidates)) {
+                $kind = SchemaKind::String;
+            } elseif (count(array_filter($enumCandidates, 'is_int')) === count($enumCandidates)) {
+                $kind = SchemaKind::Integer;
+            }
+        }
 
         $rules = [
             'minLength' => SchemaKind::String,
@@ -1138,12 +1149,17 @@ final class SpecificationNormalizer
                 $validation['const'] = $raw['const'];
             }
         }
-        $backedEnum = ($kind === SchemaKind::String && count(array_filter($enumValues, 'is_string')) === count($enumValues))
-            || ($kind === SchemaKind::Integer && count(array_filter($enumValues, 'is_int')) === count($enumValues));
+        $backedEnum = $enumCandidates !== []
+            && (($kind === SchemaKind::String && count(array_filter($enumCandidates, 'is_string')) === count($enumCandidates))
+                || ($kind === SchemaKind::Integer && count(array_filter($enumCandidates, 'is_int')) === count($enumCandidates)));
         if ($enumValues !== [] && !$backedEnum) {
+            // PHP backed enums hold only strings or integers: any other list stays a plain type with a JSON Schema guard.
             $validation['jsonSchema'] = DeclarativeSchemaRules::conjoin($validation['jsonSchema'] ?? null,
                 DeclarativeSchemaRules::encode(['enum' => $enumValues], $where));
             $enumValues = [];
+        } elseif ($backedEnum) {
+            $enumValues = $enumCandidates;
+            $nullable = $nullable || $enumHasNull;
         }
         foreach ([['minLength', 'maxLength'], ['minimum', 'maximum'], ['minItems', 'maxItems'], ['minProperties', 'maxProperties']] as [$lower, $upper]) {
             if (isset($validation[$lower], $validation[$upper]) && $validation[$lower] > $validation[$upper]) {
