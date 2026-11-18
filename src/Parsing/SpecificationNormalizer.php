@@ -526,7 +526,7 @@ final class SpecificationNormalizer
                 if ($requestBody !== null || !is_array($raw['schema'] ?? null)) {
                     throw new InvalidArgumentException("Invalid or duplicated body at $where.");
                 }
-                $mediaTypes = $operation['consumes'] ?? $document['consumes'] ?? ['application/json'];
+                $mediaTypes = $this->collapseJsonMedia($operation['consumes'] ?? $document['consumes'] ?? ['application/json']);
                 if (count($mediaTypes) !== 1 || !RawMediaSupport::supported(['schema' => $raw['schema']], $mediaTypes[0] ?? '', $document, true)) {
                     $this->requireJsonMedia($mediaTypes, "$where consumes");
                 }
@@ -534,7 +534,7 @@ final class SpecificationNormalizer
                     $mediaTypes[0],
                     $this->schema($raw['schema'], $dialect, "$where.body"),
                     (bool) ($raw['required'] ?? false),
-                    $this->swaggerContent($operation['consumes'] ?? $document['consumes'] ?? ['application/json'], $raw['schema'], $dialect, "$where.body"),
+                    $this->swaggerContent($mediaTypes, $raw['schema'], $dialect, "$where.body"),
                     $this->annotations($raw),
                 );
                 continue;
@@ -632,7 +632,7 @@ final class SpecificationNormalizer
                 $mediaType = null;
             } elseif ($dialect === 'swagger2') {
                 $schema = $raw['schema'] ?? null;
-                $produces = $operation['produces'] ?? $document['produces'] ?? ['application/json'];
+                $produces = $this->collapseJsonMedia($operation['produces'] ?? $document['produces'] ?? ['application/json']);
                 $binarySchema = is_array($schema) ? BinaryResponseSupport::swaggerSchema($schema, $produces) : null;
                 if ($binarySchema !== null) {
                     $schema = $binarySchema;
@@ -714,6 +714,25 @@ final class SpecificationNormalizer
             $content[$media] = ['schema' => $schema];
         }
         return $this->mediaContent($content, $dialect, $where);
+    }
+
+    /**
+     * Swagger 2 tools often list several names for the same JSON payload (`application/json` and `text/json`).
+     * When every declared media type is JSON (`text/json` is the legacy alias ASP.NET tooling adds), the first one
+     * stands for all of them.
+     *
+     * @param array<mixed> $mediaTypes
+     * @return array<mixed>
+     */
+    private function collapseJsonMedia(array $mediaTypes): array
+    {
+        if (count($mediaTypes) > 1 && is_string($mediaTypes[0] ?? null)
+            && $this->isJsonMediaType($mediaTypes[0])
+            && array_filter($mediaTypes, fn ($media): bool => !is_string($media)
+                || !($this->isJsonMediaType($media) || strtolower(trim($media)) === 'text/json')) === []) {
+            return [$mediaTypes[0]];
+        }
+        return $mediaTypes;
     }
 
     private function requireJsonMedia(array $mediaTypes, string $where): void
@@ -941,8 +960,15 @@ final class SpecificationNormalizer
         }
 
         if (isset($raw['$ref'])) {
-            if (count(array_diff(array_keys($raw), ['$ref', 'description', 'title'])) > 0) {
+            // readOnly and writeOnly beside a $ref are the usual way Swagger tooling marks a model-typed property;
+            // the property reads them from its own node, so the reference only has to tolerate them.
+            if (count(array_diff(array_keys($raw), ['$ref', 'description', 'title', 'readOnly', 'writeOnly'])) > 0) {
                 throw new InvalidArgumentException("Reference siblings are not supported at $where.");
+            }
+            foreach (['readOnly', 'writeOnly'] as $flag) {
+                if (isset($raw[$flag]) && !is_bool($raw[$flag])) {
+                    throw new InvalidArgumentException("Invalid $flag value at $where.");
+                }
             }
             $reference = $raw['$ref'];
             if (!is_string($reference)) { throw new InvalidArgumentException("Invalid model reference at $where."); }
@@ -951,6 +977,8 @@ final class SpecificationNormalizer
             return new SchemaDefinition(
                 SchemaKind::Reference,
                 reference: $name,
+                readOnly: $raw['readOnly'] ?? false,
+                writeOnly: $raw['writeOnly'] ?? false,
                 title: $raw['title'] ?? null,
                 description: $raw['description'] ?? null,
             );
