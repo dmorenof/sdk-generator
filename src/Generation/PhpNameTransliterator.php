@@ -75,14 +75,4 @@ final class PhpNameTransliterator
         }
         return $candidate;
     }
-
-    /** Keep existing PHP-compatible spelling for wire property and parameter aliases. */
-    public static function camel(string $source, string $context = 'identifier'): string
-    {
-        $latin = self::latin($source);
-        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D', $latin) === 1) {
-            return $latin;
-        }
-        return lcfirst(self::pascal($source, $context));
-    }
 }
