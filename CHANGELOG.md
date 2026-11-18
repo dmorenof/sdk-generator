@@ -2,9 +2,9 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
-## [Unreleased — for runtime 2.0.0]
+## [Unreleased — next 1.x release]
 
-- Generated code targets the redesigned runtime: methods call `executeArguments(operation, path:, parameters:, body:)` and `executeBody(operation, body, path:, parameters:)`, an optional body that the caller omits goes through `executeArguments()`, and `Client::configure()` is `self::connect($configuration)`. The constraint on `dmorenof/sdk-runtime` moves to `^2.0.0` when that version is published.
+- Generated code targets the redesigned runtime: methods call `executeArguments(operation, path:, parameters:, body:)` and `executeBody(operation, body, path:, parameters:)`, an optional body that the caller omits goes through `executeArguments()`, and `Client::configure()` is `self::connect($configuration)`. The constraint on `dmorenof/sdk-runtime` moves to the matching 1.x release when it is published.
 
 ## [1.0.0] — 2026-11-11
 
