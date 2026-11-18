@@ -3,6 +3,7 @@ declare(strict_types=1);
 $openapi = $argv[1] ?? throw new RuntimeException('Missing OpenAPI SDK.');
 $swagger = $argv[2] ?? throw new RuntimeException('Missing Swagger SDK.');
 require $openapi . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 require $swagger . '/vendor/autoload.php';
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {

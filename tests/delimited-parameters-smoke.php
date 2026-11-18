@@ -2,6 +2,7 @@
 declare(strict_types=1);
 $sdk = $argv[1] ?? throw new RuntimeException('Missing SDK directory.');
 require $sdk . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
     throw new RuntimeException('Delimited SDK must run independently with stable runtime.');

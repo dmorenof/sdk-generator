@@ -2,6 +2,7 @@
 declare(strict_types=1);
 $sdk = $argv[1] ?? throw new RuntimeException('Missing SDK.');
 require $sdk . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || !\Composer\InstalledVersions::isInstalled('opis/json-schema')
     || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) { throw new RuntimeException('Schema SDK needs independent stable dependencies.'); }
 $process = proc_open([PHP_BINARY, $sdk . '/vendor/dmorenof/sdk-runtime/tests/schema-rules-http-server.php'],

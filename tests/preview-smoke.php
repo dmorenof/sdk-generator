@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require getcwd() . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
 
 function checkPreview(bool $actual, string $message): void
 {
