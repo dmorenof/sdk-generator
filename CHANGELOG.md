@@ -2,6 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.8.0] — 2026-11-19
+
+- **A list of plain models is built inline.** A property whose value is a list of plain nested models gets an `assignMember()` arm that checks every item is an object and builds a model from each with `Hydrator::models()`; anything else takes the general path, unchanged. Needs sdk-runtime `^1.6.0` (the SDKs now require it).
+
 ## [1.7.0] — 2026-11-19
 
 - **Generated models convert the common JSON members inline.** A model gets an `assignMember()` override with a `match` that sets scalar, enum, plain-nested-model and list-of-scalars properties directly when the JSON value already has the declared type, and hands every other member to the general path, so what is accepted, converted or refused does not change. Needs sdk-runtime `^1.5.0` (the SDKs now require it). About 9% less time per call on PHP 8.4 in the runtime's `Audit speed` workflow.
