@@ -44,21 +44,21 @@ final class InlineHydrationGenerationTest extends TestCase
     public function testScalarsEnumsAndPlainModelsAreConvertedInline(): void
     {
         $model = self::files()['src/DTOs/User.php'];
-        self::assertStringContainsString("'name' => \$this->name = is_string(\$value) ? \$value : ", $model);
-        self::assertStringContainsString("'age' => \$this->age = \$value === null || is_int(\$value) ? \$value : ", $model);
-        self::assertStringContainsString("'score' => \$this->score = is_float(\$value) ? \$value : ", $model);
-        self::assertStringContainsString("'active' => \$this->active = is_bool(\$value) ? \$value : ", $model);
-        self::assertStringContainsString("'role' => \$this->role = is_string(\$value) ? \\Example\\Inline\\Enums\\User\\RoleEnum::from(\$value) : ", $model);
-        self::assertStringContainsString("'level' => \$this->level = is_int(\$value) ? \\Example\\Inline\\Enums\\User\\LevelEnum::from(\$value) : ", $model);
-        self::assertStringContainsString("'address' => \$this->address = \$value instanceof \\stdClass ? new \\Example\\Inline\\DTOs\\Address(\$value) : ", $model);
-        self::assertStringContainsString("'display-name' => \$this->displayName = is_string(\$value) ? ", $model);
+        self::assertStringContainsString("'name' => is_string(\$value) ? \$this->name = \$value : parent::assignMember(\$name, \$value),", $model);
+        self::assertStringContainsString("'age' => \$value === null || is_int(\$value) ? \$this->age = \$value : parent::assignMember(", $model);
+        self::assertStringContainsString("'score' => is_float(\$value) ? \$this->score = \$value : parent::assignMember(", $model);
+        self::assertStringContainsString("'active' => is_bool(\$value) ? \$this->active = \$value : parent::assignMember(", $model);
+        self::assertStringContainsString("'role' => is_string(\$value) ? \$this->role = \\Example\\Inline\\Enums\\User\\RoleEnum::from(\$value) : parent::assignMember(", $model);
+        self::assertStringContainsString("'level' => is_int(\$value) ? \$this->level = \\Example\\Inline\\Enums\\User\\LevelEnum::from(\$value) : parent::assignMember(", $model);
+        self::assertStringContainsString("'address' => \$value instanceof \\stdClass ? \$this->address = new \\Example\\Inline\\DTOs\\Address(\$value) : parent::assignMember(", $model);
+        self::assertStringContainsString("'display-name' => is_string(\$value) ? \$this->displayName = \$value : parent::assignMember(", $model);
         self::assertStringContainsString('default => parent::assignMember($name, $value),', $model);
     }
 
     public function testAListOfScalarsIsWrappedInlineAndADiscriminatedModelKeepsTheGeneralPath(): void
     {
         $model = self::files()['src/DTOs/User.php'];
-        self::assertStringContainsString("'tags' => \$this->tags = is_array(\$value) && array_is_list(\$value) && array_all(\$value, static fn (mixed \$item): bool => is_string(\$item)) ? new \\Example\\Inline\\Collections\\StringCollection(\$value) : ", $model);
+        self::assertStringContainsString("'tags' => is_array(\$value) && array_is_list(\$value) && array_all(\$value, static fn (mixed \$item): bool => is_string(\$item)) ? \$this->tags = new \\Example\\Inline\\Collections\\StringCollection(\$value) : parent::assignMember(", $model);
         self::assertStringNotContainsString("'pet' =>", $model);
     }
 

@@ -432,22 +432,29 @@ final class PhpContractEmitter
     {
         $nullable = str_starts_with($type, '?');
         $name = ltrim($type, '?');
-        $general = "\\Dmorenof\\SdkRuntime\\Hydrator::hydrateProperty(\$this, " . PhpLiteral::export($propertyName)
-            . ', $value, static::class . ' . PhpLiteral::export('::' . $wireName) . ')';
         if (in_array($name, ['string', 'int', 'float', 'bool'], true)) {
-            $test = 'is_' . $name . '($value)';
-            $converted = ($nullable ? '$value === null || ' : '') . $test . ' ? $value : ' . $general;
+            $accepted = 'is_' . $name . '($value)';
+            $converted = '$value';
         } elseif (($backing = $this->enumBacking($schema)) !== null) {
-            $converted = ($nullable ? '$value === null ? null : (' : '') . 'is_' . $backing . '($value) ? ' . $name . '::from($value) : ' . $general . ($nullable ? ')' : '');
+            $accepted = 'is_' . $backing . '($value)';
+            $converted = $name . '::from($value)';
         } elseif (($itemTest = $this->scalarItemTest($schema)) !== null && $name !== 'array') {
-            // A list whose items are all of the declared scalar type is wrapped as it is; anything else takes the general path.
-            $converted = ($nullable ? '$value === null ? null : (' : '') . 'is_array($value) && array_is_list($value) && array_all($value, static fn (mixed $item): bool => ' . $itemTest . ') ? new ' . $name . '($value) : ' . $general . ($nullable ? ')' : '');
+            // A list whose items are all of the declared scalar type is wrapped as it is.
+            $accepted = 'is_array($value) && array_is_list($value) && array_all($value, static fn (mixed $item): bool => ' . $itemTest . ')';
+            $converted = 'new ' . $name . '($value)';
         } elseif ($this->isPlainModel($schema)) {
-            $converted = ($nullable ? '$value === null ? null : (' : '') . '$value instanceof \\stdClass ? new ' . $name . '($value) : ' . $general . ($nullable ? ')' : '');
+            $accepted = '$value instanceof \\stdClass';
+            $converted = 'new ' . $name . '($value)';
         } else {
             return null;
         }
-        return '            ' . PhpLiteral::export($wireName) . ' => $this->' . $propertyName . ' = ' . $converted . ',';
+        if ($nullable) {
+            $accepted = '$value === null || ' . (str_contains($accepted, ' && ') ? '(' . $accepted . ')' : $accepted);
+            $converted = $converted === '$value' ? '$value' : '$value === null ? null : ' . $converted;
+        }
+        // A value that is not what the property needs is left to the general path, which converts it or refuses it.
+        return '            ' . PhpLiteral::export($wireName) . ' => ' . $accepted . ' ? $this->' . $propertyName . ' = ' . $converted
+            . ' : parent::assignMember($name, $value),';
     }
 
     /** The test that an item of a list of plain scalars passes (`is_string($item)`), or null when the items are anything else. */
