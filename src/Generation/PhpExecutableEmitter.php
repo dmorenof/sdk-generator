@@ -28,14 +28,13 @@ final class PhpExecutableEmitter
         private readonly string $packageName = 'example/generated-sdk',
         /** @var array<string,string> Route prefix => generated class. */
         private readonly array $apiGroups = [],
-        private readonly EmitOptions $options = new EmitOptions(),
     ) {}
 
     /** @return array<string, string> */
     public function emit(ApiContract $contract): array
     {
         $this->securitySchemes = $contract->securitySchemes;
-        $contractEmitter = new PhpContractEmitter($this->namespace, $this->packageName, $this->options);
+        $contractEmitter = new PhpContractEmitter($this->namespace, $this->packageName);
         $files = $contractEmitter->emit($contract);
         $this->modelNames = new PhpModelNameResolver(
             $this->namespace,

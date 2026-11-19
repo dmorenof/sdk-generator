@@ -22,8 +22,6 @@ final class PhpContractEmitter
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
     public const RUNTIME_CONSTRAINT = '^1.2.0';
-    /** The runtime that understands models which check their rules on assignment. */
-    public const RUNTIME_CONSTRAINT_HOOKS = '^1.3.0';
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
@@ -65,7 +63,6 @@ final class PhpContractEmitter
     public function __construct(
         private readonly string $namespace = 'Generated\\Sdk',
         private readonly string $packageName = 'example/generated-sdk',
-        private readonly EmitOptions $options = new EmitOptions(),
     ) {
         foreach (explode('\\', $this->namespace) as $component) {
             $this->checkName($component, 'namespace segment');
@@ -169,9 +166,7 @@ final class PhpContractEmitter
             'name' => $this->packageName,
             'description' => 'Contract-generated PHP SDK built on the shared dmorenof/sdk-runtime.',
             'type' => 'library',
-            'require' => $this->options->propertyHooks
-                ? ['dmorenof/sdk-runtime' => self::RUNTIME_CONSTRAINT_HOOKS, 'php' => '^8.4']
-                : ['dmorenof/sdk-runtime' => self::RUNTIME_CONSTRAINT, 'php' => '^8.3'],
+            'require' => ['dmorenof/sdk-runtime' => self::RUNTIME_CONSTRAINT, 'php' => '^8.3'],
             'autoload' => ['psr-4' => [$this->namespace . '\\' => 'src/']],
         ];
         $files['composer.json'] = json_encode(
@@ -280,7 +275,6 @@ final class PhpContractEmitter
                 $propertyMap[$property->wireName] = $propertyName;
                 $wirePropertyMap[$propertyName] = $property->wireName;
             }
-            $addedField = null;
             $originalSchema = $this->effectiveSchema($property->schema);
             $nullableBranch = self::nullableCompositionBranch($originalSchema);
             $propertySchema = $nullableBranch ?? $originalSchema;
@@ -307,7 +301,6 @@ final class PhpContractEmitter
                 if ($fileList) { $docTags[] = '@var list<string|\\Psr\\Http\\Message\\UploadedFileInterface>' . ($nullable ? '|null' : ''); }
                 $fields[] = PhpDoc::render(['description' => $property->schema->description ?? $propertySchema->description, 'format' => $propertySchema->format] + $property->schema->annotations, $docTags)
                     . '    public ' . $type . ' $' . $propertyName . ';';
-                $addedField = array_key_last($fields);
             }
             $propertyValidation = $originalSchema->validation;
             if ($fileList) {
@@ -324,10 +317,6 @@ final class PhpContractEmitter
             }
             if ($property->schema->pattern !== null) {
                 $validation[$propertyName]['pattern'] = $property->schema->pattern;
-            }
-            if ($this->options->propertyHooks && $addedField !== null && isset($validation[$propertyName])) {
-                // The property checks its own rules when a value is assigned or hydrated, so nothing has to walk the model later.
-                $fields[$addedField] = preg_replace('/;\z/', " {\n        set {\n            \$this->assigning('$propertyName', \$value);\n            \$this->$propertyName = \$value;\n        }\n    }", $fields[$addedField]);
             }
             if ($property->schema->readOnly) {
                 $readOnly[] = $propertyName;
@@ -371,7 +360,6 @@ final class PhpContractEmitter
             . ($extensible ? 'class ' : 'final class ') . $class . ' extends ' . $extends . "\n{\n"
             // The runtime reads REQUIRED_FIELDS from the model when it declares them; an empty list is the default.
             // A subclass keeps its own, because an empty one overrides what its parent requires.
-            . ($this->options->propertyHooks ? "    public const bool VALIDATES_ON_ASSIGNMENT = true;\n" : '')
             . ($required === [] && $parent === null ? '' : "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n");
         if ($schema->discriminator !== null) {
             $mapping = $this->discriminatorMapping($schema, $hint);
