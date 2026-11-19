@@ -2,8 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
-## Unreleased
+## [1.6.0] — 2026-11-19
 
+- **`--php=8.4`: models that check their rules when a value is assigned.** With the flag, a property that has rules (`minLength`, `pattern`, `minimum`, formats…) gets a PHP 8.4 `set` hook that checks the value against its own rules when it is assigned or hydrated, once, and the model class sets `VALIDATES_ON_ASSIGNMENT` so the runtime does not walk the rules again when it validates the model or sends a request. The generated SDK requires PHP `^8.4` and `dmorenof/sdk-runtime` `^1.3.0`. Without the flag nothing changes (PHP `^8.3`, same output as 1.5). Hooks are not generated for enum-typed properties (the type already refuses other values), for parameter objects, or for properties without rules. API: `new PhpExecutableEmitter($namespace, $package, [], new EmitOptions(propertyHooks: true))`.
+- Requires `dmorenof/sdk-runtime` `^1.3.0` (it brings the assignment check and the speed work of 1.2.1).
 - Internal: `PhpResourceEmitter` (12 constructor arguments) and `PhpOperationRequestEmitter` (6) now take at most 4: the parameter types travel in a `ParameterTypes` value object and what the resource emitter needs from the contract emitter in a `ResourceContext`. An always-empty query-types map was removed. The generated output of all 52 fixture SDKs is byte-identical before and after.
 
 ## [1.5.0] — 2026-11-18

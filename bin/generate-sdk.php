@@ -13,12 +13,15 @@ $inspect = false;
 $strict = false;
 $resolveLocal = false;
 $validateFormats = false;
+$phpTarget = '8.3';
 $referenceRoot = null;
 foreach (array_slice($argv, 1) as $argument) {
     if (in_array($argument, ['--inspect', '--dry-run'], true)) {
         $inspect = true;
     } elseif ($argument === '--strict') {
         $strict = true;
+    } elseif (str_starts_with($argument, '--php=')) {
+        $phpTarget = substr($argument, strlen('--php='));
     } elseif ($argument === '--validate-formats') {
         $validateFormats = true;
     } elseif ($argument === '--resolve-local-references') {
@@ -32,8 +35,13 @@ foreach (array_slice($argv, 1) as $argument) {
 if (($referenceRoot !== null && !$resolveLocal) || ($inspect && count($arguments) !== 1) || (!$inspect && !in_array(count($arguments), [3, 4], true))) {
     fwrite(STDERR, "Usage: generate-sdk.php [--strict] [--validate-formats] <spec.json|yaml> <output-directory> [Php\\Namespace] <vendor/package>\n"
         . "       generate-sdk.php --inspect|--dry-run <spec.json|yaml>\n"
+        . "       Add --php=8.4 to generate models that check their rules when a value is assigned (PHP 8.4 property hooks).\n"
         . "       Add --validate-formats to assert declared string/integer formats (date-time, uuid, email, ...) at runtime.\n"
         . "       Add --resolve-local-references [--reference-root=directory] for confined local JSON/YAML files.\n");
+    exit(2);
+}
+if (!in_array($phpTarget, ['8.3', '8.4'], true)) {
+    fwrite(STDERR, "--php accepts 8.3 (the default) or 8.4.\n");
     exit(2);
 }
 $input = $arguments[0];
@@ -94,7 +102,7 @@ try {
         ? $normalizer->fromYaml($source)
         : $normalizer->fromJson($source);
     $namespace ??= PhpApiNameResolver::fromTitle($contract->title);
-    $files = (new PhpExecutableEmitter($namespace, $packageName))->emit($contract);
+    $files = (new PhpExecutableEmitter($namespace, $packageName, [], new \Dmorenof\SdkGenerator\Generation\EmitOptions(propertyHooks: $phpTarget === '8.4')))->emit($contract);
 
     foreach ($files as $relative => $content) {
         if (str_starts_with($relative, '/') || str_contains($relative, '..')) {

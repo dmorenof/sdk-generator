@@ -64,6 +64,8 @@ php bin/generate-sdk.php \
 
 **Arguments:** input JSON, YAML (`.yaml`/`.yml`) specification, output directory (must be empty or absent), PHP root namespace, Composer package name. The executable is also exposed to Composer as a binary when the generator is installed as a package.
 
+**Options:** `--strict` refuses anything the generator cannot execute; `--validate-formats` asserts declared formats (`date-time`, `uuid`, …); `--php=8.4` generates models that check their rules **when a value is assigned or hydrated**, with PHP 8.4 `set` hooks (the SDK then requires PHP `^8.4` and `dmorenof/sdk-runtime` `^1.3.0`; without it the SDK targets PHP 8.3 and validates when a request is sent). See the runtime's `docs/validation.md`.
+
 The generator and the runtime are on Packagist: `composer require dmorenof/sdk-generator` needs no extra repository entry.
 
 The command generates a standalone Composer package at build/accounts-sdk. Install its own runtime dependencies:
@@ -207,7 +209,7 @@ Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Comp
 
 ## Releases and dependencies
 
-Release **[v1.5.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.5.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.1.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+Release **[v1.6.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.6.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.1.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
 
 ## License
 
