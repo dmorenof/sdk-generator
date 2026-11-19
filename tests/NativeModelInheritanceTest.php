@@ -103,7 +103,7 @@ final class NativeModelInheritanceTest extends TestCase
             }
         }
         $this->expectException(\UnexpectedValueException::class);
-        $dog->jsonSerialize();
+        $dog->validate();
     }
 
     public function testDirectionalMetadataIsPreserved(): void

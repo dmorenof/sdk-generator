@@ -135,7 +135,7 @@ final class GeneratedSdkUsabilityTest extends TestCase
         self::assertSame(500, $wire['max']);
         $filters->bedrooms_range->max = 15001;
         $this->expectException(\UnexpectedValueException::class);
-        json_encode($filters, JSON_THROW_ON_ERROR);
+        $filters->validate();
     }
 
     public function testSharedBodyModelsExcludeReadOnlyFieldsWhenSent(): void
@@ -171,11 +171,11 @@ final class GeneratedSdkUsabilityTest extends TestCase
             $parent->child = $node;
             $node = $parent;
         }
-        json_encode($node, JSON_THROW_ON_ERROR);
+        $node->validate();
         self::assertSame(1, $leaf::$visits);
         $leaf->name = 'x';
         $this->expectException(\UnexpectedValueException::class);
-        json_encode($node, JSON_THROW_ON_ERROR);
+        $node->validate();
     }
 
     public function testDtoInsideMixedArrayCannotBypassValidationWhenSerializing(): void
@@ -187,6 +187,6 @@ final class GeneratedSdkUsabilityTest extends TestCase
         $parent = new class extends \Dmorenof\SdkRuntime\DTO { public mixed $extra; };
         $parent->extra = ['nested' => [$value]];
         $this->expectException(\UnexpectedValueException::class);
-        json_encode($parent, JSON_THROW_ON_ERROR);
+        $parent->validate();
     }
 }

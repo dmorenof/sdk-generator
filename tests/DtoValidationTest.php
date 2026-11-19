@@ -161,13 +161,13 @@ final class DtoValidationTest extends TestCase
         );
     }
 
-    public function testOutboundMaxLengthRevalidatesAfterMutation(): void
+    public function testMaxLengthIsCheckedByValidateAfterMutation(): void
     {
         $dto = new \Example\ConstraintSdk\DTOs\NewUser((object)['name' => 'Grace']);
         $dto->name = 'An excessively long name';
         $this->expectException(UnexpectedValueException::class);
         $this->expectExceptionMessage('maxLength');
-        json_encode($dto, JSON_THROW_ON_ERROR);
+        $dto->validate();
     }
 
     public function testNumberBoundsAndNestedDTOValidation(): void
