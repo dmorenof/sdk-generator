@@ -57,9 +57,6 @@ jobs:
       - name: Lint PHP, validate autoloading and run real tests if source exists
         run: bash ci/run-tests.sh --coverage
       - name: Generate the fixture SDKs, install them and analyse them at PHPStan max
-        env:
-          SDK_RUNTIME_REF: claude/busy-franklin-9x9zpa
-          SDK_RUNTIME_ALIAS: 1.6.0
         run: bash ci/analyse-generated.sh
       - name: Preserve code coverage, when available
         if: always()
