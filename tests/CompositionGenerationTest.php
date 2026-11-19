@@ -205,8 +205,8 @@ final class CompositionGenerationTest extends TestCase
         $container = new \Example\CompositionSdk\DTOs\ScalarContainer((object) ['limit' => null]);
         self::assertNull($container->limit);
 
-        $container->limit = -1;
         $this->expectException(\UnexpectedValueException::class);
+        $container->limit = -1;
         $this->expectExceptionMessage('minimum');
         $container->validate();
     }

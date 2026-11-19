@@ -135,8 +135,8 @@ final class SimpleParameterGenerationTest extends TestCase {
             try { $resource->postByIds($path, $params); self::fail('Invalid header accepted.'); }
             catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
         }
-        $params->XCodes = ['valid']; $params->body->name = '';
-        try { $resource->postByIds($path, $params); self::fail('Body mutation accepted.'); }
+        $params->XCodes = ['valid'];
+        try { $params->body->name = ''; self::fail('Body mutation accepted.'); }
         catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
     }
     public function testMissingAndInvalidPathDeclarationsAndUnsupportedSchemasAreDiagnosed(): void {

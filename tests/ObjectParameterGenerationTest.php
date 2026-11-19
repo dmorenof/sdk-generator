@@ -68,8 +68,8 @@ final class ObjectParameterGenerationTest extends TestCase {
         $post->XFilter->code = 'a,b';
         try { $resource->postBySelector($path, $post); self::fail('Ambiguous header accepted.'); }
         catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
-        $post->XFilter->code = 'safe'; $path->selector->code = '';
-        try { $resource->postBySelector($path, $post); self::fail('Nested path mutation accepted.'); }
+        $post->XFilter->code = 'safe';
+        try { $path->selector->code = ''; self::fail('Nested path mutation accepted.'); }
         catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
         $path->selector->code = 'valid'; $post->labels['body'] = 'collision';
         try { $resource->postBySelector($path, $post); self::fail('Expanded query collision accepted.'); }

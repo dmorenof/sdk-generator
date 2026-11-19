@@ -129,8 +129,8 @@ final class SwaggerFormGenerationTest extends TestCase
             }
         }
         $params = new \Example\SwaggerForms\PostParams\Items((object) ['body' => (object) ['name' => 'Ada']]);
-        $params->body->name = '';
         try {
+            $params->body->name = '';
             $client->resource(\Example\SwaggerForms\Resources\Items::class)->post($params);
             self::fail('Invalid mutation accepted.');
         } catch (\UnexpectedValueException) {

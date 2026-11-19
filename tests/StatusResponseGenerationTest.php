@@ -95,8 +95,7 @@ final class StatusResponseGenerationTest extends TestCase
         $created = $this->resource(201, '{"id":7,"name":"Ada","ticket":"created"}')->get();
         self::assertEquals((object) ['id' => 7, 'name' => 'Ada', 'ticket' => 'created'], $created->jsonSerializeForResponse());
         self::assertFalse(property_exists($created->jsonSerializeForRequest(), 'id'));
-        $created->ticket = '';
-        try { $created->jsonSerializeForResponse(); self::fail('Invalid response mutation accepted.'); }
+        try { $created->ticket = ''; self::fail('Invalid response mutation accepted.'); }
         catch (\UnexpectedValueException) { self::assertTrue(true); }
     }
     public function testActualStatusSelectsExactClassIncludingInheritanceAndNullableResponse(): void
@@ -146,8 +145,7 @@ final class StatusResponseGenerationTest extends TestCase
         self::assertSame('application/json', $http->calls[1]->getHeaderLine('Accept'));
         self::assertSame('trace', $http->calls[1]->getHeaderLine('X-Trace'));
         self::assertSame('{"name":"export"}', (string) $http->calls[1]->getBody());
-        $params->body->name = '';
-        try { $resource->post($params); self::fail('Mutation accepted.'); }
+        try { $params->body->name = ''; self::fail('Mutation accepted.'); }
         catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
     }
     public function testSingleSchemaPlusNoContentUsesStatusMapAndKeepsItsExistingTypeName(): void

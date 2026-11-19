@@ -63,8 +63,7 @@ final class FormEncodingBlockGenerationTest extends TestCase {
         $actual = explode('&', (string) $http->calls[0]->getBody()); sort($actual);
         $expected = ['body=form+body', 'city=Madrid', 'deep%5Bname%5D=ni%C3%B1o', 'filter=code,a%2Fb,flag,false', 'pipe=a%2Fb%7C%252F', 'space=one+two', 'zip=0']; sort($expected);
         self::assertSame($expected, $actual);
-        $params->body->filter->code = '';
-        try { $resource->post($params); self::fail('Invalid nested mutation accepted.'); } catch (\UnexpectedValueException) { self::assertCount(1, $http->calls); }
+        try { $params->body->filter->code = ''; self::fail('Invalid nested mutation accepted.'); } catch (\UnexpectedValueException) { self::assertCount(1, $http->calls); }
         $params->body->filter->code = 'valid'; $params->body->space[] = 'a b';
         try { $resource->post($params); self::fail('Ambiguous list accepted.'); } catch (\UnexpectedValueException) { self::assertCount(1, $http->calls); }
     }
@@ -83,8 +82,7 @@ final class FormEncodingBlockGenerationTest extends TestCase {
         self::assertStringContainsString("\r\n\r\n\"quoted\"\r\n", $mime);
         self::assertStringContainsString("\r\n\r\n\x00\xfffile\r\n", $mime);
         self::assertSame(2, substr_count($mime, 'name="batch"'));
-        $params->body->batch[0]->code = '';
-        try { $resource->post($params); self::fail('Invalid JSON part mutation accepted.'); } catch (\UnexpectedValueException) { self::assertCount(1, $http->calls); }
+        try { $params->body->batch[0]->code = ''; self::fail('Invalid JSON part mutation accepted.'); } catch (\UnexpectedValueException) { self::assertCount(1, $http->calls); }
     }
     public function testUnsupportedEncodingAndNestingFailVisibly(): void {
         foreach ([['space' => ['style' => 'spaceDelimited', 'explode' => true]], ['space' => ['style' => 'deepObject', 'explode' => true]], ['filter' => ['style' => 'spaceDelimited']], ['body' => ['style' => 'pipeDelimited']], ['filter' => ['headers' => ['X-Test' => []]]]] as $encoding) {

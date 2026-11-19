@@ -164,8 +164,8 @@ final class DtoValidationTest extends TestCase
     public function testMaxLengthIsCheckedByValidateAfterMutation(): void
     {
         $dto = new \Example\ConstraintSdk\DTOs\NewUser((object)['name' => 'Grace']);
-        $dto->name = 'An excessively long name';
         $this->expectException(UnexpectedValueException::class);
+        $dto->name = 'An excessively long name';
         $this->expectExceptionMessage('maxLength');
         $dto->validate();
     }
@@ -175,8 +175,8 @@ final class DtoValidationTest extends TestCase
         $dto = new \Example\ConstraintSdk\DTOs\User((object)[
             'id' => 7, 'name' => 'Ada', 'profile' => (object)['city' => 'Madrid'],
         ]);
-        $dto->id = 1000;
         try {
+            $dto->id = 1000;
             $dto->validate();
             self::fail('Expected maximum failure');
         } catch (UnexpectedValueException $e) {
@@ -243,8 +243,8 @@ final class DtoValidationTest extends TestCase
         };
         $client = \Example\ConstraintSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
         $dto = new \Example\ConstraintSdk\DTOs\NewUser();
-        $dto->name = 'Li';
         try {
+            $dto->name = 'Li';
             $client->resource(\Example\ConstraintSdk\Resources\Users::class)->post($dto);
             self::fail('Expected validation error');
         } catch (UnexpectedValueException $e) {

@@ -156,8 +156,8 @@ final class MultipartGenerationTest extends TestCase
         } catch (\UnexpectedValueException) {
             self::assertSame([], $transport->calls);
         }
-        $params->body->name = '';
         $this->expectException(\UnexpectedValueException::class);
+        $params->body->name = '';
         $items->post($params);
     }
 

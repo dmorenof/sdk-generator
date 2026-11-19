@@ -51,8 +51,7 @@ final class ServerRoutesGenerationTest extends TestCase {
             'https://configured.test/v9/mirror/a%2Fb/a%2Fb', 'https://configured.test/v9/assets/report.csv'], array_map(static fn ($r) => (string) $r->getUri(), $http->calls));
         self::assertSame('trace', $http->calls[2]->getHeaderLine('X-Trace')); self::assertSame('{"value":"valid"}', (string) $http->calls[2]->getBody());
         self::assertSame('', (string) $http->calls[1]->getBody());
-        $params->body->value = 'x';
-        try { $items->postById('a/b', $params); self::fail('Nested mutation reached HTTP.'); } catch (\UnexpectedValueException) { self::assertCount(6, $http->calls); }
+        try { $params->body->value = 'x'; self::fail('Nested mutation reached HTTP.'); } catch (\UnexpectedValueException) { self::assertCount(6, $http->calls); }
     }
     public function testExistingConfigurationOverridesSnapshotExpandedDefaults(): void {
         [, $http] = $this->setupClient(); $configuration = new \Example\ServerRoutesSdk\Configuration(); $configuration->httpClient = $http;

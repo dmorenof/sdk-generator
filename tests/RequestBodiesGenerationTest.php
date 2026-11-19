@@ -73,8 +73,7 @@ final class RequestBodiesGenerationTest extends TestCase {
         self::assertSame('https://example.test/list/7?body=separate', (string) $http->calls[0]->getUri());
         self::assertSame('header', $http->calls[0]->getHeaderLine('X-Test'));
         self::assertSame('[{"name":"Alice"}]', (string) $http->calls[0]->getBody());
-        $params->body[0]->name = 'x';
-        try { $list->postById(7, $params); self::fail('Nested body mutation reached HTTP.'); } catch (\UnexpectedValueException) { self::assertCount(1, $http->calls); }
+        try { $params->body[0]->name = 'x'; self::fail('Nested body mutation reached HTTP.'); } catch (\UnexpectedValueException) { self::assertCount(1, $http->calls); }
         $client->resource(\Example\BodySdk\Resources\Loose::class)->post([1, 'x', null]);
         self::assertSame('[1,"x",null]', (string) $http->calls[1]->getBody());
         $scores = new \Example\BodySdk\DTOs\Scores((object) ['one' => 1]);

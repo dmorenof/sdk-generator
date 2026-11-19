@@ -26,7 +26,7 @@ final class SchemaAliasesGenerationTest extends TestCase {
         self::assertInstanceOf($node::class, $node->next); self::assertSame(2, $node->next->id);
         $choice = \Example\AliasSdk\DTOs\OneOfRecordChoice::fromValue((object) ['id' => 1, 'name' => 'Alice']);
         self::assertInstanceOf($child::class, $choice->matchedVariants()[0]);
-        $choice->matchedVariants()[0]->name = 'x'; $this->expectException(\UnexpectedValueException::class); $choice->jsonSerialize();
+        $this->expectException(\UnexpectedValueException::class); $choice->matchedVariants()[0]->name = 'x';
     }
     public function testAliasesWorkAcrossHttpAndFlatQueryEnumFields(): void {
         $http = new class implements \Psr\Http\Client\ClientInterface {

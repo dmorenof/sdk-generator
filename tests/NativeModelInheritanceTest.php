@@ -97,12 +97,12 @@ final class NativeModelInheritanceTest extends TestCase
         $property = new \ReflectionProperty(\Example\NativePets\DTOs\Pet::class, 'status');
         self::assertSame($property->getType()->getName(), (new \ReflectionProperty($dog, 'status'))->getType()->getName());
         // Resolve the PHP field from its public reflection metadata, independently of transliteration.
+        $this->expectException(\UnexpectedValueException::class);
         foreach ((new \ReflectionClass($dog))->getProperties(\ReflectionProperty::IS_PUBLIC) as $field) {
             if ($field->getType()?->getName() === 'string' && $field->isInitialized($dog)) {
                 $field->setValue($dog, 'x');
             }
         }
-        $this->expectException(\UnexpectedValueException::class);
         $dog->validate();
     }
 

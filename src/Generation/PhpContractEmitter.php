@@ -296,13 +296,16 @@ final class PhpContractEmitter
                     $type = PhpParameterTypeResolver::nullableType($type, true);
                 }
                 // Deliberately uninitialized when absent, including optional fields.
-                // Calling get_object_vars() preserves the absent-vs-null distinction.
+                // The runtime reads only initialized properties, which keeps absent distinct from null.
                 $docTags = [];
                 if (!$fileList && PhpDoc::hasArray($type)) { $docTags[] = '@var ' . PhpDoc::type($type); }
                 if ($fileList) { $docTags[] = '@var list<string|\\Psr\\Http\\Message\\UploadedFileInterface>' . ($nullable ? '|null' : ''); }
                 $fields[] = PhpDoc::render(['description' => $property->schema->description ?? $propertySchema->description, 'format' => $propertySchema->format] + $property->schema->annotations, $docTags)
                     . '    public ' . $type . ' $' . $propertyName . ';';
-                $addedField = array_key_last($fields);
+                // A native array cannot be edited in place once its property has a hook (`$model->list[] = x` is an Error), so lists are checked when built and by typed collections, not by a hook.
+                if (!$fileList && !PhpDoc::hasArray($type)) {
+                    $addedField = array_key_last($fields);
+                }
             }
             $propertyValidation = $originalSchema->validation;
             if ($fileList) {
