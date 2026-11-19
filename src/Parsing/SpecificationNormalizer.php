@@ -333,6 +333,9 @@ final class SpecificationNormalizer
                     throw new InvalidArgumentException("$problem (security scheme $name)");
                 }
                 $schemes[] = new SecuritySchemeDefinition($name, 'openIdConnect');
+            } elseif ($type === 'mutualTLS' && str_starts_with((string) ($document['openapi'] ?? ''), '3.1.')) {
+                // The client proves who it is with a certificate in the TLS handshake: no header, query or cookie, no scopes.
+                $schemes[] = new SecuritySchemeDefinition($name, 'mutualTLS');
             } else {
                 throw new InvalidArgumentException("Unsupported security scheme type at $name.");
             }
