@@ -3,211 +3,121 @@
 [![PHP package CI](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dmorenof/sdk-generator/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**v0.40.0: usable PHP SDK generator for a deliberately limited JSON/YAML OpenAPI/Swagger subset.** PHP 8.3 or newer and Composer 2.2 or newer. The same normalization and emitter path handles Swagger 2.0, OpenAPI 3.0.x, and OpenAPI 3.1.x contracts *within the supported subset*. It is not a drop-in replacement for the complete OpenAPI Generator tool.
+Turn an OpenAPI or Swagger file into a typed PHP SDK you can install with Composer.
 
-The output is an **independently installable Composer library** with public typed PHP DTOs, backed enums, typed collections, executable operation methods and JSON response hydration. Transport (Guzzle 7 with PSR-18 injection), hydration, validation and security live once in the shared [dmorenof/sdk-runtime](https://github.com/dmorenof/sdk-runtime) package, which every generated SDK requires; the SDK itself contains only API-specific code. The generator is a **build-time tool**, not a dependency of the generated SDK. Its CLI applies PSR-12 formatting automatically with PHP-CS-Fixer; generated SDKs do not depend on that formatter.
+```bash
+php bin/generate-sdk.php api.json build/acme-sdk 'Acme\Sdk' acme/sdk
+```
 
-Version 0.4.0 adds contract inspection (`--inspect` / `--dry-run`), opt-in strict generation (`--strict`), and operation/path server routing with per-client environment substitutions. See [contract inspection and operation servers](docs/CONTRACT_INSPECTION.md). Completed changes are integrated and published following [AGENTS.md](AGENTS.md).
+You get a Composer package with typed models, backed enums, typed collections and one method per operation. Your application then calls the API like this:
 
-Version 0.7.0 adds explicit local file graphs for supported JSON/YAML schema and HTTP fragments. Use `--resolve-local-references` and optionally `--reference-root=directory`; string inspection stays in memory and no HTTP references are fetched. See [local file references](docs/FILE_REFERENCES.md) for usage and limits.
+```php
+$user = Users::getById(88);
 
-Version 0.8.0 adds local OpenAPI security-scheme aliases while preserving their public credential names and the existing authentication requirements. External security-scheme imports and OAuth flows remain pending.
+$body = new NewUser();
+$body->name = 'Grace';
+$created = Users::post($body);
+```
 
-Version 0.9.0 adds native PHP query arrays: OpenAPI form repeated keys or CSV, and Swagger multi/CSV with its CSV default. Supported item constraints are checked again after mutations. See [query arrays](docs/QUERY_ARRAYS.md) for examples and limits.
+## Who it is for
 
-Version 0.10.0 adds OpenAPI space/pipe-delimited arrays and Swagger ssv/tsv/pipes, with legal encoded delimiters and rejection of ambiguous item values. Undefined explode combinations remain diagnosed.
+PHP developers who consume a REST API that publishes an OpenAPI/Swagger contract and want a client that is typed, validated and cheap to maintain: when the contract changes, you regenerate.
 
-Version 0.11.0 adds typed flat `deepObject` query parameters in GetParams and PostParams, including POST query + JSON body and safe handling of a query parameter named `body`. See [query objects and public parameter DTOs](docs/QUERY_OBJECTS.md) for examples and limits.
+It is a **deliberately limited subset** of OpenAPI, not a replacement for the full OpenAPI Generator. What it does not support is rejected with a clear message instead of being silently ignored (see [supported scope](docs/SUPPORTED_SCOPE.md)).
 
-Version 0.12.0 adds OpenAPI URL-encoded form bodies with scalar fields and primitive repeated-key/CSV lists. GetParams and PostParams keep query, headers and body separate. See [HTTP forms](docs/FORMS.md) for supported schemas, defaults and limits.
+## How it fits together
 
-Version 0.13.0 adds Swagger 2.0 `formData` scalar/list fields through the same URL-encoded runtime. Its CSV default and explicit multi format are preserved, including reusable aliases and operation overrides. See [Swagger HTTP forms](docs/FORMS.md#swagger-20-formdata-v0130).
+| Piece | Role |
+| --- | --- |
+| **sdk-generator** (this repository) | Build-time tool. Reads the contract and writes the SDK. Not needed when the SDK runs. |
+| [**sdk-runtime**](https://github.com/dmorenof/sdk-runtime) | Shared engine every generated SDK requires: HTTP (Guzzle/PSR-18), authentication, hydration, validation, errors, retries. Written and tested once. |
+| **Your generated SDK** | Only what is specific to the API: models, operations, names. |
 
-Version 0.24.0 completes flat parameter objects for form queries and simple paths/headers, including defaults and both explode modes. Reuse DTO/Map types, validation and the shared serializer; reject expanded query collisions and ambiguous raw headers before transport. Stable runtime ^0.18.0 preserves the identifier/payload API. See [object parameters](docs/OBJECT_PARAMETERS.md), [simple lists](docs/SIMPLE_PARAMETERS.md), [responses](docs/RESPONSES.md) and [the architecture review](docs/ARCHITECTURE_REVIEW.md).
+Because the engine is shared, a generated SDK is small and a fix in the runtime reaches every SDK with a `composer update`.
 
-Version 0.25.0 adds label/matrix paths for scalars, lists and flat objects with both explode modes, using stable runtime ^0.19.0. See [path styles](docs/PATH_STYLES.md) for encoding, empty values and transport guarantees.
+A real example: [casafari-sdk](https://github.com/dmorenof/casafari-sdk) is generated from the Casafari CRM contract with this tool.
 
-Version 0.26.0 adds scalar cookie parameters and API key cookie authentication with stable runtime ^0.20.0. Configured, operation and security cookies coexist with explicit conflict detection. See [cookies and exact limits](docs/COOKIES.md).
+## Requirements
 
-Version 0.26.1 rejects duplicate parameter identities within one list while preserving complete operation overrides and Path Item inheritance. See [parameter overrides](docs/PARAMETER_OVERRIDES.md).
+PHP 8.3 or newer, Composer 2.2 or newer. Generated SDKs require `dmorenof/sdk-runtime` `^1.2`.
 
-Version 0.27.0 supports query allowReserved for the existing scalar/list/flat-object subset through stable runtime ^0.21.0. Names and security credentials retain normal encoding; ambiguous structural data is rejected. See [reserved query rules](docs/RESERVED_QUERY.md).
+```bash
+composer require --dev dmorenof/sdk-generator
+```
 
-Version 0.28.0 accepts allowEmptyValue on supported query parameters and Swagger formData, with an explicit schema-authoritative policy for absent/null/empty values. It reuses stable runtime ^0.21.0 unchanged. See [empty values](docs/EMPTY_VALUES.md).
+## Quick start
 
-Version 0.29.1 corrects the production runtime dependency for installations without development packages.
-
-Version 0.29.0 adds typed application/json and text/plain parameter content with stable runtime ^0.22.1, reusing models/collections and shared request serialization. Includes raw text cookies and validation before encoding. See [parameter content](docs/PARAMETER_CONTENT.md).
-
-Version 0.30.0 adds Swagger ssv/tsv/pipes lists in path and headers through stable runtime ^0.23.0. See [delimited parameter rules](docs/SIMPLE_PARAMETERS.md#swagger-delimited-pathheader-lists--v0300).
-
-Version 0.31.0 completes a response-selection block: exact/range/default precedence and mixed JSON/binary/bodyless successes through stable runtime ^0.24.0. See [response selection and limits](docs/RESPONSES.md#response-selection-block--v0310).
-
-Version 0.32.0 covers a form block: all Swagger URL-encoded list formats, flat form/deepObject models/maps and JSON multipart parts through stable runtime ^0.25.0. See [form coverage and limits](docs/FORMS.md#form-encoding-block--v0320).
-
-Version 0.33.0 adds numeric bounds/multiples, property counts, uniqueItems and scalar/null const through the shared JSON Schema validator. Root responses and post-hydration mutations retain their constraints. See [schema rules](docs/SCHEMA_RULES.md).
-
-Versions 0.34–0.39 complete blocks for [native schemas](docs/NATIVE_SCHEMAS.md), [JSON root bodies and explicit presence](docs/REQUEST_BODIES.md), [raw HTTP media](docs/RAW_MEDIA.md), [canonical aliases and schema pointers](docs/SCHEMA_ALIASES.md), [general error payloads](docs/ERROR_PAYLOADS.md), and [concrete MIME types](docs/MIME_MEDIA.md). Guzzle/PSR remains the shared transport; no XML/CSV model parser or per-endpoint exception hierarchy is added. See the [current supported scope](docs/SUPPORTED_SCOPE.md) for exact limits.
-
-## Quick start: generate Accounts SDK
-
-From a checkout of this repository:
-
-~~~bash
+```bash
 composer install
 php bin/generate-sdk.php \
     tests/fixtures/accounts-openapi31.json \
     build/accounts-sdk \
     'Example\AccountsSdk' \
     example/accounts-sdk
-~~~
+cd build/accounts-sdk && composer install
+```
 
-**Arguments:** input JSON, YAML (`.yaml`/`.yml`) specification, output directory (must be empty or absent), PHP root namespace, Composer package name. The executable is also exposed to Composer as a binary when the generator is installed as a package.
+Arguments: the specification (JSON, or YAML with `.yaml`/`.yml`), an output directory (empty or absent), the PHP root namespace and the Composer package name.
 
-The generator and the runtime are on Packagist: `composer require dmorenof/sdk-generator` needs no extra repository entry.
+Using the generated SDK:
 
-The command generates a standalone Composer package at build/accounts-sdk. Install its own runtime dependencies:
-
-~~~bash
-cd build/accounts-sdk
-composer install
-~~~
-
-A minimal application using the **generated package's** Composer autoloader:
-
-~~~php
-<?php
-declare(strict_types=1);
-
-require __DIR__ . '/build/accounts-sdk/vendor/autoload.php';
-
-use Example\AccountsSdk\Client;
-use Example\AccountsSdk\Resources\Users;
-use Example\AccountsSdk\GetParams\Users\ById as UserFilters;
-use Example\AccountsSdk\DTOs\NewUser;
-
-// Independent instance connection:
-$client = Client::connect('https://api.example.com/v1');
-$filters = new UserFilters();
-$filters->verbose = false;
-$user = $client->resource(Users::class)->getById(88, $filters);
-
-$input = new NewUser();
-$input->name = 'Grace';
-$created = $client->resource(Users::class)->post($input);
-~~~
-
-These endpoints exist in the example **synthetic Accounts specification**, not in every API; generated endpoint names always come from the input contract.
-
-Static route facades mirror OpenAPI URL segments. Their independent instance resources live under Resources and inherit from Client.
-Reusable schema models are grouped in a **single hierarchical `DTOs` tree**.
-Explicit hierarchy from dotted or `__` schema identifiers is preserved.
-For flattened names, shared structural prefixes and common
-`RequestSchema`/`ResponseSchema` suffixes are reconstructed into
-namespaces. For example, `UserManagementJWTRefreshTokenResponseSchema`
-becomes `DTOs\\UserManagement\\JWTRefreshToken\\ResponseSchema`.
-Original schema identifiers and `$ref` links remain unchanged.
-All generated data classes inherit a single runtime `DTO` base. The HTTP operation applies request/response direction-specific validation at the boundary. Enums and typed collections retain their
-own namespace trees. See [naming policy](docs/SDK_DESIGN.md).
-
-### Named SDK root and predictable route classes (0.2.0)
-
-The abstract SDK root is derived from the complete OpenAPI info.title.
-For example, Casafari API produces CasafariAPISDK. Public API classes
-directly mirror the URL structure, while methods correspond to HTTP verbs.
-A terminal path identifier adds ById or By{Placeholder} to the method.
-GET query/header parameters use GetParams; equivalent POST parameters
-use PostParams. Named body schema objects are reused from DTOs.
-Inline operation-specific request objects live under `Requests`, and inline
-response envelopes under `Responses`, each separated by route and HTTP verb.
-These classes also extend `DTO` and can contain references to shared models.
-
-~~~php
-use Example\AccountsSdk\ExampleAccountsSDK;
-use Example\AccountsSdk\Users;
-use Example\AccountsSdk\Configuration;
+```php
+use Example\AccountsSdk\{Configuration, ExampleAccountsSDK, Users};
 use Example\AccountsSdk\DTOs\NewUser;
 
 $config = new Configuration();
 $config->baseUrl = 'https://api.example.com/v1';
 ExampleAccountsSDK::configure($config);
 
+$user = Users::getById(88);
 $body = new NewUser();
 $body->name = 'Grace';
 $created = Users::post($body);
-$user = Users::getById(88);
-~~~
+```
 
-The old grouped UsersApi/ApiV1 facade and duplicate StaticApi tree are
-replaced by this route structure. Client::connect() and Resources classes
-remain for independent simultaneous connections. The shared runtime
-handles HTTP transport, middleware, authentication and validation.
-PHP identifiers are transliterated using ICU, preserving all original
-wire names. See the complete design in docs/PUBLIC_API.md.
+Static route classes (`Users::...`) mirror the URL structure and share one configuration. For several independent connections use `Client::connect($config)` and `$client->resource(Users::class)`. Endpoints above exist in the example Accounts specification; yours come from your contract.
 
-### HTTP and authentication
+## Options
 
-A default Guzzle client is constructed automatically by `Client::connect(server)`. No explicit HTTP handler, transport, middleware, or configuration object is required for ordinary use.
+| Option | Effect |
+| --- | --- |
+| `--strict` | Refuse anything the generator cannot execute. |
+| `--validate-formats` | Assert declared formats (`date-time`, `uuid`, …). |
+| `--inspect` / `--dry-run` | Report what would be generated without writing files. See [contract inspection](docs/CONTRACT_INSPECTION.md). |
+| `--resolve-local-references`, `--reference-root=DIR` | Follow `$ref` to local files. See [file references](docs/FILE_REFERENCES.md). |
 
-For advanced HTTP use, pass a **PSR-18 client** and optional headers. A configured Guzzle client can contain its own standard HandlerStack middlewares:
+## Validation, in short
 
-~~~php
-use Example\AccountsSdk\Client;
-use GuzzleHttp\Client as GuzzleClient;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Middleware;
-use Psr\Http\Message\RequestInterface;
+PHP's own types reject wrong types. The rules the contract declares (`minLength`, `pattern`, `minimum`, required fields…) are checked when a model is built from JSON, when you call `validate()`, and once when a request is sent. `json_encode($model)` only serializes. Details: the runtime's [validation guide](https://github.com/dmorenof/sdk-runtime/blob/main/docs/validation.md).
 
-$stack = HandlerStack::create();
-$stack->push(Middleware::mapRequest(
-    fn (RequestInterface $request): RequestInterface =>
-        $request->withHeader('X-Request-Origin', 'example-app')
-));
-$http = new GuzzleClient(['handler' => $stack]);
+## What is supported
 
-$config = new \Dmorenof\SdkRuntime\Configuration();
-$config->baseUrl = 'https://api.example.com/v1';
-$config->httpClient = $http;
-$config->headers = ['Authorization' => 'Bearer ' . $accessToken];
-$client = Client::connect($config);
-~~~
+- Swagger 2.0, OpenAPI 3.0.x and 3.1.x, in JSON or YAML.
+- Models, enums, typed collections, maps, discriminators, `allOf`/`oneOf`/`anyOf` within limits.
+- Path, query, header and cookie parameters; JSON, forms, multipart, text and binary bodies; exact/range/default response selection.
+- Security: API key, HTTP basic/bearer, OAuth2 and OpenID Connect (a token you supply, or a token provider such as `OAuth2ClientCredentials`), selected per operation. OAuth2 endpoints and scopes are not generated into the SDK.
 
-Resources methods are instance methods; route facades (such as Users::getById()) are static. `Client::connect()` returns an independent client; `resource(Type::class)` shares its transport, credentials and middleware explicitly. A route class can also be instantiated directly or use its inherited `connect()` factory. OpenAPI security schemes are applied to secured operations; configure their credentials through `Dmorenof\SdkRuntime\Security\SecurityCredentials`. OAuth2/OpenID Connect token acquisition is not implemented, so provide an already-issued token when the scheme uses bearer authentication.
+Not supported (rejected, not ignored): remote `$ref`, mutualTLS, structured XML/CSV models and the more exotic schema compositions. The exact list is in [SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md).
 
-### Explore without PHP on your computer
+## Speed and honesty
 
-Open [GitHub Actions → Downloadable SDK previews](https://github.com/dmorenof/sdk-generator/actions/workflows/sdk-preview.yml). Runs provide downloadable source ZIPs for **Accounts** and **Catalog** SDKs. GitHub Actions independently installs and smoke-tests each generated package with *mock HTTP*, so no API credentials or live services are needed. Details: [docs/TRY_WITHOUT_LOCAL_PHP.md](docs/TRY_WITHOUT_LOCAL_PHP.md).
+Against OpenAPI Generator 7 on the same specifications, a call through our SDK is about 1.5× slower (about 92 µs against 62 µs on a mocked request), because it also validates, selects security, decodes errors and applies retry and redirect policies. We claim no speed advantage. See the [audit](https://github.com/dmorenof/sdk-runtime/blob/main/docs/AUDIT.md) and [benchmark/](benchmark/README.md).
 
-Version 0.40.0 adds [server defaults and coherent routes](docs/SERVER_ROUTES.md): scoped variable/default/enum handling, existing environment overrides, path declaration checks and Paths extensions retained as data. It reuses stable runtime ^0.31.0 unchanged.
+## Documentation
 
-## Supported features and deliberate boundaries
+[Supported scope](docs/SUPPORTED_SCOPE.md) · [Design and naming](docs/SDK_DESIGN.md) · [Public API](docs/PUBLIC_API.md) · [Ready-to-use client](docs/READY_TO_USE_CLIENT.md) · [Try without local PHP](docs/TRY_WITHOUT_LOCAL_PHP.md) · [Changelog](CHANGELOG.md) · [Releasing](RELEASING.md) · [Roadmap](pendientes.md)
 
-| Area | v0.40.0 (supported subset) |
-|---|---|
-| Input dialects | Swagger 2.0, OpenAPI 3.0.x and 3.1.x in **JSON or YAML**, tested common subset |
-| Models | Canonical local aliases, recursive DTOs/maps/collections, enums, compatible single-parent `allOf`, discriminators, original-schema composition validation, primitive type-set unions, boolean schemas and scalar/null const |
-| Endpoints | Bounded scalar/list/flat-object parameter styles, scalar cookies, JSON/text parameter content, general supported JSON bodies, bounded forms/multipart, opaque text/binary MIME, and exact/range/default success/error response selection |
-| Runtime | Inherited shared execution/configuration, Guzzle/PSR-18, directional hydration/validation, binary PSR streams and compatible ApiException payload/error properties |
-| Testing | 471 generator tests; CI installs 42 SDKs with PHPStan maximum and HTTP smoke, including 32 MiB transfers under PHP 16 MiB |
-| Not included yet | Remote/dynamic/general reference scopes, arbitrary native object unions, general `not`/complex const/compositions, structured cookies, advanced forms, non-seekable/general streaming guarantees, MIME wildcards/variant negotiation, structured XML/CSV and full conformance |
+One document per feature area lives in [docs/](docs/): forms, query arrays and objects, path styles, cookies, responses, error payloads, schema rules and more.
 
-The validator **rejects many unsupported constructs explicitly** instead of silently treating them as supported. Generated DTOs validate required fields and supported constraints on construction and before sending, including modified nested values. This is not complete JSON Schema validation. See [the SDK design criteria](docs/SDK_DESIGN.md) and the supported-scope document for the current boundaries.
+## Development
 
-See [pendientes.md](pendientes.md) for the audited OpenAPI compatibility roadmap, and [docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md) before generating a production-facing client. [CHANGELOG.md](CHANGELOG.md) lists versioned changes. [docs/READY_TO_USE_CLIENT.md](docs/READY_TO_USE_CLIENT.md) explains the HTTP factory; [docs/RUN_GENERATED_SDK.md](docs/RUN_GENERATED_SDK.md) covers the example.
-
-## Development and verification
-
-~~~bash
+```bash
 composer install
 composer validate --strict --no-check-lock
 bash ci/run-tests.sh --coverage
-~~~
+```
 
-Required CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, Composer/autoload validation and a security advisory check. The Accounts and Catalog previews are separately installed by Composer and exercised via mock Guzzle handlers. Generation and runtime comparisons against OpenAPI Generator are collected under [benchmark/](benchmark/README.md). The benchmarks use narrow synthetic workloads and **do not establish general feature parity**.
-
-## Releases and dependencies
-
-Release **[v1.5.0](https://github.com/dmorenof/sdk-generator/releases/tag/v1.5.0)** is specified by [VERSION](VERSION). The validated [Publish version workflow](.github/workflows/release.yml) creates its immutable tag and GitHub Release. The generator and generated SDKs require stable `dmorenof/sdk-runtime` **^1.1.0**. Packagist registration is **not automatic**; see [RELEASING.md](RELEASING.md). The generated SDK needs its own Composer dependencies; the generator source is not required when running API requests.
+CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, an advisory audit, and installs and smoke-tests generated SDKs.
 
 ## License
 

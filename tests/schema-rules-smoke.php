@@ -22,7 +22,7 @@ try {
     $collection = $client->resource(\Example\SchemaRulesSdk\Resources\Collection::class)->get();
     if ((string) $collection !== '[1,2]') { throw new RuntimeException('Wrong collection shape.'); }
     $collection[] = 1;
-    try { (string) $collection; throw new RuntimeException('Duplicate collection mutation accepted.'); } catch (UnexpectedValueException) {}
+    try { $collection->validateForMode(); throw new RuntimeException('Duplicate collection mutation accepted.'); } catch (UnexpectedValueException) {}
     $result->profile['second'] = 2;
     try { $result->jsonSerializeForResponse(); throw new RuntimeException('Map count mutation accepted.'); } catch (UnexpectedValueException) {}
     $params->body->tag = 8;

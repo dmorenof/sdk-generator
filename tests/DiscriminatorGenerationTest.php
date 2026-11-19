@@ -174,7 +174,7 @@ final class DiscriminatorGenerationTest extends TestCase
         $dog = new \Example\DiscriminatedPets\DTOs\Dog((object) ['pet_type' => 'Dog']);
         $dog->pet_type = 'Cat';
         $this->expectException(\UnexpectedValueException::class);
-        $dog->jsonSerialize();
+        $dog->validate();
     }
 
     public function testMutationThatIntroducesAnotherValidBranchFailsOneOf(): void
@@ -204,7 +204,7 @@ final class DiscriminatorGenerationTest extends TestCase
         self::assertTrue(is_subclass_of($enum, \BackedEnum::class));
         $dog->pet_type = $enum::from('Cat');
         $this->expectException(\UnexpectedValueException::class);
-        $dog->jsonSerialize();
+        $dog->validate();
     }
 
     public function testCompositionOnlyDiscriminatorPreservesPermittedExtraFields(): void
