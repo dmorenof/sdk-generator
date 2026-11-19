@@ -22,7 +22,7 @@ try {
     if ($parameter->getById(1, $params) !== 'result') { throw new RuntimeException('Wrong parameter response.'); }
     $params->value = null; $parameter->getById(1, $params);
     try { $record->rejected = null; $native->post($record); throw new RuntimeException('False property mutation reached HTTP.'); } catch (UnexpectedValueException) {}
-    unset($record->rejected); $record->items[] = false;
+    $record->items[] = false; // a property with a hook cannot be unset (PHP 8.4), so `rejected` is left as it was
     try { $record->validateForRequest(); throw new RuntimeException('Invalid array mutation reached HTTP.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }
 echo 'PUBLISHED_NATIVE_SCHEMAS_SDK_HTTP_OK', PHP_EOL;
