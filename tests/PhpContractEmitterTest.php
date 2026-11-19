@@ -94,7 +94,7 @@ final class PhpContractEmitterTest extends TestCase
     {
         $data = json_decode($this->generated()['composer.json'], true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('example/accounts-sdk', $data['name']);
-        self::assertSame('^8.3', $data['require']['php']);
+        self::assertSame('^8.4', $data['require']['php']);
         self::assertSame(\Dmorenof\SdkGenerator\Generation\PhpContractEmitter::RUNTIME_CONSTRAINT, $data['require']['dmorenof/sdk-runtime']);
         self::assertSame('src/', $data['autoload']['psr-4']['Example\\AccountsSdk\\']);
         self::assertArrayNotHasKey('version', $data);

@@ -1179,7 +1179,9 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException("Discriminator requires an object schema at $where.");
         }
         $format = $raw['format'] ?? null;
-        if ($this->validateFormats && is_string($format) && in_array($kind, [SchemaKind::String, SchemaKind::Integer], true)
+        // PHP has no 32-bit integer type, so the range of `int32` is always asserted; other formats only when asked.
+        $int32 = $kind === SchemaKind::Integer && $format === 'int32';
+        if (($this->validateFormats || $int32) && is_string($format) && in_array($kind, [SchemaKind::String, SchemaKind::Integer], true)
             && !in_array($format, self::ANNOTATION_FORMATS, true)) {
             $validation['format'] = $format;
         }

@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^1.2.0';
+    public const RUNTIME_CONSTRAINT = '^1.4.2';
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
@@ -166,7 +166,7 @@ final class PhpContractEmitter
             'name' => $this->packageName,
             'description' => 'Contract-generated PHP SDK built on the shared dmorenof/sdk-runtime.',
             'type' => 'library',
-            'require' => ['dmorenof/sdk-runtime' => self::RUNTIME_CONSTRAINT, 'php' => '^8.3'],
+            'require' => ['dmorenof/sdk-runtime' => self::RUNTIME_CONSTRAINT, 'php' => '^8.4'],
             'autoload' => ['psr-4' => [$this->namespace . '\\' => 'src/']],
         ];
         $files['composer.json'] = json_encode(
@@ -275,6 +275,7 @@ final class PhpContractEmitter
                 $propertyMap[$property->wireName] = $propertyName;
                 $wirePropertyMap[$propertyName] = $property->wireName;
             }
+            $addedField = null;
             $originalSchema = $this->effectiveSchema($property->schema);
             $nullableBranch = self::nullableCompositionBranch($originalSchema);
             $propertySchema = $nullableBranch ?? $originalSchema;
@@ -295,12 +296,16 @@ final class PhpContractEmitter
                     $type = PhpParameterTypeResolver::nullableType($type, true);
                 }
                 // Deliberately uninitialized when absent, including optional fields.
-                // Calling get_object_vars() preserves the absent-vs-null distinction.
+                // The runtime reads only initialized properties, which keeps absent distinct from null.
                 $docTags = [];
                 if (!$fileList && PhpDoc::hasArray($type)) { $docTags[] = '@var ' . PhpDoc::type($type); }
                 if ($fileList) { $docTags[] = '@var list<string|\\Psr\\Http\\Message\\UploadedFileInterface>' . ($nullable ? '|null' : ''); }
                 $fields[] = PhpDoc::render(['description' => $property->schema->description ?? $propertySchema->description, 'format' => $propertySchema->format] + $property->schema->annotations, $docTags)
                     . '    public ' . $type . ' $' . $propertyName . ';';
+                // A native array cannot be edited in place once its property has a hook (`$model->list[] = x` is an Error), so lists are checked when built and by typed collections, not by a hook.
+                if (!$fileList && !PhpDoc::hasArray($type)) {
+                    $addedField = array_key_last($fields);
+                }
             }
             $propertyValidation = $originalSchema->validation;
             if ($fileList) {
@@ -317,6 +322,10 @@ final class PhpContractEmitter
             }
             if ($property->schema->pattern !== null) {
                 $validation[$propertyName]['pattern'] = $property->schema->pattern;
+            }
+            if ($addedField !== null && isset($validation[$propertyName])) {
+                // The property checks its own rules when a value is assigned or hydrated, so nothing has to walk the model later.
+                $fields[$addedField] = preg_replace('/;\z/', " {\n        set {\n            \$this->assigning('$propertyName', \$value);\n            \$this->$propertyName = \$value;\n        }\n    }", $fields[$addedField]);
             }
             if ($property->schema->readOnly) {
                 $readOnly[] = $propertyName;

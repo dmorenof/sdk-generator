@@ -36,8 +36,8 @@ foreach ([['a,b'], ["a\r\nX: value"], [' a']] as $invalid) {
 $post->XCodes = ['alpha']; $path->ids = [];
 try { $resource->postByIds($path, $post); throw new RuntimeException('Invalid path mutation accepted.'); }
 catch (UnexpectedValueException) {}
-$path->ids = ['valid']; $post->body->name = '';
-try { $resource->postByIds($path, $post); throw new RuntimeException('Invalid body mutation accepted.'); }
+$path->ids = ['valid'];
+try { $post->body->name = ''; $resource->postByIds($path, $post); throw new RuntimeException('Invalid body mutation accepted.'); }
 catch (UnexpectedValueException) {}
 if ($http !== null && $http->calls !== 4) { throw new RuntimeException('Invalid mutations reached HTTP.'); }
 echo 'PUBLISHED_SIMPLE_PARAMETER_SDK_OK', PHP_EOL;

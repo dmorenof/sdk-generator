@@ -147,7 +147,7 @@ final class CompositionGenerationTest extends TestCase
         self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\AnyOf', $files['src/DTOs/AnyOfPayment.php']);
         self::assertStringContainsString('extends \\Dmorenof\\SdkRuntime\\OneOf', $files['src/DTOs/OneOfUniquePayment.php']);
         self::assertStringContainsString('\\Example\\CompositionSdk\\DTOs\\AnyOfPayment $payment', $files['src/DTOs/Invoice.php']);
-        self::assertStringContainsString('public ?int $limit;', $files['src/DTOs/ScalarContainer.php']);
+        self::assertStringContainsString('public ?int $limit', $files['src/DTOs/ScalarContainer.php']);
         self::assertStringContainsString("'limit' =>", $files['src/DTOs/ScalarContainer.php']);
         self::assertStringNotContainsString('LimitDTO', $files['src/DTOs/ScalarContainer.php']);
 
@@ -205,8 +205,8 @@ final class CompositionGenerationTest extends TestCase
         $container = new \Example\CompositionSdk\DTOs\ScalarContainer((object) ['limit' => null]);
         self::assertNull($container->limit);
 
-        $container->limit = -1;
         $this->expectException(\UnexpectedValueException::class);
+        $container->limit = -1;
         $this->expectExceptionMessage('minimum');
         $container->validate();
     }
@@ -223,8 +223,8 @@ final class CompositionGenerationTest extends TestCase
             $files['src/DTOs/RangeInput.php'],
         );
         self::assertStringContainsString('final class IntRangeSchema3 extends \\Dmorenof\\SdkRuntime\\DTO', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
-        self::assertStringContainsString('public ?int $min;', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
-        self::assertStringContainsString('public ?int $max;', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
+        self::assertStringContainsString('public ?int $min', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
+        self::assertStringContainsString('public ?int $max', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
 
         $input = new \Example\CompositionSdk\DTOs\RangeInput((object) [
             'bathrooms_range' => (object) ['min' => null, 'max' => 4],

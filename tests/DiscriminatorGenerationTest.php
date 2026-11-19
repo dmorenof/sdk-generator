@@ -272,7 +272,7 @@ final class DiscriminatorGenerationTest extends TestCase
         ]);
         self::assertSame('private', $house->jsonSerializeForRequest()->choice->secret);
         $this->expectException(\UnexpectedValueException::class);
-        $house->jsonSerializeForResponse();
+        $house->validateForResponse();
     }
 
     public function testRecursiveModelsPreserveLocalSchemaReferencesAndDispatch(): void

@@ -78,8 +78,7 @@ final class BinaryResponseGenerationTest extends TestCase
         self::assertSame('application/json', $http->requests[1]->getHeaderLine('Content-Type'));
         self::assertSame('post trace', $http->requests[1]->getHeaderLine('X-Trace'));
         self::assertSame('application/octet-stream', $http->requests[1]->getHeaderLine('Accept'));
-        $params->body->name = '';
-        try { $resource->post($params); self::fail('Invalid mutation accepted.'); }
+        try { $params->body->name = ''; self::fail('Invalid mutation accepted.'); }
         catch (\UnexpectedValueException) { self::assertCount(2, $http->requests); }
     }
     public function testEmptySuccessAndTypedErrorRemainDistinct(): void

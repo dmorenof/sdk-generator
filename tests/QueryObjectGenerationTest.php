@@ -155,8 +155,8 @@ final class QueryObjectGenerationTest extends TestCase
             }
         }
         $params = new \Example\DeepQuery\GetParams\Items((object) ['filter' => (object) ['city-name' => 'Madrid']]);
-        $params->filter->limit = 0;
         try {
+            $params->filter->limit = 0;
             $client->resource(\Example\DeepQuery\Resources\Items::class)->get($params);
             self::fail('Invalid object mutation accepted.');
         } catch (\UnexpectedValueException) {

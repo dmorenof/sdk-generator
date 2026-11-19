@@ -144,8 +144,8 @@ final class EmptyValueGenerationTest extends TestCase
             } catch (\UnexpectedValueException) {
                 self::assertCount(4, $http->requests);
             }
-            $post->body->strict = '';
             try {
+                $post->body->strict = '';
                 $resource->post($post);
                 self::fail('allowEmptyValue bypassed form constraints.');
             } catch (\UnexpectedValueException) {

@@ -20,7 +20,6 @@ try {
     if ($client->resource(\Example\AliasSdk\Resources\Status::class)->post($child->status) !== $child->status) { throw new RuntimeException('Enum alias changed.'); }
     $params = new \Example\AliasSdk\GetParams\Filter((object) ['filter' => (object) ['state' => 'closed']]);
     if ($client->resource(\Example\AliasSdk\Resources\Filter::class)->get($params) !== $child->status) { throw new RuntimeException('Query alias changed.'); }
-    $child->name = 'x';
-    try { $client->resource(\Example\AliasSdk\Resources\Record::class)->post($child); throw new RuntimeException('Alias mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $child->name = 'x'; $client->resource(\Example\AliasSdk\Resources\Record::class)->post($child); throw new RuntimeException('Alias mutation reached HTTP.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }
 echo 'PUBLISHED_SCHEMA_ALIASES_SDK_HTTP_OK', PHP_EOL;

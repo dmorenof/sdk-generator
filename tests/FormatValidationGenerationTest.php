@@ -73,7 +73,11 @@ final class FormatValidationGenerationTest extends TestCase
 
     public function testNothingIsAssertedByDefault(): void
     {
-        self::assertStringNotContainsString("'format' =>", implode("\n", self::emit(false)));
+        $source = implode("\n", self::emit(false));
+        foreach (['email', 'uuid', 'int64', 'binary', 'double'] as $format) {
+            self::assertStringNotContainsString("'format' => '$format'", $source);
+        }
+        // The one exception: PHP has no 32-bit integer, so the range of int32 is always asserted.
     }
 
     public function testInvalidValuesAreRejectedOnlyWithTheOption(): void

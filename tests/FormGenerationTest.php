@@ -156,8 +156,8 @@ final class FormGenerationTest extends TestCase
         } catch (\UnexpectedValueException) {
             self::assertSame([], $transport->calls);
         }
-        $params->body->name = '';
         try {
+            $params->body->name = '';
             $client->resource(\Example\Forms\Resources\Items::class)->post($params);
             self::fail('Invalid scalar form mutation accepted.');
         } catch (\UnexpectedValueException) {

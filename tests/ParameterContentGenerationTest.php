@@ -100,8 +100,8 @@ final class ParameterContentGenerationTest extends TestCase
                 self::assertCount(4, $http->requests);
             }
         }
-        $post->records[1]->name = '';
         try {
+            $post->records[1]->name = '';
             $resource->postByToken($path, $post);
             self::fail('Nested collection mutation accepted.');
         } catch (\UnexpectedValueException) {

@@ -96,8 +96,7 @@ final class SwaggerBinaryResponseGenerationTest extends TestCase
         self::assertSame('', (string) $http->requests[0]->getBody());
         self::assertSame('{"name":"export"}', (string) $http->requests[1]->getBody());
         self::assertSame('application/json', $http->requests[1]->getHeaderLine('Content-Type'));
-        $params->body->name = '';
-        try { $resource->post($params); self::fail('Mutation accepted.'); }
+        try { $params->body->name = ''; self::fail('Mutation accepted.'); }
         catch (\UnexpectedValueException) { self::assertCount(3, $http->requests); }
     }
     public function testEmptySuccessStatusesAndRawErrorsRetainTheirContract(): void

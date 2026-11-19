@@ -80,8 +80,7 @@ final class DelimitedParameterGenerationTest extends TestCase {
             catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
             $post->$field = ['valid'];
         }
-        $post->body->name = '';
-        try { $resource->postByPipes($path, $post); self::fail('Invalid body mutation accepted.'); }
+        try { $post->body->name = ''; self::fail('Invalid body mutation accepted.'); }
         catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
     }
 }

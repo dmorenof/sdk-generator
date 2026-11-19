@@ -21,7 +21,6 @@ try {
     $client->resource(\Example\ServerRoutesSdk\Resources\Equivalent::class)->getById('a/b');
     $client->resource(\Example\ServerRoutesSdk\Resources\Mirror\ById::class)->getById('a/b');
     $client->resource(\Example\ServerRoutesSdk\Resources\Assets\StemExt::class)->get(new \Example\ServerRoutesSdk\PathParams\Assets\StemExt((object) ['stem' => 'report', 'ext' => 'csv']));
-    $params->body->value = 'x';
-    try { \Example\ServerRoutesSdk\Items::postById('a/b', $params); throw new RuntimeException('Nested mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $params->body->value = 'x'; \Example\ServerRoutesSdk\Items::postById('a/b', $params); throw new RuntimeException('Nested mutation reached HTTP.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }
 echo 'PUBLISHED_SERVER_ROUTES_SDK_HTTP_OK', PHP_EOL;

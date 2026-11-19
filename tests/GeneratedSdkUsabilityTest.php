@@ -133,8 +133,8 @@ final class GeneratedSdkUsabilityTest extends TestCase
         $wire = json_decode((string) $filters, true, 512, JSON_THROW_ON_ERROR)['price_range'];
         self::assertSame(100, $wire['min']);
         self::assertSame(500, $wire['max']);
-        $filters->bedrooms_range->max = 15001;
         $this->expectException(\UnexpectedValueException::class);
+        $filters->bedrooms_range->max = 15001;
         $filters->validate();
     }
 

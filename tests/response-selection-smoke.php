@@ -30,8 +30,7 @@ try {
             } else {
                 $class = $status === 200 ? \Example\SelectionSdk\DTOs\Exact::class : \Example\SelectionSdk\DTOs\Range::class;
                 if (!$result instanceof $class || $result->jsonSerializeForResponse()->name !== 'value') { throw new RuntimeException('Wrong exact/range schema.'); }
-                $result->name = '';
-                try { $result->jsonSerializeForResponse(); throw new RuntimeException('Invalid response mutation accepted.'); }
+                try { $result->name = ''; $result->jsonSerializeForResponse(); throw new RuntimeException('Invalid response mutation accepted.'); }
                 catch (UnexpectedValueException) {}
             }
         } catch (\Dmorenof\SdkRuntime\ApiException $error) {
@@ -49,7 +48,6 @@ try {
     $fallback = $client->resource(\Example\SelectionSdk\Resources\Fallback::class)->get(
         new \Example\SelectionSdk\GetParams\Fallback((object) ['status' => 202, 'body' => 'query body', 'X-Trace' => 'trace']));
     if (!$fallback instanceof \Example\SelectionSdk\DTOs\Fallback || $fallback->city !== 'Madrid') { throw new RuntimeException('Default success failed.'); }
-    $post->body->name = '';
-    try { $resource->post($post); throw new RuntimeException('Invalid request mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $post->body->name = ''; $resource->post($post); throw new RuntimeException('Invalid request mutation reached HTTP.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }
 echo 'PUBLISHED_RESPONSE_SELECTION_SDK_HTTP_OK', PHP_EOL;

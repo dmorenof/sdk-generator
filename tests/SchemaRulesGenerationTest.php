@@ -69,9 +69,9 @@ final class SchemaRulesGenerationTest extends TestCase {
             catch (\UnexpectedValueException|\ValueError) { self::assertTrue(true); }
         }
         $record->rows[] = 1;
-        try { $record->jsonSerializeForRequest(); self::fail('Duplicate mutation accepted.'); } catch (\UnexpectedValueException) { self::assertTrue(true); }
+        try { $record->validateForRequest(); self::fail('Duplicate mutation accepted.'); } catch (\UnexpectedValueException) { self::assertTrue(true); }
         $record = new \Example\SchemaRulesSdk\DTOs\Record($valid); unset($record->profile['only']);
-        try { $record->jsonSerializeForResponse(); self::fail('Map property-count mutation accepted.'); } catch (\UnexpectedValueException) { self::assertTrue(true); }
+        try { $record->validateForResponse(); self::fail('Map property-count mutation accepted.'); } catch (\UnexpectedValueException) { self::assertTrue(true); }
     }
     public function testScalarResponseRulesRejectInvalidDataAndValidateStatusMaps(): void {
         foreach ([0.3, 0.31, 0, 1] as $number) {
