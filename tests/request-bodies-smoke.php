@@ -20,8 +20,7 @@ try {
     $client->resource(\Example\BodySdk\Resources\Loose::class)->post([1, 'x', null]);
     $client->resource(\Example\BodySdk\Resources\Open::class)->post((object) ['nested' => [false, null]]);
     $client->resource(\Example\BodySdk\Resources\NeverResource::class)->post();
-    $params->body[0]->name = 'x';
-    try { $client->resource(\Example\BodySdk\Resources\ListResource::class)->postById(7, $params); throw new RuntimeException('Invalid body mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $params->body[0]->name = 'x'; $client->resource(\Example\BodySdk\Resources\ListResource::class)->postById(7, $params); throw new RuntimeException('Invalid body mutation reached HTTP.'); } catch (UnexpectedValueException) {}
     try { $optional->post(-1); throw new RuntimeException('Invalid scalar body reached HTTP.'); } catch (UnexpectedValueException) {}
     try { $client->resource(\Example\BodySdk\Resources\NeverResource::class)->post(null); throw new RuntimeException('False body schema accepted.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }

@@ -30,8 +30,7 @@ try {
             } else {
                 $class = $status === 200 ? \Example\SelectionSdk\DTOs\Exact::class : \Example\SelectionSdk\DTOs\Range::class;
                 if (!$result instanceof $class || $result->jsonSerializeForResponse()->name !== 'value') { throw new RuntimeException('Wrong exact/range schema.'); }
-                $result->name = '';
-                try { $result->jsonSerializeForResponse(); throw new RuntimeException('Invalid response mutation accepted.'); }
+                try { $result->name = ''; $result->jsonSerializeForResponse(); throw new RuntimeException('Invalid response mutation accepted.'); }
                 catch (UnexpectedValueException) {}
             }
         } catch (\Dmorenof\SdkRuntime\ApiException $error) {

@@ -31,10 +31,8 @@ try {
         'csv' => [1, 2], 'multi' => ['x', 'y'], 'ssv' => ['one', 'two'], 'tsv' => ['one', 'two'], 'pipes' => ['a/b', '%2F']]]);
     $swaggerResource = \Example\SwaggerFormBlockSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make($url))->resource(\Example\SwaggerFormBlockSdk\Resources\Swagger::class);
     $swaggerResource->post($swaggerParams);
-    $form->body->filter->code = '';
-    try { $formResource->post($form); throw new RuntimeException('Invalid form mutation reached HTTP.'); } catch (UnexpectedValueException) {}
-    $multipart->body->batch[0]->code = '';
-    try { $multipartResource->post($multipart); throw new RuntimeException('Invalid JSON part mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $form->body->filter->code = ''; $formResource->post($form); throw new RuntimeException('Invalid form mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $multipart->body->batch[0]->code = ''; $multipartResource->post($multipart); throw new RuntimeException('Invalid JSON part mutation reached HTTP.'); } catch (UnexpectedValueException) {}
     $swaggerParams->body->tsv[] = "a\tb";
     try { $swaggerResource->post($swaggerParams); throw new RuntimeException('Ambiguous form mutation reached HTTP.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }

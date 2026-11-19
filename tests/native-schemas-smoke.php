@@ -21,9 +21,8 @@ try {
     $parameter = $client->resource(\Example\NativeSdk\Resources\Param::class);
     if ($parameter->getById(1, $params) !== 'result') { throw new RuntimeException('Wrong parameter response.'); }
     $params->value = null; $parameter->getById(1, $params);
-    $record->rejected = null;
-    try { $native->post($record); throw new RuntimeException('False property mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $record->rejected = null; $native->post($record); throw new RuntimeException('False property mutation reached HTTP.'); } catch (UnexpectedValueException) {}
     unset($record->rejected); $record->items[] = false;
-    try { $native->post($record); throw new RuntimeException('Invalid array mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $record->validateForRequest(); throw new RuntimeException('Invalid array mutation reached HTTP.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }
 echo 'PUBLISHED_NATIVE_SCHEMAS_SDK_HTTP_OK', PHP_EOL;

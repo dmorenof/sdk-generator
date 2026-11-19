@@ -36,8 +36,8 @@ try {
         throw new RuntimeException('Empty flag bypassed minLength.');
     } catch (UnexpectedValueException) {
     }
-    $post->body->strict = '';
     try {
+        $post->body->strict = '';
         $resource->post($post);
         throw new RuntimeException('Empty flag bypassed form constraints.');
     } catch (UnexpectedValueException) {

@@ -28,7 +28,7 @@ try {
             if ($error->getCode() !== $status || $error->payload !== null || !$error->getPrevious() instanceof $cause || $error->response->body === '') { throw new RuntimeException('Invalid decoding lost its HTTP failure/cause.'); }
         }
     }
-    if ($dto === null) { throw new RuntimeException('Missing DTO error.'); } $dto->message = 'x';
-    try { $dto->jsonSerializeForResponse(); throw new RuntimeException('Invalid error DTO mutation accepted.'); } catch (UnexpectedValueException) {}
+    if ($dto === null) { throw new RuntimeException('Missing DTO error.'); } 
+    try { $dto->message = 'x'; $dto->jsonSerializeForResponse(); throw new RuntimeException('Invalid error DTO mutation accepted.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }
 echo 'PUBLISHED_ERROR_PAYLOADS_SDK_HTTP_OK', PHP_EOL;

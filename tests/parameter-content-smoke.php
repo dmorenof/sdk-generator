@@ -29,8 +29,8 @@ try {
     $client->resource(\Example\ContentSdk\Resources\Scalar::class)->getById('Cat');
     $post->records[] = new \Example\ContentSdk\DTOs\Payload((object) ['id' => 10, 'name' => 'second']);
     unset($post->records[0]); $resource->postByToken($path, $post);
-    $post->records[1]->name = '';
     try {
+        $post->records[1]->name = '';
         $resource->postByToken($path, $post);
         throw new RuntimeException('Invalid mutation accepted.');
     } catch (UnexpectedValueException) {

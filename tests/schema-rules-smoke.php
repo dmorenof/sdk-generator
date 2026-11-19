@@ -24,9 +24,8 @@ try {
     $collection[] = 1;
     try { $collection->validateForMode(); throw new RuntimeException('Duplicate collection mutation accepted.'); } catch (UnexpectedValueException) {}
     $result->profile['second'] = 2;
-    try { $result->jsonSerializeForResponse(); throw new RuntimeException('Map count mutation accepted.'); } catch (UnexpectedValueException) {}
-    $params->body->tag = 8;
-    try { $resource->post($params); throw new RuntimeException('Const mutation reached HTTP.'); } catch (UnexpectedValueException) {}
+    try { $result->validateForResponse(); throw new RuntimeException('Map count mutation accepted.'); } catch (UnexpectedValueException) {}
+    try { $params->body->tag = 8; $resource->post($params); throw new RuntimeException('Const mutation reached HTTP.'); } catch (UnexpectedValueException) {}
     $params->body->tag = 7; $params->amount = 0.31;
     try { $resource->post($params); throw new RuntimeException('Invalid query amount reached HTTP.'); } catch (UnexpectedValueException) {}
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }

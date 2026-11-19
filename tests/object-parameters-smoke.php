@@ -28,8 +28,8 @@ for ($attempt = 0; $attempt < 2; ++$attempt) {
 $post->XFilter->code = 'a,b';
 try { $resource->postBySelector($path, $post); throw new RuntimeException('Ambiguous header mutation accepted.'); }
 catch (UnexpectedValueException) {}
-$post->XFilter->code = 'safe'; $path->selector->code = '';
-try { $resource->postBySelector($path, $post); throw new RuntimeException('Invalid nested path mutation accepted.'); }
+$post->XFilter->code = 'safe';
+try { $path->selector->code = ''; $resource->postBySelector($path, $post); throw new RuntimeException('Invalid nested path mutation accepted.'); }
 catch (UnexpectedValueException) {}
 $path->selector->code = 'valid'; $post->labels['body'] = 'collision';
 try { $resource->postBySelector($path, $post); throw new RuntimeException('Expanded query collision accepted.'); }
