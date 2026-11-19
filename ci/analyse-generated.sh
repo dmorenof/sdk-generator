@@ -14,6 +14,15 @@ smoke() {
   "$@" || FAILED_SMOKES+=("$*")
 }
 
+# With SDK_RUNTIME_REF set to a branch of sdk-runtime, a generated SDK installs the runtime from that branch instead of
+# Packagist, so a generator change can be proven against a runtime that is not published yet.
+use_runtime_branch() {
+  [[ -n "${SDK_RUNTIME_REF:-}" ]] || return 0
+  composer config --working-dir="$1" repositories.runtime vcs https://github.com/dmorenof/sdk-runtime
+  composer config --working-dir="$1" minimum-stability dev
+  composer require --working-dir="$1" "dmorenof/sdk-runtime:dev-$SDK_RUNTIME_REF as ${SDK_RUNTIME_ALIAS:-1.9.9}" --no-update --no-interaction --quiet
+}
+
 analyse() {
   local name="$1" spec="$2" namespace="$3"
   local -a options=()
@@ -22,6 +31,7 @@ analyse() {
   fi
   echo "== $name"
   php bin/generate-sdk.php "${options[@]}" "tests/fixtures/$spec" "$OUT/$name" "$namespace" "example/$name" > /dev/null
+  use_runtime_branch "$OUT/$name"
   composer install --working-dir="$OUT/$name" --no-interaction --prefer-dist --no-progress --quiet
   vendor/bin/phpstan analyse "$OUT/$name/src" --level=max \
     --autoload-file="$OUT/$name/vendor/autoload.php" --no-progress --memory-limit=2G
