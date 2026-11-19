@@ -160,7 +160,7 @@ final class PhpContractEmitter
 
         $files['src/Api/Operations.php'] = $this->renderOperations($contract, $files);
         $files = array_replace($files,
-            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes, [], $this->operationParameterTypes, $this->operationParameterEnums))->emit($contract));
+            (new PhpOperationRequestEmitter($this->namespace, $this->modelNames, $this->operationBodyTypes, new ParameterTypes($this->operationParameterTypes, $this->operationParameterEnums)))->emit($contract));
         $files['src/Api/OperationCatalog.php'] = $this->renderCatalog($contract);
         $manifest = [
             'name' => $this->packageName,

@@ -2,6 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## Unreleased
+
+- Internal: `PhpResourceEmitter` (12 constructor arguments) and `PhpOperationRequestEmitter` (6) now take at most 4: the parameter types travel in a `ParameterTypes` value object and what the resource emitter needs from the contract emitter in a `ResourceContext`. An always-empty query-types map was removed. The generated output of all 52 fixture SDKs is byte-identical before and after.
+
 ## [1.5.0] — 2026-11-18
 
 Generated SDKs require `dmorenof/sdk-runtime` `^1.2.0`.

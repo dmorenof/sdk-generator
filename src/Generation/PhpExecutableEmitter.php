@@ -43,8 +43,9 @@ final class PhpExecutableEmitter
         );
         $this->operationSuccessTypes = $contractEmitter->operationSuccessTypes();
         $this->operationErrorTypes = $contractEmitter->operationErrorTypes();
+        $parameterTypes = new ParameterTypes($contractEmitter->operationParameterTypes(), $contractEmitter->operationParameterEnums());
         $requests = (new PhpOperationRequestEmitter(
-            $this->namespace, $this->modelNames, $contractEmitter->operationBodyTypes(), [], $contractEmitter->operationParameterTypes(), $contractEmitter->operationParameterEnums(),
+            $this->namespace, $this->modelNames, $contractEmitter->operationBodyTypes(), $parameterTypes,
         ))->emitExecutable($contract);
         foreach ($requests['files'] as $path => $_source) {
             if (isset($files[$path])) {
@@ -65,17 +66,17 @@ final class PhpExecutableEmitter
             $requests['files'],
             (new PhpResourceEmitter(
                 $this->namespace,
-                $this->securitySchemes,
-                $this->operationSuccessTypes,
-                $this->operationErrorTypes,
                 $this->modelNames,
-                $this->apiGroups,
-                $requests['types'],
-                [],
-                $contract->models,
-                $contractEmitter->operationParameterTypes(),
-                $contractEmitter->operationErrorResponses(),
-                $contractEmitter->operationParameterEnums(),
+                new ResourceContext(
+                    $this->securitySchemes,
+                    $this->operationSuccessTypes,
+                    $this->operationErrorTypes,
+                    $requests['types'],
+                    $contractEmitter->operationErrorResponses(),
+                    $parameterTypes,
+                    $contract->models,
+                    $this->apiGroups,
+                ),
             ))->emit($contract),
         );
         ksort($files, SORT_STRING);

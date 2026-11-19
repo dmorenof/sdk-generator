@@ -21,12 +21,7 @@ final readonly class PhpOperationRequestEmitter
         private ?PhpModelNameResolver $modelNames = null,
         /** @var array<string,string> */
         private array $bodyTypes = [],
-        /** @var array<string,array<string,string>> */
-        private array $queryTypes = [],
-        /** @var array<string,array<string,array<array-key,string>>> */
-        private array $parameterTypes = [],
-        /** @var array<string,array<string,array<string,string>>> Operation ID / location / wire name => enum type. */
-        private array $parameterEnums = [],
+        private ParameterTypes $parameterTypes = new ParameterTypes(),
     ) {}
 
     /** @return array<string,string> */
@@ -79,7 +74,7 @@ final readonly class PhpOperationRequestEmitter
             $namespace = implode('\\', $segments);
             $identifier = null;
             if (count($pathParameters) === 1 && $pathParameters[0]->schema->kind !== \Dmorenof\SdkGenerator\Contract\SchemaKind::Array
-                && !isset($this->parameterTypes[$operation->operationId]['path'][$pathParameters[0]->wireName])) {
+                && !isset($this->parameterTypes->objects[$operation->operationId]['path'][$pathParameters[0]->wireName])) {
                 $parameter = $pathParameters[0];
                 $resolved = PhpParameterTypeResolver::resolve(
                     $parameter->schema, $operation->operationId . '.' . $parameter->wireName, false, $contract->models,
@@ -87,7 +82,7 @@ final readonly class PhpOperationRequestEmitter
                 $variable = PhpNameTransliterator::property($parameter->wireName);
                 $identifier = [
                     'kind' => 'scalar',
-                    'type' => $this->parameterEnums[$operation->operationId]['path'][$parameter->wireName] ?? $resolved['type'],
+                    'type' => $this->parameterTypes->enums[$operation->operationId]['path'][$parameter->wireName] ?? $resolved['type'],
                     'name' => $variable === 'payload' || $variable === 'params'
                         ? 'identifier' : $variable,
                     'wireName' => $parameter->wireName,
@@ -212,14 +207,13 @@ final readonly class PhpOperationRequestEmitter
                 $propertyMap[$parameter->wireName] = $field;
                 $wirePropertyMap[$field] = $parameter->wireName;
             }
-            $parameterType = $this->parameterTypes[$operation->operationId][$parameter->location][$parameter->wireName]
-                ?? ($parameter->location === 'query' ? ($this->queryTypes[$operation->operationId][$parameter->wireName] ?? null) : null);
+            $parameterType = $this->parameterTypes->objects[$operation->operationId][$parameter->location][$parameter->wireName] ?? null;
             $resolved = $parameterType !== null
                 ? ['type' => $parameterType, 'nullable' => \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::nullable($parameter->schema, $contract->models), 'enumValues' => []]
                 : PhpParameterTypeResolver::resolve(
                     $parameter->schema, $operation->operationId . '.' . $parameter->wireName, true, $contract->models,
                 );
-            $enumType = $this->parameterEnums[$operation->operationId][$parameter->location][$parameter->wireName] ?? null;
+            $enumType = $this->parameterTypes->enums[$operation->operationId][$parameter->location][$parameter->wireName] ?? null;
             if ($enumType !== null) {
                 $resolved['type'] = $enumType; // the enum already refuses any other value, so no rule repeats the list
                 $resolved['enumValues'] = [];
