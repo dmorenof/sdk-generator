@@ -3,7 +3,7 @@
 declare(strict_types=1);
 require ($argv[1] ?? throw new RuntimeException('Missing SDK directory.')) . '/vendor/autoload.php';
 require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
-if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) {
+if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || (getenv('SDK_RUNTIME_REF') === false && str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev'))) {
     throw new RuntimeException('Independent stable SDK required.');
 }
 $process = proc_open([PHP_BINARY, __DIR__ . '/parameter-overrides-http-server.php'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);

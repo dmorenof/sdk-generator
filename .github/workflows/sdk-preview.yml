@@ -74,6 +74,11 @@ jobs:
         run: |
           set -euo pipefail
           composer validate --no-check-lock
+          if [[ -n "${SDK_RUNTIME_REF:-}" ]]; then
+            composer config repositories.runtime vcs https://github.com/dmorenof/sdk-runtime
+            composer config minimum-stability dev
+            composer require "dmorenof/sdk-runtime:dev-$SDK_RUNTIME_REF as ${SDK_RUNTIME_ALIAS:-1.9.9}" --no-update --no-interaction
+          fi
           composer install --no-interaction --prefer-dist --no-progress
           php ../../tests/preview-smoke.php "$PREVIEW_API"
 

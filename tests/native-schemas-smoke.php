@@ -3,7 +3,7 @@ declare(strict_types=1);
 $sdk = $argv[1] ?? throw new RuntimeException('Missing SDK.');
 require $sdk . '/vendor/autoload.php';
 require_once __DIR__ . '/Support/Cfg.php'; // the SDK runs on its own vendor tree, which has no test autoloader
-if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) { throw new RuntimeException('Native SDK needs independent stable dependencies.'); }
+if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || (getenv('SDK_RUNTIME_REF') === false && str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev'))) { throw new RuntimeException('Native SDK needs independent stable dependencies.'); }
 $process = proc_open([PHP_BINARY, $sdk . '/vendor/dmorenof/sdk-runtime/tests/native-schemas-http-server.php'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
 if (!is_resource($process)) { throw new RuntimeException('Cannot start HTTP server.'); }
 try {

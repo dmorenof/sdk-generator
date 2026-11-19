@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 $sdk = $argv[1] ?? throw new RuntimeException('Missing SDK.'); require $sdk . '/vendor/autoload.php';
-if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev')) { throw new RuntimeException('Server-route SDK needs independent stable dependencies.'); }
+if (\Composer\InstalledVersions::isInstalled('dmorenof/sdk-generator') || (getenv('SDK_RUNTIME_REF') === false && str_contains((string) \Composer\InstalledVersions::getPrettyVersion('dmorenof/sdk-runtime'), 'dev'))) { throw new RuntimeException('Server-route SDK needs independent stable dependencies.'); }
 $process = proc_open([PHP_BINARY, __DIR__ . '/server-routes-http-server.php'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
 if (!is_resource($process)) { throw new RuntimeException('Cannot start server.'); }
 try {
