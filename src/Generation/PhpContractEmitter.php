@@ -258,6 +258,8 @@ final class PhpContractEmitter
             }
         }
         $fields = [];
+        /** @var list<string> One `match` arm per property whose JSON value is converted inline (see assignMember()). */
+        $memberArms = [];
         $validation = [];
         $readOnly = [];
         $writeOnly = [];
@@ -305,6 +307,12 @@ final class PhpContractEmitter
                 // A native array cannot be edited in place once its property has a hook (`$model->list[] = x` is an Error), so lists are checked when built and by typed collections, not by a hook.
                 if (!$fileList && !PhpDoc::hasArray($type)) {
                     $addedField = array_key_last($fields);
+                }
+                if (!$fileList) {
+                    $arm = $this->inlineMemberArm($property->wireName, $propertyName, $type, $propertySchema);
+                    if ($arm !== null) {
+                        $memberArms[] = $arm;
+                    }
                 }
             }
             $propertyValidation = $originalSchema->validation;
@@ -406,8 +414,67 @@ final class PhpContractEmitter
         if ($fields !== []) {
             $source .= implode("\n", $fields) . "\n\n";
         }
+        if ($memberArms !== []) {
+            $source .= "    protected function assignMember(string \$name, mixed \$value): void\n    {\n        match (\$name) {\n"
+                . implode("\n", $memberArms)
+                . "\n            default => parent::assignMember(\$name, \$value),\n        };\n    }\n";
+        }
         $source .= "}\n";
         return $source;
+    }
+
+    /**
+     * The `match` arm that sets a property from its JSON member without the general dispatch, for a property whose
+     * JSON value is already what the declared type needs: a scalar, an enum case or a plain nested model. Any other
+     * value takes the general path, so what is accepted, converted or refused does not change.
+     */
+    private function inlineMemberArm(string $wireName, string $propertyName, string $type, SchemaDefinition $schema): ?string
+    {
+        $nullable = str_starts_with($type, '?');
+        $name = ltrim($type, '?');
+        $general = "\\Dmorenof\\SdkRuntime\\Hydrator::hydrateProperty(\$this, " . PhpLiteral::export($propertyName)
+            . ', $value, static::class . ' . PhpLiteral::export('::' . $wireName) . ')';
+        if (in_array($name, ['string', 'int', 'float', 'bool'], true)) {
+            $test = 'is_' . $name . '($value)';
+            $converted = ($nullable ? '$value === null || ' : '') . $test . ' ? $value : ' . $general;
+        } elseif (($backing = $this->enumBacking($schema)) !== null) {
+            $converted = ($nullable ? '$value === null ? null : (' : '') . 'is_' . $backing . '($value) ? ' . $name . '::from($value) : ' . $general . ($nullable ? ')' : '');
+        } elseif ($this->isPlainModel($schema)) {
+            $converted = ($nullable ? '$value === null ? null : (' : '') . '$value instanceof \\stdClass ? new ' . $name . '($value) : ' . $general . ($nullable ? ')' : '');
+        } else {
+            return null;
+        }
+        return '            ' . PhpLiteral::export($wireName) . ' => $this->' . $propertyName . ' = ' . $converted . ',';
+    }
+
+    /** `string` or `int` when the schema is a backed enum, else null. */
+    private function enumBacking(SchemaDefinition $schema): ?string
+    {
+        $resolved = $schema->kind === SchemaKind::Reference
+            ? \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($schema, array_values($this->modelDefinitions))
+            : $schema;
+        if ($resolved->enumValues === []) {
+            return null;
+        }
+        return match ($resolved->kind) {
+            SchemaKind::String => 'string',
+            SchemaKind::Integer => 'int',
+            default => null,
+        };
+    }
+
+    /** A named object model with its own properties and no discriminator or composition: it hydrates with `new`. */
+    private function isPlainModel(SchemaDefinition $schema): bool
+    {
+        if ($schema->kind !== SchemaKind::Reference) {
+            return false;
+        }
+        $resolved = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($schema, array_values($this->modelDefinitions));
+        return $resolved->kind === SchemaKind::Object
+            && $resolved->discriminator === null
+            && $resolved->enumValues === []
+            && $resolved->properties !== []
+            && $resolved->branches === [];
     }
 
     private function inheritsMultipartFileList(?string $parent, string $wireName): bool
