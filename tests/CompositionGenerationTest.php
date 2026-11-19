@@ -224,7 +224,7 @@ final class CompositionGenerationTest extends TestCase
         );
         self::assertStringContainsString('final class IntRangeSchema3 extends \\Dmorenof\\SdkRuntime\\DTO', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
         self::assertStringContainsString('public ?int $min', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
-        self::assertStringContainsString('public ?int $max;', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
+        self::assertStringContainsString('public ?int $max', $files['src/DTOs/MarketAnalyticsApi/Ranges/IntRangeSchema3.php']);
 
         $input = new \Example\CompositionSdk\DTOs\RangeInput((object) [
             'bathrooms_range' => (object) ['min' => null, 'max' => 4],

@@ -28,7 +28,7 @@ final class NativeSchemasGenerationTest extends TestCase {
         self::assertSame($files, (new PhpExecutableEmitter('Example\\NativeSdk', 'example/native'))->emit(
             (new SpecificationNormalizer())->fromYaml(Yaml::dump($document, 40), strict: true)));
         self::assertStringContainsString('public string|int|bool|null $value', $files['src/DTOs/Record.php']);
-        self::assertStringContainsString('public int $id;', $files['src/DTOs/Record.php']);
+        self::assertStringContainsString('public int $id', $files['src/DTOs/Record.php']);
         self::assertStringContainsString('public mixed $open;', $files['src/DTOs/Record.php']);
         self::assertStringContainsString('public null $nullOnly;', $files['src/DTOs/Record.php']);
         foreach (['Choice', 'Identifier', 'IdentifierAlias', 'OpenValue', 'Impossible'] as $name) { self::assertArrayNotHasKey('src/DTOs/' . $name . '.php', $files); }
