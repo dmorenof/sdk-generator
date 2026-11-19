@@ -39,7 +39,7 @@ A real example: [casafari-sdk](https://github.com/dmorenof/casafari-sdk) is gene
 
 ## Requirements
 
-PHP 8.4 or newer, Composer 2.2 or newer. Generated SDKs require PHP 8.4 and `dmorenof/sdk-runtime` `^1.4`.
+PHP 8.4 or newer, Composer 2.2 or newer. Generated SDKs require PHP 8.4 and `dmorenof/sdk-runtime` `^1.4.2`.
 
 ```bash
 composer require --dev dmorenof/sdk-generator
