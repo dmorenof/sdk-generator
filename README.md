@@ -39,7 +39,7 @@ A real example: [casafari-sdk](https://github.com/dmorenof/casafari-sdk) is gene
 
 ## Requirements
 
-PHP 8.3 or newer, Composer 2.2 or newer. Generated SDKs require `dmorenof/sdk-runtime` `^1.2`.
+PHP 8.4 or newer, Composer 2.2 or newer. Generated SDKs require PHP 8.4 and `dmorenof/sdk-runtime` `^1.4`.
 
 ```bash
 composer require --dev dmorenof/sdk-generator
@@ -88,7 +88,7 @@ Static route classes (`Users::...`) mirror the URL structure and share one confi
 
 ## Validation, in short
 
-PHP's own types reject wrong types. The rules the contract declares (`minLength`, `pattern`, `minimum`, required fields…) are checked when a model is built from JSON, when you call `validate()`, and once when a request is sent. `json_encode($model)` only serializes. Details: the runtime's [validation guide](https://github.com/dmorenof/sdk-runtime/blob/main/docs/validation.md).
+Every property that has rules gets a PHP 8.4 `set` hook in the generated model, so a value is checked where it enters the model, once: when you assign it or when the model is built from JSON. Nothing is validated again when a request is sent, and `json_encode($model)` only serializes. `$model->validate()` checks everything on demand. PHP has no 32-bit integer, so the range of `int32` is always asserted; other formats only with `--validate-formats`. Details: the runtime's [validation guide](https://github.com/dmorenof/sdk-runtime/blob/main/docs/validation.md).
 
 ## What is supported
 
@@ -117,7 +117,7 @@ composer validate --strict --no-check-lock
 bash ci/run-tests.sh --coverage
 ```
 
-CI runs PHPUnit on PHP 8.3–8.5, minimum compatible dependencies, an advisory audit, and installs and smoke-tests generated SDKs.
+CI runs PHPUnit on PHP 8.4 and 8.5, minimum compatible dependencies, an advisory audit, and installs and smoke-tests generated SDKs.
 
 ## License
 
