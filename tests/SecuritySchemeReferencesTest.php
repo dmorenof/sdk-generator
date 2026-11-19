@@ -61,7 +61,7 @@ final class SecuritySchemeReferencesTest extends TestCase
     public function testUnsupportedTargetsCannotBecomeSupportedThroughSiblingOverrides(): void
     {
         $document = self::document();
-        $document['components']['securitySchemes']['BearerBase'] = ['type' => 'mutualTLS'];
+        $document['components']['securitySchemes']['BearerBase'] = ['type' => 'custom'];
         $document['components']['securitySchemes']['Bearer']['type'] = 'http';
         $document['components']['securitySchemes']['Bearer']['scheme'] = 'bearer';
         $report = (new DocumentInspector())->inspect(self::source($document), sourceName: 'auth.json');
