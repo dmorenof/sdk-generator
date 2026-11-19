@@ -27,7 +27,7 @@ final class NativeSchemasGenerationTest extends TestCase {
         $document = self::document(); $files = self::files($document);
         self::assertSame($files, (new PhpExecutableEmitter('Example\\NativeSdk', 'example/native'))->emit(
             (new SpecificationNormalizer())->fromYaml(Yaml::dump($document, 40), strict: true)));
-        self::assertStringContainsString('public string|int|bool|null $value;', $files['src/DTOs/Record.php']);
+        self::assertStringContainsString('public string|int|bool|null $value', $files['src/DTOs/Record.php']);
         self::assertStringContainsString('public int $id;', $files['src/DTOs/Record.php']);
         self::assertStringContainsString('public mixed $open;', $files['src/DTOs/Record.php']);
         self::assertStringContainsString('public null $nullOnly;', $files['src/DTOs/Record.php']);
@@ -55,7 +55,7 @@ final class NativeSchemasGenerationTest extends TestCase {
         try { new \Example\NativeSdk\DTOs\Record($data); self::fail('False item schema accepted a value.'); }
         catch (\UnexpectedValueException) { self::assertTrue(true); }
         $record = new \Example\NativeSdk\DTOs\Record(self::record()); $record->items[] = (object) [];
-        $this->expectException(\UnexpectedValueException::class); $record->jsonSerializeForRequest();
+        $this->expectException(\UnexpectedValueException::class); $record->validateForRequest();
     }
     public function testScalarAliasesAndUnionParametersRetainConstraintsAndLocations(): void {
         $http = new class implements \Psr\Http\Client\ClientInterface {

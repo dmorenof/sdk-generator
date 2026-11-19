@@ -183,7 +183,7 @@ final class FileListGenerationTest extends TestCase
         }
         unset($path, $content);
         $jsonFiles = self::files($document);
-        self::assertStringContainsString('StringCollection $attachments;', $jsonFiles['src/DTOs/Form.php']);
+        self::assertStringContainsString('StringCollection $attachments', $jsonFiles['src/DTOs/Form.php']);
         self::assertStringNotContainsString('public array $attachments;', $jsonFiles['src/DTOs/Form.php']);
         $document = self::document();
         $document['paths']['/items']['post']['requestBody']['content']['multipart/form-data']['schema'] = $document['components']['schemas']['Form'];

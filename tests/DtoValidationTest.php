@@ -183,10 +183,9 @@ final class DtoValidationTest extends TestCase
             self::assertStringContainsString('maximum', $e->getMessage());
         }
         $dto->id = 7;
-        $dto->profile->city = 'A';
         $this->expectException(UnexpectedValueException::class);
         $this->expectExceptionMessage('minLength');
-        $dto->validate();
+        $dto->profile->city = 'A';
     }
 
     public function testTypedCollectionCountsAreRevalidated(): void
