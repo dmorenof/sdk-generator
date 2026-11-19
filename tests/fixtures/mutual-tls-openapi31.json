@@ -1,0 +1,25 @@
+{
+  "openapi": "3.1.0",
+  "info": {"title": "Mutual TLS", "version": "1"},
+  "servers": [{"url": "https://api.example.test"}],
+  "paths": {
+    "/secure": {
+      "get": {
+        "operationId": "getSecure",
+        "security": [{"mtls": []}],
+        "responses": {"200": {"description": "ok", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Pong"}}}}}
+      }
+    },
+    "/public": {
+      "get": {
+        "operationId": "getPublic",
+        "security": [],
+        "responses": {"200": {"description": "ok", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Pong"}}}}}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {"mtls": {"type": "mutualTLS", "description": "The client presents a certificate."}},
+    "schemas": {"Pong": {"type": "object", "properties": {"pong": {"type": "string"}}}}
+  }
+}
