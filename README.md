@@ -88,7 +88,7 @@ Static route classes (`Users::...`) mirror the URL structure and share one confi
 
 ## Validation, in short
 
-Every property that has rules gets a PHP 8.4 `set` hook in the generated model, so a value is checked where it enters the model, once: when you assign it or when the model is built from JSON. Nothing is validated again when a request is sent, and `json_encode($model)` only serializes. `$model->validate()` checks everything on demand. PHP has no 32-bit integer, so the range of `int32` is always asserted; other formats only with `--validate-formats`. Details: the runtime's [validation guide](https://github.com/dmorenof/sdk-runtime/blob/main/docs/validation.md).
+Every property that has rules gets a PHP 8.4 `set` hook in the generated model, so a value is checked where it enters the model, once: when you assign it or when the model is built from JSON. Nothing is validated again when a request is sent, and `json_encode($model)` only serializes. `$model->validate()` checks everything on demand. Two limits of PHP 8.4 hooks: a property with a hook cannot be unset, and native array properties get no hook (a hooked property cannot be edited in place), so lists with rules are checked when the model is built and by typed collections. PHP has no 32-bit integer, so the range of `int32` is always asserted; other formats only with `--validate-formats`. Details: the runtime's [validation guide](https://github.com/dmorenof/sdk-runtime/blob/main/docs/validation.md).
 
 ## What is supported
 

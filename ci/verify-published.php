@@ -279,8 +279,8 @@ if ($transport->calls[0]['url'] !== 'https://api.example.test/v1/items?body%5Bci
     || $transport->calls[1]['headers']['Content-Type'] !== 'application/json') {
     throw new RuntimeException('Installed SDK confused query objects with request body.');
 }
-$params->filter->cityName = '';
 try {
+    $params->filter->cityName = '';
     $resource->post($params);
     throw new RuntimeException('Installed SDK accepted invalid query object mutation.');
 } catch (UnexpectedValueException) {
@@ -336,8 +336,8 @@ if ($transport->calls[0]['url'] !== 'https://api.example.test/v1/items?name=quer
     || $transport->calls[1]['headers']['X-Trace'] !== 'trace') {
     throw new RuntimeException('Published GetParams/PostParams form serialization failed.');
 }
-$params->body->name = '';
 try {
+    $params->body->name = '';
     $items->post($params);
     throw new RuntimeException('Invalid form mutation was accepted.');
 } catch (UnexpectedValueException) {
@@ -393,8 +393,8 @@ if ($transport->calls[0]['url'] !== 'https://api.example.test/v1/items?name=quer
     || $transport->calls[1]['headers']['X-Trace'] !== 'trace') {
     throw new RuntimeException('Published Swagger formData serialization or CSV default failed.');
 }
-$params->body->name = '';
 try {
+    $params->body->name = '';
     $items->post($params);
     throw new RuntimeException('Invalid Swagger form mutation was accepted.');
 } catch (UnexpectedValueException) {
