@@ -439,12 +439,35 @@ final class PhpContractEmitter
             $converted = ($nullable ? '$value === null || ' : '') . $test . ' ? $value : ' . $general;
         } elseif (($backing = $this->enumBacking($schema)) !== null) {
             $converted = ($nullable ? '$value === null ? null : (' : '') . 'is_' . $backing . '($value) ? ' . $name . '::from($value) : ' . $general . ($nullable ? ')' : '');
+        } elseif (($itemTest = $this->scalarItemTest($schema)) !== null && $name !== 'array') {
+            // A list whose items are all of the declared scalar type is wrapped as it is; anything else takes the general path.
+            $converted = ($nullable ? '$value === null ? null : (' : '') . 'is_array($value) && array_is_list($value) && array_all($value, static fn (mixed $item): bool => ' . $itemTest . ') ? new ' . $name . '($value) : ' . $general . ($nullable ? ')' : '');
         } elseif ($this->isPlainModel($schema)) {
             $converted = ($nullable ? '$value === null ? null : (' : '') . '$value instanceof \\stdClass ? new ' . $name . '($value) : ' . $general . ($nullable ? ')' : '');
         } else {
             return null;
         }
         return '            ' . PhpLiteral::export($wireName) . ' => $this->' . $propertyName . ' = ' . $converted . ',';
+    }
+
+    /** The test that an item of a list of plain scalars passes (`is_string($item)`), or null when the items are anything else. */
+    private function scalarItemTest(SchemaDefinition $schema): ?string
+    {
+        $array = $this->effectiveSchema($schema);
+        if ($array->kind !== SchemaKind::Array || $array->items === null) {
+            return null;
+        }
+        $items = $this->effectiveSchema($array->items);
+        if ($items->nullable || $items->enumValues !== [] || ($items->kind === SchemaKind::String && $items->format === 'binary')) {
+            return null;
+        }
+        return match ($items->kind) {
+            SchemaKind::String => 'is_string($item)',
+            SchemaKind::Integer => 'is_int($item)',
+            SchemaKind::Number => 'is_float($item)',
+            SchemaKind::Boolean => 'is_bool($item)',
+            default => null,
+        };
     }
 
     /** `string` or `int` when the schema is a backed enum, else null. */

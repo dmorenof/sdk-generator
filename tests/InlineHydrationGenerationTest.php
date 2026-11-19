@@ -55,10 +55,10 @@ final class InlineHydrationGenerationTest extends TestCase
         self::assertStringContainsString('default => parent::assignMember($name, $value),', $model);
     }
 
-    public function testListsAndDiscriminatedModelsKeepTheGeneralPath(): void
+    public function testAListOfScalarsIsWrappedInlineAndADiscriminatedModelKeepsTheGeneralPath(): void
     {
         $model = self::files()['src/DTOs/User.php'];
-        self::assertStringNotContainsString("'tags' =>", $model);
+        self::assertStringContainsString("'tags' => \$this->tags = is_array(\$value) && array_is_list(\$value) && array_all(\$value, static fn (mixed \$item): bool => is_string(\$item)) ? new \\Example\\Inline\\Collections\\StringCollection(\$value) : ", $model);
         self::assertStringNotContainsString("'pet' =>", $model);
     }
 
@@ -91,7 +91,9 @@ final class InlineHydrationGenerationTest extends TestCase
             self::assertSame('Dee', $user->displayName);
             self::assertSame('admin', $user->role->value);
 
-            foreach ([['name' => 5], ['name' => 'Ada', 'role' => 'nope'], ['name' => 'Ada', 'age' => 'x'], ['name' => 'Ada', 'address' => 'x']] as $bad) {
+            self::assertSame(['a'], $user->tags->getArrayCopy());
+            foreach ([['name' => 5], ['name' => 'Ada', 'role' => 'nope'], ['name' => 'Ada', 'age' => 'x'], ['name' => 'Ada', 'address' => 'x'],
+                ['name' => 'Ada', 'tags' => ['a', 1]], ['name' => 'Ada', 'tags' => 'a']] as $bad) {
                 try {
                     new $class((object) $bad);
                     self::fail('A bad value was accepted: ' . json_encode($bad));
