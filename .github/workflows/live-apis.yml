@@ -59,6 +59,45 @@ jobs:
             live-results/petstore3-sdk/src/**
           retention-days: 14
 
+  petstore2:
+    name: Swagger Petstore (Swagger 2.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Download the specification
+        run: |
+          mkdir -p live-results
+          curl --fail --location --retry 3 --max-time 35 https://petstore.swagger.io/v2/swagger.json -o live-results/petstore2.json
+          sha256sum live-results/petstore2.json
+      - name: Generate the SDK (strict)
+        run: php bin/generate-sdk.php --strict live-results/petstore2.json live-results/petstore2-sdk 'Example\PetstoreV2' example/petstore-v2
+      - name: Use the runtime of a branch, when asked
+        if: env.SDK_RUNTIME_REF != ''
+        run: |
+          composer config --working-dir=live-results/petstore2-sdk repositories.runtime vcs https://github.com/dmorenof/sdk-runtime
+          composer config --working-dir=live-results/petstore2-sdk minimum-stability dev
+          composer require --working-dir=live-results/petstore2-sdk "dmorenof/sdk-runtime:dev-$SDK_RUNTIME_REF as 1.99.0" --no-update --no-interaction --quiet
+      - run: composer install --working-dir=live-results/petstore2-sdk --no-interaction --prefer-dist --no-progress
+      - name: Analyse the generated code at PHPStan max
+        run: vendor/bin/phpstan analyse live-results/petstore2-sdk/src --level=max --autoload-file=live-results/petstore2-sdk/vendor/autoload.php --no-progress --memory-limit=2G
+      - name: Call the real server
+        run: php tests/live/petstore2_smoke.php
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: petstore2-live
+          path: |
+            live-results/petstore2.json
+            live-results/petstore2-sdk/src/**
+          retention-days: 14
+
   frankfurter:
     name: Frankfurter (OpenAPI 3.1)
     runs-on: ubuntu-latest

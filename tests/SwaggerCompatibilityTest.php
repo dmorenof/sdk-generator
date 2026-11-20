@@ -77,10 +77,17 @@ final class SwaggerCompatibilityTest extends TestCase
         self::emit($document);
     }
 
-    public function testAMixOfJsonAndOtherMediaTypesIsStillRefused(): void
+    public function testAnXmlTwinAfterJsonIsIgnoredAsInOpenApi3(): void
     {
         $document = self::document();
         $document['paths']['/items']['post']['consumes'] = ['application/json', 'application/xml'];
+        self::assertNotSame([], self::emit($document));
+    }
+
+    public function testAListThatDoesNotStartWithJsonIsStillRefused(): void
+    {
+        $document = self::document();
+        $document['paths']['/items']['post']['consumes'] = ['application/xml', 'application/json'];
         $this->expectException(\InvalidArgumentException::class);
         self::emit($document);
     }
