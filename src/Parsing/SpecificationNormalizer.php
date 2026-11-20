@@ -677,6 +677,13 @@ final class SpecificationNormalizer
                 ], $declared ?? []),
             );
         }
+        // An operation that lists only failures (Petstore's `addPet` declares just a 405 for invalid input) succeeds
+        // with any 2XX: the answer is not described, so it is returned as nothing rather than refused.
+        $declaresSuccess = array_filter($responses, static fn (ResponseDefinition $response): bool => $response->status === 'default'
+            || preg_match('/^2(?:[0-9]{2}|XX)$/', $response->status) === 1) !== [];
+        if ($responses !== [] && !$declaresSuccess && !$head) {
+            $responses[] = new ResponseDefinition('2XX', null, null, [], [], [], ['x-implicit-success' => true], []);
+        }
         return $responses;
     }
 
@@ -730,12 +737,17 @@ final class SpecificationNormalizer
      * @param array<mixed> $mediaTypes
      * @return array<mixed>
      */
+    /**
+     * `consumes` / `produces` list alternatives for one schema, preferred first. When the first one is JSON, the SDK
+     * speaks JSON and the others (an XML twin of the same schema, say) are not emitted, as in OpenAPI 3.x.
+     *
+     * @param list<mixed> $mediaTypes
+     * @return list<mixed>
+     */
     private function collapseJsonMedia(array $mediaTypes): array
     {
-        if (count($mediaTypes) > 1 && is_string($mediaTypes[0] ?? null)
-            && $this->isJsonMediaType($mediaTypes[0])
-            && array_filter($mediaTypes, fn ($media): bool => !is_string($media)
-                || !($this->isJsonMediaType($media) || strtolower(trim($media)) === 'text/json')) === []) {
+        if (count($mediaTypes) > 1 && is_string($mediaTypes[0] ?? null) && $this->isJsonMediaType($mediaTypes[0])
+            && array_filter($mediaTypes, static fn ($media): bool => !is_string($media)) === []) {
             return [$mediaTypes[0]];
         }
         return $mediaTypes;

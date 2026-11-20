@@ -695,7 +695,8 @@ final class ContractAuditor
         $type = $parameter['schema']['type'] ?? $parameter['type'] ?? null;
         $structured = in_array($type, ['array', 'object'], true)
             || (is_array($type) && array_intersect($type, ['array', 'object']) !== []);
-        if ($structured && !$parameterArray && !$parameterObject && !$swaggerForm) {
+        // A Swagger `in: body` parameter is the request body, whatever its shape: it is not a serialized parameter.
+        if ($structured && ($parameter['in'] ?? null) !== 'body' && !$parameterArray && !$parameterObject && !$swaggerForm) {
             $this->add('structured_parameter', isset($parameter['schema']) ? "$at/schema" : "$at/type", 'Only supported primitive query/simple path/header lists and flat deepObject/form/simple parameter objects are executable; other structured parameters remain unsupported.', $operation);
         }
     }

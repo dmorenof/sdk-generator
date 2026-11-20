@@ -2,6 +2,15 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.12.0] — 2026-11-20
+
+Found with the Swagger Petstore (Swagger 2.0), whose unmodified specification now generates strictly and runs against the real server.
+
+- **`consumes` / `produces` that start with JSON and list others** (`application/json`, `application/xml`): the SDK speaks JSON and the XML twin is not emitted, as in OpenAPI 3.x. A list that does not start with JSON is still refused.
+- **An operation that lists only failures** (`addPet` declares just a 405) succeeds with any 2XX and returns nothing. An operation with no response at all is still refused.
+- **A Swagger `in: body` parameter that is a list of models** is no longer reported as an unsupported structured parameter: it was always a request body, and the SDK takes a typed collection.
+- `Live public APIs` also runs the Swagger Petstore (Swagger 2.0).
+
 ## [1.11.0] — 2026-11-20
 
 Found by generating SDKs from the unmodified specifications of public APIs (Frankfurter, OpenAPI 3.1) and calling the real servers (see the `Live public APIs` workflow).
