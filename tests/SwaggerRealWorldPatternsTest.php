@@ -95,4 +95,51 @@ final class SwaggerRealWorldPatternsTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         (new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR));
     }
+
+    /** @return array<string, mixed> */
+    private static function formDocument(array $fields, ?array $consumes): array
+    {
+        $document = self::document();
+        $operation = ['operationId' => 'redirectTo', 'parameters' => $fields, 'responses' => ['302' => ['description' => 'redirect']]];
+        if ($consumes !== null) {
+            $operation['consumes'] = $consumes;
+        }
+        $document['paths']['/redirect-to'] = ['post' => $operation];
+        return $document;
+    }
+
+    public function testFormFieldsWithNoConsumesAreAUrlEncodedForm(): void
+    {
+        $document = self::formDocument([
+            ['in' => 'formData', 'name' => 'url', 'type' => 'string', 'required' => true],
+            ['in' => 'formData', 'name' => 'status_code', 'type' => 'integer'],
+        ], null);
+        $errors = array_filter((new ContractAuditor())->audit($document, 'forms.json'), static fn ($issue): bool => $issue->severity === 'error');
+        self::assertSame([], array_values($errors));
+        $files = (new PhpExecutableEmitter('Example\\FormDefault', 'example/form-default', []))
+            ->emit((new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR)));
+        self::assertStringContainsString('application/x-www-form-urlencoded', implode("\n", $files));
+    }
+
+    public function testAFileFieldWithNoConsumesIsMultipart(): void
+    {
+        $document = self::formDocument([['in' => 'formData', 'name' => 'upload', 'type' => 'file', 'required' => true]], null);
+        $files = (new PhpExecutableEmitter('Example\\FormFile', 'example/form-file', []))
+            ->emit((new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR)));
+        self::assertStringContainsString('multipart/form-data', implode("\n", $files));
+    }
+
+    public function testAnExplicitEmptyConsumesIsStillRefusedForAForm(): void
+    {
+        $document = self::formDocument([['in' => 'formData', 'name' => 'url', 'type' => 'string']], []);
+        $this->expectException(\InvalidArgumentException::class);
+        (new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR));
+    }
+
+    public function testAFormWithAnotherDeclaredMediaIsStillRefused(): void
+    {
+        $document = self::formDocument([['in' => 'formData', 'name' => 'url', 'type' => 'string']], ['application/json']);
+        $this->expectException(\InvalidArgumentException::class);
+        (new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR));
+    }
 }

@@ -2,6 +2,13 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.13.0] — 2026-11-20
+
+Found with httpbin (Swagger 2.0), whose unmodified specification now generates strictly and runs against the real server.
+
+- **`formData` parameters on an operation that declares no `consumes`** (httpbin's `/redirect-to`): the form is URL-encoded, or multipart when a field is a file. A form with another declared media is still refused.
+- `Live public APIs` also runs httpbin: status codes, a header parameter, the default `Authorization` header, a form with no `consumes`, and its redirect.
+
 ## [1.12.0] — 2026-11-20
 
 Found with the Swagger Petstore (Swagger 2.0), whose unmodified specification now generates strictly and runs against the real server.

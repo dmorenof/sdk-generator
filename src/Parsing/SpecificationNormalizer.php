@@ -491,7 +491,7 @@ final class SpecificationNormalizer
         $formFields = [];
         $formEncoding = [];
         $hasForm = $dialect === 'swagger2' && array_filter($merged, static fn ($field): bool => $field['in'] === 'formData') !== [];
-        $formMedia = FormSupport::swaggerMedia(array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []));
+        $formMedia = FormSupport::swaggerMedia(array_key_exists('consumes', $operation) ? $operation['consumes'] : (array_key_exists('consumes', $document) ? $document['consumes'] : false), $merged);
         if ($hasForm
             && array_filter($merged, static fn ($field): bool => $field['in'] === 'body') !== []) {
             throw new InvalidArgumentException("Swagger body and formData cannot coexist at $where.");
