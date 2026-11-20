@@ -4,7 +4,6 @@ namespace Dmorenof\SdkGenerator\Parsing;
 
 /** Recognize bounded raw representations; serialization stays in Guzzle/PSR. */
 final class RawMediaSupport {
-    public const TEXT = 'text/plain';
     public static function json(string $media): bool {
         return preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;[^\r\n]*)?$~iD', trim($media)) === 1;
     }
