@@ -3,9 +3,6 @@ name: Live public APIs
 # Generates SDKs from the unmodified specifications of public, free APIs and calls the real servers.
 # Manual and weekly: the servers are shared and outside our control, so this never gates a merge.
 on:
-  push:
-    branches: ['claude/busy-franklin-9x9zpa']
-    paths: ['.github/workflows/live-apis.yml', 'tests/live/*_smoke.php', 'src/Parsing/**', 'src/Generation/**']
   workflow_dispatch:
     inputs:
       runtime_ref:
@@ -19,8 +16,8 @@ permissions:
   contents: read
 
 env:
-  # On a push to this branch the runtime of the same branch is used (a runtime change is proven here before it is published).
-  SDK_RUNTIME_REF: ${{ github.event_name == 'push' && 'claude/busy-franklin-9x9zpa' || inputs.runtime_ref }}
+  # A runtime change is proven here before it is published: run this workflow by hand with its branch.
+  SDK_RUNTIME_REF: ${{ inputs.runtime_ref }}
 
 jobs:
   petstore3:
