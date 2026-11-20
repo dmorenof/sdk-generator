@@ -9,6 +9,7 @@ declare(strict_types=1);
 require __DIR__ . '/../../live-results/httpbin-sdk/vendor/autoload.php';
 
 use Dmorenof\SdkRuntime\ApiException;
+use Dmorenof\SdkRuntime\Transport\RedirectPolicy;
 use Example\Httpbin\Client;
 use Example\Httpbin\Configuration;
 use Example\Httpbin\GetParams\Bearer as BearerParams;
@@ -68,7 +69,12 @@ check(status(fn () => $client->resource(BasicAuth::class)->getByPasswd($identifi
 $form = new RedirectPost();
 $form->url = 'https://httpbin.org/get';
 $form->status_code = 302;
-$client->resource(RedirectTo::class)->post($form);
-check(true, 'POST /redirect-to (a form with no consumes declared) is sent as a form and its redirect is followed');
+// The contract lists 302 as a status, and a client follows no redirect unless it is given a policy: the 302 is reported.
+check(status(fn () => $client->resource(RedirectTo::class)->post($form)) === 302, 'POST /redirect-to (a form with no consumes declared) answers its 302, which is reported by default');
+
+$following = new Configuration();
+$following->redirectPolicy = new RedirectPolicy();
+Client::connect($following)->resource(RedirectTo::class)->post($form);
+check(true, 'with a RedirectPolicy the same form is followed to /get');
 
 echo "httpbin live smoke passed.\n";
