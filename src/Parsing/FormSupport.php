@@ -15,8 +15,18 @@ final class FormSupport
     public const MULTIPART = 'multipart/form-data';
 
     /** A single explicit media type, without silently selecting between alternatives. */
-    public static function swaggerMedia(mixed $consumes): ?string
+    /**
+     * The one form media an operation consumes. When it declares none (httpbin's `formData` operations do not), the
+     * form is URL-encoded, or multipart when a field is a file: those are the only media `formData` can mean.
+     *
+     * @param array<mixed> $fields The operation's parameters (the `formData` ones decide the default).
+     */
+    public static function swaggerMedia(mixed $consumes, array $fields = []): ?string
     {
+        if ($consumes === []) {
+            $files = array_filter($fields, static fn ($field): bool => is_array($field) && ($field['in'] ?? null) === 'formData' && ($field['type'] ?? null) === 'file');
+            return $files !== [] ? self::MULTIPART : self::MEDIA;
+        }
         return in_array($consumes, [[self::MEDIA], [self::MULTIPART]], true) ? $consumes[0] : null;
     }
 

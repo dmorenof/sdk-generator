@@ -158,7 +158,7 @@ final class ContractAuditor
             $hasForm = array_filter($effective, static fn ($field): bool => ($field['in'] ?? null) === 'formData') !== [];
             $hasBody = array_filter($effective, static fn ($field): bool => ($field['in'] ?? null) === 'body') !== [];
             $formMedia = \Dmorenof\SdkGenerator\Parsing\FormSupport::swaggerMedia(
-                array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []));
+                array_key_exists('consumes', $operation) ? $operation['consumes'] : ($document['consumes'] ?? []), $effective);
             if ($hasForm) {
                 if ($hasBody) {
                     $this->add('swagger_form_body_conflict', "$where/parameters", 'Swagger body and formData parameters cannot coexist.', $id);
