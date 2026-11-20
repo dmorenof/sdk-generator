@@ -71,8 +71,6 @@ jobs:
         working-directory: preview/${{ matrix.api }}
         env:
           PREVIEW_API: ${{ matrix.api }}
-          SDK_RUNTIME_REF: claude/busy-franklin-9x9zpa
-          SDK_RUNTIME_ALIAS: 1.9.0
         run: |
           set -euo pipefail
           composer validate --no-check-lock
