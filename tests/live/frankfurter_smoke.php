@@ -40,7 +40,7 @@ $latest = $client->resource(Latest::class)->get($params);
 check($latest->base === Base::USD && count($latest->rates) === 2 && isset($latest->rates['EUR']) && isset($latest->rates['GBP']),
     'GET /latest?base=USD&symbols=EUR,GBP returns exactly the two rates asked for');
 
-$historical = $client->resource(RootResource::class)->getByDate('2024-01-15');
+$historical = $client->resource(RootResource::class)->getByDate('2024-01-13');
 check($historical->date === '2024-01-12' && $historical->base === Base::EUR && $historical->rates['USD'] > 1.0,
     'GET /{date} answers with the closest working day and the default base (EUR)');
 
