@@ -129,6 +129,13 @@ final class SwaggerRealWorldPatternsTest extends TestCase
         self::assertStringContainsString('multipart/form-data', implode("\n", $files));
     }
 
+    public function testAnExplicitEmptyConsumesIsStillRefusedForAForm(): void
+    {
+        $document = self::formDocument([['in' => 'formData', 'name' => 'url', 'type' => 'string']], []);
+        $this->expectException(\InvalidArgumentException::class);
+        (new SpecificationNormalizer())->fromJson(json_encode($document, JSON_THROW_ON_ERROR));
+    }
+
     public function testAFormWithAnotherDeclaredMediaIsStillRefused(): void
     {
         $document = self::formDocument([['in' => 'formData', 'name' => 'url', 'type' => 'string']], ['application/json']);
