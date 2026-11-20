@@ -33,6 +33,8 @@ use Symfony\Component\Yaml\Yaml;
 final class SpecificationNormalizer
 {
     private bool $jsonSchema31 = false;
+    /** The document being read, to resolve the references a key-name schema holds. @var array<mixed> */
+    private array $document = [];
 
     /** Formats that only document a value: the runtime never asserts them, so no rule is worth emitting. */
     private const array ANNOTATION_FORMATS = ['binary', 'password', 'float', 'double'];
@@ -115,6 +117,7 @@ final class SpecificationNormalizer
             }
         }
         $document = (new LocalObjectResolver($document))->expandOperations();
+        $this->document = $document;
         $info = $document['info'] ?? [];
         $title = $info['title'] ?? null;
         if (!is_string($title) || $title === '') {
@@ -793,6 +796,45 @@ final class SpecificationNormalizer
         return RawMediaSupport::json($mediaType);
     }
 
+    /**
+     * `{allOf: [{$ref: X}], default: ...}` is the way OpenAPI 3.0 puts an annotation beside a reference, and what
+     * 3.1 documents still do: it means the referenced schema with that default, so it is read as `{$ref: X, default: ...}`.
+     *
+     * @param array<mixed> $raw
+     * @return array<string, mixed>|null
+     */
+    private static function referenceWrapper(array $raw): ?array
+    {
+        $branches = $raw['allOf'] ?? null;
+        if (!is_array($branches) || !array_is_list($branches) || count($branches) !== 1
+            || !is_array($branches[0]) || !is_string($branches[0]['$ref'] ?? null)
+            || array_diff(array_keys($branches[0]), ['$ref', 'description', 'title']) !== []
+            || array_diff(array_keys($raw), ['allOf', 'default', 'description', 'title', 'readOnly', 'writeOnly']) !== []) {
+            return null;
+        }
+        return array_diff_key($raw, ['allOf' => true]) + $branches[0];
+    }
+
+    /**
+     * The schema a `propertyNames` reference points to, written in its place: key names are checked as plain
+     * assertions, which cannot hold references, and a key-name schema is a value schema (an enum, a pattern).
+     *
+     * @param array<mixed> $reference
+     * @return array<mixed>
+     */
+    private function keyNameSchema(array $reference, string $where): array
+    {
+        try {
+            $schema = SchemaReferences::raw($reference, $this->document);
+        } catch (InvalidArgumentException $error) {
+            throw new InvalidArgumentException("Unsupported propertyNames reference at $where: " . $error->getMessage(), 0, $error);
+        }
+        if (str_contains(json_encode($schema, JSON_THROW_ON_ERROR), '"$ref"')) {
+            throw new InvalidArgumentException("A propertyNames schema that references other schemas is unsupported at $where.");
+        }
+        return $schema;
+    }
+
     private function schema(mixed $raw, string $dialect, string $where): SchemaDefinition
     {
         if (is_bool($raw) && $this->jsonSchema31) {
@@ -811,6 +853,16 @@ final class SpecificationNormalizer
             $arguments = get_object_vars($schema);
             $arguments['annotations'] = $metadata;
             return new SchemaDefinition(...$arguments);
+        }
+
+        if (is_array($raw['propertyNames'] ?? null) && isset($raw['propertyNames']['$ref'])) {
+            $raw['propertyNames'] = $this->keyNameSchema($raw['propertyNames'], $where);
+            return $this->schema($raw, $dialect, $where);
+        }
+
+        $wrapped = self::referenceWrapper($raw);
+        if ($wrapped !== null) {
+            return $this->schema($wrapped, $dialect, $where);
         }
 
         $compositionKeywords = array_values(array_intersect(['allOf', 'oneOf', 'anyOf'], array_keys($raw)));
@@ -965,7 +1017,7 @@ final class SpecificationNormalizer
         if (isset($raw['$ref'])) {
             // readOnly and writeOnly beside a $ref are the usual way Swagger tooling marks a model-typed property;
             // the property reads them from its own node, so the reference only has to tolerate them.
-            if (count(array_diff(array_keys($raw), ['$ref', 'description', 'title', 'readOnly', 'writeOnly'])) > 0) {
+            if (count(array_diff(array_keys($raw), ['$ref', 'description', 'title', 'readOnly', 'writeOnly', 'default'])) > 0) {
                 throw new InvalidArgumentException("Reference siblings are not supported at $where.");
             }
             foreach (['readOnly', 'writeOnly'] as $flag) {
@@ -984,6 +1036,8 @@ final class SpecificationNormalizer
                 writeOnly: $raw['writeOnly'] ?? false,
                 title: $raw['title'] ?? null,
                 description: $raw['description'] ?? null,
+                default: $raw['default'] ?? null,
+                hasDefault: array_key_exists('default', $raw),
             );
         }
 
