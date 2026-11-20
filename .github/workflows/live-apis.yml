@@ -1,0 +1,48 @@
+name: Live public APIs
+
+# Generates SDKs from the unmodified specifications of public, free APIs and calls the real servers.
+# Manual and weekly: the servers are shared and outside our control, so this never gates a merge.
+on:
+  push:
+    branches: ['claude/busy-franklin-9x9zpa']
+    paths: ['.github/workflows/live-apis.yml', 'tests/live/petstore3_smoke.php']
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  petstore3:
+    name: Swagger Petstore (OpenAPI 3.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Download the specification
+        run: |
+          mkdir -p live-results
+          curl --fail --location --retry 3 --max-time 35 https://petstore3.swagger.io/api/v3/openapi.json -o live-results/petstore3.json
+          sha256sum live-results/petstore3.json
+      - name: Generate the SDK (strict)
+        run: php bin/generate-sdk.php --strict live-results/petstore3.json live-results/petstore3-sdk 'Example\Petstore' example/petstore
+      - run: composer install --working-dir=live-results/petstore3-sdk --no-interaction --prefer-dist --no-progress
+      - name: Analyse the generated code at PHPStan max
+        run: vendor/bin/phpstan analyse live-results/petstore3-sdk/src --level=max --autoload-file=live-results/petstore3-sdk/vendor/autoload.php --no-progress --memory-limit=2G
+      - name: Call the real server
+        run: php tests/live/petstore3_smoke.php
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: petstore3-live
+          path: |
+            live-results/petstore3.json
+            live-results/petstore3-sdk/src/**
+          retention-days: 14
