@@ -2,6 +2,15 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.11.0] — 2026-11-20
+
+Found by generating SDKs from the unmodified specifications of public APIs (Frankfurter, OpenAPI 3.1) and calling the real servers (see the `Live public APIs` workflow).
+
+- **A default beside a one-branch `allOf` reference** (`{allOf: [{$ref: X}], default: ...}`, the way OpenAPI 3.0 puts an annotation beside a reference, and what many 3.1 documents still do) is read as the referenced schema with that default. A reference with any other assertion beside it is still refused.
+- **`propertyNames` that reference a schema** (a map keyed by an enum of currency codes) are accepted: the referenced schema is written in place, as a key-name assertion on the map. A referenced schema that itself references others is refused.
+- The `Live public APIs` workflow generates SDKs from the Swagger Petstore (OpenAPI 3.0) and Frankfurter (OpenAPI 3.1) specifications, checks them at PHPStan max and calls the real servers. Manual and weekly; it never gates a merge, and can run on the runtime of a branch.
+- Needs sdk-runtime `^1.11.1` (the SDKs now require it): Frankfurter's `multipleOf: 0.00001` on rates such as 392.4 was refused by earlier runtimes.
+
 ## [1.10.0] — 2026-11-20
 
 - **OpenID Connect discovery.** The client of an SDK whose contract declares an `openIdConnect` scheme carries the scheme's `openIdConnectUrl` in its metadata, and offers `Client::openIdDiscovery($scheme)` (sdk-runtime 1.9), which fetches the provider's configuration document and gives the endpoints for the OAuth2 flows. Other schemes carry no URL. Needs sdk-runtime `^1.9.0` (the SDKs now require it).
