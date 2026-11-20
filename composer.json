@@ -5,7 +5,7 @@
     "license": "MIT",
     "require": {
         "composer-runtime-api": "^2.2",
-        "dmorenof/sdk-runtime": "^1.7.0",
+        "dmorenof/sdk-runtime": "dev-claude/busy-franklin-9x9zpa as 1.9.0",
         "ext-intl": "*",
         "friendsofphp/php-cs-fixer": "^3.95",
         "php": "^8.4",
@@ -53,5 +53,13 @@
     },
     "bin": [
         "bin/generate-sdk.php"
-    ]
+    ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/dmorenof/sdk-runtime"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }

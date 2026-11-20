@@ -2,6 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.10.0] — 2026-11-20
+
+- **OpenID Connect discovery.** The client of an SDK whose contract declares an `openIdConnect` scheme carries the scheme's `openIdConnectUrl` in its metadata, and offers `Client::openIdDiscovery($scheme)` (sdk-runtime 1.9), which fetches the provider's configuration document and gives the endpoints for the OAuth2 flows. Other schemes carry no URL. Needs sdk-runtime `^1.9.0` (the SDKs now require it).
+
 ## [1.9.0] — 2026-11-19
 
 - **`mutualTLS` security schemes (OpenAPI 3.1).** The generator accepts a `mutualTLS` scheme, emits it in the client's `SECURITY_SCHEMES`, and the audit no longer reports it as unsupported. The credential is a `ClientCertificate` (sdk-runtime 1.7): the default Guzzle transport presents it in the TLS handshake of the operations that require the scheme. In OpenAPI 3.0 and Swagger 2.0, which have no such scheme, it is still rejected; a requirement of a `mutualTLS` scheme cannot list scopes. Needs sdk-runtime `^1.7.0` (the SDKs now require it).
