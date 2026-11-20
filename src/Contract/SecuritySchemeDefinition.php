@@ -11,5 +11,6 @@ final readonly class SecuritySchemeDefinition
         public ?string $scheme = null,
         public ?string $location = null,
         public ?string $parameterName = null,
+        public ?string $openIdConnectUrl = null,
     ) {}
 }
