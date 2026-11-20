@@ -74,7 +74,7 @@ jobs:
       - name: Download the specification
         run: |
           mkdir -p live-results
-          curl --fail --location --retry 3 --max-time 35 https://petstore2.swagger.io/api/v3/openapi.json -o live-results/petstore2.json
+          curl --fail --location --retry 3 --max-time 35 https://petstore.swagger.io/v2/swagger.json -o live-results/petstore2.json
           sha256sum live-results/petstore2.json
       - name: Generate the SDK (strict)
         run: php bin/generate-sdk.php --strict live-results/petstore2.json live-results/petstore2-sdk 'Example\PetstoreV2' example/petstore-v2
