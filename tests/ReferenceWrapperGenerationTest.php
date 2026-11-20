@@ -77,4 +77,20 @@ final class ReferenceWrapperGenerationTest extends TestCase
             'Currency' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/Inner']],
         ]));
     }
+
+    public function testABareOneBranchAllOfIsStillInheritanceNotAnAlias(): void
+    {
+        $spec = json_encode([
+            'openapi' => '3.0.3',
+            'info' => ['title' => 'Pets', 'version' => '1'],
+            'servers' => [['url' => 'https://pets.example.com']],
+            'paths' => ['/pet' => ['get' => ['operationId' => 'pet', 'responses' => ['200' => ['description' => 'ok', 'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/Dog']]]]]]]],
+            'components' => ['schemas' => [
+                'Pet' => ['type' => 'object', 'properties' => ['name' => ['type' => 'string']]],
+                'Dog' => ['allOf' => [['$ref' => '#/components/schemas/Pet']]],
+            ]],
+        ], JSON_THROW_ON_ERROR);
+        $files = (new PhpExecutableEmitter('Example\\Inherit', 'example/inherit', []))->emit((new SpecificationNormalizer())->fromJson($spec));
+        self::assertStringContainsString('extends \\Example\\Inherit\\DTOs\\Pet', implode("\n", $files));
+    }
 }

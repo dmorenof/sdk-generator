@@ -806,7 +806,8 @@ final class SpecificationNormalizer
     private static function referenceWrapper(array $raw): ?array
     {
         $branches = $raw['allOf'] ?? null;
-        if (!is_array($branches) || !array_is_list($branches) || count($branches) !== 1
+        // Only with a default beside it: a bare one-branch allOf is inheritance, which has its own handling.
+        if (!array_key_exists('default', $raw) || !is_array($branches) || !array_is_list($branches) || count($branches) !== 1
             || !is_array($branches[0]) || !is_string($branches[0]['$ref'] ?? null)
             || array_diff(array_keys($branches[0]), ['$ref', 'description', 'title']) !== []
             || array_diff(array_keys($raw), ['allOf', 'default', 'description', 'title', 'readOnly', 'writeOnly']) !== []) {
