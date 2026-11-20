@@ -1,0 +1,18 @@
+{
+  "openapi": "3.1.0",
+  "info": {"title": "OpenID Connect", "version": "1"},
+  "servers": [{"url": "https://api.example.test"}],
+  "paths": {
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "security": [{"oidc": ["openid"]}],
+        "responses": {"200": {"description": "ok", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Me"}}}}}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {"oidc": {"type": "openIdConnect", "openIdConnectUrl": "https://login.example.test/tenant/.well-known/openid-configuration"}},
+    "schemas": {"Me": {"type": "object", "properties": {"id": {"type": "integer"}}}}
+  }
+}

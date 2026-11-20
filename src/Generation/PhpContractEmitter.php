@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^1.5.0';
+    public const RUNTIME_CONSTRAINT = '^1.9.0';
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
@@ -442,6 +442,10 @@ final class PhpContractEmitter
             // A list whose items are all of the declared scalar type is wrapped as it is.
             $accepted = 'is_array($value) && array_is_list($value) && array_all($value, static fn (mixed $item): bool => ' . $itemTest . ')';
             $converted = 'new ' . $name . '($value)';
+        } elseif (($itemClass = $this->plainModelItemClass($schema)) !== null && $name !== 'array') {
+            // A list of plain models: every item is an object, and a model is built from each.
+            $accepted = 'is_array($value) && array_is_list($value) && array_all($value, static fn (mixed $item): bool => $item instanceof \\stdClass)';
+            $converted = 'new ' . $name . '(\\Dmorenof\\SdkRuntime\\Hydrator::models($value, ' . $itemClass . '::class))';
         } elseif ($this->isPlainModel($schema)) {
             $accepted = '$value instanceof \\stdClass';
             $converted = 'new ' . $name . '($value)';
@@ -475,6 +479,17 @@ final class PhpContractEmitter
             SchemaKind::Boolean => 'is_bool($item)',
             default => null,
         };
+    }
+
+    /** The class of the items of a list of plain models (see isPlainModel()), or null for any other list. */
+    private function plainModelItemClass(SchemaDefinition $schema): ?string
+    {
+        $array = $this->effectiveSchema($schema);
+        if ($array->kind !== SchemaKind::Array || $array->items === null || $array->items->nullable) {
+            return null;
+        }
+        $items = $this->effectiveSchema($array->items);
+        return $this->isPlainModel($items) ? $this->reference($items) : null;
     }
 
     /** `string` or `int` when the schema is a backed enum, else null. */

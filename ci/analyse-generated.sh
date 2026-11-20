@@ -61,6 +61,10 @@ analyse query-objects query-objects-openapi31.json 'Example\QueryObjectSdk'
 
 analyse forms forms-openapi31.json 'Example\FormSdk'
 
+analyse mutual-tls mutual-tls-openapi31.json 'Example\MutualTlsSdk'
+
+analyse openid-connect openid-connect-openapi31.json 'Example\OpenIdConnectSdk'
+
 analyse swagger-forms forms-swagger2.json 'Example\SwaggerFormSdk'
 
 analyse multipart multipart-openapi31.json 'Example\MultipartSdk'

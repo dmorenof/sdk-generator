@@ -504,9 +504,9 @@ Referencias: [OAS 3.1.2, Composition and Inheritance / Discriminator](https://sp
 
 ### Soporte pendiente
 
-- [ ] OAuth2 `clientCredentials`.
-- [ ] OAuth2 `authorizationCode` y PKCE.
-- [ ] OAuth2 `password` e `implicit` por compatibilidad heredada, sin recomendarlos para nuevas aplicaciones.
+- [x] OAuth2 `clientCredentials` (runtime `OAuth2ClientCredentials`).
+- [x] OAuth2 `authorizationCode` y PKCE (runtime `OAuth2AuthorizationCode`).
+- [x] OAuth2 `password` e `implicit` por compatibilidad heredada, sin recomendarlos para nuevas aplicaciones (runtime `OAuth2Password` y `OAuth2Implicit` 1.8.0; el generador acepta estos flujos desde antes).
 - [ ] Definición, asociación y comprobación de scopes.
 - [ ] Renovación de tokens y gestión de expiración.
 - [ ] OpenID Connect y descubrimiento de configuración.
