@@ -123,7 +123,7 @@ final readonly class PhpResourceEmitter
                 'scheme' => $scheme->scheme,
                 'location' => $scheme->location,
                 'parameterName' => $scheme->parameterName,
-            ];
+            ] + ($scheme->openIdConnectUrl === null ? [] : ['openIdConnectUrl' => $scheme->openIdConnectUrl]);
         }
         $methods = <<<'PHP'
 

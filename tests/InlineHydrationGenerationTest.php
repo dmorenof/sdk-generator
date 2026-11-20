@@ -33,6 +33,7 @@ final class InlineHydrationGenerationTest extends TestCase
                     'address' => ['$ref' => '#/components/schemas/Address'],
                     'pet' => ['$ref' => '#/components/schemas/Pet'],
                     'tags' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'places' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/Address']],
                     'display-name' => ['type' => 'string'],
                 ]],
             ]]];
@@ -60,6 +61,12 @@ final class InlineHydrationGenerationTest extends TestCase
         $model = self::files()['src/DTOs/User.php'];
         self::assertStringContainsString("'tags' => is_array(\$value) && array_is_list(\$value) && array_all(\$value, static fn (mixed \$item): bool => is_string(\$item)) ? \$this->tags = new \\Example\\Inline\\Collections\\StringCollection(\$value) : parent::assignMember(", $model);
         self::assertStringNotContainsString("'pet' =>", $model);
+    }
+
+    public function testAListOfPlainModelsBuildsAModelFromEachObject(): void
+    {
+        $model = self::files()['src/DTOs/User.php'];
+        self::assertStringContainsString("'places' => is_array(\$value) && array_is_list(\$value) && array_all(\$value, static fn (mixed \$item): bool => \$item instanceof \\stdClass) ? \$this->places = new \\Example\\Inline\\Collections\\User\\PlacesCollection(\\Dmorenof\\SdkRuntime\\Hydrator::models(\$value, \\Example\\Inline\\DTOs\\Address::class)) : parent::assignMember(", $model);
     }
 
     public function testAGeneratedModelBuildsTheSameValuesAndRefusesTheSameValuesAsTheGeneralPath(): void
@@ -92,8 +99,10 @@ final class InlineHydrationGenerationTest extends TestCase
             self::assertSame('admin', $user->role->value);
 
             self::assertSame(['a'], $user->tags->getArrayCopy());
+            $withPlaces = \Dmorenof\SdkRuntime\JsonHydrator::decode('{"name":"Ada","places":[{"city":"A"},{"city":"B"}]}', $class);
+            self::assertSame(['A', 'B'], array_map(static fn ($place): string => $place->city, $withPlaces->places->getArrayCopy()));
             foreach ([['name' => 5], ['name' => 'Ada', 'role' => 'nope'], ['name' => 'Ada', 'age' => 'x'], ['name' => 'Ada', 'address' => 'x'],
-                ['name' => 'Ada', 'tags' => ['a', 1]], ['name' => 'Ada', 'tags' => 'a']] as $bad) {
+                ['name' => 'Ada', 'tags' => ['a', 1]], ['name' => 'Ada', 'tags' => 'a'], ['name' => 'Ada', 'places' => [(object) ['city' => 'A'], 'x']], ['name' => 'Ada', 'places' => 'x']] as $bad) {
                 try {
                     new $class((object) $bad);
                     self::fail('A bad value was accepted: ' . json_encode($bad));

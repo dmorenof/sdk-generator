@@ -39,7 +39,7 @@ A real example: [casafari-sdk](https://github.com/dmorenof/casafari-sdk) is gene
 
 ## Requirements
 
-PHP 8.4 or newer, Composer 2.2 or newer. Generated SDKs require PHP 8.4 and `dmorenof/sdk-runtime` `^1.5.0`.
+PHP 8.4 or newer, Composer 2.2 or newer. Generated SDKs require PHP 8.4 and `dmorenof/sdk-runtime` `^1.9.0`.
 
 ```bash
 composer require --dev dmorenof/sdk-generator
@@ -95,9 +95,9 @@ Every property that has rules gets a PHP 8.4 `set` hook in the generated model, 
 - Swagger 2.0, OpenAPI 3.0.x and 3.1.x, in JSON or YAML.
 - Models, enums, typed collections, maps, discriminators, `allOf`/`oneOf`/`anyOf` within limits.
 - Path, query, header and cookie parameters; JSON, forms, multipart, text and binary bodies; exact/range/default response selection.
-- Security: API key, HTTP basic/bearer, OAuth2 and OpenID Connect (a token you supply, or a token provider such as `OAuth2ClientCredentials`), selected per operation. OAuth2 endpoints and scopes are not generated into the SDK.
+- Security: API key, HTTP basic/bearer, OAuth2 and OpenID Connect (a token you supply, or a token provider such as `OAuth2ClientCredentials`) an OpenID Connect scheme's `openIdConnectUrl` (the generated client offers `Client::openIdDiscovery()`, which fetches the provider's endpoints) and, in OpenAPI 3.1, `mutualTLS` (a `ClientCertificate` the default Guzzle transport presents in the TLS handshake of the operations that require it), selected per operation. OAuth2 endpoints and scopes are not generated into the SDK.
 
-Not supported (rejected, not ignored): remote `$ref`, mutualTLS, structured XML/CSV models and the more exotic schema compositions. The exact list is in [SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md).
+Not supported (rejected, not ignored): remote `$ref`, structured XML/CSV models and the more exotic schema compositions. The exact list is in [SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md).
 
 ## Speed and honesty
 

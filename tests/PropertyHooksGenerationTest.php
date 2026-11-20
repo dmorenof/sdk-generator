@@ -52,7 +52,7 @@ final class PropertyHooksGenerationTest extends TestCase
     {
         $require = json_decode(self::files()['composer.json'], true, 512, JSON_THROW_ON_ERROR)['require'];
         self::assertSame('^8.4', $require['php']);
-        self::assertSame('^1.5.0', $require['dmorenof/sdk-runtime']);
+        self::assertSame('^1.9.0', $require['dmorenof/sdk-runtime']);
     }
 
     public function testAGeneratedHookedModelChecksValuesWhenTheyAreAssignedOrHydrated(): void

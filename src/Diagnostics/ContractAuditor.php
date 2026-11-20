@@ -456,6 +456,8 @@ final class ContractAuditor
             if ($problem !== null) {
                 $this->add('unsupported_security_scheme', $pointer, $problem);
             }
+        } elseif ($type === 'mutualTLS' && str_starts_with((string) ($this->document['openapi'] ?? ''), '3.1.')) {
+            return; // A client certificate: nothing to check in the scheme itself.
         } elseif ($type !== 'basic' || ($this->document['swagger'] ?? null) !== '2.0') {
             $this->add('unsupported_security_scheme', "$pointer/type", 'This security scheme is not executable.');
         }
