@@ -7,11 +7,20 @@ on:
     branches: ['claude/busy-franklin-9x9zpa']
     paths: ['.github/workflows/live-apis.yml', 'tests/live/*_smoke.php', 'src/Parsing/**', 'src/Generation/**']
   workflow_dispatch:
+    inputs:
+      runtime_ref:
+        description: 'Branch of sdk-runtime to run the generated SDKs on (default: the published runtime)'
+        required: false
+        default: ''
   schedule:
     - cron: '17 5 * * 1'
 
 permissions:
   contents: read
+
+env:
+  # On a push to this branch the runtime of the same branch is used (a runtime change is proven here before it is published).
+  SDK_RUNTIME_REF: ${{ github.event_name == 'push' && 'claude/busy-franklin-9x9zpa' || inputs.runtime_ref }}
 
 jobs:
   petstore3:
@@ -33,6 +42,12 @@ jobs:
           sha256sum live-results/petstore3.json
       - name: Generate the SDK (strict)
         run: php bin/generate-sdk.php --strict live-results/petstore3.json live-results/petstore3-sdk 'Example\Petstore' example/petstore
+      - name: Use the runtime of a branch, when asked
+        if: env.SDK_RUNTIME_REF != ''
+        run: |
+          composer config --working-dir=live-results/petstore3-sdk repositories.runtime vcs https://github.com/dmorenof/sdk-runtime
+          composer config --working-dir=live-results/petstore3-sdk minimum-stability dev
+          composer require --working-dir=live-results/petstore3-sdk "dmorenof/sdk-runtime:dev-$SDK_RUNTIME_REF as 1.99.0" --no-update --no-interaction --quiet
       - run: composer install --working-dir=live-results/petstore3-sdk --no-interaction --prefer-dist --no-progress
       - name: Analyse the generated code at PHPStan max
         run: vendor/bin/phpstan analyse live-results/petstore3-sdk/src --level=max --autoload-file=live-results/petstore3-sdk/vendor/autoload.php --no-progress --memory-limit=2G
@@ -66,6 +81,12 @@ jobs:
           sha256sum live-results/frankfurter.json
       - name: Generate the SDK (strict)
         run: php bin/generate-sdk.php --strict live-results/frankfurter.json live-results/frankfurter-sdk 'Example\Frankfurter' example/frankfurter
+      - name: Use the runtime of a branch, when asked
+        if: env.SDK_RUNTIME_REF != ''
+        run: |
+          composer config --working-dir=live-results/frankfurter-sdk repositories.runtime vcs https://github.com/dmorenof/sdk-runtime
+          composer config --working-dir=live-results/frankfurter-sdk minimum-stability dev
+          composer require --working-dir=live-results/frankfurter-sdk "dmorenof/sdk-runtime:dev-$SDK_RUNTIME_REF as 1.99.0" --no-update --no-interaction --quiet
       - run: composer install --working-dir=live-results/frankfurter-sdk --no-interaction --prefer-dist --no-progress
       - name: Analyse the generated code at PHPStan max
         run: vendor/bin/phpstan analyse live-results/frankfurter-sdk/src --level=max --autoload-file=live-results/frankfurter-sdk/vendor/autoload.php --no-progress --memory-limit=2G
