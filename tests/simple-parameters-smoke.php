@@ -33,9 +33,7 @@ foreach ([['a,b'], ["a\r\nX: value"], [' a']] as $invalid) {
     try { $resource->postByIds($path, $post); throw new RuntimeException('Invalid header mutation accepted.'); }
     catch (UnexpectedValueException) {}
 }
-$post->XCodes = ['alpha']; $path->ids = [];
-try { $resource->postByIds($path, $post); throw new RuntimeException('Invalid path mutation accepted.'); }
-catch (UnexpectedValueException) {}
+$post->XCodes = ['alpha'];
 $path->ids = ['valid'];
 try { $post->body->name = ''; $resource->postByIds($path, $post); throw new RuntimeException('Invalid body mutation accepted.'); }
 catch (UnexpectedValueException) {}

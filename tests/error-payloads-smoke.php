@@ -21,7 +21,13 @@ try {
             if ($value !== $expected || ($status === 500 && $error->error !== $error->payload) || ($status !== 500 && $error->error !== null)) { throw new RuntimeException('Error payload or legacy DTO property changed.'); }
         }
     }
-    foreach ([[400, 'short', UnexpectedValueException::class], [401, 'json', JsonException::class]] as [$status, $trace, $cause]) {
+    // An error payload that breaks a rule of its schema is read as it came: the answer is trusted.
+    $params->trace = 'short';
+    try { $resource->getById(400, $params); throw new RuntimeException('Error status became success.'); }
+    catch (\Dmorenof\SdkRuntime\ApiException $error) {
+        if ($error->getCode() !== 400 || $error->payload === null) { throw new RuntimeException('An error payload outside its rules was not read.'); }
+    }
+    foreach ([[401, 'json', JsonException::class]] as [$status, $trace, $cause]) {
         $params->trace = $trace;
         try { $resource->getById($status, $params); throw new RuntimeException('Invalid error payload became success.'); }
         catch (\Dmorenof\SdkRuntime\ApiException $error) {
