@@ -33,6 +33,12 @@ final class PhpContractEmitter
     private array $operationErrorTypes = [];
     /** @var array<string,array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>> */
     private array $operationErrorResponses = [];
+    /** @var array<string,int> "status|shape" => how many operations declare exactly that inline error body. */
+    private array $errorShapeUses = [];
+    /** @var array<string,string> "status|shape" => the one class every operation with that body uses. */
+    private array $sharedErrorTypes = [];
+    /** @var array<string,array<string,int>> Status => "status|shape" => its number among the shared shapes of that status. */
+    private array $sharedErrorVariants = [];
     /** @var array<string,string> Operation ID => fully-qualified request body DTO. */
     private array $operationBodyTypes = [];
     /** @var array<string,array<string,array<array-key,string>>> Operation ID / location / wire name => object type. */
@@ -82,6 +88,9 @@ final class PhpContractEmitter
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
         $this->operationErrorResponses = [];
+        $this->errorShapeUses = [];
+        $this->sharedErrorTypes = [];
+        $this->sharedErrorVariants = [];
         $this->operationBodyTypes = [];
         $this->operationParameterTypes = [];
         $this->operationParameterEnums = [];
@@ -89,6 +98,7 @@ final class PhpContractEmitter
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
         }
+        $this->countErrorShapes($contract);
         $this->multipartSchemas = [];
         foreach ($contract->operations as $operation) {
             if ($operation->requestBody?->mediaType !== \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART) {
@@ -1333,7 +1343,7 @@ final class PhpContractEmitter
                         $this->operationErrorTypes[$operation->operationId][$response->status] = $type;
                     }
                 } elseif (($schema->kind === SchemaKind::Object && !($schema->properties === [] && $this->hasOpenAdditionalProperties($schema))) || $schema->kind === SchemaKind::AllOf) {
-                    $type = $response->status === 'default' ? $this->responseSchemaType($schema, $hint, $files) : $this->typeFor($schema, $hint, $files, 'Response');
+                    $type = $response->status === 'default' ? $this->responseSchemaType($schema, $hint, $files) : $this->errorModelType($response->status, $schema, $hint, $files);
                     $this->operationErrorTypes[$operation->operationId][$response->status] = $type;
                 } else { $type = $this->responseSchemaType($schema, $hint, $files); }
                 $rules = $resolved->validation;
@@ -1571,6 +1581,67 @@ final class PhpContractEmitter
             return $this->inlineAllOfType($schema, $hint, $files, 'Response');
         }
         return $this->typeFor($schema, $hint, $files, 'Response');
+    }
+
+    /**
+     * The inline error body of a response that gets a model of its own, or null when it has none (a reference to a
+     * named model, a binary or raw body, the `default` response, an open map).
+     */
+    private function inlineErrorSchema(\Dmorenof\SdkGenerator\Contract\ResponseDefinition $response): ?SchemaDefinition
+    {
+        if ($response->schema === null || $response->status === 'default' || preg_match('/^2(?:[0-9]{2}|XX)$/', $response->status) === 1
+            || $this->binaryResponse($response)) {
+            return null;
+        }
+        $schema = $this->effectiveSchema($response->schema);
+        if ($schema->kind === SchemaKind::Reference) {
+            return null;
+        }
+        $model = ($schema->kind === SchemaKind::Object && !($schema->properties === [] && $this->hasOpenAdditionalProperties($schema)))
+            || $schema->kind === SchemaKind::AllOf;
+        return $model ? $schema : null;
+    }
+
+    /** Operations that declare the very same inline body for the same status share one model (see errorModelType()). */
+    private function errorShapeKey(string $status, SchemaDefinition $schema): string
+    {
+        return $status . '|' . md5(serialize($schema));
+    }
+
+    private function countErrorShapes(ApiContract $contract): void
+    {
+        foreach ($contract->operations as $operation) {
+            foreach ($operation->responses as $response) {
+                $schema = $this->inlineErrorSchema($response);
+                if ($schema !== null) {
+                    $key = $this->errorShapeKey($response->status, $schema);
+                    $this->errorShapeUses[$key] = ($this->errorShapeUses[$key] ?? 0) + 1;
+                }
+            }
+        }
+    }
+
+    /**
+     * The model of an inline error body. A body that two or more operations declare identically for the same status is
+     * one class, `Responses\Errors\Status401Response` (a second, different shared body of that status is
+     * `Status401Variant2Response`), so a typed 401 is caught with one class and not one per operation. A body only one
+     * operation declares keeps the class named after that operation.
+     *
+     * @param array<string,string> $files
+     */
+    private function errorModelType(string $status, SchemaDefinition $schema, string $hint, array &$files): string
+    {
+        $key = $this->errorShapeKey($status, $schema);
+        if (($this->errorShapeUses[$key] ?? 0) < 2) {
+            return $this->typeFor($schema, $hint, $files, 'Response');
+        }
+        if (!isset($this->sharedErrorTypes[$key])) {
+            $variant = ($this->sharedErrorVariants[$status][$key] ??= count($this->sharedErrorVariants[$status] ?? []) + 1);
+            $name = (preg_match('/^[A-Za-z]/', $status) === 1 ? ucfirst(strtolower($status)) : 'Status' . preg_replace('/[^A-Za-z0-9]/', '', $status))
+                . ($variant > 1 ? 'Variant' . $variant : '');
+            $this->sharedErrorTypes[$key] = $this->typeFor($schema, 'Errors.' . $name, $files, 'Response');
+        }
+        return $this->sharedErrorTypes[$key];
     }
 
     /**
