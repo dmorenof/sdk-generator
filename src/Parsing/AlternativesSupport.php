@@ -31,7 +31,10 @@ final class AlternativesSupport {
             }
             continue;
         }
-        return count($alternatives) >= 2 ? $alternatives : null;
+        // Chosen by Content-Type at run time, so two of them that differ only in a parameter (`application/json; v=1` and
+        // `application/json`) cannot be told apart: that stays refused, as a conflict.
+        $bases = array_map(static fn (array $alternative): string => self::base($alternative['mediaType']), $alternatives);
+        return count($alternatives) >= 2 && count($bases) === count(array_unique($bases)) ? $alternatives : null;
     }
 
     private static function base(string $media): string {

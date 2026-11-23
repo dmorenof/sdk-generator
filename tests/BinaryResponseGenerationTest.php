@@ -113,6 +113,13 @@ final class BinaryResponseGenerationTest extends TestCase
         self::assertStringContainsString("'alternatives' =>", $files['src/Resources/Download.php']);
         self::assertStringContainsString('DTOs\\Error', $files['src/Resources/Download.php']);
     }
+    public function testAMediaRangeIsAFileOfWhateverTypeTheServerSends(): void
+    {
+        $document = self::document();
+        $document['components']['responses']['File']['content'] = ['image/*' => ['schema' => ['type' => 'string', 'format' => 'binary']]];
+        self::assertNotSame([], self::files($document));
+    }
+
     public function testUnsupportedSchemasAndRepresentationsFailVisibly(): void
     {
         $base = self::document();
@@ -122,9 +129,6 @@ final class BinaryResponseGenerationTest extends TestCase
             $document['components']['responses']['File']['content']['application/octet-stream']['schema'] = array_replace(['type' => 'string', 'format' => 'binary'], $extra);
             $variants[] = $document;
         }
-        $document = $base;
-        $document['components']['responses']['File']['content'] = ['image/*' => ['schema' => ['type' => 'string', 'format' => 'binary']]];
-        $variants[] = $document;
         $document = $base;
         $document['components']['responses']['File']['content']['application/octet-stream']['encoding'] = ['file' => ['contentType' => 'image/png']];
         $variants[] = $document;
