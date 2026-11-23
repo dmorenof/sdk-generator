@@ -27,6 +27,8 @@ final class PhpContractEmitter
     private array $modelDefinitions = [];
     /** @var array<string, string> Child schema name => parent schema name. */
     private array $modelParents = [];
+    /** @var array<string, true> Models whose allOf narrowed a list of the parent: they stand alone, with no PHP parent. */
+    private array $flattened = [];
     /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,rules?:array<string,mixed>,byStatus?:array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>}>}> */
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, ?string>> */
@@ -976,6 +978,12 @@ final class PhpContractEmitter
     /** Bounded scalar enum intersection; the inherited PHP property keeps its original type. */
     private function refineProperty(SchemaDefinition $left, SchemaDefinition $right, string $where, string $name): SchemaDefinition
     {
+        if ($left->kind === SchemaKind::Array && $right->kind === SchemaKind::Array && $this->narrowerItems($left, $right)) {
+            // A list of a subtype refines a list of its type (a collection of alerts, a collection of features): the
+            // model takes the narrower list, which PHP cannot do by inheritance (a property keeps its type), so it stands alone.
+            $this->flattened[$where] = true;
+            return $right;
+        }
         $a = get_object_vars($left);
         $b = get_object_vars($right);
         unset($a['enumValues'], $b['enumValues']);
@@ -991,6 +999,41 @@ final class PhpContractEmitter
         return new SchemaDefinition(...array_replace(get_object_vars($left), ['enumValues' => $values]));
     }
 
+    /** Whether the items of $right are a model that extends the model of the items of $left, and nothing else differs. */
+    private function narrowerItems(SchemaDefinition $left, SchemaDefinition $right): bool
+    {
+        if ($left->items === null || $right->items === null || $left->items->kind !== SchemaKind::Reference || $right->items->kind !== SchemaKind::Reference) {
+            return false;
+        }
+        $a = get_object_vars($left);
+        $b = get_object_vars($right);
+        unset($a['items'], $b['items']);
+        $models = array_values($this->modelDefinitions);
+        $base = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($left->items, $models);
+        $narrow = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($right->items, $models);
+        return $a == $b && $base !== null && $narrow !== null && $this->extendsModel($narrow, $base);
+    }
+
+    /** Whether a model is, through allOf references, a kind of another. */
+    private function extendsModel(string $model, string $ancestor, int $depth = 0): bool
+    {
+        $schema = $this->modelDefinitions[$model]->schema ?? null;
+        if ($depth > 32 || $schema === null || $schema->kind !== SchemaKind::AllOf) {
+            return false;
+        }
+        $models = array_values($this->modelDefinitions);
+        foreach ($schema->branches as $branch) {
+            if ($branch->kind !== SchemaKind::Reference) {
+                continue;
+            }
+            $parent = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($branch, $models);
+            if ($parent === $ancestor || ($parent !== null && $this->extendsModel($parent, $ancestor, $depth + 1))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Only a single referenced object plus inline object extensions maps to PHP inheritance. */
     private function inheritanceParent(SchemaDefinition $schema, string $where): ?string
     {
@@ -998,6 +1041,9 @@ final class PhpContractEmitter
             return null;
         }
         $this->expandAllOf($schema, $where);
+        if (isset($this->flattened[$where])) {
+            return null;
+        }
         $references = array_values(array_filter(
             $schema->branches,
             static fn (SchemaDefinition $branch): bool => $branch->kind === SchemaKind::Reference,

@@ -7,9 +7,10 @@ final class RawMediaSupport {
     public static function json(string $media): bool {
         return preg_match('~^application/(?:[a-z0-9!#$&^_.+\-]+\+)?json(?:\s*;[^\r\n]*)?$~iD', trim($media)) === 1;
     }
-    public static function rawMedia(string $media): bool {
+    /** @param bool $wildcard A range such as `image/*` counts: a response may declare one, a request may not. */
+    public static function rawMedia(string $media, bool $wildcard = false): bool {
         $base = strtolower(trim(explode(';', $media, 2)[0]));
-        return !self::json($media) && !str_contains($base, '*') && !in_array($base, [FormSupport::MEDIA, FormSupport::MULTIPART], true)
+        return !self::json($media) && ($wildcard || !str_contains($base, '*')) && !in_array($base, [FormSupport::MEDIA, FormSupport::MULTIPART], true)
             && preg_match("@^[!#$%&'*+.^_`|~a-z0-9-]+/[!#$%&'*+.^_`|~a-z0-9-]+(?:\\s*;[^\\r\\n]*)?$@iD", $media) === 1;
     }
     public static function supported(array $definition, string $media, array $document, bool $request): bool {

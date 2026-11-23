@@ -116,7 +116,7 @@ final class RealWorldPatternsTest extends TestCase
     {
         $paths = ['/image' => ['get' => [
             'operationId' => 'image',
-            'responses' => ['200' => ['description' => 'ok', 'content' => ['image/*' => ['schema' => ['type' => 'string', 'format' => 'binary']]]]],
+            'responses' => ['200' => ['description' => 'ok', 'content' => ['application/xml' => ['schema' => ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]]]]]],
         ]]];
         $json = self::spec(['Thing' => ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]]], $paths);
         try {
@@ -146,5 +146,61 @@ final class RealWorldPatternsTest extends TestCase
         }
         $contract = (new SpecificationNormalizer(false, false, 'https://api.example.org'))->fromJson($swagger);
         self::assertSame(['https://api.example.org/weatherapi'], $contract->servers);
+    }
+
+    public function testAListOfASubtypeRefinesTheListOfItsTypeAndTheModelStandsAlone(): void
+    {
+        $files = self::emit(self::spec([
+            'Alerts' => ['allOf' => [
+                ['$ref' => '#/components/schemas/Collection'],
+                ['type' => 'object', 'properties' => ['features' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/AlertFeature']]]],
+            ]],
+            'Collection' => ['type' => 'object', 'properties' => ['features' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/Feature']]]],
+            'Feature' => ['type' => 'object', 'properties' => ['id' => ['type' => 'string']]],
+            'AlertFeature' => ['allOf' => [['$ref' => '#/components/schemas/Feature'], ['type' => 'object', 'properties' => ['severity' => ['type' => 'string']]]]],
+        ]));
+        $alerts = implode("\n", array_filter($files, static fn (string $p): bool => str_ends_with($p, 'DTOs/Alerts.php'), ARRAY_FILTER_USE_KEY));
+        self::assertStringNotContainsString(' extends \\Example', $alerts);
+        $list = implode("\n", array_filter($files, static fn (string $p): bool => str_contains($p, 'Collections/Alerts/'), ARRAY_FILTER_USE_KEY));
+        self::assertStringContainsString('AlertFeature', $list);
+    }
+
+    public function testAnImageResponseOfAMediaRangeIsReturnedAsBytes(): void
+    {
+        $paths = ['/image' => ['get' => [
+            'operationId' => 'image',
+            'responses' => ['200' => ['description' => 'ok', 'content' => ['image/*' => ['schema' => ['type' => 'string', 'format' => 'binary']]]]],
+        ]]];
+        $normalizer = new SpecificationNormalizer(false, true);
+        $files = self::emit(self::spec(['Thing' => ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]]], $paths), $normalizer);
+        self::assertSame([], $normalizer->skippedOperations());
+        self::assertNotSame([], array_filter(array_keys($files), static fn (string $path): bool => str_contains($path, 'Image')));
+    }
+
+    public function testAnXmlResponseWithNoSchemaIsReturnedAsBytes(): void
+    {
+        $paths = ['/forecast' => ['get' => [
+            'operationId' => 'forecast',
+            'responses' => ['200' => ['description' => 'ok', 'content' => ['application/vnd.example+xml' => ['schema' => new \stdClass()]]]],
+        ]]];
+        $normalizer = new SpecificationNormalizer(false, true);
+        self::emit(self::spec(['Thing' => ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]]], $paths), $normalizer);
+        self::assertSame([], $normalizer->skippedOperations());
+    }
+
+    public function testSwaggerProducesSeveralMediaTypesForAFileAndProblemJsonForErrors(): void
+    {
+        $swagger = json_encode([
+            'swagger' => '2.0', 'info' => ['title' => 'Math', 'version' => '1'], 'host' => 'math.example', 'schemes' => ['https'],
+            'paths' => ['/render/{hash}' => ['get' => [
+                'operationId' => 'render', 'produces' => ['image/svg+xml', 'image/png', 'application/problem+json'],
+                'parameters' => [['name' => 'hash', 'in' => 'path', 'required' => true, 'type' => 'string']],
+                'responses' => ['200' => ['description' => 'The rendered formula'], '404' => ['description' => 'Not found', 'schema' => ['$ref' => '#/definitions/Problem']]],
+            ]]],
+            'definitions' => ['Problem' => ['type' => 'object', 'properties' => ['title' => ['type' => 'string']]]],
+        ], JSON_THROW_ON_ERROR);
+        $normalizer = new SpecificationNormalizer(false, true);
+        self::emit($swagger, $normalizer);
+        self::assertSame([], $normalizer->skippedOperations());
     }
 }

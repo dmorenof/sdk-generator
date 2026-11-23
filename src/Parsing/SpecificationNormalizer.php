@@ -666,6 +666,16 @@ final class SpecificationNormalizer
             } elseif ($dialect === 'swagger2') {
                 $schema = $raw['schema'] ?? null;
                 $produces = $this->collapseJsonMedia($operation['produces'] ?? $document['produces'] ?? ['application/json']);
+                $json = array_values(array_filter($produces, fn ($media): bool => is_string($media) && $this->isJsonMediaType($media)));
+                if ($schema === null && preg_match('/^2\d\d$/', $status) === 1 && $produces !== [] && $json === []
+                    && array_filter($produces, static fn ($media): bool => !is_string($media) || !RawMediaSupport::rawMedia($media)) === []) {
+                    // `produces: [image/svg+xml, image/png]` and a response with no schema: a file, in the first form listed.
+                    $schema = ['type' => 'file'];
+                    $produces = [$produces[0]];
+                } elseif ($schema !== null && count($produces) > 1 && $json !== [] && !RawMediaSupport::supported(['schema' => $schema], (string) $produces[0], $document, false)) {
+                    // `produces` is for the whole operation: a response with a JSON schema speaks the JSON one of them.
+                    $produces = [$json[0]];
+                }
                 $binarySchema = is_array($schema) ? BinaryResponseSupport::swaggerSchema($schema, $produces) : null;
                 if ($binarySchema !== null) {
                     $schema = $binarySchema;
@@ -684,7 +694,7 @@ final class SpecificationNormalizer
                 $content = $declared !== null
                     ? ['mediaType' => $declared[0]['mediaType'], 'schema' => $declared[0]['schema']]
                     : ($streamed ?? ($binary !== null
-                    ? ['mediaType' => $binary, 'schema' => $representations[$binary]['schema']]
+                    ? ['mediaType' => $binary, 'schema' => BinaryResponseSupport::withSchema($representations[$binary])['schema']]
                     : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"))));
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
