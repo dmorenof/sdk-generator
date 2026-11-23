@@ -222,13 +222,20 @@ final readonly class PhpOperationRequestEmitter
             if (isset($resolved['phpDoc'])) {
                 $fields[] = '    /** @var ' . $resolved['phpDoc'] . ($nullable ? '|null' : '') . ' */';
             }
-            $fields[] = '    public ' . PhpParameterTypeResolver::nullableType($resolved['type'], $nullable) . ' $' . $field . ';';
+            $fieldType = PhpParameterTypeResolver::nullableType($resolved['type'], $nullable);
+            $fields[] = '    public ' . $fieldType . ' $' . $field . ';';
+            $fieldIndex = array_key_last($fields);
             $rules = $resolved['validation'] ?? $parameter->schema->validation;
             if ($resolved['enumValues'] !== []) {
                 $rules['enum'] = $resolved['enumValues'];
             }
             if ($rules !== []) {
                 $validation[$field] = $rules;
+                // A call only serializes, so the rules of a parameter are checked where the value is assigned: its `set` hook,
+                // as in a model. (A native array cannot be edited in place once it has a hook, so lists have none.)
+                if (!PhpDoc::hasArray($fieldType)) {
+                    $fields[$fieldIndex] = preg_replace('/;\z/', " {\n        set {\n            \$this->assigning('$field', \$value);\n            \$this->$field = \$value;\n        }\n    }", $fields[$fieldIndex]);
+                }
             }
             if ($parameter->required) {
                 $required[] = $field;
