@@ -82,6 +82,8 @@ Static route classes (`Users::...`) mirror the URL structure and share one confi
 | Option | Effect |
 | --- | --- |
 | `--strict` | Refuse anything the generator cannot execute. |
+| `--skip-unsupported` | Leave out, and list, the operations the generator cannot execute (for example a response that is an image), instead of refusing the whole API. |
+| `--server=https://host` | The server of a document that does not name one (Swagger without `host`, OpenAPI without `servers`). |
 | `--validate-formats` | Assert declared formats (`date-time`, `uuid`, …). |
 | `--inspect` / `--dry-run` | Report what would be generated without writing files. See [contract inspection](docs/CONTRACT_INSPECTION.md). |
 | `--resolve-local-references`, `--reference-root=DIR` | Follow `$ref` to local files. See [file references](docs/FILE_REFERENCES.md). |
@@ -112,7 +114,7 @@ Measured on the Casafari contract against OpenAPI Generator 7.26 (GitHub Actions
 | Starting the client | **0.57–0.96×** the time | 1× |
 | Time of a call | **0.74×** (flat model) to 1.01× (nested) | 1× |
 
-Less disk and memory because the engine lives once in the runtime and is not copied into every SDK. The call is faster on a flat model and level on nested ones (one run on a shared runner; an earlier run gave 0.96× and 1.07×), even though it also selects security, decodes errors and applies retry and redirect policies. The first call in a fresh process is about 1.4× slower (more files to load), and the dependencies alone weigh more (2.6 MB against 1.3 MB).
+Less disk and memory because the engine lives once in the runtime and is not copied into every SDK. On PokeAPI (102 operations, a 350 KB real answer) a call takes 0.46× the time and 0.62× the peak memory of OpenAPI Generator's, and the generated code is 0.88 MB against 5.15 MB. On Casafari the call is faster on a flat model and level on nested ones (one run on a shared runner; an earlier run gave 0.96× and 1.07×), even though it also selects security, decodes errors and applies retry and redirect policies. The first call in a fresh process is about 1.4× slower (more files to load), and the dependencies alone weigh more (2.6 MB against 1.3 MB).
 
 What you gain most is simplicity: OAuth2 tokens fetched and renewed for you, models that are plain typed properties (no getters and setters), validation where a value enters a model, one `Configuration` for retries, redirects and proxies. Details, method and the honest limits (PHP 8.4 only, a subset of OpenAPI, answers trusted as sent) are in [Why this runtime](https://github.com/dmorenof/sdk-runtime/blob/main/docs/why.md); the history of what was tried is in the [audit](https://github.com/dmorenof/sdk-runtime/blob/main/docs/AUDIT.md) and [benchmark/](benchmark/README.md).
 
