@@ -2,12 +2,12 @@
 
 `VERSION` is the authoritative release request (`X.Y.Z`, without `v`). Composer versions come from immutable Git tags; do not add a version field to composer.json.
 
-The agreed workflow is to publish each completed, validated increment. Do not stop at a draft PR or wait for the entire roadmap. See [AGENTS.md](AGENTS.md).
+**Versions are not published piecemeal.** A version is published only when its line of work is finished and proven, and only when the owner confirms: one line of work, one release. Until then the work lives on its branch and its PR. Changing `VERSION` on `main` publishes, so that change is never merged without the owner's explicit confirmation. See [AGENTS.md](AGENTS.md).
 
-Develop on the existing `release/0.2.0` branch, without creating feature branches. Integrate that branch into `main` for the publication workflow below, then bring the same release branch up to the integrated commit. Its historical name is independent of `VERSION`.
+Develop on a branch and open a PR; branches are not deleted unless the owner asks. The name of a branch is independent of `VERSION`.
 
 1. Run Composer validation, appropriate tests/static analysis and advisory checks. Use cloud execution and remote GitHub state.
-2. Update `VERSION`, versioned release notes and the actual supported scope. Integrate into `main` directly when protections permit it. If GitHub requires a PR, complete that technical step and continue through publication in the same task.
+2. Update `VERSION`, versioned release notes and the actual supported scope. Open a PR and, only once the owner has confirmed the release, merge it into `main`.
 3. The existing `.github/workflows/release.yml` runs on a `VERSION` change on `main`. It checks dependencies, PHP/tests and advisories, then creates the immutable tag and GitHub Release. Never bypass protections or force-update a tag.
 4. Wait for the publish workflow and main CI; verify that the tag points to the integrated commit and the stable Release exists.
 5. Verify a clean Composer installation and the appropriate consumer smoke. Update progress/release evidence; do not claim publication from green source checks alone.
