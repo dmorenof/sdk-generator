@@ -40,12 +40,14 @@ final class RequestBodiesGenerationTest extends TestCase {
         self::assertFalse($http->calls[4]->hasHeader('Content-Type')); self::assertSame('null', (string) $http->calls[5]->getBody());
         $client->resource(\Example\BodySdk\Resources\NullResource::class)->post(null);
         $client->resource(\Example\BodySdk\Resources\Scalar::class)->post('valid');
+        // A call only serializes: a body that breaks the rules of its schema is sent as it is.
         foreach (['x', -1] as $invalid) {
-            try { $optional->post($invalid); self::fail('Invalid scalar body reached HTTP.'); } catch (\UnexpectedValueException) { self::assertCount(8, $http->calls); }
+            $optional->post($invalid);
         }
+        self::assertCount(10, $http->calls);
         $client->resource(\Example\BodySdk\Resources\NeverResource::class)->post();
-        try { $client->resource(\Example\BodySdk\Resources\NeverResource::class)->post(null); self::fail('False body schema accepted null.'); }
-        catch (\UnexpectedValueException) { self::assertCount(9, $http->calls); }
+        $client->resource(\Example\BodySdk\Resources\NeverResource::class)->post(null);
+        self::assertCount(12, $http->calls);
     }
     public function testSwaggerAndOpenApi30NativeBodiesUseTheSameRuntimeContract(): void {
         $operation = ['operationId' => 'postNumber', 'responses' => ['204' => ['description' => 'Accepted']]];

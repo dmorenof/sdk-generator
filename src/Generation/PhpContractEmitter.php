@@ -21,18 +21,26 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^1.11.1';
+    public const RUNTIME_CONSTRAINT = '^1.12.0';
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
     /** @var array<string, string> Child schema name => parent schema name. */
     private array $modelParents = [];
+    /** @var array<string, true> Models whose allOf narrowed a list of the parent: they stand alone, with no PHP parent. */
+    private array $flattened = [];
     /** @var array<string, array{type:?string,nullable:bool,schemaNullable:bool,noContentAllowed:bool,rules?:array<string,mixed>,byStatus?:array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>}>}> */
     private array $operationSuccessTypes = [];
     /** @var array<string, array<string, ?string>> */
     private array $operationErrorTypes = [];
     /** @var array<string,array<int|string,array{type:?string,schemaNullable:bool,rules?:array<string,mixed>,mediaType?:string}>> */
     private array $operationErrorResponses = [];
+    /** @var array<string,int> "status|shape" => how many operations declare exactly that inline error body. */
+    private array $errorShapeUses = [];
+    /** @var array<string,string> "status|shape" => the one class every operation with that body uses. */
+    private array $sharedErrorTypes = [];
+    /** @var array<string,array<string,int>> Status => "status|shape" => its number among the shared shapes of that status. */
+    private array $sharedErrorVariants = [];
     /** @var array<string,string> Operation ID => fully-qualified request body DTO. */
     private array $operationBodyTypes = [];
     /** @var array<string,array<string,array<array-key,string>>> Operation ID / location / wire name => object type. */
@@ -82,6 +90,9 @@ final class PhpContractEmitter
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
         $this->operationErrorResponses = [];
+        $this->errorShapeUses = [];
+        $this->sharedErrorTypes = [];
+        $this->sharedErrorVariants = [];
         $this->operationBodyTypes = [];
         $this->operationParameterTypes = [];
         $this->operationParameterEnums = [];
@@ -89,6 +100,7 @@ final class PhpContractEmitter
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
         }
+        $this->countErrorShapes($contract);
         $this->multipartSchemas = [];
         foreach ($contract->operations as $operation) {
             if ($operation->requestBody?->mediaType !== \Dmorenof\SdkGenerator\Parsing\FormSupport::MULTIPART) {
@@ -966,6 +978,12 @@ final class PhpContractEmitter
     /** Bounded scalar enum intersection; the inherited PHP property keeps its original type. */
     private function refineProperty(SchemaDefinition $left, SchemaDefinition $right, string $where, string $name): SchemaDefinition
     {
+        if ($left->kind === SchemaKind::Array && $right->kind === SchemaKind::Array && $this->narrowerItems($left, $right)) {
+            // A list of a subtype refines a list of its type (a collection of alerts, a collection of features): the
+            // model takes the narrower list, which PHP cannot do by inheritance (a property keeps its type), so it stands alone.
+            $this->flattened[$where] = true;
+            return $right;
+        }
         $a = get_object_vars($left);
         $b = get_object_vars($right);
         unset($a['enumValues'], $b['enumValues']);
@@ -981,6 +999,41 @@ final class PhpContractEmitter
         return new SchemaDefinition(...array_replace(get_object_vars($left), ['enumValues' => $values]));
     }
 
+    /** Whether the items of $right are a model that extends the model of the items of $left, and nothing else differs. */
+    private function narrowerItems(SchemaDefinition $left, SchemaDefinition $right): bool
+    {
+        if ($left->items === null || $right->items === null || $left->items->kind !== SchemaKind::Reference || $right->items->kind !== SchemaKind::Reference) {
+            return false;
+        }
+        $a = get_object_vars($left);
+        $b = get_object_vars($right);
+        unset($a['items'], $b['items']);
+        $models = array_values($this->modelDefinitions);
+        $base = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($left->items, $models);
+        $narrow = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($right->items, $models);
+        return $a == $b && $base !== null && $narrow !== null && $this->extendsModel($narrow, $base);
+    }
+
+    /** Whether a model is, through allOf references, a kind of another. */
+    private function extendsModel(string $model, string $ancestor, int $depth = 0): bool
+    {
+        $schema = $this->modelDefinitions[$model]->schema ?? null;
+        if ($depth > 32 || $schema === null || $schema->kind !== SchemaKind::AllOf) {
+            return false;
+        }
+        $models = array_values($this->modelDefinitions);
+        foreach ($schema->branches as $branch) {
+            if ($branch->kind !== SchemaKind::Reference) {
+                continue;
+            }
+            $parent = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($branch, $models);
+            if ($parent === $ancestor || ($parent !== null && $this->extendsModel($parent, $ancestor, $depth + 1))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Only a single referenced object plus inline object extensions maps to PHP inheritance. */
     private function inheritanceParent(SchemaDefinition $schema, string $where): ?string
     {
@@ -988,6 +1041,9 @@ final class PhpContractEmitter
             return null;
         }
         $this->expandAllOf($schema, $where);
+        if (isset($this->flattened[$where])) {
+            return null;
+        }
         $references = array_values(array_filter(
             $schema->branches,
             static fn (SchemaDefinition $branch): bool => $branch->kind === SchemaKind::Reference,
@@ -1333,7 +1389,7 @@ final class PhpContractEmitter
                         $this->operationErrorTypes[$operation->operationId][$response->status] = $type;
                     }
                 } elseif (($schema->kind === SchemaKind::Object && !($schema->properties === [] && $this->hasOpenAdditionalProperties($schema))) || $schema->kind === SchemaKind::AllOf) {
-                    $type = $response->status === 'default' ? $this->responseSchemaType($schema, $hint, $files) : $this->typeFor($schema, $hint, $files, 'Response');
+                    $type = $response->status === 'default' ? $this->responseSchemaType($schema, $hint, $files) : $this->errorModelType($response->status, $schema, $hint, $files);
                     $this->operationErrorTypes[$operation->operationId][$response->status] = $type;
                 } else { $type = $this->responseSchemaType($schema, $hint, $files); }
                 $rules = $resolved->validation;
@@ -1571,6 +1627,67 @@ final class PhpContractEmitter
             return $this->inlineAllOfType($schema, $hint, $files, 'Response');
         }
         return $this->typeFor($schema, $hint, $files, 'Response');
+    }
+
+    /**
+     * The inline error body of a response that gets a model of its own, or null when it has none (a reference to a
+     * named model, a binary or raw body, the `default` response, an open map).
+     */
+    private function inlineErrorSchema(\Dmorenof\SdkGenerator\Contract\ResponseDefinition $response): ?SchemaDefinition
+    {
+        if ($response->schema === null || $response->status === 'default' || preg_match('/^2(?:[0-9]{2}|XX)$/', $response->status) === 1
+            || $this->binaryResponse($response)) {
+            return null;
+        }
+        $schema = $this->effectiveSchema($response->schema);
+        if ($schema->kind === SchemaKind::Reference) {
+            return null;
+        }
+        $model = ($schema->kind === SchemaKind::Object && !($schema->properties === [] && $this->hasOpenAdditionalProperties($schema)))
+            || $schema->kind === SchemaKind::AllOf;
+        return $model ? $schema : null;
+    }
+
+    /** Operations that declare the very same inline body for the same status share one model (see errorModelType()). */
+    private function errorShapeKey(string $status, SchemaDefinition $schema): string
+    {
+        return $status . '|' . md5(serialize($schema));
+    }
+
+    private function countErrorShapes(ApiContract $contract): void
+    {
+        foreach ($contract->operations as $operation) {
+            foreach ($operation->responses as $response) {
+                $schema = $this->inlineErrorSchema($response);
+                if ($schema !== null) {
+                    $key = $this->errorShapeKey($response->status, $schema);
+                    $this->errorShapeUses[$key] = ($this->errorShapeUses[$key] ?? 0) + 1;
+                }
+            }
+        }
+    }
+
+    /**
+     * The model of an inline error body. A body that two or more operations declare identically for the same status is
+     * one class, `Responses\Errors\Status401Response` (a second, different shared body of that status is
+     * `Status401Variant2Response`), so a typed 401 is caught with one class and not one per operation. A body only one
+     * operation declares keeps the class named after that operation.
+     *
+     * @param array<string,string> $files
+     */
+    private function errorModelType(string $status, SchemaDefinition $schema, string $hint, array &$files): string
+    {
+        $key = $this->errorShapeKey($status, $schema);
+        if (($this->errorShapeUses[$key] ?? 0) < 2) {
+            return $this->typeFor($schema, $hint, $files, 'Response');
+        }
+        if (!isset($this->sharedErrorTypes[$key])) {
+            $variant = ($this->sharedErrorVariants[$status][$key] ??= count($this->sharedErrorVariants[$status] ?? []) + 1);
+            $name = (preg_match('/^[A-Za-z]/', $status) === 1 ? ucfirst(strtolower($status)) : 'Status' . preg_replace('/[^A-Za-z0-9]/', '', $status))
+                . ($variant > 1 ? 'Variant' . $variant : '');
+            $this->sharedErrorTypes[$key] = $this->typeFor($schema, 'Errors.' . $name, $files, 'Response');
+        }
+        return $this->sharedErrorTypes[$key];
     }
 
     /**

@@ -92,9 +92,8 @@ final class CookieGenerationTest extends TestCase
             self::assertSame(['default=base; caller=ok; count=0; empty=; enabled=false; theme=a%2Fb%2C%C3%B1; session=a+/b=='], $request->getHeader('Cookie'));
         }
         self::assertSame('{"name":"body name"}', (string) $http->requests[1]->getBody());
-        $post->theme = '';
         try {
-            $resource->post($post);
+            $post->theme = ''; // the rule of the parameter is checked where the value is assigned
             self::fail('Mutation accepted.');
         } catch (\UnexpectedValueException) {
             self::assertCount(2, $http->requests);

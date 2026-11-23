@@ -40,7 +40,20 @@ final class SpecificationNormalizer
     private const array ANNOTATION_FORMATS = ['binary', 'password', 'float', 'double'];
 
     /** @param bool $validateFormats Emit a runtime `format` rule for string and integer schemas, so declared formats are asserted (they are annotations otherwise). */
-    public function __construct(private readonly bool $validateFormats = false) {}
+    public function __construct(private readonly bool $validateFormats = false, private readonly bool $skipUnsupported = false, private readonly ?string $origin = null) {}
+
+    /** @var array<string, string> The operations left out because the generator cannot execute them, with the reason. */
+    private array $skipped = [];
+
+    /**
+     * Operations left out of the last contract read (only when asked to skip what is unsupported), each with its reason.
+     *
+     * @return array<string, string>
+     */
+    public function skippedOperations(): array
+    {
+        return $this->skipped;
+    }
     private const METHODS = [
         'get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace',
     ];
@@ -105,6 +118,7 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException('API specification must be a JSON object.');
         }
 
+        $document = EnumUnions::collapse($document);
         $dialect = $this->dialect($document);
         $this->jsonSchema31 = str_starts_with($document['openapi'] ?? '', '3.1.');
         if ($strict) {
@@ -118,6 +132,7 @@ final class SpecificationNormalizer
         }
         $document = (new LocalObjectResolver($document))->expandOperations();
         $this->document = $document;
+        $this->skipped = [];
         $info = $document['info'] ?? [];
         $title = $info['title'] ?? null;
         if (!is_string($title) || $title === '') {
@@ -190,41 +205,46 @@ final class SpecificationNormalizer
                     throw new InvalidArgumentException("Invalid or duplicate operationId at $method $path.");
                 }
                 $seen[$id] = true;
-                $security = array_key_exists('security', $raw)
-                    ? $this->securityRequirements(
-                        $raw['security'],
-                        $securitySchemeNames,
-                        "$method $path",
-                    )
-                    : $rootSecurity;
+                try {
+                    $security = array_key_exists('security', $raw)
+                        ? $this->securityRequirements(
+                            $raw['security'],
+                            $securitySchemeNames,
+                            "$method $path",
+                        )
+                        : $rootSecurity;
 
-                [$parameters, $requestBody] = $this->parametersAndBody(
-                    $pathItem['parameters'] ?? [],
-                    $raw,
-                    $document,
-                    $dialect,
-                    "$method $path",
-                );
-                if ($method === 'trace' && $requestBody !== null) {
-                    throw new InvalidArgumentException("TRACE cannot declare a request body at $path.");
+                    [$parameters, $requestBody] = $this->parametersAndBody(
+                        $pathItem['parameters'] ?? [],
+                        $raw,
+                        $document,
+                        $dialect,
+                        "$method $path",
+                    );
+                    if ($method === 'trace' && $requestBody !== null) {
+                        throw new InvalidArgumentException("TRACE cannot declare a request body at $path.");
+                    }
+                    $this->pathParameters($path, $parameters, "$method $path");
+                    $responses = $this->responses($raw, $document, $dialect, "$method $path", $method === 'head');
+                    $serverSource = array_key_exists('servers', $raw) ? 'operation'
+                        : (array_key_exists('servers', $pathItem) ? 'path' : 'root');
+                    $serverDefinitions = $dialect === 'swagger2'
+                        ? array_map(static fn (string $url): array => ['url' => $url], $servers)
+                        : ($serverSource === 'operation' ? $raw['servers'] : ($serverSource === 'path' ? $pathItem['servers'] : ($document['servers'] ?? [])));
+                    $operationServers = $serverSource === 'root' ? $servers : $this->serverUrls($serverDefinitions);
+                    if ($dialect === 'swagger2' && array_key_exists('schemes', $raw)) {
+                        $operationServers = $this->servers(array_replace($document, ['schemes' => $raw['schemes']]), $dialect);
+                        $serverDefinitions = array_map(static fn (string $url): array => ['url' => $url], $operationServers);
+                        $serverSource = 'operation';
+                    }
+                    $operations[] = new OperationDefinition(
+                        $id, strtoupper($method), $path, $parameters, $requestBody, $responses, $security,
+                        $operationServers, $serverDefinitions, $serverSource, $this->annotations($raw),
+                    );
+                } catch (InvalidArgumentException $error) {
+                    if (!$this->skipUnsupported) { throw $error; }
+                    $this->skipped["$method $path"] = $error->getMessage();
                 }
-                $this->pathParameters($path, $parameters, "$method $path");
-                $responses = $this->responses($raw, $document, $dialect, "$method $path", $method === 'head');
-                $serverSource = array_key_exists('servers', $raw) ? 'operation'
-                    : (array_key_exists('servers', $pathItem) ? 'path' : 'root');
-                $serverDefinitions = $dialect === 'swagger2'
-                    ? array_map(static fn (string $url): array => ['url' => $url], $servers)
-                    : ($serverSource === 'operation' ? $raw['servers'] : ($serverSource === 'path' ? $pathItem['servers'] : ($document['servers'] ?? [])));
-                $operationServers = $serverSource === 'root' ? $servers : $this->serverUrls($serverDefinitions);
-                if ($dialect === 'swagger2' && array_key_exists('schemes', $raw)) {
-                    $operationServers = $this->servers(array_replace($document, ['schemes' => $raw['schemes']]), $dialect);
-                    $serverDefinitions = array_map(static fn (string $url): array => ['url' => $url], $operationServers);
-                    $serverSource = 'operation';
-                }
-                $operations[] = new OperationDefinition(
-                    $id, strtoupper($method), $path, $parameters, $requestBody, $responses, $security,
-                    $operationServers, $serverDefinitions, $serverSource, $this->annotations($raw),
-                );
             }
         }
 
@@ -423,6 +443,12 @@ final class SpecificationNormalizer
             $host = $document['host'] ?? null;
             $schemes = $document['schemes'] ?? [];
             $basePath = $document['basePath'] ?? '';
+            // A document that does not say where its API is served is served where it was read from: `--server` tells us.
+            if (($host === null || $host === '') && $this->origin !== null) {
+                $parts = parse_url($this->origin);
+                $host = ($parts['host'] ?? '') . (isset($parts['port']) ? ':' . $parts['port'] : '');
+                $schemes = $schemes === [] && isset($parts['scheme']) ? [$parts['scheme']] : $schemes;
+            }
             if (!is_string($host) || $host === '' || !is_array($schemes) || !array_is_list($schemes) || $schemes === []
                 || !is_string($basePath) || ($basePath !== '' && !str_starts_with($basePath, '/'))
                 || preg_match('/[?#\x00-\x20\x7f{}]/', $basePath)) {
@@ -445,7 +471,8 @@ final class SpecificationNormalizer
                 $servers[] = \Dmorenof\SdkRuntime\ServerUrl::normalize($scheme . '://' . $host . $basePath);
             }
         } else {
-            $servers = $this->serverUrls(array_key_exists('servers', $document) ? $document['servers'] : []);
+            $declared = array_key_exists('servers', $document) ? $document['servers'] : [];
+            $servers = $this->serverUrls($declared === [] && $this->origin !== null ? [['url' => $this->origin]] : $declared);
         }
         // Server order is preference order; sorting can change the default host.
         return $servers;
@@ -639,6 +666,16 @@ final class SpecificationNormalizer
             } elseif ($dialect === 'swagger2') {
                 $schema = $raw['schema'] ?? null;
                 $produces = $this->collapseJsonMedia($operation['produces'] ?? $document['produces'] ?? ['application/json']);
+                $json = array_values(array_filter($produces, fn ($media): bool => is_string($media) && $this->isJsonMediaType($media)));
+                if ($schema === null && preg_match('/^2\d\d$/', $status) === 1 && $produces !== [] && $json === []
+                    && array_filter($produces, static fn ($media): bool => !is_string($media) || !RawMediaSupport::rawMedia($media)) === []) {
+                    // `produces: [image/svg+xml, image/png]` and a response with no schema: a file, in the first form listed.
+                    $schema = ['type' => 'file'];
+                    $produces = [$produces[0]];
+                } elseif ($schema !== null && count($produces) > 1 && $json !== [] && !RawMediaSupport::supported(['schema' => $schema], (string) $produces[0], $document, false)) {
+                    // `produces` is for the whole operation: a response with a JSON schema speaks the JSON one of them.
+                    $produces = [$json[0]];
+                }
                 $binarySchema = is_array($schema) ? BinaryResponseSupport::swaggerSchema($schema, $produces) : null;
                 if ($binarySchema !== null) {
                     $schema = $binarySchema;
@@ -657,7 +694,7 @@ final class SpecificationNormalizer
                 $content = $declared !== null
                     ? ['mediaType' => $declared[0]['mediaType'], 'schema' => $declared[0]['schema']]
                     : ($streamed ?? ($binary !== null
-                    ? ['mediaType' => $binary, 'schema' => $representations[$binary]['schema']]
+                    ? ['mediaType' => $binary, 'schema' => BinaryResponseSupport::withSchema($representations[$binary])['schema']]
                     : (RawMediaSupport::selected($representations, $document, false) ?? $this->jsonContent($representations, "$where.responses.$status"))));
                 $schema = $content['schema'] ?? null;
                 $mediaType = $content['mediaType'] ?? null;
@@ -809,7 +846,7 @@ final class SpecificationNormalizer
     }
 
     /**
-     * `{allOf: [{$ref: X}], default: ...}` is the way OpenAPI 3.0 puts an annotation beside a reference, and what
+     * `{allOf: [{$ref: X}], default: ...}` (or `readOnly`) is the way OpenAPI 3.0 puts an annotation beside a reference, and what
      * 3.1 documents still do: it means the referenced schema with that default, so it is read as `{$ref: X, default: ...}`.
      *
      * @param array<mixed> $raw
@@ -818,14 +855,43 @@ final class SpecificationNormalizer
     private static function referenceWrapper(array $raw): ?array
     {
         $branches = $raw['allOf'] ?? null;
-        // Only with a default beside it: a bare one-branch allOf is inheritance, which has its own handling.
-        if (!array_key_exists('default', $raw) || !is_array($branches) || !array_is_list($branches) || count($branches) !== 1
+        // Only with an annotation of a property beside it (a default, readOnly or writeOnly): a bare one-branch allOf
+        // is inheritance, which has its own handling.
+        $annotated = array_key_exists('default', $raw) || array_key_exists('readOnly', $raw) || array_key_exists('writeOnly', $raw);
+        if (!$annotated || !is_array($branches) || !array_is_list($branches) || count($branches) !== 1
             || !is_array($branches[0]) || !is_string($branches[0]['$ref'] ?? null)
             || array_diff(array_keys($branches[0]), ['$ref', 'description', 'title']) !== []
             || array_diff(array_keys($raw), ['allOf', 'default', 'description', 'title', 'readOnly', 'writeOnly']) !== []) {
             return null;
         }
         return array_diff_key($raw, ['allOf' => true]) + $branches[0];
+    }
+
+    /**
+     * `{required: [...], allOf: [{$ref: Base}, {properties: ...}]}` lists beside the composition the properties the
+     * result needs, which is the same as listing them in the inline branch: `required` is read where it is declared,
+     * not where the property is defined. Read that way the composition has no sibling to refuse.
+     *
+     * @param array<mixed> $raw
+     * @return array<string, mixed>|null
+     */
+    private static function foldRequired(array $raw): ?array
+    {
+        $branches = $raw['allOf'] ?? null;
+        if (!is_array($raw['required'] ?? null) || !is_array($branches) || !array_is_list($branches) || count($branches) < 2
+            || array_diff(array_keys($raw), ['allOf', 'required', 'description', 'title', 'type', 'readOnly', 'writeOnly']) !== []
+            || ($raw['type'] ?? 'object') !== 'object') {
+            return null;
+        }
+        $last = array_key_last($branches);
+        foreach (array_reverse(array_keys($branches)) as $index) {
+            $branch = $branches[$index];
+            if (is_array($branch) && !isset($branch['$ref']) && is_array($branch['properties'] ?? null)) {
+                $branches[$index]['required'] = array_values(array_unique([...($branch['required'] ?? []), ...$raw['required']]));
+                return array_diff_key($raw, ['required' => true, 'type' => true]) + ['allOf' => $branches];
+            }
+        }
+        return null;
     }
 
     /**
@@ -873,6 +939,11 @@ final class SpecificationNormalizer
             return $this->schema($raw, $dialect, $where);
         }
 
+        $folded = self::foldRequired($raw);
+        if ($folded !== null) {
+            return $this->schema($folded, $dialect, $where);
+        }
+
         $wrapped = self::referenceWrapper($raw);
         if ($wrapped !== null) {
             return $this->schema($wrapped, $dialect, $where);
@@ -880,7 +951,7 @@ final class SpecificationNormalizer
 
         $compositionKeywords = array_values(array_intersect(['allOf', 'oneOf', 'anyOf'], array_keys($raw)));
         if ($this->jsonSchema31 && $compositionKeywords !== []) {
-            $siblings = array_diff(array_keys($raw), [...$compositionKeywords, 'title', 'description', 'discriminator']);
+            $siblings = array_diff(array_keys($raw), [...$compositionKeywords, 'title', 'description', 'discriminator', 'readOnly', 'writeOnly']);
             $nonObjectAllOf = isset($raw['allOf']) && is_array($raw['allOf'])
                 && count(array_filter($raw['allOf'], static fn ($branch): bool => !DeclarativeSchemaRules::objectBranch($branch))) > 0;
             if (count($compositionKeywords) > 1 || $siblings !== [] || $nonObjectAllOf) {
@@ -1004,7 +1075,7 @@ final class SpecificationNormalizer
                 throw new InvalidArgumentException("Only one composition keyword is supported at $where.");
             }
             $composition = $compositionKeys[0];
-            $siblings = array_diff(array_keys($raw), [$composition, 'description', 'title', 'discriminator']);
+            $siblings = array_diff(array_keys($raw), [$composition, 'description', 'title', 'discriminator', 'readOnly', 'writeOnly']);
             if ($siblings !== []) {
                 throw new InvalidArgumentException("Composition siblings are not supported at $where.");
             }
@@ -1018,6 +1089,8 @@ final class SpecificationNormalizer
                 discriminator: $discriminator,
                 title: $raw['title'] ?? null,
                 description: $raw['description'] ?? null,
+                readOnly: $raw['readOnly'] ?? false,
+                writeOnly: $raw['writeOnly'] ?? false,
                 branches: array_map(
                     fn (mixed $branch, int $index): SchemaDefinition =>
                         $this->schema($branch, $dialect, "$where.$composition.$index"),

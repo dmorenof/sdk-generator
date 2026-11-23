@@ -262,7 +262,7 @@ Swagger 2.0 response schema type:file with one effective produces
 application/octet-stream adapts to the same native PSR response contract.
 Root/operation precedence, response aliases, JSON/YAML, explicit binary success
 codes and empty responses are supported. GetParams/PostParams retain query,
-headers and independent JSON request DTOs; mutations still validate before HTTP.
+headers and independent JSON request DTOs; a mutation is checked where it is assigned, and a call only serializes.
 The generated SDK matches equivalent OpenAPI byte for byte. Stable runtime
 ^0.15.0 is unchanged, and the existing installed download smoke is reused.
 Nineteen independent SDKs pass maximum PHPStan. Real GET/POST downloads of 32 MiB

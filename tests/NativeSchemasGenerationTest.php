@@ -71,8 +71,7 @@ final class NativeSchemasGenerationTest extends TestCase {
         self::assertSame('session=ab', $http->calls[0]->getHeaderLine('Cookie'));
         $params->value = null; $resource->getById(1, $params);
         parse_str($http->calls[1]->getUri()->getQuery(), $query); self::assertArrayNotHasKey('value', $query);
-        $params->XAlias = 'x';
-        try { $resource->getById(1, $params); self::fail('Alias constraint mutation reached HTTP.'); }
+        try { $params->XAlias = 'x'; self::fail('Alias constraint mutation accepted.'); } // checked where the value is assigned
         catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
     }
     public function testRootBooleanAndUnionResponsesRetainOriginalJsonKinds(): void {
@@ -88,8 +87,8 @@ final class NativeSchemasGenerationTest extends TestCase {
         $http = new class implements \Psr\Http\Client\ClientInterface {
             public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { return new \GuzzleHttp\Psr7\Response(200, [], 'null'); }
         };
-        $this->expectException(\UnexpectedValueException::class);
-        \Example\NativeSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\NativeSdk\Resources\NeverResource::class)->get();
+        // A schema that nothing satisfies is not applied to an answer: the answer is trusted.
+        self::assertNull(\Example\NativeSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\NativeSdk\Resources\NeverResource::class)->get());
     }
     public function testInvalidTypeListsAndOldDialectBooleanSchemasFail(): void {
         foreach ([[], ['string', 'string'], ['string', 'object'], ['integer', false]] as $types) {

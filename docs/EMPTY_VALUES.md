@@ -15,7 +15,7 @@ OpenAPI 3.0.4/3.1.2 explicitly leaves interactions with the schema to the implem
 | Empty supported list / object | Existing empty expansion, normally omitted |
 | List containing one empty string | Existing single empty item, e.g. `name=` for form/multi or CSV |
 | Required property missing or null | Validation error |
-| Empty string violating minLength/enum/pattern/type | Validation error before HTTP |
+| Empty string violating minLength/enum/pattern/type | Validation error where it is assigned (a parameter or model property with a hook); a call only serializes it |
 
 An explicit empty string is data and is not interchangeable with null or an absent field. Empty strings allowed by the schema already worked with the flag omitted/false; those contracts keep identical output. The flag does not automatically create a parameter for a missing value or change an undefined style expansion. The SDK chooses the valid empty-value representation `name=`, without a new API for bare names.
 

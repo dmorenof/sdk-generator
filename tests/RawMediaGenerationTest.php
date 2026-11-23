@@ -62,8 +62,9 @@ final class RawMediaGenerationTest extends TestCase {
             self::assertSame('application/json, text/plain, application/octet-stream', $http->calls[array_key_last($http->calls)]->getHeaderLine('Accept'));
         }
         $http->status = 202; $http->body = "\0\xff"; self::assertSame("\0\xff", (string) $mixed->get()->getBody());
-        $http->status = 200; $http->body = 'x'; $this->expectException(\UnexpectedValueException::class);
-        $client->resource(\Example\RawSdk\Resources\Text::class)->post('valid');
+        // The answer is trusted: a string that breaks the pattern of its schema is returned as it came.
+        $http->status = 200; $http->body = 'x';
+        self::assertSame('x', $client->resource(\Example\RawSdk\Resources\Text::class)->post('valid'));
     }
     public function testUnsupportedRawContractsStayExplicit(): void {
         foreach (['binaryRules', 'nullableText', 'ambiguous'] as $case) {

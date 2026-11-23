@@ -24,9 +24,8 @@ try {
     $values['body'] = (object) ['name' => 'body name'];
     $params = new \Example\CookieSdk\PostParams\Items((object) $values);
     $resource->post($params);
-    $params->theme = '';
     try {
-        $resource->post($params);
+        $params->theme = ''; // the rule of the parameter is checked where the value is assigned
         throw new RuntimeException('Invalid mutation accepted.');
     } catch (UnexpectedValueException) {
     }

@@ -18,7 +18,8 @@ try {
     $result = $resource->post($params);
     if (!$result instanceof \Example\SchemaRulesSdk\DTOs\Record || $result->tag !== 7) { throw new RuntimeException('Wrong response model.'); }
     if ($client->resource(\Example\SchemaRulesSdk\Resources\Scalar::class)->get() !== 0.3) { throw new RuntimeException('Wrong scalar result.'); }
-    try { $client->resource(\Example\SchemaRulesSdk\Resources\ScalarBad::class)->get(); throw new RuntimeException('Invalid response multipleOf accepted.'); } catch (UnexpectedValueException) {}
+    // The answer is trusted: a value outside the rules of its schema is returned as it came.
+    if ($client->resource(\Example\SchemaRulesSdk\Resources\ScalarBad::class)->get() !== 0.31) { throw new RuntimeException('A scalar answer outside its rules was not read.'); }
     $collection = $client->resource(\Example\SchemaRulesSdk\Resources\Collection::class)->get();
     if ((string) $collection !== '[1,2]') { throw new RuntimeException('Wrong collection shape.'); }
     $collection[] = 1;
@@ -26,7 +27,7 @@ try {
     $result->profile['second'] = 2;
     try { $result->validateForResponse(); throw new RuntimeException('Map count mutation accepted.'); } catch (UnexpectedValueException) {}
     try { $params->body->tag = 8; $resource->post($params); throw new RuntimeException('Const mutation reached HTTP.'); } catch (UnexpectedValueException) {}
-    $params->body->tag = 7; $params->amount = 0.31;
-    try { $resource->post($params); throw new RuntimeException('Invalid query amount reached HTTP.'); } catch (UnexpectedValueException) {}
+    $params->body->tag = 7;
+    try { $params->amount = 0.31; throw new RuntimeException('Invalid query amount accepted.'); } catch (UnexpectedValueException) {} // checked where it is assigned
 } finally { foreach ($pipes as $pipe) { fclose($pipe); } proc_terminate($process); proc_close($process); }
 echo 'PUBLISHED_SCHEMA_RULES_SDK_HTTP_OK', PHP_EOL;

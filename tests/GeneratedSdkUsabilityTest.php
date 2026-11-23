@@ -114,7 +114,9 @@ final class GeneratedSdkUsabilityTest extends TestCase
 
     public function testGeneratedRangeAndErrorNamesAreReadable(): void
     {
-        self::assertArrayHasKey('src/Responses/Errors/Api/V1/Properties/Search/PostStatus401Response.php', self::$files);
+        // Every operation of this contract declares the same 401 body, so they share one class.
+        self::assertArrayHasKey('src/Responses/Errors/Status401Response.php', self::$files);
+        self::assertArrayNotHasKey('src/Responses/Errors/Api/V1/Properties/Search/PostStatus401Response.php', self::$files);
         self::assertArrayHasKey('src/DTOs/AlertsApi/Ranges/IntRangeSchema1.php', self::$files);
         foreach (array_keys(self::$files) as $path) {
             self::assertStringNotContainsString('__', $path);

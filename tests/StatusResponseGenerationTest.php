@@ -110,12 +110,15 @@ final class StatusResponseGenerationTest extends TestCase
         self::assertNull($this->resource(202, 'null')->get());
         self::assertNull($this->resource(204, '')->get());
     }
-    public function testSchemaValidationIsBoundToItsStatusWithoutAlternativeFallback(): void
+    public function testTheSchemaOfTheStatusIsUsedWithoutAlternativeFallbackAndTheAnswerIsTrusted(): void
     {
-        foreach ([[200, ''], [200, 'null'], [201, '{"name":"Ada"}'], [201, '{"name":"Ada","ticket":""}'],
-            [202, '{}'], [202, ''], [200, '{"name":""}'], [200, '{"name":42}']] as [$status, $body]) {
+        foreach ([[200, ''], [200, 'null'], [202, ''], [200, '{"name":42}']] as [$status, $body]) {
             try { $this->resource($status, $body)->get(); self::fail('Invalid status-specific body accepted.'); }
             catch (\UnexpectedValueException|\InvalidArgumentException|\JsonException|\TypeError) { self::assertTrue(true); }
+        }
+        // A body that lacks a required field or breaks a rule of its status's schema is read as it came.
+        foreach ([[201, '{"name":"Ada"}'], [201, '{"name":"Ada","ticket":""}'], [202, '{}'], [200, '{"name":""}']] as [$status, $body]) {
+            self::assertNotNull($this->resource($status, $body)->get());
         }
         foreach ([400, 500] as $status) {
             try { $this->resource($status, '{"message":"problem"}')->get(); self::fail('Unexpected status accepted.'); }

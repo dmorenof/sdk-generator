@@ -103,7 +103,7 @@ final class CoreInheritanceTest extends TestCase
         self::assertSame('{"result":"accepted"}', (string) $response);
     }
 
-    public function testMissingRequiredOutgoingFieldStopsBeforeHttp(): void
+    public function testAMissingRequiredOutgoingFieldIsNotCheckedWhenSending(): void
     {
         $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public int $calls = 0;
@@ -114,13 +114,14 @@ final class CoreInheritanceTest extends TestCase
             }
         };
         $client = \Example\InheritanceSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
+        // A call only serializes: the model is sent as it is, and the transport (which refuses everything) is reached.
         try {
             $client->resource(\Example\InheritanceSdk\Resources\Users::class)->post(new \Example\InheritanceSdk\DTOs\NewUser());
-            self::fail('Missing required field was transmitted');
-        } catch (\UnexpectedValueException $e) {
-            self::assertStringContainsString('Required JSON property', $e->getMessage());
+            self::fail('The request was not sent');
+        } catch (\LogicException $e) {
+            self::assertSame('Should not send invalid DTO', $e->getMessage());
         }
-        self::assertSame(0, $transport->calls);
+        self::assertSame(1, $transport->calls);
     }
 
     public function testNestedTypedArraysAcceptHydratedElements(): void

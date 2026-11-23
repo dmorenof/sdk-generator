@@ -13,7 +13,8 @@ final class BinaryResponseSupport
         $candidates = [];
         foreach ($content as $media => $definition) {
             if (is_string($media) && RawMediaSupport::json($media)) { return null; }
-            if (!is_string($media) || !is_array($definition) || !RawMediaSupport::rawMedia($media)) { continue; }
+            if (!is_string($media) || !is_array($definition) || !RawMediaSupport::rawMedia($media, true)) { continue; }
+            $definition = self::withSchema($definition);
             if (is_array($definition['schema'] ?? null) && isset($definition['schema']['$ref'])) {
                 try { $definition['schema'] = SchemaReferences::raw($definition['schema'], $document); }
                 catch (\InvalidArgumentException) { continue; }
@@ -23,6 +24,20 @@ final class BinaryResponseSupport
         if (in_array(self::MEDIA, $candidates, true)) { return self::MEDIA; }
         sort($candidates, SORT_STRING);
         return $candidates[0] ?? null;
+    }
+
+    /**
+     * A response that names a non-JSON media type and describes no content beyond it (no schema, or the empty one) is the
+     * bytes of that media type: it is a file, an image, an XML document, and nothing says they are text.
+     *
+     * @param array<mixed> $definition
+     * @return array<mixed>
+     */
+    public static function withSchema(array $definition): array
+    {
+        $schema = $definition['schema'] ?? null;
+        $empty = $schema === null || (is_array($schema) && array_diff(array_keys($schema), ['description', 'title', 'example', 'deprecated']) === []);
+        return $empty ? ['schema' => ['type' => 'string', 'format' => 'binary']] + $definition : $definition;
     }
 
     /** Swagger file responses share the existing binary codec, with one explicit representation. */

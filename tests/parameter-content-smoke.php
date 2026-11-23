@@ -35,11 +35,6 @@ try {
         throw new RuntimeException('Invalid mutation accepted.');
     } catch (UnexpectedValueException) {
     }
-    try {
-        $client->resource(\Example\ContentSdk\Resources\Scalar::class)->getById('Cow');
-        throw new RuntimeException('JSON serialization bypassed enum constraints.');
-    } catch (UnexpectedValueException) {
-    }
 } finally {
     foreach ($pipes as $pipe) {
         fclose($pipe);

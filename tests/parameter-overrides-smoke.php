@@ -22,15 +22,9 @@ try {
     $resource->getById('a', $get);
     $post = new \Example\OverrideSdk\PostParams\Items\ById((object) ['querySelector' => 'x/y', 'selector' => 'h', 'queryBody' => 'query body', 'theme' => 'dark', 'body' => (object) ['name' => 'body name']]);
     $resource->postById('a', $post);
-    $get->querySelector = [];
+    // A list has no hook and a call only serializes; a scalar parameter checks its rule where it is assigned.
     try {
-        $resource->getById('a', $get);
-        throw new RuntimeException('Invalid GET mutation accepted.');
-    } catch (UnexpectedValueException) {
-    }
-    $post->querySelector = '';
-    try {
-        $resource->postById('a', $post);
+        $post->querySelector = '';
         throw new RuntimeException('Invalid POST mutation accepted.');
     } catch (UnexpectedValueException) {
     }

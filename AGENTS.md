@@ -1,13 +1,12 @@
 # Flujo de trabajo acordado
 
 - Trabajar desde GitHub en el entorno cloud, sin depender del ordenador del usuario.
-- Continuar el desarrollo en la rama existente `release/0.2.0`, manteniéndola al día con lo publicado. No crear ramas por funcionalidad. El nombre histórico de la rama no fija la versión de las entregas siguientes ni permite modificar tags ya publicados.
-- Cada avance terminado y validado debe integrarse y publicarse como versión estable dentro de la misma tarea. No dar por terminado el trabajo dejando solo una rama o un PR en borrador.
-- Preferir commits y push a `main` cuando sus protecciones lo permitan. No abrir PRs como flujo habitual. Si GitHub exige un PR, resolverlo como trámite técnico y completar integración y publicación sin pedir otra confirmación.
-- Las tareas futuras de la hoja de ruta no deben retrasar la publicación de funcionalidad ya terminada. Mantener explícitos los límites reales y actualizar `pendientes.md` cuando corresponda.
-- Coordinar dependencias entre repositorios: publicar y comprobar el runtime primero; después usar su versión estable en el generador y los SDKs emitidos. No terminar una entrega con dependencias temporales de ramas.
-- Validar con las pruebas adecuadas, CI y smoke de instalación. Cambiar `VERSION` para activar la publicación existente; comprobar tag inmutable, GitHub Release y workflow finalizados antes de afirmar que está publicado. Nunca mover un tag existente.
-- Mantener el código y cada avance coherente accesibles online. La instrucción del usuario de publicar sustituye las antiguas reglas de dejar entregas acumuladas en PRs de desarrollo.
+- Desarrollar en una rama y abrir un PR. **No se fusiona en `main` nada que cambie `VERSION` sin la confirmación expresa del titular**, porque ese cambio publica.
+- **No se publican versiones intermedias.** Una versión se publica solo cuando el trabajo está terminado, probado y el titular lo confirma; una línea de trabajo, una publicación. Un avance terminado que no se ha publicado vive en su rama y en su PR hasta entonces; eso no es "dejarlo a medias".
+- Las ramas no se borran sin que el titular lo pida.
+- Coordinar dependencias entre repositorios: al publicar, el runtime primero; después el generador usa su versión estable. Lo que se publica no depende de ramas temporales.
+- Validar con las pruebas adecuadas, CI y smoke de instalación. Un cambio que toca lo que usa el código generado se prueba contra la CI del generador antes de publicar el runtime. Cambiar `VERSION` activa la publicación existente: comprobar tag inmutable, GitHub Release y workflow finalizados antes de afirmar que está publicado. Nunca mover un tag existente.
+- Actualizar `pendientes.md` con lo que realmente falta, sin duplicar el CHANGELOG.
 
 # Simplicidad y reutilización
 

@@ -51,7 +51,10 @@ Existing named OpenAPI schemas preserve their declared or inferred model
 hierarchy under DTOs, rather than being duplicated per operation.
 Inline JSON object bodies are named after the route and verb under `Requests`.
 Inline JSON object responses use `Responses`, also by route and verb; an
-operation's error envelope is under `Responses/Errors` by path, verb and status.
+operation's error envelope is under `Responses/Errors` by path, verb and status. An error body that two or more
+operations declare identically for the same status is one class, `Responses/Errors/Status401Response` (a second,
+different shared body of that status is `Status401Variant2Response`): a typed 401 is caught with one class. A body
+only one operation declares, or that differs even by a description, keeps the class named after its operation.
 All three categories extend the same runtime `DTO` base.
 
 The generated static facade delegates to its corresponding instance

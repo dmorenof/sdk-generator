@@ -120,7 +120,7 @@ final class FileListGenerationTest extends TestCase
         self::assertStringContainsString('filename="attachments.bin"', $transport->calls[4]['body']);
     }
 
-    public function testRequiredItemsBoundsAndMutationsAreValidatedBeforeHttp(): void
+    public function testRequiredItemsAndBoundsAreCheckedWhenTheModelIsBuilt(): void
     {
         $transport = new FileListGenerationTransport();
         $items = \Example\FileLists\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport))->resource(\Example\FileLists\Resources\Items::class);
@@ -140,9 +140,11 @@ final class FileListGenerationTest extends TestCase
         } catch (\UnexpectedValueException) {
             self::assertSame([], $transport->calls);
         }
+        // A call only serializes: a required list that was removed afterwards is not checked, and the request is sent.
+        $params = new \Example\FileLists\PostParams\Items((object) ['body' => (object) ['name' => 'Ada', 'attachments' => [self::upload()]]]);
         unset($params->body->attachments);
-        $this->expectException(\UnexpectedValueException::class);
         $items->post($params);
+        self::assertNotSame([], $transport->calls);
     }
 
     public function testUnsupportedItemsEncodingAndSwaggerFileArraysStayDiagnosed(): void

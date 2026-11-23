@@ -30,15 +30,13 @@ try {
     $post = new \Example\EmptySdk\PostParams\Items((object) $values);
     $resource->post($post);
     $client->resource(\Example\EmptySdk\Resources\Json::class)->post(new \Example\EmptySdk\PostParams\Json((object) $values));
-    $get->strict = '';
     try {
-        $resource->get($get);
+        $get->strict = ''; // checked where the value is assigned, so the empty flag cannot bypass minLength
         throw new RuntimeException('Empty flag bypassed minLength.');
     } catch (UnexpectedValueException) {
     }
     try {
         $post->body->strict = '';
-        $resource->post($post);
         throw new RuntimeException('Empty flag bypassed form constraints.');
     } catch (UnexpectedValueException) {
     }

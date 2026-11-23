@@ -80,14 +80,13 @@ final class FormatValidationGenerationTest extends TestCase
         // The one exception: PHP has no 32-bit integer, so the range of int32 is always asserted.
     }
 
-    public function testInvalidValuesAreRejectedOnlyWithTheOption(): void
+    public function testAnAnswerIsNotCheckedForFormatsWithOrWithoutTheOption(): void
     {
         $body = '{"id":1,"name":"Ada","email":"not-an-email","token":"nope"}';
 
         self::assertSame('Ada', self::users(false, $body)->getById(1)->name);
-
-        $this->expectException(\Throwable::class);
-        self::users(true, $body)->getById(1);
+        // The option asserts formats on what you assign; an answer is trusted.
+        self::assertSame('Ada', self::users(true, $body)->getById(1)->name);
     }
 
     public function testValidValuesPassWithTheOption(): void

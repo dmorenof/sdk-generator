@@ -13,16 +13,22 @@ $inspect = false;
 $strict = false;
 $resolveLocal = false;
 $validateFormats = false;
+$skipUnsupported = false;
+$server = null;
 $referenceRoot = null;
 foreach (array_slice($argv, 1) as $argument) {
     if (in_array($argument, ['--inspect', '--dry-run'], true)) {
         $inspect = true;
+    } elseif ($argument === '--skip-unsupported') {
+        $skipUnsupported = true;
     } elseif ($argument === '--strict') {
         $strict = true;
     } elseif ($argument === '--validate-formats') {
         $validateFormats = true;
     } elseif ($argument === '--resolve-local-references') {
         $resolveLocal = true;
+    } elseif (str_starts_with($argument, '--server=')) {
+        $server = substr($argument, strlen('--server='));
     } elseif (str_starts_with($argument, '--reference-root=')) {
         $referenceRoot = substr($argument, strlen('--reference-root='));
     } else {
@@ -30,8 +36,10 @@ foreach (array_slice($argv, 1) as $argument) {
     }
 }
 if (($referenceRoot !== null && !$resolveLocal) || ($inspect && count($arguments) !== 1) || (!$inspect && !in_array(count($arguments), [3, 4], true))) {
-    fwrite(STDERR, "Usage: generate-sdk.php [--strict] [--validate-formats] <spec.json|yaml> <output-directory> [Php\\Namespace] <vendor/package>\n"
+    fwrite(STDERR, "Usage: generate-sdk.php [--strict] [--skip-unsupported] [--validate-formats] <spec.json|yaml> <output-directory> [Php\\Namespace] <vendor/package>\n"
         . "       generate-sdk.php --inspect|--dry-run <spec.json|yaml>\n"
+        . "       Add --server=https://host[:port] for a document that does not name its server (Swagger without host, OpenAPI without servers).\n"
+        . "       Add --skip-unsupported to leave out, and list, the operations this generator cannot execute instead of refusing the whole API.\n"
         . "       Add --validate-formats to assert declared string/integer formats (date-time, uuid, email, ...) at runtime.\n"
         . "       Add --resolve-local-references [--reference-root=directory] for confined local JSON/YAML files.\n");
     exit(2);
@@ -88,11 +96,14 @@ try {
     }
 
     // Build and validate all files before writing anything to disk.
-    $normalizer = new SpecificationNormalizer($validateFormats);
+    $normalizer = new SpecificationNormalizer($validateFormats, $skipUnsupported, $server);
     $extension = strtolower(pathinfo($input, PATHINFO_EXTENSION));
     $contract = $bundle === null && in_array($extension, ['yaml', 'yml'], true)
         ? $normalizer->fromYaml($source)
         : $normalizer->fromJson($source);
+    foreach ($normalizer->skippedOperations() as $operation => $reason) {
+        fwrite(STDERR, "Skipped (unsupported) $operation: $reason\n");
+    }
     $namespace ??= PhpApiNameResolver::fromTitle($contract->title);
     $files = (new PhpExecutableEmitter($namespace, $packageName))->emit($contract);
 

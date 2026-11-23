@@ -124,20 +124,18 @@ final class SimpleParameterGenerationTest extends TestCase {
         }
         self::assertSame('{"name":"body name"}', (string) $http->calls[1]->getBody());
         self::assertSame('', (string) $http->calls[0]->getBody());
-        foreach ([['ids', []], ['ids', ['']], ['ids', ['x' => 'a']]] as [$field, $value]) {
-            $path->$field = $value;
-            try { $resource->postByIds($path, $params); self::fail('Path mutation accepted.'); }
-            catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
-        }
+        // A list has no hook and a call only serializes: an empty list is sent as it is.
+        $path->ids = [];
+        $resource->postByIds($path, $params);
+        self::assertCount(3, $http->calls);
         $path->ids = ['valid'];
-        foreach ([['a,b'], [1], [], ['']] as $codes) {
-            $params->XCodes = $codes;
-            try { $resource->postByIds($path, $params); self::fail('Invalid header accepted.'); }
-            catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
-        }
+        // What cannot be written at all still fails: an item that holds the delimiter of its list.
+        $params->XCodes = ['a,b'];
+        try { $resource->postByIds($path, $params); self::fail('Ambiguous header accepted.'); }
+        catch (\UnexpectedValueException) { self::assertCount(3, $http->calls); }
         $params->XCodes = ['valid'];
         try { $params->body->name = ''; self::fail('Body mutation accepted.'); }
-        catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
+        catch (\UnexpectedValueException) { self::assertCount(3, $http->calls); }
     }
     public function testMissingAndInvalidPathDeclarationsAndUnsupportedSchemasAreDiagnosed(): void {
         $variants = [];

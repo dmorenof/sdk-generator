@@ -27,12 +27,6 @@ foreach (['x/y',''] as $code) {
     $r->getBySelector($p, $get);
     $r->postBySelector($p, $post);
 }
-$p->ids = [];
-try {
-    $r->postBySelector($p, $post);
-    throw new RuntimeException('Mutation accepted.');
-} catch (UnexpectedValueException) {
-}
 if ($http !== null && $http->calls !== 4) {
     throw new RuntimeException('Invalid mutation reached HTTP.');
 }
