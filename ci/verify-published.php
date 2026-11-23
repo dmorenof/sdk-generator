@@ -35,19 +35,19 @@ if (\Composer\InstalledVersions::getReference('dmorenof/sdk-generator') !== $exp
 $package = $directory . '/vendor/dmorenof/sdk-generator';
 $binary = $directory . '/vendor/bin/generate-sdk.php';
 $accounts = $directory . '/accounts';
-runPublished([PHP_BINARY, $binary, '--strict', '--resolve-local-references', $package . '/tests/fixtures/multifile-accounts/api.json', $accounts, 'Preview\\AccountsSdk', 'example/published-accounts']);
+runPublished([PHP_BINARY, $binary, '--strict', '--resolve-local-references', dirname(__DIR__) . '/tests/fixtures/multifile-accounts/api.json', $accounts, 'Preview\\AccountsSdk', 'example/published-accounts']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $accounts]);
-runPublished([PHP_BINARY, $package . '/tests/preview-smoke.php', 'accounts'], $accounts);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/preview-smoke.php', 'accounts'], $accounts);
 echo "PUBLISHED_LOCAL_REFERENCES_OK", PHP_EOL;
 echo "PUBLISHED_PATH_ITEM_REFERENCES_OK", PHP_EOL;
 echo "PUBLISHED_MULTIFILE_REFERENCES_OK", PHP_EOL;
-$fileReport = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspectFile($package . '/tests/fixtures/multifile-accounts/api.json');
+$fileReport = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspectFile(dirname(__DIR__) . '/tests/fixtures/multifile-accounts/api.json');
 if (!$fileReport['strictlyAccepted'] || count($fileReport['sources'] ?? []) !== 8
-    || $fileReport['sourceSha256'] !== hash_file('sha256', $package . '/tests/fixtures/multifile-accounts/api.json')) {
+    || $fileReport['sourceSha256'] !== hash_file('sha256', dirname(__DIR__) . '/tests/fixtures/multifile-accounts/api.json')) {
     throw new RuntimeException('Published generator did not fingerprint its local file graph.');
 }
 $servers = $directory . '/servers';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/operation-servers-path-items-openapi31.json', $servers, 'Example\\PublishedServers', 'example/published-servers']);
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/operation-servers-path-items-openapi31.json', $servers, 'Example\\PublishedServers', 'example/published-servers']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $servers]);
 file_put_contents($directory . '/server-consumer.php', <<<'PHP'
 <?php
@@ -92,8 +92,8 @@ if ($transport->urls !== ['https://staging.test/v8/items/a%2Fb', 'https://path.e
 echo "PUBLISHED_SERVER_ROUTING_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/server-consumer.php']);
-runPublished([PHP_BINARY, $binary, '--inspect', $package . '/tests/fixtures/casafari-openapi31.json']);
-$nested = json_decode(file_get_contents($package . '/tests/fixtures/accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+runPublished([PHP_BINARY, $binary, '--inspect', dirname(__DIR__) . '/tests/fixtures/casafari-openapi31.json']);
+$nested = json_decode(file_get_contents(dirname(__DIR__) . '/tests/fixtures/accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
 $nested['components']['parameters']['Filter/~'] = [
     'name' => 'filter', 'in' => 'query', 'schema' => ['type' => 'string'], 'style' => 'deepObject',
 ];
@@ -104,7 +104,7 @@ if ($report['strictlyAccepted'] || !$report['generatable']
     throw new RuntimeException('Published generator did not audit reusable parameter declarations.');
 }
 echo "PUBLISHED_NESTED_AUDIT_OK", PHP_EOL;
-$headerDocument = json_decode(file_get_contents($package . '/tests/fixtures/accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+$headerDocument = json_decode(file_get_contents(dirname(__DIR__) . '/tests/fixtures/accounts-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
 $headerDocument['components']['headers']['Page'] = ['schema' => ['type' => 'integer']];
 $headerDocument['paths']['/users/{id}']['get']['responses']['200']['headers']['X-Page'] = ['$ref' => '#/components/headers/Page'];
 $headerContract = (new \Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer())->fromJson(json_encode($headerDocument, JSON_THROW_ON_ERROR));
@@ -113,7 +113,7 @@ if (($headerContract->operations[1]->responses[0]->headers['X-Page']['schema']['
 }
 echo "PUBLISHED_HEADER_REFERENCES_OK", PHP_EOL;
 $security = $directory . '/security';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/accounts-security-references-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/accounts-security-references-openapi31.json',
     $security, 'Example\\PublishedSecurity', 'example/published-security']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $security]);
 file_put_contents($directory . '/security-consumer.php', <<<'PHP'
@@ -152,7 +152,7 @@ echo "PUBLISHED_SECURITY_REFERENCES_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/security-consumer.php']);
 $query = $directory . '/query';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/query-arrays-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/query-arrays-openapi31.json',
     $query, 'Example\\PublishedQuery', 'example/published-query']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $query]);
 file_put_contents($directory . '/query-consumer.php', <<<'PHP'
@@ -188,7 +188,7 @@ echo "PUBLISHED_QUERY_ARRAY_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/query-consumer.php']);
 $delimited = $directory . '/delimited';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/query-delimited-swagger2.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/query-delimited-swagger2.json',
     $delimited, 'Example\\PublishedDelimited', 'example/published-delimited']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $delimited]);
 file_put_contents($directory . '/delimited-consumer.php', <<<'PHP'
@@ -236,7 +236,7 @@ echo "PUBLISHED_DELIMITED_QUERY_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/delimited-consumer.php']);
 $objects = $directory . '/objects';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/query-objects-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/query-objects-openapi31.json',
     $objects, 'Example\\PublishedObjects', 'example/published-objects']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $objects]);
 file_put_contents($directory . '/objects-consumer.php', <<<'PHP'
@@ -292,7 +292,7 @@ echo "PUBLISHED_DEEP_OBJECT_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/objects-consumer.php']);
 $forms = $directory . '/forms';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/forms-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/forms-openapi31.json',
     $forms, 'Example\\PublishedForms', 'example/published-forms']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $forms]);
 file_put_contents($directory . '/forms-consumer.php', <<<'PHP'
@@ -349,7 +349,7 @@ echo "PUBLISHED_FORM_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/forms-consumer.php']);
 $swaggerForms = $directory . '/swagger-forms';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/forms-swagger2.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/forms-swagger2.json',
     $swaggerForms, 'Example\\PublishedSwaggerForms', 'example/published-swagger-forms']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $swaggerForms]);
 file_put_contents($directory . '/swagger-forms-consumer.php', <<<'PHP'
@@ -406,67 +406,67 @@ echo "PUBLISHED_SWAGGER_FORM_SDK_OK", PHP_EOL;
 PHP);
 runPublished([PHP_BINARY, $directory . '/swagger-forms-consumer.php']);
 $multipart = $directory . '/multipart';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/multipart-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/multipart-openapi31.json',
     $multipart, 'Example\\MultipartSdk', 'example/published-multipart']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $multipart]);
-runPublished([PHP_BINARY, $package . '/tests/multipart-smoke.php', $multipart]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/multipart-smoke.php', $multipart]);
 $swaggerMultipart = $directory . '/swagger-multipart';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/multipart-swagger2.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/multipart-swagger2.json',
     $swaggerMultipart, 'Example\\MultipartSdk', 'example/published-swagger-multipart']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $swaggerMultipart]);
-runPublished([PHP_BINARY, $package . '/tests/multipart-smoke.php', $swaggerMultipart, '', 'application/octet-stream']);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/multipart-smoke.php', $swaggerMultipart, '', 'application/octet-stream']);
 echo "PUBLISHED_SWAGGER_MULTIPART_SDK_OK", PHP_EOL;
-runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $multipart]);
-runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $swaggerMultipart]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', dirname(__DIR__) . '/tests/streaming-smoke.php', $multipart]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', dirname(__DIR__) . '/tests/streaming-smoke.php', $swaggerMultipart]);
 $fileLists = $directory . '/file-lists';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/multipart-file-lists-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/multipart-file-lists-openapi31.json',
     $fileLists, 'Example\\MultipartSdk', 'example/published-file-lists']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $fileLists]);
-runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/streaming-smoke.php', $fileLists, '', 'list']);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', dirname(__DIR__) . '/tests/streaming-smoke.php', $fileLists, '', 'list']);
 $downloads = $directory . '/downloads';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/downloads-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/downloads-openapi31.json',
     $downloads, 'Example\\DownloadSdk', 'example/published-downloads']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $downloads]);
-runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/download-smoke.php', $downloads]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', dirname(__DIR__) . '/tests/download-smoke.php', $downloads]);
 $swaggerDownloads = $directory . '/swagger-downloads';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/downloads-swagger2.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/downloads-swagger2.json',
     $swaggerDownloads, 'Example\\DownloadSdk', 'example/published-swagger-downloads']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $swaggerDownloads]);
-runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/download-smoke.php', $swaggerDownloads]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', dirname(__DIR__) . '/tests/download-smoke.php', $swaggerDownloads]);
 echo "PUBLISHED_SWAGGER_DOWNLOAD_SDK_OK", PHP_EOL;
 $statusResponses = $directory . '/status-responses';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/status-responses-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/status-responses-openapi31.json',
     $statusResponses, 'Example\\StatusSdk', 'example/published-status-responses']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $statusResponses]);
-runPublished([PHP_BINARY, $package . '/tests/status-response-smoke.php', $statusResponses]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/status-response-smoke.php', $statusResponses]);
 foreach (['simple-parameters-openapi31.json', 'simple-parameters-swagger2.json'] as $simpleFixture) {
     $simpleDirectory = $directory . '/' . pathinfo($simpleFixture, PATHINFO_FILENAME);
-    runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/' . $simpleFixture,
+    runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/' . $simpleFixture,
         $simpleDirectory, 'Example\\SimpleSdk', 'example/published-simple-parameters']);
     runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $simpleDirectory]);
-    runPublished([PHP_BINARY, $package . '/tests/simple-parameters-smoke.php', $simpleDirectory]);
+    runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/simple-parameters-smoke.php', $simpleDirectory]);
 }
 $objectParameters = $directory . '/object-parameters';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/object-parameters-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/object-parameters-openapi31.json',
     $objectParameters, 'Example\\ObjectSdk', 'example/published-object-parameters']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $objectParameters]);
-runPublished([PHP_BINARY, $package . '/tests/object-parameters-smoke.php', $objectParameters]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/object-parameters-smoke.php', $objectParameters]);
 $pathStyles = $directory . '/path-styles';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/path-styles-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/path-styles-openapi31.json',
     $pathStyles, 'Example\\PathSdk', 'example/published-path-styles']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $pathStyles]);
-runPublished([PHP_BINARY, $package . '/tests/path-styles-smoke.php', $pathStyles]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/path-styles-smoke.php', $pathStyles]);
 $cookies = $directory . '/cookies';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/cookies-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/cookies-openapi31.json',
     $cookies, 'Example\\CookieSdk', 'example/published-cookies']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $cookies]);
-runPublished([PHP_BINARY, $package . '/tests/cookies-smoke.php', $cookies]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/cookies-smoke.php', $cookies]);
 $parameterOverrides = $directory . '/parameter-overrides';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/parameter-overrides-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/parameter-overrides-openapi31.json',
     $parameterOverrides, 'Example\\OverrideSdk', 'example/published-parameter-overrides']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $parameterOverrides]);
-runPublished([PHP_BINARY, $package . '/tests/parameter-overrides-smoke.php', $parameterOverrides]);
-$duplicates = json_decode(file_get_contents($package . '/tests/fixtures/parameter-overrides-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/parameter-overrides-smoke.php', $parameterOverrides]);
+$duplicates = json_decode(file_get_contents(dirname(__DIR__) . '/tests/fixtures/parameter-overrides-openapi31.json'), true, 512, JSON_THROW_ON_ERROR);
 $duplicates['paths']['/items/{id}']['parameters'][] = $duplicates['paths']['/items/{id}']['parameters'][0];
 $duplicateJson = json_encode($duplicates, JSON_THROW_ON_ERROR);
 $duplicateReport = (new \Dmorenof\SdkGenerator\Diagnostics\DocumentInspector())->inspect($duplicateJson);
@@ -482,79 +482,79 @@ try {
 }
 echo "PUBLISHED_DUPLICATE_PARAMETER_REJECTION_OK", PHP_EOL;
 $reservedQuery = $directory . '/reserved-query';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/reserved-query-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/reserved-query-openapi31.json',
     $reservedQuery, 'Example\\ReservedSdk', 'example/published-reserved-query']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $reservedQuery]);
-runPublished([PHP_BINARY, $package . '/tests/reserved-query-smoke.php', $reservedQuery]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/reserved-query-smoke.php', $reservedQuery]);
 foreach (['empty-values-openapi30.json', 'empty-values-swagger2.json'] as $index => $fixture) {
     $emptyValues = $directory . '/empty-values-' . $index;
-    runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/' . $fixture,
+    runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/' . $fixture,
         $emptyValues, 'Example\\EmptySdk', 'example/published-empty-values-' . $index]);
     runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $emptyValues]);
-    runPublished([PHP_BINARY, $package . '/tests/empty-values-smoke.php', $emptyValues]);
+    runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/empty-values-smoke.php', $emptyValues]);
 }
 $parameterContent = $directory . '/parameter-content';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/parameter-content-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/parameter-content-openapi31.json',
     $parameterContent, 'Example\\ContentSdk', 'example/published-parameter-content']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $parameterContent]);
-runPublished([PHP_BINARY, $package . '/tests/parameter-content-smoke.php', $parameterContent]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/parameter-content-smoke.php', $parameterContent]);
 $delimitedDirectory = $directory . '/delimited-parameters';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/delimited-parameters-swagger2.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/delimited-parameters-swagger2.json',
     $delimitedDirectory, 'Example\\DelimitedSdk', 'example/published-delimited-parameters']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $delimitedDirectory]);
-runPublished([PHP_BINARY, $package . '/tests/delimited-parameters-smoke.php', $delimitedDirectory]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/delimited-parameters-smoke.php', $delimitedDirectory]);
 $selectionDirectory = $directory . '/response-selection';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/response-selection-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/response-selection-openapi31.json',
     $selectionDirectory, 'Example\\SelectionSdk', 'example/published-response-selection']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $selectionDirectory]);
-runPublished([PHP_BINARY, $package . '/tests/response-selection-smoke.php', $selectionDirectory]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/response-selection-smoke.php', $selectionDirectory]);
 $formBlockDirectories = [];
 foreach (['openapi31' => 'FormBlockSdk', 'swagger2' => 'SwaggerFormBlockSdk'] as $dialect => $namespace) {
     $formBlockDirectory = $directory . '/form-block-' . $dialect;
-    runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/form-block-' . $dialect . '.json',
+    runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/form-block-' . $dialect . '.json',
         $formBlockDirectory, 'Example\\' . $namespace, 'example/published-form-block-' . $dialect]);
     runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $formBlockDirectory]);
     $formBlockDirectories[] = $formBlockDirectory;
 }
-runPublished([PHP_BINARY, $package . '/tests/form-block-smoke.php', ...$formBlockDirectories]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/form-block-smoke.php', ...$formBlockDirectories]);
 $schemaDirectory = $directory . '/schema-rules';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/schema-rules-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/schema-rules-openapi31.json',
     $schemaDirectory, 'Example\\SchemaRulesSdk', 'example/published-schema-rules']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $schemaDirectory]);
-runPublished([PHP_BINARY, $package . '/tests/schema-rules-smoke.php', $schemaDirectory]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/schema-rules-smoke.php', $schemaDirectory]);
 $nativeDirectory = $directory . '/native-schemas';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/native-schemas-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/native-schemas-openapi31.json',
     $nativeDirectory, 'Example\\NativeSdk', 'example/published-native-schemas']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $nativeDirectory]);
-runPublished([PHP_BINARY, $package . '/tests/native-schemas-smoke.php', $nativeDirectory]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/native-schemas-smoke.php', $nativeDirectory]);
 $bodyDirectory = $directory . '/request-bodies';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/request-bodies-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/request-bodies-openapi31.json',
     $bodyDirectory, 'Example\\BodySdk', 'example/published-request-bodies']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $bodyDirectory]);
-runPublished([PHP_BINARY, $package . '/tests/request-bodies-smoke.php', $bodyDirectory]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/request-bodies-smoke.php', $bodyDirectory]);
 $rawDirectory = $directory . '/raw-media';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/raw-media-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/raw-media-openapi31.json',
     $rawDirectory, 'Example\\RawSdk', 'example/published-raw-media']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $rawDirectory]);
-runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/raw-media-smoke.php', $rawDirectory]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', dirname(__DIR__) . '/tests/raw-media-smoke.php', $rawDirectory]);
 $aliasDirectory = $directory . '/schema-aliases';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/schema-aliases-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/schema-aliases-openapi31.json',
     $aliasDirectory, 'Example\\AliasSdk', 'example/published-schema-aliases']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $aliasDirectory]);
-runPublished([PHP_BINARY, $package . '/tests/schema-aliases-smoke.php', $aliasDirectory]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/schema-aliases-smoke.php', $aliasDirectory]);
 $errorDirectory = $directory . '/error-payloads';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/error-payloads-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/error-payloads-openapi31.json',
     $errorDirectory, 'Example\\ErrorPayloadSdk', 'example/published-error-payloads']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $errorDirectory]);
-runPublished([PHP_BINARY, $package . '/tests/error-payloads-smoke.php', $errorDirectory]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/error-payloads-smoke.php', $errorDirectory]);
 $mimeDirectory = $directory . '/mime-media';
-runPublished([PHP_BINARY, $binary, '--strict', $package . '/tests/fixtures/mime-media-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', dirname(__DIR__) . '/tests/fixtures/mime-media-openapi31.json',
     $mimeDirectory, 'Example\\MimeMediaSdk', 'example/published-mime-media']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $mimeDirectory]);
-runPublished([PHP_BINARY, '-d', 'memory_limit=16M', $package . '/tests/mime-media-smoke.php', $mimeDirectory]);
+runPublished([PHP_BINARY, '-d', 'memory_limit=16M', dirname(__DIR__) . '/tests/mime-media-smoke.php', $mimeDirectory]);
 $serverRoutesDirectory = $directory . '/server-routes';
-runPublished([PHP_BINARY, $binary, '--strict', '--resolve-local-references', $package . '/tests/fixtures/server-routes-openapi31.json',
+runPublished([PHP_BINARY, $binary, '--strict', '--resolve-local-references', dirname(__DIR__) . '/tests/fixtures/server-routes-openapi31.json',
     $serverRoutesDirectory, 'Example\\ServerRoutesSdk', 'example/published-server-routes']);
 runPublished(['composer', 'install', '--no-interaction', '--prefer-dist', '--no-progress', '--working-dir=' . $serverRoutesDirectory]);
-runPublished([PHP_BINARY, $package . '/tests/server-routes-smoke.php', $serverRoutesDirectory]);
+runPublished([PHP_BINARY, dirname(__DIR__) . '/tests/server-routes-smoke.php', $serverRoutesDirectory]);
 echo "PUBLISHED_GENERATOR_INSTALL_OK ", $tag, " ", $expected, PHP_EOL;
