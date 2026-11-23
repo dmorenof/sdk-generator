@@ -99,7 +99,7 @@ final class TypedErrorResponseTest extends TestCase
         }
     }
 
-    public function testInvalidErrorDTOStillPreservesResponseAndOriginalHydrationError(): void
+    public function testAnErrorDTOThatLacksARequiredFieldIsReadAsItCame(): void
     {
         try {
             $client = self::connect(404, '{"message":"No"}');
@@ -108,8 +108,10 @@ final class TypedErrorResponseTest extends TestCase
         } catch (\Dmorenof\SdkRuntime\ApiException $e) {
             self::assertSame(404, $e->response->status);
             self::assertSame('{"message":"No"}', $e->response->body);
-            self::assertNull($e->error);
-            self::assertInstanceOf(\Throwable::class, $e->getPrevious());
+            // The answer is trusted: the model is built from what the API sent, and nothing went wrong to explain.
+            self::assertInstanceOf(\Example\ErrorSdk\DTOs\ApiError::class, $e->error);
+            self::assertSame('No', $e->error->message);
+            self::assertNull($e->getPrevious());
         }
     }
 

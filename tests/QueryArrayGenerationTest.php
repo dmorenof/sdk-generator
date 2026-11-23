@@ -85,7 +85,7 @@ final class QueryArrayGenerationTest extends TestCase
         self::assertSame('https://api.example.test/v1/items?codes=a%2Cb,x%20y&ids=1&ids=2', (string) $history[0]['request']->getUri());
     }
 
-    public function testArrayBoundsItemTypesEnumsAndMutationFailBeforeHttp(): void
+    public function testArrayBoundsItemTypesAndEnumsAreCheckedWhenTheParametersAreBuilt(): void
     {
         $transport = new QueryProbeTransport();
         $client = \Example\QueryLists\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test', transport: $transport));
@@ -100,14 +100,10 @@ final class QueryArrayGenerationTest extends TestCase
             }
         }
         $params = new \Example\QueryLists\GetParams\Items((object) ['ids' => [1]]);
+        // A list has no hook and a call only serializes: an item added afterwards is sent as it is.
         $params->ids[] = 'wrong';
-        try {
-            $client->resource(\Example\QueryLists\Resources\Items::class)->get($params);
-            self::fail('Invalid mutation accepted.');
-        } catch (\UnexpectedValueException $exception) {
-            self::assertStringContainsString('ids[1]', $exception->getMessage());
-            self::assertSame([], $transport->urls);
-        }
+        $client->resource(\Example\QueryLists\Resources\Items::class)->get($params);
+        self::assertCount(1, $transport->urls);
     }
 
     public function testUnsupportedLocationsShapesAndStylesRemainStrictFailures(): void

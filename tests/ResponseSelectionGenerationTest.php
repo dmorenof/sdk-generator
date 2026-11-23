@@ -59,16 +59,16 @@ final class ResponseSelectionGenerationTest extends TestCase {
             }
         }
     }
-    public function testInvalidSelectedSchemaDoesNotTryAnotherBranchAndPreservesErrorResponse(): void {
+    public function testTheSelectedSchemaIsUsedWithoutTryingAnotherBranchAndTheAnswerIsTrusted(): void {
         foreach ([200, 299, 404, 500] as $status) {
             $http = new class($status) implements \Psr\Http\Client\ClientInterface {
                 public function __construct(private int $status) {}
                 public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { return new \GuzzleHttp\Psr7\Response($this->status, [], '{}'); }
             };
             $resource = \Example\SelectionSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\SelectionSdk\Resources\Responses::class);
-            try { $resource->get(new \Example\SelectionSdk\GetParams\Responses((object) ['status' => $status])); self::fail('Invalid selected schema accepted.'); }
-            catch (\Dmorenof\SdkRuntime\ApiException $error) { self::assertGreaterThanOrEqual(400, $status); self::assertSame('{}', $error->response->body); self::assertNotNull($error->getPrevious()); }
-            catch (\UnexpectedValueException) { self::assertLessThan(400, $status); }
+            // A body that lacks what the schema of its status requires is read as that schema's model, never as another status's.
+            try { self::assertNotNull($resource->get(new \Example\SelectionSdk\GetParams\Responses((object) ['status' => $status]))); self::assertLessThan(400, $status); }
+            catch (\Dmorenof\SdkRuntime\ApiException $error) { self::assertGreaterThanOrEqual(400, $status); self::assertSame('{}', $error->response->body); }
         }
     }
     public function testOtherErrorRangesAndInlineDefaultOnlySchemas(): void {

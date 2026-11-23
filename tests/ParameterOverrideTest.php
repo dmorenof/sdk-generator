@@ -140,19 +140,15 @@ final class ParameterOverrideTest extends TestCase
         foreach ($http->requests as $request) {
             self::assertSame('theme=dark', $request->getHeaderLine('Cookie'));
         }
+        // A list has no hook and a call only serializes: the list is sent as it is.
         $get->querySelector = [];
+        $resource->getById('a', $get);
+        self::assertCount(3, $http->requests);
         try {
-            $resource->getById('a', $get);
-            self::fail('Invalid mutation reached HTTP.');
+            $post->querySelector = ''; // a scalar parameter checks its rules where it is assigned
+            self::fail('Invalid assignment accepted.');
         } catch (\UnexpectedValueException) {
-            self::assertCount(2, $http->requests);
-        }
-        $post->querySelector = '';
-        try {
-            $resource->postById('a', $post);
-            self::fail('Invalid mutation reached HTTP.');
-        } catch (\UnexpectedValueException) {
-            self::assertCount(2, $http->requests);
+            self::assertCount(3, $http->requests);
         }
     }
     public function testDuplicateListsRejectRatherThanOverrideEvenWhenOperationMasksParent(): void

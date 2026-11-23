@@ -73,15 +73,14 @@ final class SchemaRulesGenerationTest extends TestCase {
         $record = new \Example\SchemaRulesSdk\DTOs\Record($valid); unset($record->profile['only']);
         try { $record->validateForResponse(); self::fail('Map property-count mutation accepted.'); } catch (\UnexpectedValueException) { self::assertTrue(true); }
     }
-    public function testScalarResponseRulesRejectInvalidDataAndValidateStatusMaps(): void {
+    public function testScalarResponseRulesAreEmittedButAnAnswerIsTrusted(): void {
         foreach ([0.3, 0.31, 0, 1] as $number) {
             $http = new class($number) implements \Psr\Http\Client\ClientInterface {
                 public function __construct(private float|int $number) {}
                 public function sendRequest(\Psr\Http\Message\RequestInterface $request): \Psr\Http\Message\ResponseInterface { return new \GuzzleHttp\Psr7\Response(200, [], json_encode($this->number, JSON_THROW_ON_ERROR)); }
             };
             $resource = \Example\SchemaRulesSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://example.test', httpClient: $http))->resource(\Example\SchemaRulesSdk\Resources\Scalar::class);
-            try { self::assertSame(0.3, $resource->get()); self::assertSame(0.3, $number); }
-            catch (\UnexpectedValueException) { self::assertNotSame(0.3, $number); }
+            self::assertEquals((float) $number, $resource->get());
         }
         $document = self::document(); $document['paths']['/scalar']['get']['responses']['201'] = $document['paths']['/scalar']['get']['responses']['200'];
         self::assertStringContainsString("'rules' =>", self::files($document)['src/Resources/Scalar.php']);

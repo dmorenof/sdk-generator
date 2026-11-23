@@ -107,7 +107,7 @@ final class SwaggerMultipartGenerationTest extends TestCase
         self::assertStringContainsString('filename="file.bin"', $transport->calls[5]['body']);
     }
 
-    public function testRequiredFilesConstraintsAndMutationsFailBeforeHttp(): void
+    public function testRequiredFilesAndConstraintsAreCheckedWhenTheModelIsBuilt(): void
     {
         $transport = new SwaggerMultipartTransport();
         $items = \Example\SwaggerMultipart\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport))->resource(\Example\SwaggerMultipart\Resources\Items::class);
@@ -122,21 +122,14 @@ final class SwaggerMultipartGenerationTest extends TestCase
             }
         }
         $params = new \Example\SwaggerMultipart\PostParams\Items((object) ['body' => (object) ['name' => 'Ada', 'file' => 'bytes', 'ids' => [1]]]);
+        // A call only serializes: a required file removed afterwards, or a list item added afterwards, is sent as it is.
         unset($params->body->file);
-        try {
-            $items->post($params);
-            self::fail('Required file removal accepted.');
-        } catch (\UnexpectedValueException) {
-            self::assertSame([], $transport->calls);
-        }
+        $items->post($params);
+        self::assertCount(1, $transport->calls);
         $params->body->file = 'new bytes';
-        try {
-            $params->body->ids[] = 0;
-            $items->post($params);
-            self::fail('Invalid list mutation accepted.');
-        } catch (\UnexpectedValueException) {
-            self::assertSame([], $transport->calls);
-        }
+        $params->body->ids[] = 0;
+        $items->post($params);
+        self::assertCount(2, $transport->calls);
     }
 
     public function testReusableFilesAreCheckedInEachOperationsMediaContext(): void

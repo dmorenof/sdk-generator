@@ -137,16 +137,14 @@ final class EmptyValueGenerationTest extends TestCase
                 self::assertStringNotContainsString('omitted', (string) $request->getUri());
                 self::assertStringNotContainsString('nullable', (string) $request->getUri());
             }
-            $get->strict = '';
             try {
-                $resource->get($get);
+                $get->strict = ''; // checked where the value is assigned, so allowEmptyValue cannot bypass minLength
                 self::fail('allowEmptyValue bypassed minLength.');
             } catch (\UnexpectedValueException) {
                 self::assertCount(4, $http->requests);
             }
             try {
                 $post->body->strict = '';
-                $resource->post($post);
                 self::fail('allowEmptyValue bypassed form constraints.');
             } catch (\UnexpectedValueException) {
                 self::assertCount(4, $http->requests);

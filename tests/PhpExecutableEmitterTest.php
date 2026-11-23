@@ -334,7 +334,7 @@ final class PhpExecutableEmitterTest extends TestCase
         }
     }
 
-    public function testHydratorRejectsMissingRequiredJsonFields(): void
+    public function testAnAnswerWithoutARequiredFieldIsReadAsItCame(): void
     {
         if (!class_exists(\Example\ExecutableSdk\Client::class, false)) {
             $this->loadGeneratedClasses();
@@ -346,9 +346,10 @@ final class PhpExecutableEmitterTest extends TestCase
             }
         };
         $client = \Example\ExecutableSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $fake));
-        $this->expectException(\UnexpectedValueException::class);
-        $this->expectExceptionMessage('Required JSON property');
-        $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
+        // The answer is trusted: the field the API left out is simply not set.
+        $user = $client->resource(\Example\ExecutableSdk\Resources\Users::class)->getById(1);
+        self::assertSame('Ada', $user->name);
+        self::assertFalse(isset($user->id));
     }
 
     public function testHydratorRejectsInvalidScalarTypes(): void

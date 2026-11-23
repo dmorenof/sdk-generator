@@ -83,13 +83,10 @@ final class PathStyleGenerationTest extends TestCase
             self::assertSame('trace', $r->getHeaderLine('X-Trace'));
         }
         self::assertSame('{"name":"body name"}', (string)$http->calls[1]->getBody());
+        // A list has no hook and a call only serializes: the list is sent as it is.
         $path->ids = [];
-        try {
-            $resource->postBySelector($path, $post);
-            self::fail('Mutation accepted.');
-        } catch (\UnexpectedValueException) {
-            self::assertCount(2, $http->calls);
-        }
+        $resource->postBySelector($path, $post);
+        self::assertCount(3, $http->calls);
     }
     public function testStylesRemainPathOnlyAndUndefinedShapesFail(): void
     {

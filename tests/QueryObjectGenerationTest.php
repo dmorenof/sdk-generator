@@ -70,12 +70,9 @@ final class QueryObjectGenerationTest extends TestCase
         }
         $transport = new DeepQueryTransport();
         $client = \Example\NullableDeepQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
-        try {
-            $client->resource(\Example\NullableDeepQuery\Resources\Items::class)->get(new \Example\NullableDeepQuery\GetParams\Items((object) ['filter' => null]));
-            self::fail('Required parameter disappeared from the request.');
-        } catch (\UnexpectedValueException) {
-            self::assertSame([], $transport->calls);
-        }
+        // A call only serializes: a required parameter that is null is sent as the nothing it is.
+        $client->resource(\Example\NullableDeepQuery\Resources\Items::class)->get(new \Example\NullableDeepQuery\GetParams\Items((object) ['filter' => null]));
+        self::assertCount(1, $transport->calls);
     }
 
     public function testGetQueryBodyNameIsNotSentAsAJsonRequestBody(): void

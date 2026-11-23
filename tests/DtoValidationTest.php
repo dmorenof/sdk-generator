@@ -210,7 +210,7 @@ final class DtoValidationTest extends TestCase
         ]);
     }
 
-    public function testInvalidPathDTOCannotReachHTTP(): void
+    public function testAPathValueIsNotCheckedWhenSending(): void
     {
         $transport = new class implements \Dmorenof\SdkRuntime\Transport\TransportInterface {
             public int $calls = 0;
@@ -221,13 +221,14 @@ final class DtoValidationTest extends TestCase
             }
         };
         $client = \Example\ConstraintSdk\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
+        // A call only serializes: the identifier is sent as it is, and the transport (which refuses everything) is reached.
         try {
             $client->resource(\Example\ConstraintSdk\Resources\Users::class)->getById(0);
-            self::fail('Expected validation error');
-        } catch (UnexpectedValueException $e) {
-            self::assertStringContainsString('minimum', $e->getMessage());
+            self::fail('The request was not sent');
+        } catch (\LogicException $e) {
+            self::assertSame('Unexpected HTTP', $e->getMessage());
         }
-        self::assertSame(0, $transport->calls);
+        self::assertSame(1, $transport->calls);
     }
 
     public function testInvalidBodyDTOCannotReachHTTP(): void

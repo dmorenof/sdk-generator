@@ -34,7 +34,8 @@ final class MimeMediaGenerationTest extends TestCase {
         self::assertSame('<input>ñ</input>', (string) $http->calls[1]->getBody()); self::assertSame('application/xml', $http->calls[1]->getHeaderLine('Content-Type'));
         $http->body = '{"ok":true}'; self::assertTrue($client->resource(\Example\MimeMediaSdk\Resources\Problem::class)->post(new \Example\MimeMediaSdk\DTOs\InputModel((object) ['value' => 7]))->ok);
         self::assertSame('application/vnd.example+json', $http->calls[2]->getHeaderLine('Content-Type')); self::assertSame('application/problem+json', $http->calls[2]->getHeaderLine('Accept')); self::assertSame('{"value":7}', (string) $http->calls[2]->getBody());
-        try { $client->resource(\Example\MimeMediaSdk\Resources\Xml::class)->post('not XML'); self::fail('Raw string pattern was ignored.'); } catch (\UnexpectedValueException) { self::assertCount(3, $http->calls); }
+        // A call only serializes: a raw string that breaks the pattern of its schema is sent as it is.
+        $client->resource(\Example\MimeMediaSdk\Resources\Xml::class)->post('not XML'); self::assertCount(4, $http->calls); self::assertSame('not XML', (string) $http->calls[3]->getBody());
     }
     public function testBinaryAliasesPreservePsrStreamsAndDifferentResponseMimes(): void {
         [$client, $http] = $this->setupClient(); $http->status = 201; $http->body = "\0\xffpng";

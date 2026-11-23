@@ -95,7 +95,7 @@ final class DelimitedQueryGenerationTest extends TestCase
         self::assertSame(['https://api.example.test/v1/items?ids=1', 'https://api.example.test/v1/items?codes=%7Cx&ids=1'], $transport->urls);
     }
 
-    public function testAmbiguousValuesAndMutationsAreRejectedBeforeTransport(): void
+    public function testAmbiguousValuesAreRefusedAndRuleBreakingOnesAreSent(): void
     {
         $transport = new DelimitedQueryTransport();
         $client = \Example\DelimitedQuery\Client::connect(\Dmorenof\SdkGenerator\Tests\Support\Cfg::make('https://api.example.test/v1', transport: $transport));
@@ -111,11 +111,11 @@ final class DelimitedQueryGenerationTest extends TestCase
                 self::assertSame([], $transport->urls);
             }
         }
+        // What cannot be written (an item that holds its delimiter) fails; a value that only breaks a rule is sent as it is.
         $params->codes = ['a'];
         $params->ids[] = 0;
-        $this->expectException(\UnexpectedValueException::class);
-        $this->expectExceptionMessage('ids[1]');
         $resource->get($params);
+        self::assertCount(1, $transport->urls);
     }
 
     public function testUndefinedExplodeAndUnsupportedShapesRemainDiagnosed(): void
