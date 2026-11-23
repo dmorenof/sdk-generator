@@ -23,6 +23,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # TEMPORARY, with the override in composer.json and ci.yml: the runtime 1.12.0 is not published yet.
+  SDK_RUNTIME_REF: claude/busy-franklin-9x9zpa
+  SDK_RUNTIME_ALIAS: 1.99.0
+
 concurrency:
   group: sdk-previews-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
