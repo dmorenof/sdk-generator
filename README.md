@@ -35,7 +35,7 @@ It is a **deliberately limited subset** of OpenAPI, not a replacement for the fu
 
 Because the engine is shared, a generated SDK is small and a fix in the runtime reaches every SDK with a `composer update`.
 
-A real example: [casafari-sdk](https://github.com/dmorenof/casafari-sdk) is generated from the Casafari CRM contract with this tool.
+A real example: [casafari-sdk](https://github.com/dmorenof/casafari-sdk) is generated with this tool from Casafari's published OpenAPI contract (46 operations).
 
 ## Requirements
 
@@ -99,9 +99,22 @@ Every property that has rules gets a PHP 8.4 `set` hook in the generated model, 
 
 Not supported (rejected, not ignored): remote `$ref`, structured XML/CSV models and the more exotic schema compositions. The exact list is in [SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md).
 
-## Speed and honesty
+## Why use it
 
-Against OpenAPI Generator 7.26 on the real Casafari contract (GitHub Actions, PHP 8.4, mocked answers), a call that builds nested models takes about 60 µs against 56 µs (1.07×), a call that returns a list takes the same, and the nested call uses about 2.4 MB of PHP memory against 10 MB; the installed SDK (code and dependencies) is about 4 MB against 6.2 MB. Our calls also select security, decode errors and apply retry and redirect policies. We claim no speed advantage. See the [audit](https://github.com/dmorenof/sdk-runtime/blob/main/docs/AUDIT.md) and [benchmark/](benchmark/README.md).
+Measured on the Casafari contract against OpenAPI Generator 7.26 (GitHub Actions, PHP 8.4, same mocked answer, clean process per measurement):
+
+| | This generator + runtime | OpenAPI Generator |
+| --- | ---: | ---: |
+| Generated code | **1.17 MB** | 4.74 MB |
+| Everything installed | **4.0 MB** | 6.2 MB |
+| PHP peak memory, a call building nested models | **2.4 MB** | 10 MB |
+| Memory growth over 5,000 calls | **4 KiB** | 163 KiB |
+| Starting the client | **0.57–0.81×** the time | 1× |
+| Time of a call | on par (0.96–1.07×) | 1× |
+
+Less disk and memory because the engine lives once in the runtime and is not copied into every SDK. The call is level, not faster: it also selects security, decodes errors and applies retry and redirect policies. The first call in a fresh process is about 1.4× slower (more files to load), and the dependencies alone weigh more (2.6 MB against 1.3 MB).
+
+What you gain most is simplicity: OAuth2 tokens fetched and renewed for you, models that are plain typed properties (no getters and setters), validation where a value enters a model, one `Configuration` for retries, redirects and proxies. Details, method and the honest limits (PHP 8.4 only, a subset of OpenAPI, answers trusted as sent) are in [Why this runtime](https://github.com/dmorenof/sdk-runtime/blob/main/docs/why.md); the history of what was tried is in the [audit](https://github.com/dmorenof/sdk-runtime/blob/main/docs/AUDIT.md) and [benchmark/](benchmark/README.md).
 
 ## Documentation
 
