@@ -127,7 +127,12 @@ final class SwaggerMultipartGenerationTest extends TestCase
         $items->post($params);
         self::assertCount(1, $transport->calls);
         $params->body->file = 'new bytes';
-        $params->body->ids[] = 0;
+        try {
+            $params->body->ids[] = 0; // a typed collection checks its items when you change it
+            self::fail('Invalid list item accepted.');
+        } catch (\UnexpectedValueException) {
+            self::assertCount(1, $transport->calls);
+        }
         $items->post($params);
         self::assertCount(2, $transport->calls);
     }

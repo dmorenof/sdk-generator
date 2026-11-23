@@ -135,7 +135,7 @@ final class SimpleParameterGenerationTest extends TestCase {
         catch (\UnexpectedValueException) { self::assertCount(3, $http->calls); }
         $params->XCodes = ['valid'];
         try { $params->body->name = ''; self::fail('Body mutation accepted.'); }
-        catch (\UnexpectedValueException) { self::assertCount(2, $http->calls); }
+        catch (\UnexpectedValueException) { self::assertCount(3, $http->calls); }
     }
     public function testMissingAndInvalidPathDeclarationsAndUnsupportedSchemasAreDiagnosed(): void {
         $variants = [];
