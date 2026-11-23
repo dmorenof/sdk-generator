@@ -2,6 +2,15 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.14.0] — 2026-11-23
+
+Follows sdk-runtime 1.12.0: **a call only serializes, and an answer is trusted** (decision D25 of the runtime).
+
+- **The parameter classes of an operation get `set` hooks.** `GetParams`, `PostParams`, `PathParams`, ... check the rules of a parameter (a latitude of 91) where the value is assigned, as a model does, since the call no longer checks them. A native array cannot have a hook, so a list parameter has none and its rules are not checked at all.
+- Behavior change for generated SDKs (with the runtime): a request is not validated when sent, and an answer is not validated when read. A required field missing from an answer is simply not set; a value outside a rule is returned. Only PHP's own `TypeError` and an enum's `ValueError` refuse a value, wrapped in `InvalidResponseException`.
+- Needs sdk-runtime `^1.12.0` (the SDKs now require it).
+- The documentation and the tests that fixed "an invalid request does not reach HTTP" and "an invalid answer is refused" now fix the new behavior.
+
 ## [1.13.0] — 2026-11-20
 
 Found with httpbin (Swagger 2.0), whose unmodified specification now generates strictly and runs against the real server.

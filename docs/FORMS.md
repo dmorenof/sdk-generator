@@ -39,7 +39,7 @@ is encoded once. Backed enums, JSON names and readOnly/writeOnly direction apply
 Null fields and empty lists are omitted; empty strings produce name=. A missing
 optional body sends no Content-Type or bytes; a present empty form sends empty
 bytes with the form Content-Type. Required fields and supported scalar/item
-constraints are checked during hydration and after mutations before HTTP.
+constraints are checked where a value is assigned or a model is built; a call only serializes the form.
 
 This completes the URL-encoded subset of the agreed getParameters/postParameters
 review through the actual GetParams/PostParams API. Tests exercise GET query,
@@ -204,7 +204,7 @@ are rejected with source diagnostics.
 
 Required, optional, empty and nullable-extension files use the existing DTO
 policies: required absence fails, empty strings send empty file parts, optional
-absence/null is omitted, and mutations are checked before HTTP. File enum,
+absence/null is omitted, and a mutation is checked where it is assigned (a call only serializes). File enum,
 pattern/Unicode length/numeric/item constraints, default, explicit format and
 collectionFormat are rejected rather than reinterpreted as file-size rules.
 Swagger file arrays remain unsupported because they are not valid Swagger 2.0; nested structures also remain unsupported. The same buffering and

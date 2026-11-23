@@ -6,7 +6,7 @@ JSON parameters reuse native scalar types, existing DTOs, typed collections and 
 
 The runtime serializes a representation once, then applies ordinary percent encoding for path/query. JSON strings include their JSON quotes; false/zero remain valid JSON scalars. An empty JSON array is sent as encoded [] instead of disappearing like an empty style-expanded list. Parameter names retain their ordinary encoding. Headers contain the serialized bytes directly and must satisfy HTTP byte/whitespace rules. Per-parameter media does not set the request body's Content-Type.
 
-For example a string path id with JSON content becomes %22Cat%22; the native method still takes string and validates enum/minLength before serialization. A query DTO becomes a single percent-encoded JSON value, not exploded properties. Optional uninitialized/null parameters are omitted. Nullable root schemas and literal top-level JSON null are not supported in this delivery; nullable fields within representable JSON models retain existing semantics.
+For example a string path id with JSON content becomes %22Cat%22; the native method still takes string; a call only serializes it, so enum/minLength are not checked on it. A query DTO becomes a single percent-encoded JSON value, not exploded properties. Optional uninitialized/null parameters are omitted. Nullable root schemas and literal top-level JSON null are not supported in this delivery; nullable fields within representable JSON models retain existing semantics.
 
 ## Cookies and method separation
 

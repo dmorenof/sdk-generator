@@ -88,7 +88,7 @@ Static route classes (`Users::...`) mirror the URL structure and share one confi
 
 ## Validation, in short
 
-Every property that has rules gets a PHP 8.4 `set` hook in the generated model, so a value is checked where it enters the model, once: when you assign it or when the model is built from JSON. Nothing is validated again when a request is sent, and `json_encode($model)` only serializes. `$model->validate()` checks everything on demand. Two limits of PHP 8.4 hooks: a property with a hook cannot be unset, and native array properties get no hook (a hooked property cannot be edited in place), so lists with rules are checked when the model is built and by typed collections. PHP has no 32-bit integer, so the range of `int32` is always asserted; other formats only with `--validate-formats`. Details: the runtime's [validation guide](https://github.com/dmorenof/sdk-runtime/blob/main/docs/validation.md).
+Every property that has rules gets a PHP 8.4 `set` hook in the generated model, so a value is checked where it enters the model, once: when you assign it or when you build the model from JSON. The parameter classes of an operation (query, path, header, cookie) get the same hooks. **A call only serializes, and an answer is trusted**: nothing is validated when a request is sent or when an answer is read (only PHP's own type errors refuse a value, wrapped in `InvalidResponseException`). `json_encode($model)` only serializes. `$model->validate()` checks everything on demand. Two limits of PHP 8.4 hooks: a property with a hook cannot be unset, and native array properties get no hook (a hooked property cannot be edited in place), so lists with rules are checked when the model is built and by typed collections. PHP has no 32-bit integer, so the range of `int32` is always asserted; other formats only with `--validate-formats`. Details: the runtime's [validation guide](https://github.com/dmorenof/sdk-runtime/blob/main/docs/validation.md).
 
 ## What is supported
 
@@ -101,7 +101,7 @@ Not supported (rejected, not ignored): remote `$ref`, structured XML/CSV models 
 
 ## Speed and honesty
 
-Against OpenAPI Generator 7 on the same specifications, a call through our SDK is about 1.5× slower (about 92 µs against 62 µs on a mocked request), because it also validates, selects security, decodes errors and applies retry and redirect policies. We claim no speed advantage. See the [audit](https://github.com/dmorenof/sdk-runtime/blob/main/docs/AUDIT.md) and [benchmark/](benchmark/README.md).
+Against OpenAPI Generator 7.26 on the real Casafari contract (GitHub Actions, PHP 8.4, mocked answers), a call that builds nested models takes about 60 µs against 56 µs (1.07×), a call that returns a list takes the same, and the nested call uses about 2.4 MB of PHP memory against 10 MB; the installed SDK (code and dependencies) is about 4 MB against 6.2 MB. Our calls also select security, decode errors and apply retry and redirect policies. We claim no speed advantage. See the [audit](https://github.com/dmorenof/sdk-runtime/blob/main/docs/AUDIT.md) and [benchmark/](benchmark/README.md).
 
 ## Documentation
 
