@@ -142,10 +142,17 @@ final class PhpModelNameResolver
                 }
             }
             $namespace = implode('', array_map('ucfirst', $family));
-            if ($suffix !== null) {
-                return [$namespace, implode('', array_map('ucfirst', $remainder)), $suffix];
+            $split = $suffix !== null
+                ? [$namespace, implode('', array_map('ucfirst', $remainder)), $suffix]
+                : [$namespace, implode('', array_map('ucfirst', $remainder))];
+            // `PointString` beside `Point` would become Point\String, and String is not a name a PHP class can have:
+            // a name that would split into a reserved word stays whole.
+            foreach ($split as $segment) {
+                if (in_array(strtolower($segment), self::RESERVED, true)) {
+                    return [$name];
+                }
             }
-            return [$namespace, implode('', array_map('ucfirst', $remainder))];
+            return $split;
         }
 
         $segments = preg_split('/__|\./', $name);

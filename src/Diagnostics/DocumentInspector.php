@@ -49,7 +49,7 @@ final class DocumentInspector
             if (!is_array($document) || array_is_list($document)) {
                 throw new \InvalidArgumentException('API specification must be an object.');
             }
-            $diagnostics = (new ContractAuditor())->audit($document, $sourceName);
+            $diagnostics = (new ContractAuditor())->audit(\Dmorenof\SdkGenerator\Parsing\EnumUnions::collapse($document), $sourceName);
             $normalizer = new SpecificationNormalizer();
             $contract = $format === 'yaml' ? $normalizer->fromYaml($source) : $normalizer->fromJson($source);
             $normalized = true;
