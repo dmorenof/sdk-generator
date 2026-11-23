@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
 
+env:
+  SDK_RUNTIME_REF: claude/busy-franklin-9x9zpa
+
 concurrency:
   group: package-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
