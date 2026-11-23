@@ -23,11 +23,6 @@ on:
 permissions:
   contents: read
 
-env:
-  # TEMPORARY, with the override in composer.json and ci.yml: the runtime 1.12.0 is not published yet.
-  SDK_RUNTIME_REF: claude/busy-franklin-9x9zpa
-  SDK_RUNTIME_ALIAS: 1.99.0
-
 concurrency:
   group: sdk-previews-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -79,11 +74,6 @@ jobs:
         run: |
           set -euo pipefail
           composer validate --no-check-lock
-          if [[ -n "${SDK_RUNTIME_REF:-}" ]]; then
-            composer config repositories.runtime vcs https://github.com/dmorenof/sdk-runtime
-            composer config minimum-stability dev
-            composer require "dmorenof/sdk-runtime:dev-$SDK_RUNTIME_REF as ${SDK_RUNTIME_ALIAS:-1.9.9}" --no-update --no-interaction
-          fi
           composer install --no-interaction --prefer-dist --no-progress
           php ../../tests/preview-smoke.php "$PREVIEW_API"
 
