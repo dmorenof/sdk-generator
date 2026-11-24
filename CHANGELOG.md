@@ -2,6 +2,12 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.15.0] — unreleased
+
+- **A `type` beside a `$ref` that repeats the referenced schema's own type is the bare reference.** OpenAPI 3.1 documents write `{$ref: Status, type: string}`; SendGrid's 46 specifications do it 167 times, always with the type of the target, and every one of them was refused with "Reference siblings are not supported". It is accepted now (through any alias chain, in 3.0 and 3.1), and the SDK generated is identical to the one for the bare reference. A different `type`, a type set, a `type` beside a reference that has none, and any other sibling (`format`, `nullable`, `enum`) are still refused. Measured with `--inspect` on SendGrid's specifications as published: 13 supported before, 35 supported and 2 partial after.
+- **A schema named like a PHP reserved word gets a class name that PHP accepts.** `Default` and `List` were refused ("Invalid PHP schema namespace or class segment") and stopped the whole document. The last segment now takes a suffix: the singular of its category folder at the top level (`Enums\Default` becomes `Enums\DefaultEnum`, `DTOs\List` becomes `DTOs\ListDTO`) and the singular of the folder that holds it below that (`Enums\Assets\Default` becomes `Enums\Assets\DefaultAsset`; the singular is the one the resource names already use). The same document always gives the same names (no number, no hash), a name that lands on another schema is still an explicit collision, and every rename is a `renamed_reserved_class` warning at the schema. An alias of a native type has no class and is not renamed; a composition wrapper is already prefixed; a folder that is a reserved word is still refused. Only documents that failed before are affected: no existing SDK changes its class names.
+- With both changes, SendGrid's 46 specifications as published: 36 supported and 1 partial (37 generate), up from 13.
+
 ## [1.14.0] — 2026-11-23
 
 Follows sdk-runtime 1.12.0: **a call only serializes, and an answer is trusted** (decision D25 of the runtime).

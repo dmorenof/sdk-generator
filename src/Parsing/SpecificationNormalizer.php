@@ -895,6 +895,25 @@ final class SpecificationNormalizer
     }
 
     /**
+     * Whether the `type` beside a `$ref` is the very type of the schema the reference reaches (through any alias chain).
+     * A type set, a missing type or an unresolvable reference is not a repetition.
+     *
+     * @param array<mixed> $raw
+     */
+    private function repeatsReferencedType(array $raw): bool
+    {
+        if (!is_string($raw['type'] ?? null) || !is_string($raw['$ref'] ?? null)) {
+            return false;
+        }
+        try {
+            $target = SchemaReferences::raw(['$ref' => $raw['$ref']], $this->document);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+        return ($target['type'] ?? null) === $raw['type'];
+    }
+
+    /**
      * The schema a `propertyNames` reference points to, written in its place: key names are checked as plain
      * assertions, which cannot hold references, and a key-name schema is a value schema (an enum, a pattern).
      *
@@ -1103,7 +1122,13 @@ final class SpecificationNormalizer
         if (isset($raw['$ref'])) {
             // readOnly and writeOnly beside a $ref are the usual way Swagger tooling marks a model-typed property;
             // the property reads them from its own node, so the reference only has to tolerate them.
-            if (count(array_diff(array_keys($raw), ['$ref', 'description', 'title', 'readOnly', 'writeOnly', 'default'])) > 0) {
+            $siblings = array_values(array_diff(array_keys($raw), ['$ref', 'description', 'title', 'readOnly', 'writeOnly', 'default']));
+            // OpenAPI 3.1 documents write `{$ref: Status, type: string}`; a `type` that repeats the referenced schema's own
+            // asserts nothing new. Any other `type` (or any other sibling) could change the meaning and stays refused.
+            if ($siblings === ['type'] && $this->repeatsReferencedType($raw)) {
+                $siblings = [];
+            }
+            if ($siblings !== []) {
                 throw new InvalidArgumentException("Reference siblings are not supported at $where.");
             }
             foreach (['readOnly', 'writeOnly'] as $flag) {

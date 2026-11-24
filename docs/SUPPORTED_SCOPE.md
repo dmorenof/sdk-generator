@@ -98,6 +98,9 @@ OAS 3.0 and Swagger Reference Object siblings are ignored. OAS 3.1 reference
 `description`/`summary` annotations override the target, with the outer alias
 winning; sibling `required`, `schema` and other execution fields do not replace
 the target. This does not implement general Schema Object `$ref` sibling semantics.
+Beside a Schema Object `$ref`, `description`, `title`, `default`, `readOnly` and `writeOnly` are
+read, and a `type` that repeats the type of the schema the reference reaches (through any alias
+chain) is the bare reference. A different `type`, a type set and every other sibling are refused.
 Alias cycles are errors and chains beyond 128 hops are rejected; schema references
 are kept as references, preserving existing recursive model support.
 

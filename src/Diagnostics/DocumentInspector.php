@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Dmorenof\SdkGenerator\Diagnostics;
 
 use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
+use Dmorenof\SdkGenerator\Generation\PhpModelNameResolver;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use Symfony\Component\Yaml\Yaml;
 
@@ -53,8 +54,24 @@ final class DocumentInspector
             $normalizer = new SpecificationNormalizer();
             $contract = $format === 'yaml' ? $normalizer->fromYaml($source) : $normalizer->fromJson($source);
             $normalized = true;
-            (new PhpExecutableEmitter('Inspection\\Probe', 'example/inspection-probe'))->emit($contract);
+            $files = (new PhpExecutableEmitter('Inspection\\Probe', 'example/inspection-probe'))->emit($contract);
             $generated = true;
+            // A schema whose name PHP reserves is generated under another class name: never silently. An alias of a native
+            // type has no class at all, so there is nothing to report for it.
+            $schemas = isset($document['swagger']) ? '/definitions' : '/components/schemas';
+            $names = new PhpModelNameResolver('Inspection\\Probe', $contract->models);
+            foreach ($names->renames() as $schema => $rename) {
+                if (!isset($files[$names->path($schema)])) {
+                    continue;
+                }
+                $diagnostics[] = new Diagnostic(
+                    'renamed_reserved_class',
+                    'warning',
+                    JsonPointer::append($schemas, $schema),
+                    "PHP has no class called {$rename['from']}: the class of the schema '$schema' is {$rename['to']}.",
+                    $sourceName,
+                );
+            }
         } catch (\Throwable $exception) {
             $diagnostics[] = new Diagnostic($normalized ? 'generation_failed' : 'normalization_failed', 'error', '', $exception->getMessage(), $sourceName);
         }

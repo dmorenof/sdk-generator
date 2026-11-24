@@ -124,7 +124,8 @@ final class PhpResourceNameResolver
         return $method . 'By' . implode('And', $suffixes);
     }
 
-    private static function singular(string $name): string
+    /** The plain English singular of a name (`Assets` -> `Asset`, `Categories` -> `Category`); `Status` and `Address` are kept. */
+    public static function singular(string $name): string
     {
         if (preg_match('/(sses|shes|ches|xes|zes)$/i', $name) === 1) {
             return substr($name, 0, -2);
