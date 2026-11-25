@@ -5,8 +5,6 @@ set -euo pipefail
 # analyse the result at PHPStan's strictest level. Generated code must be as
 # well typed as hand-written code; any error here is a generator or runtime bug.
 cd "$(dirname "$0")/.."
-# TEMPORARY (before sdk-runtime 1.13.0 is published): the generated SDKs install the runtime from its main branch.
-export SDK_RUNTIME_REF="${SDK_RUNTIME_REF:-main}" SDK_RUNTIME_ALIAS="${SDK_RUNTIME_ALIAS:-1.13.0}"
 OUT="${1:-build/analysis}"
 rm -rf "$OUT"
 
