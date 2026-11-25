@@ -29,6 +29,7 @@ final readonly class PhpResourceEmitter
         'pathSerialization' => [],
         'headerSerialization' => [],
         'queryAllowReserved' => [],
+        'pathAllowReserved' => [],
         'parameterContent' => [],
         'responseValidation' => [],
         'requestBody' => null,
@@ -275,6 +276,7 @@ PHP;
         $validation = [];
         $querySerialization = [];
         $queryAllowReserved = [];
+        $pathAllowReserved = [];
         $parameterContent = [];
         $pathSerialization = [];
         $headerSerialization = [];
@@ -295,6 +297,9 @@ PHP;
         foreach ($operation->parameters as $parameter) {
             if ($parameter->location === 'query' && $parameter->serialization->allowReserved === true) {
                 $queryAllowReserved[] = $parameter->wireName;
+            }
+            if ($parameter->location === 'path' && $parameter->serialization->allowReserved === true) {
+                $pathAllowReserved[] = $parameter->wireName;
             }
             $objectType = $this->parameterTypes->objects[$operation->operationId][$parameter->location][$parameter->wireName] ?? null;
             if ($parameter->content !== []) {
@@ -386,6 +391,7 @@ PHP;
             'servers' => $servers,
             'querySerialization' => $querySerialization,
             'queryAllowReserved' => $queryAllowReserved,
+            'pathAllowReserved' => $pathAllowReserved,
             'parameterContent' => $parameterContent,
             'pathSerialization' => $pathSerialization,
             'headerSerialization' => $headerSerialization,

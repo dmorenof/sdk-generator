@@ -1398,7 +1398,7 @@ final class PhpContractEmitter
                     $pathNames[] = $parameter->wireName;
                 }
                 if ($parameter->serialization->allowReserved === true
-                    && ($parameter->location !== 'query' || $parameter->wireName === '')) {
+                    && (($parameter->location !== 'query' && !($parameter->location === 'path' && $this->repairing)) || $parameter->wireName === '')) {
                     throw new InvalidArgumentException('Reserved expansion requires a named OpenAPI query parameter.');
                 }
                 if ($parameter->serialization->allowEmptyValue === true && $parameter->location !== 'query') {

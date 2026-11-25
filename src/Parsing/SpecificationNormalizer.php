@@ -521,7 +521,10 @@ final class SpecificationNormalizer
             if (isset($declared[$name])) { continue; }
             if (!$this->repair) { throw new InvalidArgumentException("Missing declared path parameter '$name' at $where."); }
             $this->repairs[] = ['where' => $where, 'message' => "The placeholder '{{$name}}' has no path parameter: a required string was declared."];
-            $kept[] = new ParameterDefinition($name, 'path', new SchemaDefinition(SchemaKind::String), true);
+            // A placeholder called `url_path` or `full_path` is the rest of the path (Starlette's `path` converter, which uDA uses): it
+            // keeps its slashes.
+            $restOfPath = preg_match('/(^|_)path$/', $name) === 1;
+            $kept[] = new ParameterDefinition($name, 'path', new SchemaDefinition(SchemaKind::String), true, $restOfPath ? new \Dmorenof\SdkGenerator\Contract\ParameterSerialization(allowReserved: true) : new \Dmorenof\SdkGenerator\Contract\ParameterSerialization());
         }
         return $kept;
     }
