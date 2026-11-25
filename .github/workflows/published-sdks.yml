@@ -1,0 +1,33 @@
+name: Published SDKs unchanged
+
+# Regenerates the 15 published SDKs from their own contracts and compares with what they publish. A generator change that is not meant
+# to alter any generated code must leave all of them identical; one that is meant to shows exactly which it alters.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'bin/**'
+      - 'composer.json'
+      - 'ci/regenerate-published.sh'
+  workflow_dispatch:
+  schedule:
+    - cron: '41 5 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate:
+    name: Regenerate and compare
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: bash ci/regenerate-published.sh

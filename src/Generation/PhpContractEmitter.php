@@ -49,10 +49,8 @@ final class PhpContractEmitter
     private array $operationParameterEnums = [];
     /** @var array<string, list<string>> Class name of a union => the unions (by full name) that used it for naming their branches, in order. */
     private array $branchHintOwners = [];
-    /** Whether the contract was read in repair mode: what cannot be honored (a discriminator) is left out instead of refused. */
-    private bool $repairing = false;
-    /** @var list<array{where: string, message: string}> What the emitter left out or chose when repairing. */
-    private array $repairNotes = [];
+    /** Whether the contract was read in repair mode (what cannot be honored, a discriminator, is left out instead of refused) and what the emitter left out or chose then. */
+    private \Dmorenof\SdkGenerator\Parsing\RepairPolicy $policy;
 
     /**
      * What the last emission repaired (only for a contract read in repair mode): each thing it could not honor and what it did.
@@ -61,7 +59,7 @@ final class PhpContractEmitter
      */
     public function repairs(): array
     {
-        return [...$this->repairNotes, ...array_map(
+        return [...$this->policy->notes(), ...array_map(
             static fn (string $name, array $d): array => ['where' => $name, 'message' => "Another schema has the same class name but for case: this one is called {$d['to']}."],
             array_keys($this->modelNames->disambiguated()), $this->modelNames->disambiguated(),
         )];
@@ -93,6 +91,7 @@ final class PhpContractEmitter
         private readonly string $namespace = 'Generated\\Sdk',
         private readonly string $packageName = 'example/generated-sdk',
     ) {
+        $this->policy = new \Dmorenof\SdkGenerator\Parsing\RepairPolicy(false);
         foreach (explode('\\', $this->namespace) as $component) {
             $this->checkName($component, 'namespace segment');
         }
@@ -106,9 +105,8 @@ final class PhpContractEmitter
     {
         $files = [];
         $roles = self::modelRolesFor($contract);
-        $this->repairing = ($contract->annotations['x-sdk-repair'] ?? false) === true;
-        $this->repairNotes = [];
-        $this->modelNames = new PhpModelNameResolver($this->namespace, $contract->models, $roles, $this->repairing);
+        $this->policy = new \Dmorenof\SdkGenerator\Parsing\RepairPolicy(($contract->annotations['x-sdk-repair'] ?? false) === true);
+        $this->modelNames = new PhpModelNameResolver($this->namespace, $contract->models, $roles, $this->policy->enabled());
         $this->modelDefinitions = [];
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
@@ -148,7 +146,7 @@ final class PhpContractEmitter
         foreach ($contract->models as $model) {
             if ($model->schema->kind === SchemaKind::Reference) { continue; }
             $key = strtolower($model->name);
-            if (isset($names[$key]) && !$this->repairing) {
+            if (isset($names[$key]) && !$this->policy->enabled()) {
                 throw new InvalidArgumentException("Duplicate PHP model name: $model->name");
             }
             $names[$key] = true;
@@ -932,8 +930,8 @@ final class PhpContractEmitter
     {
         try { return $this->discriminatorMapping($schema, $where); }
         catch (InvalidArgumentException $error) {
-            if (!$this->repairing) { throw $error; }
-            $this->repairNotes[] = ['where' => $where, 'message' => 'The discriminator cannot be honored (' . $error->getMessage() . '): it was left out.'];
+            if (!$this->policy->enabled()) { throw $error; }
+            $this->policy->note($where, 'The discriminator cannot be honored (' . $error->getMessage() . '): it was left out.');
             return null;
         }
     }
@@ -1099,11 +1097,11 @@ final class PhpContractEmitter
         $b = get_object_vars(self::withoutNotes($right));
         unset($a['enumValues'], $b['enumValues']);
         if ($a !== $b || !in_array($left->kind, [SchemaKind::String, SchemaKind::Integer], true)) {
-            if ($this->repairing) {
+            if ($this->policy->enabled()) {
                 // Two declarations that cannot be reconciled (two unrelated models for one property): the extension's stands, as
                 // the most specific one, and the model is flattened so that it does not inherit the other.
                 $this->flattened[$where] = true;
-                $this->repairNotes[] = ['where' => $where, 'message' => "The property '$name' is declared twice in an allOf in ways that cannot be reconciled: the extension's declaration was kept."];
+                $this->policy->note($where, "The property '$name' is declared twice in an allOf in ways that cannot be reconciled: the extension's declaration was kept.");
                 return $right;
             }
             throw new InvalidArgumentException("Conflicting allOf property '$name' at $where");
@@ -1210,12 +1208,12 @@ final class PhpContractEmitter
             }
             // An extension that also says what its extra fields are (`additionalProperties`) is read, when repairing, by its
             // declared properties: a model with a fixed shape cannot also be a map.
-            if ($this->repairing && $branch->kind !== SchemaKind::Object) {
-                $this->repairNotes[] = ['where' => "$where.allOf.$index", 'message' => 'An allOf branch that is not an object adds no fields: it was ignored.'];
+            if ($this->policy->enabled() && $branch->kind !== SchemaKind::Object) {
+                $this->policy->note("$where.allOf.$index", 'An allOf branch that is not an object adds no fields: it was ignored.');
                 continue; // An allOf branch that is not an object (a string, say) adds no fields to a model.
             }
             if ($branch->kind !== SchemaKind::Object
-                || (!$this->repairing && $branch->additionalProperties !== null && $branch->additionalProperties !== false)) {
+                || (!$this->policy->enabled() && $branch->additionalProperties !== null && $branch->additionalProperties !== false)) {
                 throw new InvalidArgumentException("Unsupported allOf branch at $where.allOf.$index");
             }
             foreach ($branch->validation as $rule => $limit) {
@@ -1405,7 +1403,7 @@ final class PhpContractEmitter
                     $pathNames[] = $parameter->wireName;
                 }
                 if ($parameter->serialization->allowReserved === true
-                    && (($parameter->location !== 'query' && !($parameter->location === 'path' && $this->repairing)) || $parameter->wireName === '')) {
+                    && (($parameter->location !== 'query' && !($parameter->location === 'path' && $this->policy->enabled())) || $parameter->wireName === '')) {
                     throw new InvalidArgumentException('Reserved expansion requires a named OpenAPI query parameter.');
                 }
                 if ($parameter->serialization->allowEmptyValue === true && $parameter->location !== 'query') {

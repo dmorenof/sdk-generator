@@ -2,6 +2,12 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [Unreleased]
+
+- **Repairs of a defective document live in one place.** Reading a contract used to decide in about twenty spots, with an `if` on the repair mode, whether to refuse a defect or mend it and note it. They now ask a single `RepairPolicy` (`src/Parsing/RepairPolicy.php`): strict, it refuses with the same message as before; repairing, it records where and what, which is what `--inspect` prints and `--strict` refuses. No behavior changes: the 15 published SDKs regenerate byte for byte identical, and the 688 tests pass.
+- **`ci/regenerate-published.sh` and the `Published SDKs unchanged` workflow** regenerate the published SDKs from the contract each carries and compare with what they publish, on every pull request that touches the generator, weekly and on demand.
+- Documentation brought up to date: `pendientes.md` (SendGrid grouped into one SDK, Stripe and uDA published, the `{url_path}` question answered) and `tests/README.md` (it still described a scaffold).
+
 ## [1.15.2] — 2026-11-25
 
 - **Generated code is indented the way a reader expects.** The formatter ran `@PSR12` only, which leaves the arrays of class constants (`REQUIRED_FIELDS`, `OPERATION_FIELDS`, `VALIDATION`...) flush with the margin and a blank line before the closing brace of every class. It now also applies `array_indentation`, `no_extra_blank_lines` (inside braces) and `no_whitespace_in_blank_line`. Only whitespace changes; the 14 SDKs of this series were regenerated with it.
