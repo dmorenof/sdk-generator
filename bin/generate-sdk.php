@@ -137,7 +137,13 @@ try {
     }
     $command = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($fixerBinary)
         . ' fix ' . escapeshellarg(rtrim($output, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'src')
-        . ' --rules=' . escapeshellarg('@PSR12')
+        . ' --rules=' . escapeshellarg(json_encode([
+            '@PSR12' => true,
+            // What PSR-12 leaves alone and a reader notices: arrays indented under their constant, and no blank line inside braces.
+            'array_indentation' => true,
+            'no_extra_blank_lines' => ['tokens' => ['curly_brace_block', 'extra', 'parenthesis_brace_block', 'square_brace_block']],
+            'no_whitespace_in_blank_line' => true,
+        ], JSON_THROW_ON_ERROR))
         . ' --using-cache=no --show-progress=none --quiet 2>&1';
     exec($command, $formatterOutput, $formatterCode);
     if ($formatterCode !== 0) {
