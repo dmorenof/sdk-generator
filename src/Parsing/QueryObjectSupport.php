@@ -18,7 +18,19 @@ final class QueryObjectSupport
         return SchemaReferences::resolve($schema, $models)->nullable;
     }
 
-    public static function format(ParameterSerialization $options, string $location): ?string
+    /**
+     * The wire format of an object parameter. A `deepObject` whose data is not a flat object of scalars is `nested` when the
+     * parameter and its models are given.
+     *
+     * @param list<ModelDefinition> $models
+     */
+    public static function format(ParameterSerialization $options, string $location, ?ParameterDefinition $parameter = null, array $models = []): ?string
+    {
+        $format = self::plainFormat($options, $location);
+        return $format === 'deepObject' && $parameter !== null && self::nested($parameter, $models) ? 'nested' : $format;
+    }
+
+    private static function plainFormat(ParameterSerialization $options, string $location): ?string
     {
         if ($options->collectionFormat !== null || $options->collectionFormatDefault !== null) {
             return null;
@@ -40,7 +52,31 @@ final class QueryObjectSupport
     /** @param list<ModelDefinition> $models */
     public static function supported(ParameterDefinition $parameter, array $models): bool
     {
-        $format = self::format($parameter->serialization, $parameter->location);
+        return self::flat($parameter, $models) || self::nested($parameter, $models);
+    }
+
+    /**
+     * A query `deepObject` whose data is more than one level of scalars: objects, lists and unions, at any depth.
+     *
+     * @param list<ModelDefinition> $models
+     */
+    public static function nested(ParameterDefinition $parameter, array $models): bool
+    {
+        if ($parameter->location !== 'query' || self::plainFormat($parameter->serialization, 'query') !== 'deepObject'
+            || $parameter->content !== [] || $parameter->serialization->allowEmptyValue === true || $parameter->serialization->allowReserved === true
+            || !self::key($parameter->wireName, true) || self::flat($parameter, $models)
+            || !NestedSupport::schema($parameter->schema, $models)) {
+            return false;
+        }
+        try { $kind = SchemaReferences::resolve($parameter->schema, $models)->kind; }
+        catch (\InvalidArgumentException) { return false; }
+        return !in_array($kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean], true);
+    }
+
+    /** @param list<ModelDefinition> $models */
+    private static function flat(ParameterDefinition $parameter, array $models): bool
+    {
+        $format = self::plainFormat($parameter->serialization, $parameter->location);
         if ($format === null || $parameter->content !== []
             || ($parameter->location !== 'query' && ($parameter->serialization->allowReserved === true || $parameter->serialization->allowEmptyValue === true))
             || !self::key($parameter->wireName, $format === 'deepObject')) {
@@ -78,12 +114,13 @@ final class QueryObjectSupport
             || !is_string($parameter['name'] ?? null)
             || (isset($parameter['style']) && !is_string($parameter['style']))
             || (isset($parameter['explode']) && !is_bool($parameter['explode']))
-            || self::format(new ParameterSerialization(style: $parameter['style'] ?? null, explode: $parameter['explode'] ?? null), $location) === null) {
+            || self::plainFormat(new ParameterSerialization(style: $parameter['style'] ?? null, explode: $parameter['explode'] ?? null), $location) === null) {
             return false;
         }
         $deep = ($parameter['style'] ?? null) === 'deepObject';
         if (!self::key($parameter['name'], $deep)) { return false; }
         $schema = $parameter['schema'] ?? null;
+        if ($deep && $location === 'query' && $schema !== null && self::rawNested($schema, $parameter, $document)) { return true; }
         if (is_array($schema) && isset($schema['$ref'])) {
             try {
                 $schema = SchemaReferences::raw($schema, $document);
@@ -105,6 +142,21 @@ final class QueryObjectSupport
         }
         $additional = $schema['additionalProperties'] ?? null;
         return $additional === false || (is_array($additional) && self::rawScalar($additional, $document));
+    }
+
+    /** The raw counterpart of {@see nested()}: a `deepObject` query parameter of any depth, never a plain scalar. */
+    private static function rawNested(mixed $schema, array $parameter, array $document): bool
+    {
+        if (($parameter['allowReserved'] ?? false) !== false || ($parameter['allowEmptyValue'] ?? false) !== false) {
+            return false;
+        }
+        $resolved = $schema;
+        if (is_array($resolved) && isset($resolved['$ref'])) {
+            try { $resolved = SchemaReferences::raw($resolved, $document); }
+            catch (\InvalidArgumentException|\TypeError) { return false; }
+        }
+        return is_array($resolved) && !in_array($resolved['type'] ?? null, ['string', 'integer', 'number', 'boolean'], true)
+            && NestedSupport::raw($resolved, $document);
     }
 
     private static function rawScalar(array $schema, array $document): bool

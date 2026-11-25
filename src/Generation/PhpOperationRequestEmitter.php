@@ -57,9 +57,24 @@ final readonly class PhpOperationRequestEmitter
      *
      * @return array{files:array<string,string>,types:array<string,array{identifier:?array,payload:?array}>}
      */
+    /** The parameter without the limits of its schema (length, range, pattern): what operations that differ only in those share. */
+    private static function withoutLimits(\Dmorenof\SdkGenerator\Contract\ParameterDefinition $parameter): \Dmorenof\SdkGenerator\Contract\ParameterDefinition
+    {
+        $s = $parameter->schema;
+        return new \Dmorenof\SdkGenerator\Contract\ParameterDefinition(
+            $parameter->wireName, $parameter->location,
+            new \Dmorenof\SdkGenerator\Contract\SchemaDefinition(
+                $s->kind, $s->nullable, $s->format, $s->reference, $s->items, $s->properties, $s->enumValues, $s->additionalProperties,
+                [], $s->branches, null, $s->readOnly, $s->default, $s->hasDefault, $s->writeOnly, $s->title, $s->description, $s->discriminator, $s->annotations,
+            ),
+            $parameter->required, $parameter->serialization, $parameter->content, $parameter->annotations,
+        );
+    }
+
     public function emitExecutable(ApiContract $contract): array
     {
         $files = [];
+        $relaxedPaths = [];
         $types = [];
         $routes = PhpRouteNameResolver::resolve($contract);
         $names = $this->modelNames ?? new PhpModelNameResolver($this->namespace, $contract->models);
@@ -96,10 +111,28 @@ final readonly class PhpOperationRequestEmitter
                     $contract, $pathParameters, false,
                 );
                 if (isset($files[$filePath]) && $files[$filePath] !== $source) {
-                    throw new InvalidArgumentException(
-                        "Conflicting path parameter definitions for $filePath."
+                    // Operations of one route share this class. Real contracts state the same identifier with different limits per
+                    // operation (Stripe: `maxLength: 5000` on one verb, none on another): the class then keeps the shared definition
+                    // without those limits, which never refuses a value an operation accepts. Any other difference is still a conflict.
+                    $relaxed = array_map(self::withoutLimits(...), $pathParameters);
+                    $relaxedSource = $this->render(
+                        $operation, end($segments), $this->namespace . '\\PathParams'
+                            . (count($segments) > 1 ? '\\' . implode('\\', array_slice($segments, 0, -1)) : ''),
+                        $contract, $relaxed, false,
                     );
+                    $previous = isset($relaxedPaths[$filePath]) ? $relaxedPaths[$filePath]() : null;
+                    if ($previous === null || $previous !== $relaxedSource) {
+                        throw new InvalidArgumentException(
+                            "Conflicting path parameter definitions for $filePath."
+                        );
+                    }
+                    $source = $relaxedSource;
                 }
+                $relaxedPaths[$filePath] ??= fn (): string => $this->render(
+                    $operation, end($segments), $this->namespace . '\\PathParams'
+                        . (count($segments) > 1 ? '\\' . implode('\\', array_slice($segments, 0, -1)) : ''),
+                    $contract, array_map(self::withoutLimits(...), $pathParameters), false,
+                );
                 $files[$filePath] = $source;
                 $identifier = ['kind' => 'dto', 'type' => $type,
                     'name' => 'identifier', 'wireName' => null];

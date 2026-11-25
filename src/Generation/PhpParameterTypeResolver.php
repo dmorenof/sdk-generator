@@ -32,6 +32,16 @@ final class PhpParameterTypeResolver
             if ($types === []) { throw new InvalidArgumentException("Only-null parameters have no supported wire encoding at $where."); }
             return ['type' => implode('|', array_unique($types)), 'nullable' => $nullable, 'enumValues' => [], 'validation' => $schema->validation];
         }
+        // A parameter that is "a string, or a list" with no item type (GoCardless's `ids`: "more than one ID can be specified using a
+        // comma-separated string") is sent as that string.
+        if (in_array($schema->kind, [SchemaKind::AnyOf, SchemaKind::OneOf], true) && count($schema->branches) === 2) {
+            $scalar = array_values(array_filter($schema->branches, static fn (SchemaDefinition $b): bool => $b->kind === SchemaKind::String && $b->enumValues === []));
+            $list = array_values(array_filter($schema->branches, static fn (SchemaDefinition $b): bool => $b->kind === SchemaKind::Array
+                && ($b->items === null || in_array($b->items->kind, [SchemaKind::Mixed], true))));
+            if (count($scalar) === 1 && count($list) === 1) {
+                return self::resolve($scalar[0], $where, $allowArrays, $models);
+            }
+        }
         $enumValues = $schema->enumValues;
         if ($schema->kind === SchemaKind::AnyOf) {
             $variants = $schema->branches;
@@ -40,6 +50,15 @@ final class PhpParameterTypeResolver
                 static fn (SchemaDefinition $branch): bool => $branch->kind !== SchemaKind::Null,
             ));
             $hasNull = count($variants) !== count($nonNull);
+            // A union of plain scalars of different types (`limit`: integer or string) is a native PHP union (`int|string`).
+            $scalarKinds = [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean];
+            if (count($nonNull) >= 2 && array_filter($nonNull, static fn (SchemaDefinition $b): bool => !in_array($b->kind, $scalarKinds, true)
+                || $b->nullable) === []) {
+                $union = array_values(array_unique(array_map(static fn (SchemaDefinition $b): string => match ($b->kind) {
+                    SchemaKind::String => 'string', SchemaKind::Integer => 'int', SchemaKind::Number => 'float', default => 'bool',
+                }, $nonNull)));
+                return ['type' => implode('|', $union), 'nullable' => $hasNull, 'enumValues' => [], 'validation' => $schema->validation];
+            }
             if (!$hasNull || count($variants) !== 2 || count($nonNull) !== 1) {
                 throw new InvalidArgumentException("Unsupported HTTP parameter schema at $where.");
             }

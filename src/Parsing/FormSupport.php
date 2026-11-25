@@ -76,8 +76,11 @@ final class FormSupport
         }
         $schema = self::schema($body, $models);
         $multipart = $body->mediaType === self::MULTIPART;
+        // A body that says nothing about additional properties is built from its declared fields (real contracts almost never
+        // write `additionalProperties: false`); one that declares itself open (`true` or a schema) is refused: the SDK cannot send
+        // fields it does not know.
         if ($schema === null || $schema->kind !== SchemaKind::Object || $schema->nullable
-            || $schema->additionalProperties !== false || $schema->discriminator !== null) {
+            || ($schema->additionalProperties !== false && $schema->additionalProperties !== null) || $schema->discriminator !== null) {
             return null;
         }
         $encoding = [];
@@ -97,15 +100,20 @@ final class FormSupport
             $swaggerFormat = $fieldEncoding['collectionFormat'] ?? null;
             unset($fieldEncoding['collectionFormat']);
             if (!self::encoding($fieldEncoding, $multipart)) { return null; }
+            if ($multipart && self::nestedPart($field, $fieldEncoding, $models)) {
+                if (!self::name($property->wireName)) { return null; }
+                $formats[$property->wireName] = 'nested';
+                continue;
+            }
+            if ($multipart && ($fieldEncoding['style'] ?? 'form') === 'deepObject') { return null; }
             if ($multipart && self::jsonPart($field, $fieldEncoding, $models)) {
                 if (!self::name($property->wireName)) { return null; }
                 continue;
             }
             $options = new \Dmorenof\SdkGenerator\Contract\ParameterSerialization(style: $fieldEncoding['style'] ?? 'form', explode: $fieldEncoding['explode'] ?? null);
-            if (!$multipart && QueryObjectSupport::supported(new \Dmorenof\SdkGenerator\Contract\ParameterDefinition(
-                $property->wireName, 'query', $field, $property->required, $options
-            ), $models)) {
-                $formats[$property->wireName] = QueryObjectSupport::format($options, 'query');
+            $asParameter = new \Dmorenof\SdkGenerator\Contract\ParameterDefinition($property->wireName, 'query', $field, $property->required, $options);
+            if (!$multipart && QueryObjectSupport::supported($asParameter, $models)) {
+                $formats[$property->wireName] = QueryObjectSupport::format($options, 'query', $asParameter, $models);
                 continue;
             }
             $array = $field->kind === SchemaKind::Array;
@@ -156,6 +164,10 @@ final class FormSupport
         $parts = [];
         foreach (self::schema($body, $models)->properties as $property) {
             $fieldEncoding = $encoding[$property->wireName] ?? [];
+            if (self::nestedPart(SchemaReferences::resolve($property->schema, $models), $fieldEncoding, $models)) {
+                $parts[$property->wireName] = ['contentType' => $fieldEncoding['contentType'] ?? 'text/plain', 'nested' => true];
+                continue;
+            }
             if (self::jsonPart($property->schema, $fieldEncoding, $models)) {
                 $parts[$property->wireName] = ['contentType' => $fieldEncoding['contentType'] ?? 'application/json', 'json' => true];
                 continue;
@@ -168,6 +180,23 @@ final class FormSupport
             $parts[$property->wireName] = $part;
         }
         return $parts;
+    }
+
+    /** A multipart field written as text fields `name[key][0]`: a `deepObject` with `explode: true` over data that is not a plain scalar or a file. @param list<ModelDefinition> $models */
+    private static function nestedPart(SchemaDefinition $field, array $encoding, array $models): bool
+    {
+        return ($encoding['style'] ?? null) === 'deepObject' && ($encoding['explode'] ?? false) === true
+            && !in_array($field->kind, [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean], true)
+            && self::fileItem($field, $models) === null && NestedSupport::schema($field, $models);
+    }
+
+    private static function rawType(array $schema, array $document): mixed
+    {
+        if (isset($schema['$ref'])) {
+            try { $schema = SchemaReferences::raw($schema, $document); }
+            catch (\InvalidArgumentException|\TypeError) { return null; }
+        }
+        return $schema['type'] ?? null;
     }
 
     private static function jsonMedia(?string $media): bool
@@ -233,7 +262,7 @@ final class FormSupport
     private static function encoding(mixed $encoding, bool $multipart = false): bool
     {
         return is_array($encoding) && array_diff(array_keys($encoding), $multipart ? ['contentType', 'style', 'explode', 'allowReserved'] : ['style', 'explode', 'allowReserved']) === []
-            && (!array_key_exists('style', $encoding) || in_array($encoding['style'], $multipart ? ['form'] : ['form', 'spaceDelimited', 'pipeDelimited', 'deepObject'], true))
+            && (!array_key_exists('style', $encoding) || in_array($encoding['style'], $multipart ? ['form', 'deepObject'] : ['form', 'spaceDelimited', 'pipeDelimited', 'deepObject'], true))
             && (!array_key_exists('explode', $encoding) || ($multipart ? $encoding['explode'] === true : is_bool($encoding['explode'])))
             && (!in_array($encoding['style'] ?? 'form', ['spaceDelimited', 'pipeDelimited'], true) || ($encoding['explode'] ?? false) === false)
             && (($encoding['style'] ?? '') !== 'deepObject' || ($encoding['explode'] ?? false) === true)
@@ -253,7 +282,7 @@ final class FormSupport
             }
         }
         if (!is_array($schema) || !in_array($schema['type'] ?? null, ['object', null], true)
-            || ($schema['nullable'] ?? false) || ($schema['additionalProperties'] ?? null) !== false
+            || ($schema['nullable'] ?? false) || (array_key_exists('additionalProperties', $schema) && $schema['additionalProperties'] !== false)
             || isset($schema['allOf']) || isset($schema['anyOf']) || isset($schema['oneOf']) || isset($schema['discriminator'])) {
             return false;
         }
@@ -265,6 +294,12 @@ final class FormSupport
         foreach ($properties as $name => $field) {
             if (!is_array($field) || !self::encoding($encoding[$name] ?? [], $multipart)) {
                 return false;
+            }
+            if ($multipart && ($encoding[$name]['style'] ?? null) === 'deepObject') {
+                if (($encoding[$name]['explode'] ?? false) !== true || !self::name((string) $name)
+                    || in_array(self::rawType($field, $document), ['string', 'integer', 'number', 'boolean'], true)
+                    || !NestedSupport::raw($field, $document)) { return false; }
+                continue;
             }
             if ($multipart && self::rawJsonPart($field, $encoding[$name] ?? [], $document)) {
                 if (!self::name((string) $name)) { return false; }

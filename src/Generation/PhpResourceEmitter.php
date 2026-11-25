@@ -308,7 +308,7 @@ PHP;
                 continue;
             }
             if ($objectType !== null) {
-                $format = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::format($parameter->serialization, $parameter->location);
+                $format = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::format($parameter->serialization, $parameter->location, $parameter, $this->formModels);
                 if ($format === null) { throw new InvalidArgumentException("Unsupported object parameter at $operation->operationId.$parameter->wireName."); }
                 if ($parameter->location === 'query') {
                     $querySerialization[$parameter->wireName] = $format;

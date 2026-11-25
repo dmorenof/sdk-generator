@@ -56,7 +56,7 @@ final class PhpModelNameResolver
     /** @param list<ModelDefinition> $models
     *  @param array<string, 'DTO'|'Request'|'Response'> $roles
     */
-    public function __construct(private string $namespace, array $models, array $roles = [])
+    public function __construct(private string $namespace, array $models, array $roles = [], bool $disambiguate = false)
     {
         $paths = [];
         $types = [];
@@ -96,6 +96,25 @@ final class PhpModelNameResolver
             [$path, $type] = $this->resolve($generatedName, $category);
             // On case-insensitive filesystems, path collisions must also fail.
             $key = strtolower($path);
+            if (isset($occupied[$key]) && $disambiguate) {
+                // Two schemas whose class names differ only in case (`WebRtcEndpoint`, `WebRTCEndpoint`) cannot be two files on a
+                // case-insensitive file system: the later one takes a number after its name.
+                $original = $generatedName;
+                $parts = explode('.', $generatedName);
+                $stem = $parts[array_key_last($parts)];
+                for ($number = 2; isset($occupied[$key]); ++$number) {
+                    $parts[array_key_last($parts)] = $stem . $number;
+                    $generatedName = implode('.', $parts);
+                    [$path, $type] = $this->resolve($generatedName, $category);
+                    $key = strtolower($path);
+                    $this->disambiguated[$name] = ['from' => $original, 'to' => $generatedName];
+                    if ($number > 99) {
+                        throw new InvalidArgumentException(
+                            "Generated PHP schema name collision: '$name' and '{$occupied[$key]}' both map to $path.",
+                        );
+                    }
+                }
+            }
             if (isset($occupied[$key])) {
                 throw new InvalidArgumentException(
                     "Generated PHP schema name collision: '$name' and '{$occupied[$key]}' both map to $path.",
@@ -149,6 +168,15 @@ final class PhpModelNameResolver
      *
      * @return array<string, array{from: string, to: string}>
      */
+    /** @var array<string, array{from: string, to: string}> Schemas that took a number because another has the same name but for case. */
+    private array $disambiguated = [];
+
+    /** @return array<string, array{from: string, to: string}> */
+    public function disambiguated(): array
+    {
+        return $this->disambiguated;
+    }
+
     public function renames(): array
     {
         return $this->renames;

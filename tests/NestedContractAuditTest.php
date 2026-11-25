@@ -46,13 +46,13 @@ final class NestedContractAuditTest extends TestCase
     public function testReusableResponsesAndHeadersAreAuditedAtTheirDeclaration(): void
     {
         $document = self::document();
-        $document['components']['headers']['Page/~'] = ['schema' => ['type' => 'integer', 'contentSchema' => ['type' => 'null']]];
+        $document['components']['headers']['Page/~'] = ['schema' => ['type' => 'integer', 'additionalItems' => ['type' => 'null']]];
         $document['components']['responses']['Paged'] = ['description' => 'Page', 'headers' => [
-            'Next' => ['content' => ['application/json' => ['schema' => ['contentSchema' => ['type' => 'null']]]]],
+            'Next' => ['content' => ['application/json' => ['schema' => ['additionalItems' => ['type' => 'null']]]]],
         ]];
         self::assertSame([
-            '/components/headers/Page~1~0/schema/contentSchema',
-            '/components/responses/Paged/headers/Next/content/application~1json/schema/contentSchema',
+            '/components/headers/Page~1~0/schema/additionalItems',
+            '/components/responses/Paged/headers/Next/content/application~1json/schema/additionalItems',
         ], array_map(static fn ($issue): string => $issue->pointer, self::issues($document, 'unsupported_schema_keyword')));
         self::assertSame('/components/responses/Paged/headers/Next', self::issues($document, 'response_headers')[0]->pointer, 'only the header that cannot be typed is reported');
     }
@@ -99,7 +99,7 @@ final class NestedContractAuditTest extends TestCase
     public function testAnnotationsAndLiteralExampleOrLinkPayloadsAreNeverWalkedAsSchemas(): void
     {
         $document = self::document();
-        $literal = ['$ref' => 'https://never-fetch.invalid/example.json', 'contentSchema' => ['unknown' => true]];
+        $literal = ['$ref' => 'https://never-fetch.invalid/example.json', 'additionalItems' => ['unknown' => true]];
         $document['components']['examples']['Example'] = ['value' => $literal];
         $document['components']['examples']['External'] = ['externalValue' => 'https://never-fetch.invalid/data.json'];
         $document['components']['links']['Next'] = [
@@ -131,10 +131,10 @@ final class NestedContractAuditTest extends TestCase
         $document['parameters']['IDs'] = ['name' => 'ids', 'in' => 'query', 'type' => 'array',
             'items' => ['type' => 'integer'], 'collectionFormat' => 'multi'];
         $document['responses']['Paged'] = ['description' => 'Page', 'headers' => [
-            'Pages' => ['type' => 'integer', 'contentSchema' => ['type' => 'null']],
+            'Pages' => ['type' => 'integer', 'additionalItems' => ['type' => 'null']],
         ]];
         self::assertSame([], self::issues($document, 'parameter_collectionFormat'));
-        self::assertSame('/responses/Paged/headers/Pages/contentSchema', self::issues($document, 'unsupported_schema_keyword')[0]->pointer);
+        self::assertSame('/responses/Paged/headers/Pages/additionalItems', self::issues($document, 'unsupported_schema_keyword')[0]->pointer);
     }
 
     public function testInlineHeadersAndLinksUseTheSameNestedAuditAndRealServerPointer(): void

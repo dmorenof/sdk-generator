@@ -96,7 +96,7 @@ try {
     }
 
     // Build and validate all files before writing anything to disk.
-    $normalizer = new SpecificationNormalizer($validateFormats, $skipUnsupported, $server);
+    $normalizer = new SpecificationNormalizer($validateFormats, $skipUnsupported, $server, !$strict);
     $extension = strtolower(pathinfo($input, PATHINFO_EXTENSION));
     $contract = $bundle === null && in_array($extension, ['yaml', 'yml'], true)
         ? $normalizer->fromYaml($source)

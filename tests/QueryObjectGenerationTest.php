@@ -173,9 +173,7 @@ final class QueryObjectGenerationTest extends TestCase
     public function testUndefinedDeepObjectSchemasStylesAndNamesAreRejected(): void
     {
         foreach ([['explode' => false], ['explode' => null], ['in' => 'header'], ['style' => 'simple'], ['name' => 'filter[x]'],
-            ['schema' => ['type' => 'object', 'properties' => ['x' => ['type' => 'object']], 'additionalProperties' => false]],
-            ['schema' => ['type' => 'object', 'additionalProperties' => true]],
-            ['schema' => ['type' => 'object', 'properties' => ['x' => ['type' => 'string']]]]] as $changes) {
+            ['schema' => ['type' => 'object', 'additionalProperties' => true]]] as $changes) {
             $document = self::document();
             $document['paths']['/items']['get']['parameters'][0] = array_replace($document['paths']['/items']['get']['parameters'][0], $changes);
             self::assertFalse((new DocumentInspector())->inspect(json_encode($document, JSON_THROW_ON_ERROR))['strictlyAccepted']);

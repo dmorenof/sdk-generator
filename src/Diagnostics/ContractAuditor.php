@@ -456,7 +456,7 @@ final class ContractAuditor
             if ($problem !== null) {
                 $this->add('unsupported_security_scheme', $pointer, $problem);
             }
-        } elseif ($type === 'mutualTLS' && str_starts_with((string) ($this->document['openapi'] ?? ''), '3.1.')) {
+        } elseif ($type === 'mutualTLS' && preg_match('/^3\.[12]\./', (string) ($this->document['openapi'] ?? '')) === 1) {
             return; // A client certificate: nothing to check in the scheme itself.
         } elseif ($type !== 'basic' || ($this->document['swagger'] ?? null) !== '2.0') {
             $this->add('unsupported_security_scheme', "$pointer/type", 'This security scheme is not executable.');
@@ -550,6 +550,10 @@ final class ContractAuditor
     {
         foreach ($node as $key => $_) {
             if (in_array($key, $allowed, true) || in_array($key, self::ANNOTATIONS, true)) {
+                continue;
+            }
+            if ($key === 'webhooks' && $pointer === '') {
+                $this->add('webhooks_not_executed', '/webhooks', 'Webhooks are requests the API sends to you: they have no operation in the SDK (the schemas they use are models like any other).', $operation, 'warning');
                 continue;
             }
             $extension = str_starts_with((string) $key, 'x-');
@@ -772,7 +776,19 @@ final class ContractAuditor
         foreach ($schema as $keyword => $_) {
             if (!in_array($keyword, SpecificationNormalizer::SCHEMA_KEYWORDS, true)
                 && !in_array($keyword, ['examples', 'deprecated', 'externalDocs', 'xml', '$comment'], true)
+                && !($keyword === 'summary' && isset($schema['$ref']))
                 && !str_starts_with((string) $keyword, 'x-')) {
+                // OpenAPI 3.1 reads a keyword JSON Schema 2020-12 does not define as an annotation: reported, not an error.
+                if (preg_match('/^3\.[12]\./', (string) ($this->document['openapi'] ?? '')) === 1
+                    && in_array($keyword, SpecificationNormalizer::CONTENT_VOCABULARY, true)) {
+                    $this->add('content_not_executed', JsonPointer::append($pointer, $keyword), "Keyword '$keyword' describes how a string encodes data: the SDK sends and reads the string as it is.", $operation, 'warning');
+                    continue;
+                }
+                if (preg_match('/^3\.[12]\./', (string) ($this->document['openapi'] ?? '')) === 1
+                    && is_string($keyword) && !in_array($keyword, SpecificationNormalizer::UNSUPPORTED_VOCABULARY, true)) {
+                    $this->add('uninterpreted_keyword', JsonPointer::append($pointer, $keyword), "Keyword '$keyword' is not defined by JSON Schema 2020-12: it is an annotation and is not interpreted.", $operation, 'warning');
+                    continue;
+                }
                 $this->add('unsupported_schema_keyword', JsonPointer::append($pointer, $keyword), "Unsupported schema keyword '$keyword'.", $operation);
             }
         }
@@ -824,7 +840,9 @@ final class ContractAuditor
         }
         try { \Dmorenof\SdkGenerator\Parsing\SchemaReferences::localName($reference, isset($this->document['swagger']) ? 'swagger2' : 'openapi3'); $modelReference = true; }
         catch (\InvalidArgumentException) { $modelReference = false; }
-        if (!$schema || !$modelReference) {
+        // A reference into the inside of a model (`#/components/schemas/Query/properties/Id`) is read as that schema, in place.
+        $insideModel = $schema && !$modelReference && preg_match('~^#/(components/schemas|definitions)/[^/]+/~', $reference) === 1;
+        if (!$insideModel && (!$schema || !$modelReference)) {
             $this->add('unsupported_reference', $pointer, 'Only local model references are executable in the current pipeline.', $operation, 'error', $chain);
         }
     }

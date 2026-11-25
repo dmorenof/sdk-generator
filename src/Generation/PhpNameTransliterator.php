@@ -35,6 +35,11 @@ final class PhpNameTransliterator
             throw new InvalidArgumentException($message);
         }
         $name = implode('', array_map('ucfirst', $words));
+        // A schema name that starts with a digit (Infobip namespaces its models by a hash: `53932f….LineOaOutboundMessagePart`) gets
+        // an `N` in front, since PHP names cannot start with one.
+        if (in_array($context, ['schema segment', 'schema name'], true) && preg_match('/^[0-9]/', $name) === 1) {
+            $name = 'N' . $name;
+        }
         if (preg_match('/^[A-Za-z_]/', $name) !== 1) {
             throw new InvalidArgumentException("PHP $context must begin with a Latin letter: $source");
         }
