@@ -2,6 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.15.2] — 2026-11-25
+
+- **Generated code is indented the way a reader expects.** The formatter ran `@PSR12` only, which leaves the arrays of class constants (`REQUIRED_FIELDS`, `OPERATION_FIELDS`, `VALIDATION`...) flush with the margin and a blank line before the closing brace of every class. It now also applies `array_indentation`, `no_extra_blank_lines` (inside braces) and `no_whitespace_in_blank_line`. Only whitespace changes; the 14 SDKs of this series were regenerated with it.
+
 ## [1.15.1] — 2026-11-25
 
 - **Fix: the branch classes of two unions with the same class name no longer get a path that repeats the whole namespace.** 1.15.0 separated them by writing the full namespace into the hint, which produced paths of over 300 characters on Stripe's contract (`src/Enums/StripeSDK/Requests/StripeSDK/Requests/…`), too long for Windows. A later union with the same class name now takes a number after the name (`Variant1ValueRequest2`). Stripe's longest path went from over 300 to 152 characters; the output of other contracts is unchanged.

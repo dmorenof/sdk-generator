@@ -124,7 +124,7 @@ runtime selects the direction at the HTTP boundary (including nested DTOs).
 A required readOnly property is omitted when sending; a required writeOnly
 property is ignored when receiving.
 
-The CLI formats the generated `src` tree with `@PSR12` automatically and
+The CLI formats the generated `src` tree with `@PSR12` (plus array indentation and no blank lines inside braces) automatically and
 does not include PHP-CS-Fixer as a generated-package dependency.
 
 CI validates the original complete public FakeRESTApi OpenAPI 3.0.1 document
