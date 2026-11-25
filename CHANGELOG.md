@@ -2,7 +2,7 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
-## [1.15.0] — unreleased
+## [1.15.0] — 2026-11-25
 
 - **A placeholder that is the rest of the path keeps its slashes.** When repairing a path placeholder with no declaration whose name ends in `path` (`{url_path}`, `{full_path}`: Starlette's `path` converter, which uDA uses), the parameter is declared with reserved expansion and the operation lists it in `pathAllowReserved` (runtime 1.13.0). uDA's SDK now sends `/indicators/period/2024%20Q1` instead of `/indicators%2Fperiod…`.
 - **An enum that lists a value twice is one value** (Infobip's `CARD` twice made PHP refuse the enum class), and the repair is reported. **A model whose discriminator mapping cannot be honored, an `allOf` branch that is not an object, an extension that also declares `additionalProperties`, and two unrelated declarations of one `allOf` property** no longer stop the generation of a repaired document; each is listed in the report.

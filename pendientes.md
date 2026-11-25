@@ -1,6 +1,6 @@
 # Pendientes — sdk-generator
 
-> **Estado (2026-11-24):** publicada la **1.14.0** (hooks en las clases de parámetros, clases de error compartidas, a la par del runtime 1.12.0). En la rama de trabajo, sin publicar, está la **1.15.0** (cobertura de especificaciones reales: `type` repetido junto a un `$ref` y nombres de esquema que PHP reserva). `VERSION` sigue en 1.14.0 hasta que el titular confirme la publicación.
+> **Estado (2026-11-25):** publicada la **1.15.0** (cobertura de especificaciones reales: formularios anidados, modo de reparación con aviso, Stripe, uDA, Sendbird, DeepL y otras 10 integraciones; a la par del runtime 1.13.0). La 1.14.0 fue la anterior (hooks en las clases de parámetros, clases de error compartidas).
 >
 > **Qué es este fichero:** lo que **falta**. Lo hecho y publicado está en [CHANGELOG.md](CHANGELOG.md); lo soportado, en [docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md). La auditoría larga de noviembre, ya desfasada, se conserva como [archivo histórico](docs/HISTORICO_AUDITORIA_PENDIENTES.md).
 

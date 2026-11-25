@@ -81,12 +81,16 @@ Static route classes (`Users::...`) mirror the URL structure and share one confi
 
 | Option | Effect |
 | --- | --- |
-| `--strict` | Refuse anything the generator cannot execute. |
+| `--strict` | Refuse anything the generator cannot execute, **and every defect it would otherwise repair** (see below). |
 | `--skip-unsupported` | Leave out, and list, the operations the generator cannot execute (for example a response that is an image), instead of refusing the whole API. |
 | `--server=https://host` | The server of a document that does not name one (Swagger without `host`, OpenAPI without `servers`). |
 | `--validate-formats` | Assert declared formats (`date-time`, `uuid`, …). |
 | `--inspect` / `--dry-run` | Report what would be generated without writing files. See [contract inspection](docs/CONTRACT_INSPECTION.md). |
 | `--resolve-local-references`, `--reference-root=DIR` | Follow `$ref` to local files. See [file references](docs/FILE_REFERENCES.md). |
+
+## Defective documents
+
+Published contracts often break the specification in ways that have one obvious reading: a path placeholder with no declared parameter, a `type: string` beside a `oneOf` of objects, an answer declared as `*/*`. Without `--strict` the generator mends what it can **without guessing**, generates the SDK and reports each repair as a `repaired_defect` diagnostic (printed on generation, listed by `--inspect`). With `--strict` the same document is refused. The repairs are listed in the [CHANGELOG](CHANGELOG.md) (1.15.0). A defect with no obvious reading is still an error.
 
 ## Validation, in short
 
