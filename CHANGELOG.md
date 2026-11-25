@@ -2,7 +2,7 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
-## [Unreleased]
+## [1.15.3] — 2026-11-25
 
 - Tests: `SwaggerEquivalenceTest` (the same API in Swagger 2.0 and OpenAPI 3.1 gives the same SDK, for six fixtures) and a Swagger 2.0 twin of the status-responses fixture, generated, analysed at PHPStan max and run against the runtime's local server like its 3.1 twin. Nothing in `src/` changes.
 - **Fix: OpenAPI 3.2 documents can use `components.pathItems`.** The references to a named path item (and the `summary`/`description` beside a reference) were accepted for `3.1.x` only; a `3.2.x` document that used them was refused with «Expected a local named pathItems reference». Found by the new `DialectVariantsTest`, which generates every OpenAPI 3.1 fixture again as 3.2 (it must give the same SDK) and as 3.0 (the same, or a refusal for what only 3.1 has).
