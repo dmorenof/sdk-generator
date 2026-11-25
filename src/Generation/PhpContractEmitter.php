@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^1.13.0';
+    public const RUNTIME_CONSTRAINT = '^1.14.1';
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
@@ -726,6 +726,7 @@ final class PhpContractEmitter
         $class = substr($fqcn, strrpos($fqcn, '\\') + 1);
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
         $source = $this->header($namespace)
+            . self::extendsDoc('Map', $valueType, $nullable)
             . "final class $class extends \\" . self::RUNTIME_NAMESPACE . "\\Map\n{\n"
             . "    protected const string VALUE_TYPE = " . PhpLiteral::export($valueType) . ";\n"
             . "    protected const bool VALUE_NULLABLE = " . PhpLiteral::export($nullable) . ";\n";
@@ -1327,6 +1328,7 @@ final class PhpContractEmitter
             default => $itemType . '::class',
         };
         $file = $this->header(ltrim($entry['namespace'], '\\'))
+            . self::extendsDoc('TypedArray', $itemType, $schema->items->nullable)
             . "final class $name extends \\" . self::RUNTIME_NAMESPACE . "\\TypedArray\n"
             . "{\n"
             . "    protected string \$expected_type = $expected;\n";
@@ -1897,6 +1899,18 @@ final class PhpContractEmitter
         $candidate = PhpNameTransliterator::property($wireName);
         $this->checkName($candidate, 'model property');
         return $candidate;
+    }
+
+    /**
+     * What a collection or map holds, in the PHPDoc of its class, so that static analysis knows the type of each item it gives (without
+     * it the runtime's generic base says `mixed`). Only a type that can be written exactly: a scalar or a class.
+     */
+    private static function extendsDoc(string $base, string $itemType, bool $nullable): string
+    {
+        if (!in_array($itemType, ['string', 'int', 'float', 'bool'], true) && preg_match('/^\\\\[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*$/D', $itemType) !== 1) {
+            return '';
+        }
+        return '/** @extends \\' . self::RUNTIME_NAMESPACE . '\\' . $base . '<' . $itemType . ($nullable ? '|null' : '') . "> */\n";
     }
 
     private function header(string $namespace): string
