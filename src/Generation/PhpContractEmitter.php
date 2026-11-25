@@ -47,7 +47,7 @@ final class PhpContractEmitter
     private array $operationParameterTypes = [];
     /** @var array<string,array<string,array<string,string>>> Operation ID / location / wire name => enum type of a scalar parameter. */
     private array $operationParameterEnums = [];
-    /** @var array<string, string> Class name of a union => the union that first used it for naming its branches. */
+    /** @var array<string, list<string>> Class name of a union => the unions (by full name) that used it for naming their branches, in order. */
     private array $branchHintOwners = [];
     /** Whether the contract was read in repair mode: what cannot be honored (a discriminator) is left out instead of refused. */
     private bool $repairing = false;
@@ -829,8 +829,15 @@ final class PhpContractEmitter
         $class = substr($fqcn, strrpos($fqcn, '\\') + 1);
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
         // Two unions of the same class name in different namespaces (the second is placed apart when the first owns the name) would
-        // give their branches the same hint, and with it the same class: the later union's hint carries its namespace.
-        $stem = ($this->branchHintOwners[$class] ??= $fqcn) === $fqcn ? $class : trim(str_replace('\\', '.', $fqcn), '.');
+        // give their branches the same hint, and with it the same class: each later union takes a number after its class name.
+        $owners = $this->branchHintOwners[$class] ?? [];
+        $position = array_search($fqcn, $owners, true);
+        if ($position === false) {
+            $owners[] = $fqcn;
+            $this->branchHintOwners[$class] = $owners;
+            $position = count($owners) - 1;
+        }
+        $stem = $position === 0 ? $class : $class . ($position + 1);
         $types = [];
         foreach ($schema->branches as $index => $branch) {
             $type = $branch->kind === SchemaKind::Null

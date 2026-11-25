@@ -2,6 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [1.15.1] — 2026-11-25
+
+- **Fix: the branch classes of two unions with the same class name no longer get a path that repeats the whole namespace.** 1.15.0 separated them by writing the full namespace into the hint, which produced paths of over 300 characters on Stripe's contract (`src/Enums/StripeSDK/Requests/StripeSDK/Requests/…`), too long for Windows. A later union with the same class name now takes a number after the name (`Variant1ValueRequest2`). Stripe's longest path went from over 300 to 152 characters; the output of other contracts is unchanged.
+
 ## [1.15.0] — 2026-11-25
 
 - **A placeholder that is the rest of the path keeps its slashes.** When repairing a path placeholder with no declaration whose name ends in `path` (`{url_path}`, `{full_path}`: Starlette's `path` converter, which uDA uses), the parameter is declared with reserved expansion and the operation lists it in `pathAllowReserved` (runtime 1.13.0). uDA's SDK now sends `/indicators/period/2024%20Q1` instead of `/indicators%2Fperiod…`.
