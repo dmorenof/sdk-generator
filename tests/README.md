@@ -5,6 +5,7 @@ The suite has four kinds of test. All but the last run on every pull request (`b
 | What | Where | What it proves |
 | --- | --- | --- |
 | Generation tests | `tests/*Test.php` (PHPUnit, about 690 tests) | A contract in `tests/fixtures/` generates the expected code, and the repairs and refusals are the documented ones. Named after the feature (`FormGenerationTest`, `RepairedDefectsTest`, ...). |
+| Dialect variants | `tests/DialectVariantsTest.php` | Every OpenAPI 3.1 fixture, with only its version changed to 3.2, gives the same SDK; as 3.0 it gives the same or refuses the one construct only 3.1 has (listed in the test). It covers a dialect without a fixture per feature. |
 | Specification fixtures | `tests/fixtures/` | The same API written as Swagger 2.0, OpenAPI 3.0 and OpenAPI 3.1 (`accounts-*`, `catalog-*`, `casafari-*`), plus one document per feature. |
 | Smoke scripts | `tests/*-smoke.php`, `tests/*-http-server.php` | A generated SDK is run against a local server and the bytes on the wire are checked (query styles, forms, multipart, cookies, ...). |
 | Live scripts | `tests/live/` | A generated SDK calls a real public API (Petstore, Frankfurter, httpbin, FakeRESTApi). They run only in the `Live public APIs` workflow, weekly or by hand, and never gate a merge: those servers are not ours. |

@@ -282,7 +282,7 @@ final class LocalFileBundler
 
     private function import(string $kind, string $reference, string $file, string $pointer, array $chain, int $depth): string
     {
-        if (!isset($this->catalogs()[$kind]) || ($kind === 'pathItems' && !str_starts_with((string) ($this->output['openapi'] ?? ''), '3.1.'))) {
+        if (!isset($this->catalogs()[$kind]) || ($kind === 'pathItems' && preg_match('/^3\.[12]\./', (string) ($this->output['openapi'] ?? '')) !== 1)) {
             $this->fail('unsupported_reference_kind', 'This external reference category/dialect is not supported.', $file, $pointer, [...$chain, $reference]);
         }
         if ($kind === 'schemas') {
