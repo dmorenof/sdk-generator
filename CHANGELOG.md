@@ -4,8 +4,7 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 ## [Unreleased]
 
-- **Repairs of a defective document live in one place.** Reading a contract used to decide in about twenty spots, with an `if` on the repair mode, whether to refuse a defect or mend it and note it. They now ask a single `RepairPolicy` (`src/Parsing/RepairPolicy.php`): strict, it refuses with the same message as before; repairing, it records where and what, which is what `--inspect` prints and `--strict` refuses. No behavior changes: the 16 published SDKs regenerate byte for byte identical, and the 688 tests pass.
-- **`ci/regenerate-published.sh` and the `Published SDKs unchanged` workflow** regenerate the published SDKs from the contract each carries and compare with what they publish, on every pull request that touches the generator, weekly and on demand.
+- **Repairs of a defective document live in one place.** Reading a contract used to decide in about twenty spots, with an `if` on the repair mode, whether to refuse a defect or mend it and note it. They now ask a single `RepairPolicy` (`src/Parsing/RepairPolicy.php`): strict, it refuses with the same message as before; repairing, it records where and what, which is what `--inspect` prints and `--strict` refuses. No behavior changes: the 15 SDKs published at the time regenerate byte for byte identical, and the 688 tests pass.
 - Documentation brought up to date: `pendientes.md` (SendGrid grouped into one SDK, Stripe and uDA published, the `{url_path}` question answered) and `tests/README.md` (it still described a scaffold).
 
 ## [1.15.2] — 2026-11-25
