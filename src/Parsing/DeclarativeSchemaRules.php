@@ -9,8 +9,14 @@ final class DeclarativeSchemaRules
     public const KEYWORDS = ['not', 'if', 'then', 'else', 'contains', 'minContains', 'maxContains',
         'dependentRequired', 'dependentSchemas', 'propertyNames', 'prefixItems', 'patternProperties', 'unevaluatedProperties', 'unevaluatedItems'];
 
-    /** @return array{array,string}|null */
-    public static function extract(array $raw, bool $modern, string $where): ?array
+    /**
+     * `$resolve` gives the schema a local `$ref` inside an assertion points to: the assertion is compiled as one self-contained
+     * schema, so a reference below `patternProperties` (a contact keyed by e-mail) is written in place there, and only there.
+     *
+     * @param \Closure(string): (array<mixed>|bool)|null $resolve
+     * @return array{array,string}|null
+     */
+    public static function extract(array $raw, bool $modern, string $where, ?\Closure $resolve = null): ?array
     {
         $rules = array_intersect_key($raw, array_flip(self::KEYWORDS));
         if ($rules === []) { return null; }
@@ -22,7 +28,7 @@ final class DeclarativeSchemaRules
         if (array_intersect(array_keys($rules), ['patternProperties', 'unevaluatedProperties', 'unevaluatedItems']) !== []) {
             // Evaluated-property/item bookkeeping must see the complete sibling schema.
             // Raw additional values remain unconverted; Opis decides which patterns apply.
-            $guard = self::encode($raw, $where);
+            $guard = self::encode($raw, $where, $resolve);
             if (array_key_exists('patternProperties', $rules) || array_key_exists('unevaluatedProperties', $rules)) {
                 if (($raw['type'] ?? null) !== 'object') {
                     throw new \InvalidArgumentException("Contextual property assertions currently require explicit object type at $where.");
@@ -54,17 +60,17 @@ final class DeclarativeSchemaRules
             } elseif ($keyword === 'dependentSchemas') {
                 if (!is_array($value)) { self::fail($where . '.' . $keyword); }
                 $children = [];
-                foreach ($value as $name => $child) { $children[$name] = self::schema($child, "$where.$keyword.$name"); }
+                foreach ($value as $name => $child) { $children[$name] = self::schema($child, "$where.$keyword.$name", $resolve); }
                 $guard[$keyword] = (object) $children;
             } elseif ($keyword === 'prefixItems') {
                 if (!is_array($value) || !array_is_list($value) || $value === []) { self::fail($where . '.' . $keyword); }
-                $guard[$keyword] = array_map(static fn ($child) => self::schema($child, "$where.$keyword"), $value);
+                $guard[$keyword] = array_map(static fn ($child) => self::schema($child, "$where.$keyword", $resolve), $value);
                 // Tuple positions have their own schemas. PHP's array preserves every value;
                 // Opis checks the prefix and the tail together, before JSON leaves the SDK.
-                if (array_key_exists('items', $raw)) { $guard['items'] = self::schema($raw['items'], "$where.items"); }
+                if (array_key_exists('items', $raw)) { $guard['items'] = self::schema($raw['items'], "$where.items", $resolve); }
                 $structural['items'] = true;
             } else {
-                $guard[$keyword] = self::schema($value, "$where.$keyword");
+                $guard[$keyword] = self::schema($value, "$where.$keyword", $resolve);
             }
         }
         $json = json_encode((object) $guard, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
@@ -136,19 +142,37 @@ final class DeclarativeSchemaRules
     }
 
     /** Encode schema-position maps as JSON objects, delegating semantics to Opis. */
-    public static function encode(array $raw, string $where): string
+    public static function encode(array $raw, string $where, ?\Closure $resolve = null): string
     {
-        $json = json_encode(self::schema($raw, $where), JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
+        $json = json_encode(self::schema($raw, $where, $resolve), JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
         try { \Dmorenof\SdkRuntime\Constraints::compileSchema($json); }
         catch (\Throwable $error) { throw new \InvalidArgumentException("Invalid schema at $where: " . $error->getMessage(), 0, $error); }
         return $json;
     }
 
-    /** Compile self-contained assertion schemas; never resolve data as references. */
-    private static function schema(mixed $raw, string $where): bool|\stdClass
+    /**
+     * Compile self-contained assertion schemas; never resolve data as references. A local `$ref` is written in place only when
+     * `$resolve` is given, with a loop or an unresolvable target refused.
+     *
+     * @param \Closure(string): (array<mixed>|bool)|null $resolve
+     * @param array<string, true> $chain the references being written in place, to stop a loop
+     */
+    private static function schema(mixed $raw, string $where, ?\Closure $resolve = null, array $chain = []): bool|\stdClass
     {
         if (is_bool($raw)) { return $raw; }
         if (!is_array($raw) || ($raw !== [] && array_is_list($raw))) { self::fail($where); }
+        if ($resolve !== null && is_string($raw['$ref'] ?? null)) {
+            $reference = $raw['$ref'];
+            if (isset($chain[$reference]) || count($chain) >= 32) {
+                throw new \InvalidArgumentException("A reference that loops back on itself cannot be written into an assertion at $where.");
+            }
+            $chain[$reference] = true;
+            $target = $resolve($reference);
+            $siblings = array_diff_key($raw, ['$ref' => true]);
+            $raw = $siblings === [] || is_bool($target) ? $target : $siblings + ['allOf' => [$target]];
+            if (is_bool($raw)) { return $raw; }
+            if ($raw !== [] && array_is_list($raw)) { self::fail($where); }
+        }
         $result = [];
         foreach ($raw as $key => $value) {
             // Scoped references and directional assertions need their own context. Reject
@@ -159,13 +183,13 @@ final class DeclarativeSchemaRules
             if (in_array($key, ['properties', 'patternProperties', 'dependentSchemas', '$defs'], true)) {
                 if (!is_array($value)) { self::fail("$where.$key"); }
                 $children = [];
-                foreach ($value as $name => $child) { $children[$name] = self::schema($child, "$where.$key.$name"); }
+                foreach ($value as $name => $child) { $children[$name] = self::schema($child, "$where.$key.$name", $resolve, $chain); }
                 $result[$key] = (object) $children;
             } elseif (in_array($key, ['not', 'if', 'then', 'else', 'items', 'contains', 'additionalProperties', 'propertyNames', 'unevaluatedProperties', 'unevaluatedItems'], true)) {
-                $result[$key] = self::schema($value, "$where.$key");
+                $result[$key] = self::schema($value, "$where.$key", $resolve, $chain);
             } elseif (in_array($key, ['allOf', 'oneOf', 'anyOf', 'prefixItems'], true)) {
                 if (!is_array($value) || !array_is_list($value) || $value === []) { self::fail("$where.$key"); }
-                $result[$key] = array_map(static fn ($child) => self::schema($child, "$where.$key"), $value);
+                $result[$key] = array_map(static fn ($child) => self::schema($child, "$where.$key", $resolve, $chain), $value);
             } elseif ($key === 'dependentRequired') {
                 $compiled = self::extract([$key => $value], true, $where);
                 $result[$key] = json_decode($compiled[1], false, 512, JSON_THROW_ON_ERROR)->dependentRequired;

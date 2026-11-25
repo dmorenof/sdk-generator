@@ -395,8 +395,11 @@ query objects, including typed additional-property values. Names expanded into
 another form field fail before transport. Query and form fields are separate
 namespaces; a query named body remains queryBody alongside the body DTO.
 
-The root body remains a closed object; nested form objects must be flat scalar
-objects/maps. Arbitrary nested URL-encoded serialization is not invented.
+The root body remains a closed object. A field written `style: deepObject, explode: true` may hold
+objects, lists and unions at any depth (Stripe's convention): the runtime writes
+`a[b][0][c]=v`, a list item by its index, null as nothing. In multipart it becomes
+text parts of the same names. Without `deepObject`, nested form objects remain
+unsupported, and an object that declares `additionalProperties: true` is refused.
 Unsupported style/type combinations, scalar collectionFormat, malformed flags,
 unknown names and conflicting options fail strict generation.
 

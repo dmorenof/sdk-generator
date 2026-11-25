@@ -37,6 +37,9 @@ final class PhpModelNameResolver
         'bool','void','object','mixed','never','self','parent',
     ];
 
+    /** The category folders a model can live in, and the word that closes a reserved class name found at their top level. */
+    private const CATEGORY_SINGULAR = ['Enums' => 'Enum', 'DTOs' => 'DTO'];
+
     /** @var array<string, string> */
     private array $paths;
     /** @var array<string, string> */
@@ -47,11 +50,13 @@ final class PhpModelNameResolver
     private array $occupiedPaths = [];
     /** @var array<string, array{path:string,type:string,namespace:string,class:string}> */
     private array $derivedEntries = [];
+    /** @var array<string, array{from: string, to: string}> Schema name => the reserved last segment and what it became. */
+    private array $renames = [];
 
     /** @param list<ModelDefinition> $models
     *  @param array<string, 'DTO'|'Request'|'Response'> $roles
     */
-    public function __construct(private string $namespace, array $models, array $roles = [])
+    public function __construct(private string $namespace, array $models, array $roles = [], bool $disambiguate = false)
     {
         $paths = [];
         $types = [];
@@ -60,11 +65,26 @@ final class PhpModelNameResolver
         foreach ($models as $model) {
             if ($model->schema->kind === \Dmorenof\SdkGenerator\Contract\SchemaKind::Reference) { continue; }
             $name = $model->name;
+            // The single DTOs tree preserves the full source hierarchy.
+            // Directional behavior still comes from the runtime base class.
+            $category = $model->schema->enumValues !== [] ? 'Enums' : 'DTOs';
+            $wrapped = in_array($model->schema->kind, [
+                \Dmorenof\SdkGenerator\Contract\SchemaKind::AnyOf,
+                \Dmorenof\SdkGenerator\Contract\SchemaKind::OneOf,
+            ], true);
             $sourceSegments = array_map(
                 static fn (string $segment): string => PhpNameTransliterator::pascal($segment, 'schema segment'),
                 self::schemaSegments($name, $prefixes),
             );
-            foreach ($sourceSegments as $segment) {
+            // A composition wrapper takes the AnyOf/OneOf prefix on its last segment, so that segment is never a reserved
+            // word and resolve() checks the final name. Any other last segment that PHP reserves is renamed, and reported.
+            if (!$wrapped) {
+                $sourceSegments = $this->renameReservedClass($name, $sourceSegments, $category);
+            }
+            foreach ($sourceSegments as $index => $segment) {
+                if ($wrapped && $index === array_key_last($sourceSegments)) {
+                    continue;
+                }
                 $this->checkSegment($segment);
             }
             $resolvedName = implode('.', $sourceSegments);
@@ -73,12 +93,28 @@ final class PhpModelNameResolver
                 \Dmorenof\SdkGenerator\Contract\SchemaKind::OneOf => self::prefixLastSegment($resolvedName, 'OneOf'),
                 default => $resolvedName,
             };
-            // The single DTOs tree preserves the full source hierarchy.
-            // Directional behavior still comes from the runtime base class.
-            $category = $model->schema->enumValues !== [] ? 'Enums' : 'DTOs';
             [$path, $type] = $this->resolve($generatedName, $category);
             // On case-insensitive filesystems, path collisions must also fail.
             $key = strtolower($path);
+            if (isset($occupied[$key]) && $disambiguate) {
+                // Two schemas whose class names differ only in case (`WebRtcEndpoint`, `WebRTCEndpoint`) cannot be two files on a
+                // case-insensitive file system: the later one takes a number after its name.
+                $original = $generatedName;
+                $parts = explode('.', $generatedName);
+                $stem = $parts[array_key_last($parts)];
+                for ($number = 2; isset($occupied[$key]); ++$number) {
+                    $parts[array_key_last($parts)] = $stem . $number;
+                    $generatedName = implode('.', $parts);
+                    [$path, $type] = $this->resolve($generatedName, $category);
+                    $key = strtolower($path);
+                    $this->disambiguated[$name] = ['from' => $original, 'to' => $generatedName];
+                    if ($number > 99) {
+                        throw new InvalidArgumentException(
+                            "Generated PHP schema name collision: '$name' and '{$occupied[$key]}' both map to $path.",
+                        );
+                    }
+                }
+            }
             if (isset($occupied[$key])) {
                 throw new InvalidArgumentException(
                     "Generated PHP schema name collision: '$name' and '{$occupied[$key]}' both map to $path.",
@@ -100,6 +136,50 @@ final class PhpModelNameResolver
         }
         $this->paths = $paths;
         $this->types = $types;
+    }
+
+    /**
+     * PHP has no class called `Default` or `List`. When the last segment of a schema name is a reserved word it gets a suffix:
+     * the singular of its category folder at the top level (`Enums\Default` -> `Enums\DefaultEnum`), the singular of the folder
+     * that holds it below that (`Enums\Assets\Default` -> `Enums\Assets\DefaultAsset`, the singular the resource names use).
+     * Deterministic, so every emitter derives the same name;
+     * no hash and no number. Only the PHP class name changes, never a JSON name or a value. A folder that is a reserved word
+     * keeps the refusal it always had.
+     *
+     * @param list<string> $segments
+     * @return list<string>
+     */
+    private function renameReservedClass(string $schema, array $segments, string $category): array
+    {
+        $last = array_key_last($segments);
+        if (!in_array(strtolower($segments[$last]), self::RESERVED, true)) {
+            return $segments;
+        }
+        $renamed = $segments[$last] . ($last > 0
+            ? PhpResourceNameResolver::singular($segments[$last - 1])
+            : self::CATEGORY_SINGULAR[$category]);
+        $this->renames[$schema] = ['from' => $segments[$last], 'to' => $renamed];
+        $segments[$last] = $renamed;
+        return $segments;
+    }
+
+    /**
+     * The schemas whose PHP class name is not the one their name gives, by schema name.
+     *
+     * @return array<string, array{from: string, to: string}>
+     */
+    /** @var array<string, array{from: string, to: string}> Schemas that took a number because another has the same name but for case. */
+    private array $disambiguated = [];
+
+    /** @return array<string, array{from: string, to: string}> */
+    public function disambiguated(): array
+    {
+        return $this->disambiguated;
+    }
+
+    public function renames(): array
+    {
+        return $this->renames;
     }
 
     public function path(string $schemaName): string

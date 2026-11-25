@@ -153,6 +153,7 @@ final class SpecificationNormalizerTest extends TestCase
     {
         $raw = json_decode($this->fixture('accounts-openapi30.json'), true, 512, JSON_THROW_ON_ERROR);
         $raw['components']['schemas']['User']['allOf'] = [['type' => 'object']];
+        $raw['components']['schemas']['User']['minLength'] = 1;
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Composition siblings are not supported at models.User');
         $this->normalizer->fromJson(json_encode($raw, JSON_THROW_ON_ERROR));

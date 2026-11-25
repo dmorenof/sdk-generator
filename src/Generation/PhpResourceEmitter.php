@@ -29,6 +29,7 @@ final readonly class PhpResourceEmitter
         'pathSerialization' => [],
         'headerSerialization' => [],
         'queryAllowReserved' => [],
+        'pathAllowReserved' => [],
         'parameterContent' => [],
         'responseValidation' => [],
         'requestBody' => null,
@@ -275,6 +276,7 @@ PHP;
         $validation = [];
         $querySerialization = [];
         $queryAllowReserved = [];
+        $pathAllowReserved = [];
         $parameterContent = [];
         $pathSerialization = [];
         $headerSerialization = [];
@@ -296,6 +298,9 @@ PHP;
             if ($parameter->location === 'query' && $parameter->serialization->allowReserved === true) {
                 $queryAllowReserved[] = $parameter->wireName;
             }
+            if ($parameter->location === 'path' && $parameter->serialization->allowReserved === true) {
+                $pathAllowReserved[] = $parameter->wireName;
+            }
             $objectType = $this->parameterTypes->objects[$operation->operationId][$parameter->location][$parameter->wireName] ?? null;
             if ($parameter->content !== []) {
                 $parameterContent[$parameter->location][$parameter->wireName] = strtolower($parameter->content[0]->mediaType);
@@ -308,7 +313,7 @@ PHP;
                 continue;
             }
             if ($objectType !== null) {
-                $format = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::format($parameter->serialization, $parameter->location);
+                $format = \Dmorenof\SdkGenerator\Parsing\QueryObjectSupport::format($parameter->serialization, $parameter->location, $parameter, $this->formModels);
                 if ($format === null) { throw new InvalidArgumentException("Unsupported object parameter at $operation->operationId.$parameter->wireName."); }
                 if ($parameter->location === 'query') {
                     $querySerialization[$parameter->wireName] = $format;
@@ -386,6 +391,7 @@ PHP;
             'servers' => $servers,
             'querySerialization' => $querySerialization,
             'queryAllowReserved' => $queryAllowReserved,
+            'pathAllowReserved' => $pathAllowReserved,
             'parameterContent' => $parameterContent,
             'pathSerialization' => $pathSerialization,
             'headerSerialization' => $headerSerialization,

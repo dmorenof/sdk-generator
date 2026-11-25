@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Dmorenof\SdkGenerator\Diagnostics;
 
 use Dmorenof\SdkGenerator\Generation\PhpExecutableEmitter;
+use Dmorenof\SdkGenerator\Generation\PhpModelNameResolver;
 use Dmorenof\SdkGenerator\Parsing\SpecificationNormalizer;
 use Symfony\Component\Yaml\Yaml;
 
@@ -50,11 +51,35 @@ final class DocumentInspector
                 throw new \InvalidArgumentException('API specification must be an object.');
             }
             $diagnostics = (new ContractAuditor())->audit(\Dmorenof\SdkGenerator\Parsing\EnumUnions::collapse($document), $sourceName);
-            $normalizer = new SpecificationNormalizer();
+            $normalizer = new SpecificationNormalizer(repair: true);
             $contract = $format === 'yaml' ? $normalizer->fromYaml($source) : $normalizer->fromJson($source);
             $normalized = true;
-            (new PhpExecutableEmitter('Inspection\\Probe', 'example/inspection-probe'))->emit($contract);
+            // A defect the generator repaired so the SDK can be built is an error for `--strict`, and the report says what it did.
+            foreach ($normalizer->repairs() as $repair) {
+                $diagnostics[] = new Diagnostic('repaired_defect', 'error', '', "{$repair['where']}: {$repair['message']}", $sourceName);
+            }
+            $emitter = new PhpExecutableEmitter('Inspection\\Probe', 'example/inspection-probe');
+            $files = $emitter->emit($contract);
+            foreach ($emitter->repairs() as $repair) {
+                $diagnostics[] = new Diagnostic('repaired_defect', 'error', '', "{$repair['where']}: {$repair['message']}", $sourceName);
+            }
             $generated = true;
+            // A schema whose name PHP reserves is generated under another class name: never silently. An alias of a native
+            // type has no class at all, so there is nothing to report for it.
+            $schemas = isset($document['swagger']) ? '/definitions' : '/components/schemas';
+            $names = new PhpModelNameResolver('Inspection\\Probe', $contract->models, [], ($contract->annotations['x-sdk-repair'] ?? false) === true);
+            foreach ($names->renames() as $schema => $rename) {
+                if (!isset($files[$names->path($schema)])) {
+                    continue;
+                }
+                $diagnostics[] = new Diagnostic(
+                    'renamed_reserved_class',
+                    'warning',
+                    JsonPointer::append($schemas, $schema),
+                    "PHP has no class called {$rename['from']}: the class of the schema '$schema' is {$rename['to']}.",
+                    $sourceName,
+                );
+            }
         } catch (\Throwable $exception) {
             $diagnostics[] = new Diagnostic($normalized ? 'generation_failed' : 'normalization_failed', 'error', '', $exception->getMessage(), $sourceName);
         }

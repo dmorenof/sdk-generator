@@ -85,7 +85,7 @@ final class FormEncodingBlockGenerationTest extends TestCase {
         try { $params->body->batch[0]->code = ''; self::fail('Invalid JSON part mutation accepted.'); } catch (\UnexpectedValueException) { self::assertCount(1, $http->calls); }
     }
     public function testUnsupportedEncodingAndNestingFailVisibly(): void {
-        foreach ([['space' => ['style' => 'spaceDelimited', 'explode' => true]], ['space' => ['style' => 'deepObject', 'explode' => true]], ['filter' => ['style' => 'spaceDelimited']], ['body' => ['style' => 'pipeDelimited']], ['filter' => ['headers' => ['X-Test' => []]]]] as $encoding) {
+        foreach ([['space' => ['style' => 'spaceDelimited', 'explode' => true]], ['space' => ['style' => 'deepObject', 'explode' => false]], ['filter' => ['style' => 'spaceDelimited']], ['body' => ['style' => 'pipeDelimited']], ['filter' => ['headers' => ['X-Test' => []]]]] as $encoding) {
             $document = self::document(); $document['paths']['/form']['post']['requestBody']['content']['application/x-www-form-urlencoded']['encoding'] = $encoding;
             try { self::files($document); self::fail('Unsupported form encoding accepted.'); } catch (\InvalidArgumentException) { self::assertTrue(true); }
         }

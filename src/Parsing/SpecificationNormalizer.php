@@ -38,9 +38,26 @@ final class SpecificationNormalizer
 
     /** Formats that only document a value: the runtime never asserts them, so no rule is worth emitting. */
     private const array ANNOTATION_FORMATS = ['binary', 'password', 'float', 'double'];
+    private const array NUMERIC_WIDTH_HINTS = ['int32', 'int64', 'float', 'double'];
 
     /** @param bool $validateFormats Emit a runtime `format` rule for string and integer schemas, so declared formats are asserted (they are annotations otherwise). */
-    public function __construct(private readonly bool $validateFormats = false, private readonly bool $skipUnsupported = false, private readonly ?string $origin = null) {}
+    public function __construct(private readonly bool $validateFormats = false, private readonly bool $skipUnsupported = false, private readonly ?string $origin = null, private readonly bool $repair = false) {}
+
+    /** @var array<string, true> References into the inside of a model being read in place, against loops. */
+    private array $inlining = [];
+
+    /** @var list<array{where: string, message: string}> Defects of the document that were repaired instead of refused (only when asked to repair). */
+    private array $repairs = [];
+
+    /**
+     * What the last contract read changed to make a defective document executable, each with where and what was done.
+     *
+     * @return list<array{where: string, message: string}>
+     */
+    public function repairs(): array
+    {
+        return $this->repairs;
+    }
 
     /** @var array<string, string> The operations left out because the generator cannot execute them, with the reason. */
     private array $skipped = [];
@@ -68,6 +85,18 @@ final class SpecificationNormalizer
             'not', 'if', 'then', 'else', 'contains', 'minContains', 'maxContains',
             'dependentRequired', 'dependentSchemas', 'propertyNames', 'prefixItems', 'patternProperties', 'unevaluatedProperties', 'unevaluatedItems',
     ];
+
+    /**
+     * Keywords of JSON Schema 2020-12 (and its predecessors) that carry meaning this generator does not execute. Any other keyword
+     * in an OpenAPI 3.1 schema is not defined by the dialect, which reads it as an annotation; these are not annotations.
+     */
+    public const array UNSUPPORTED_VOCABULARY = [
+        '$id', '$schema', '$anchor', '$dynamicRef', '$dynamicAnchor', '$vocabulary', '$defs', '$recursiveRef', '$recursiveAnchor',
+        'definitions', 'dependencies', 'additionalItems',
+    ];
+
+    /** Annotation-only keywords of JSON Schema 2020-12's content vocabulary: a string that holds encoded data stays that string. */
+    public const array CONTENT_VOCABULARY = ['contentEncoding', 'contentMediaType', 'contentSchema'];
 
     public function fromYaml(string $source, bool $strict = false, string $sourceName = '<input>'): ApiContract
     {
@@ -120,7 +149,7 @@ final class SpecificationNormalizer
 
         $document = EnumUnions::collapse($document);
         $dialect = $this->dialect($document);
-        $this->jsonSchema31 = str_starts_with($document['openapi'] ?? '', '3.1.');
+        $this->jsonSchema31 = preg_match('/^3\.[12]\./', $document['openapi'] ?? '') === 1;
         if ($strict) {
             $errors = array_values(array_filter(
                 (new \Dmorenof\SdkGenerator\Diagnostics\ContractAuditor())->audit($document, $sourceName),
@@ -133,6 +162,7 @@ final class SpecificationNormalizer
         $document = (new LocalObjectResolver($document))->expandOperations();
         $this->document = $document;
         $this->skipped = [];
+        $this->repairs = [];
         $info = $document['info'] ?? [];
         $title = $info['title'] ?? null;
         if (!is_string($title) || $title === '') {
@@ -172,6 +202,7 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException('paths must be an object.');
         }
         ksort($paths);
+        if ($this->repair) { $paths = $this->mergeEquivalentPaths($paths); }
         $operations = [];
         $seen = [];
         $pathIdentities = [];
@@ -224,7 +255,7 @@ final class SpecificationNormalizer
                     if ($method === 'trace' && $requestBody !== null) {
                         throw new InvalidArgumentException("TRACE cannot declare a request body at $path.");
                     }
-                    $this->pathParameters($path, $parameters, "$method $path");
+                    $parameters = $this->pathParameters($path, $parameters, "$method $path");
                     $responses = $this->responses($raw, $document, $dialect, "$method $path", $method === 'head');
                     $serverSource = array_key_exists('servers', $raw) ? 'operation'
                         : (array_key_exists('servers', $pathItem) ? 'path' : 'root');
@@ -236,6 +267,13 @@ final class SpecificationNormalizer
                         $operationServers = $this->servers(array_replace($document, ['schemes' => $raw['schemes']]), $dialect);
                         $serverDefinitions = array_map(static fn (string $url): array => ['url' => $url], $operationServers);
                         $serverSource = 'operation';
+                    }
+                    // The emitter refuses a form body it cannot build, which would abort the whole API after this point: in skip
+                    // mode that operation is left out like any other unsupported one (without the option the emitter still refuses).
+                    if ($this->skipUnsupported && $requestBody !== null
+                        && in_array($requestBody->mediaType, [FormSupport::MEDIA, FormSupport::MULTIPART], true)
+                        && FormSupport::formats($requestBody, $models) === null) {
+                        throw new InvalidArgumentException("Unsupported form body schema or encoding at $id.");
                     }
                     $operations[] = new OperationDefinition(
                         $id, strtoupper($method), $path, $parameters, $requestBody, $responses, $security,
@@ -255,7 +293,7 @@ final class SpecificationNormalizer
             ? array_map(static fn (string $url): array => ['url' => $url], $servers)
             : ($document['servers'] ?? []);
         $contract = new ApiContract($title, $servers, $models, $operations, $securitySchemes, $rootSecurity,
-            $serverDefinitions, ['info' => $info] + $this->annotations($document) + ($this->annotations($paths) === [] ? [] : ['paths' => $this->annotations($paths)]));
+            $serverDefinitions, ($this->repair ? ['x-sdk-repair' => true] : []) + ['info' => $info] + $this->annotations($document) + ($this->annotations($paths) === [] ? [] : ['paths' => $this->annotations($paths)]));
         $knownModels = array_fill_keys(array_map(
             static fn (ModelDefinition $model): string => $model->name,
             $models,
@@ -306,11 +344,11 @@ final class SpecificationNormalizer
         }
 
         $version = $document['openapi'] ?? null;
-        if (is_string($version) && preg_match('/^3\.(0|1)\.\d+$/', $version) === 1) {
+        if (is_string($version) && preg_match('/^3\.(0|1|2)\.\d+$/', $version) === 1) {
             return 'openapi3';
         }
 
-        throw new InvalidArgumentException('Unsupported specification version (expected Swagger 2.0 or OpenAPI 3.0/3.1).');
+        throw new InvalidArgumentException('Unsupported specification version (expected Swagger 2.0 or OpenAPI 3.0/3.1/3.2).');
     }
 
     /** @return list<SecuritySchemeDefinition> */
@@ -356,7 +394,7 @@ final class SpecificationNormalizer
                     throw new InvalidArgumentException("$problem (security scheme $name)");
                 }
                 $schemes[] = new SecuritySchemeDefinition($name, 'openIdConnect', openIdConnectUrl: (string) $definition['openIdConnectUrl']);
-            } elseif ($type === 'mutualTLS' && str_starts_with((string) ($document['openapi'] ?? ''), '3.1.')) {
+            } elseif ($type === 'mutualTLS' && preg_match('/^3\.[12]\./', (string) ($document['openapi'] ?? '')) === 1) {
                 // The client proves who it is with a certificate in the TLS handshake: no header, query or cookie, no scopes.
                 $schemes[] = new SecuritySchemeDefinition($name, 'mutualTLS');
             } else {
@@ -401,6 +439,48 @@ final class SpecificationNormalizer
         return $requirements;
     }
 
+    /**
+     * Two templates that differ only in the names of their placeholders (`.../{id}` and `.../{templateName}`) are one URL. The second
+     * one's operations move under the first, with its path parameters renamed; an operation that would collide is left out.
+     *
+     * @param array<mixed> $paths
+     * @return array<mixed>
+     */
+    private function mergeEquivalentPaths(array $paths): array
+    {
+        $first = [];
+        foreach ($paths as $path => $item) {
+            if (!is_string($path) || !is_array($item) || str_starts_with($path, 'x-')) { continue; }
+            $identity = preg_replace('/\{[^{}]+\}/', '{}', $path);
+            if (!is_string($identity) || !isset($first[$identity])) { $first[$identity ?? $path] = $path; continue; }
+            $base = $first[$identity];
+            preg_match_all('/\{([^{}]+)\}/', $base, $to);
+            preg_match_all('/\{([^{}]+)\}/', $path, $from);
+            $rename = array_combine($from[1], $to[1]) ?: [];
+            $rewrite = static function (array $parameters) use ($rename): array {
+                foreach ($parameters as $i => $parameter) {
+                    if (is_array($parameter) && ($parameter['in'] ?? null) === 'path' && isset($rename[$parameter['name'] ?? ''])) { $parameters[$i]['name'] = $rename[$parameter['name']]; }
+                }
+                return $parameters;
+            };
+            foreach ($item as $key => $value) {
+                if (!is_array($value)) { continue; }
+                if ($key === 'parameters') { $item[$key] = $rewrite($value); continue; }
+                if (isset($value['parameters']) && is_array($value['parameters'])) { $item[$key]['parameters'] = $rewrite($value['parameters']); }
+            }
+            foreach ($item as $key => $value) {
+                if (in_array($key, self::METHODS, true) && !isset($paths[$base][$key])) {
+                    $paths[$base][$key] = $value;
+                } elseif (in_array($key, self::METHODS, true)) {
+                    $this->repairs[] = ['where' => "$key $path", 'message' => "The path is the same URL as $base and that one already has this method: it was left out."];
+                }
+            }
+            $this->repairs[] = ['where' => $path, 'message' => "The path is the same URL as $base with other placeholder names: its operations were moved under it."];
+            unset($paths[$path]);
+        }
+        return $paths;
+    }
+
     /** @return list<string> */
     private function pathNames(string $path): array {
         preg_match_all('/\{([^{}]+)\}/', $path, $matches);
@@ -410,19 +490,43 @@ final class SpecificationNormalizer
         return $matches[1];
     }
 
-    /** @param list<ParameterDefinition> $parameters */
-    private function pathParameters(string $path, array $parameters, string $where): void {
+    /**
+     * Path placeholders and path parameters must match, and a path parameter is required. A document that breaks this is refused;
+     * when asked to repair, a placeholder without a declaration becomes a required string, a declaration without a placeholder
+     * is dropped, and a path parameter that is not required is made required (each recorded).
+     *
+     * @param list<ParameterDefinition> $parameters
+     * @return list<ParameterDefinition>
+     */
+    private function pathParameters(string $path, array $parameters, string $where): array {
         $names = $this->pathNames($path);
         $declared = [];
+        $kept = [];
         foreach ($parameters as $parameter) {
-            if ($parameter->location !== 'path') { continue; }
-            if (!$parameter->required) { throw new InvalidArgumentException("Path parameter '$parameter->wireName' must be required at $where."); }
-            if (!in_array($parameter->wireName, $names, true)) { throw new InvalidArgumentException("Path parameter '$parameter->wireName' has no matching placeholder at $where."); }
+            if ($parameter->location !== 'path') { $kept[] = $parameter; continue; }
+            if (!in_array($parameter->wireName, $names, true)) {
+                if (!$this->repair) { throw new InvalidArgumentException("Path parameter '$parameter->wireName' has no matching placeholder at $where."); }
+                $this->repairs[] = ['where' => $where, 'message' => "The path parameter '$parameter->wireName' has no placeholder in the path: it was dropped."];
+                continue;
+            }
+            if (!$parameter->required) {
+                if (!$this->repair) { throw new InvalidArgumentException("Path parameter '$parameter->wireName' must be required at $where."); }
+                $this->repairs[] = ['where' => $where, 'message' => "The path parameter '$parameter->wireName' is not required, and a placeholder always is: it was made required."];
+                $parameter = new ParameterDefinition($parameter->wireName, $parameter->location, $parameter->schema, true, $parameter->serialization, $parameter->content, $parameter->annotations);
+            }
             $declared[$parameter->wireName] = true;
+            $kept[] = $parameter;
         }
         foreach ($names as $name) {
-            if (!isset($declared[$name])) { throw new InvalidArgumentException("Missing declared path parameter '$name' at $where."); }
+            if (isset($declared[$name])) { continue; }
+            if (!$this->repair) { throw new InvalidArgumentException("Missing declared path parameter '$name' at $where."); }
+            $this->repairs[] = ['where' => $where, 'message' => "The placeholder '{{$name}}' has no path parameter: a required string was declared."];
+            // A placeholder called `url_path` or `full_path` is the rest of the path (Starlette's `path` converter, which uDA uses): it
+            // keeps its slashes.
+            $restOfPath = preg_match('/(^|_)path$/', $name) === 1;
+            $kept[] = new ParameterDefinition($name, 'path', new SchemaDefinition(SchemaKind::String), true, $restOfPath ? new \Dmorenof\SdkGenerator\Contract\ParameterSerialization(allowReserved: true) : new \Dmorenof\SdkGenerator\Contract\ParameterSerialization());
         }
+        return $kept;
     }
 
     /** @return list<string> */
@@ -560,6 +664,12 @@ final class SpecificationNormalizer
                     throw new InvalidArgumentException("Invalid or duplicated body at $where.");
                 }
                 $mediaTypes = $this->collapseJsonMedia($operation['consumes'] ?? $document['consumes'] ?? ['application/json']);
+                // A Swagger `in: body` parameter with a model schema under a form `consumes` (Marketo's asset API) contradicts itself:
+                // a form has fields, not a model. When asked to repair, the body is the JSON model it describes.
+                if ($this->repair && count($mediaTypes) === 1 && in_array($mediaTypes[0], [FormSupport::MEDIA, FormSupport::MULTIPART], true)) {
+                    $this->repairs[] = ['where' => $where, 'message' => "A body model under consumes {$mediaTypes[0]} was read as application/json."];
+                    $mediaTypes = ['application/json'];
+                }
                 if (count($mediaTypes) !== 1 || !RawMediaSupport::supported(['schema' => $raw['schema']], $mediaTypes[0] ?? '', $document, true)) {
                     $this->requireJsonMedia($mediaTypes, "$where consumes");
                 }
@@ -592,6 +702,18 @@ final class SpecificationNormalizer
             if ($dialect === 'swagger2' && $normalizedSchema->kind === SchemaKind::Object) {
                 throw new InvalidArgumentException("Swagger non-body object parameters are unsupported at $where.");
             }
+            // A free-form object in the query with no style (GoCardless's `metadata`) cannot be written in the default form style
+            // without naming its keys; when asked to repair it is a map of strings written as `metadata[key]=value`, the usual way.
+            if ($this->repair && $loc === 'query' && !isset($raw['style']) && !isset($raw['content']) && $dialect !== 'swagger2') {
+                try { $plain = SchemaReferences::raw($schema, $this->document); } catch (InvalidArgumentException|\TypeError) { $plain = []; }
+                if (($plain['type'] ?? null) === 'object' && !isset($plain['properties']) && !array_key_exists('additionalProperties', $plain)
+                    && array_intersect(['allOf', 'anyOf', 'oneOf'], array_keys($plain)) === []) {
+                    $this->repairs[] = ['where' => "$where.parameters." . $raw['name'], 'message' => 'A free-form object parameter without style was read as a map of strings in deepObject style.'];
+                    $normalizedSchema = new SchemaDefinition(SchemaKind::Object, additionalProperties: new SchemaDefinition(SchemaKind::String));
+                    $raw['style'] = 'deepObject';
+                    $raw['explode'] = true;
+                }
+            }
             $arraySchema = $normalizedSchema->kind === SchemaKind::Array
                 || ($normalizedSchema->kind === SchemaKind::AnyOf && count(array_filter($normalizedSchema->branches,
                     static fn (SchemaDefinition $branch): bool => $branch->kind === SchemaKind::Array)) > 0);
@@ -620,6 +742,14 @@ final class SpecificationNormalizer
                 throw new InvalidArgumentException("Unsupported requestBody reference at $where.");
             }
             $content = $raw['content'] ?? [];
+            // A multipart body whose schema is just `type: string, format: binary` (Infobip's audio upload) is one file field: when
+            // asked to repair, it is an object with a `file` part.
+            if ($this->repair && is_array($content) && is_array($content['multipart/form-data']['schema'] ?? null)
+                && ($content['multipart/form-data']['schema']['type'] ?? null) === 'string' && ($content['multipart/form-data']['schema']['format'] ?? null) === 'binary') {
+                $this->repairs[] = ['where' => "$where.requestBody", 'message' => 'A multipart body that is a single binary string was read as an object with one `file` part.'];
+                $content['multipart/form-data']['schema'] = ['type' => 'object', 'required' => ['file'], 'additionalProperties' => false,
+                    'properties' => ['file' => ['type' => 'string', 'format' => 'binary']]];
+            }
             $hasJson = count(array_filter(array_keys($content), fn ($media): bool => is_string($media) && $this->isJsonMediaType($media))) > 0;
             $formMedia = isset($content[FormSupport::MEDIA]['schema']) ? FormSupport::MEDIA : FormSupport::MULTIPART;
             $bodyContent = !$hasJson && isset($content[$formMedia]['schema'])
@@ -687,6 +817,13 @@ final class SpecificationNormalizer
                 $mediaType = $schema === null ? null : $produces[0];
             } else {
                 $representations = $raw['content'] ?? [];
+                // `application/octet-stream` means bytes, whatever schema is declared beside it (Infobip's recordings point at an object
+                // model): when asked to repair, the answer is read as binary.
+                if ($this->repair && is_array($representations) && isset($representations['application/octet-stream']) && is_array($representations['application/octet-stream'])
+                    && count($representations) === 1 && BinaryResponseSupport::media($representations, $document) === null) {
+                    $this->repairs[] = ['where' => "$where.responses.$status", 'message' => 'An application/octet-stream answer with a model schema was read as binary.'];
+                    $representations['application/octet-stream']['schema'] = ['type' => 'string', 'format' => 'binary'];
+                }
                 $binary = BinaryResponseSupport::media($representations, $document);
                 $isSuccess = preg_match('/^2\d\d$/', $status) === 1 && is_array($representations);
                 $streamed = $isSuccess ? StreamingSupport::selected($representations) : null;
@@ -805,9 +942,20 @@ final class SpecificationNormalizer
             return null;
         }
         $json = [];
+        // A contract whose only representation is `*/*` (Infobip's answers) with a schema describes JSON: when asked to repair, it is read so.
+        if ($this->repair && isset($content['*/*']) && is_array($content['*/*']) && array_key_exists('schema', $content['*/*'])
+            && array_filter(array_keys($content), fn ($type): bool => is_string($type) && $this->isJsonMediaType($type)) === []) {
+            $this->repairs[] = ['where' => $where, 'message' => 'The only representation is */* with a schema: it was read as application/json.'];
+            $content = ['application/json' => $content['*/*']] + $content;
+        }
         foreach ($content as $mediaType => $definition) {
             if (!is_string($mediaType) || !$this->isJsonMediaType($mediaType)) {
                 continue; // XML/text alternatives are not emitted by a JSON SDK.
+            }
+            if (is_array($definition) && !array_key_exists('schema', $definition)) {
+                // A media type that declares no schema accepts any JSON value (OpenAPI: `schema` is optional).
+                $json[$mediaType] = [];
+                continue;
             }
             if (!is_array($definition) || (!is_array($definition['schema'] ?? null) && !($this->jsonSchema31 && is_bool($definition['schema'] ?? null)))) {
                 throw new InvalidArgumentException("Missing JSON schema for media type $mediaType at $where.");
@@ -852,19 +1000,48 @@ final class SpecificationNormalizer
      * @param array<mixed> $raw
      * @return array<string, mixed>|null
      */
-    private static function referenceWrapper(array $raw): ?array
+    private function referenceWrapper(array $raw): ?array
     {
         $branches = $raw['allOf'] ?? null;
-        // Only with an annotation of a property beside it (a default, readOnly or writeOnly): a bare one-branch allOf
-        // is inheritance, which has its own handling.
-        $annotated = array_key_exists('default', $raw) || array_key_exists('readOnly', $raw) || array_key_exists('writeOnly', $raw);
-        if (!$annotated || !is_array($branches) || !array_is_list($branches) || count($branches) !== 1
-            || !is_array($branches[0]) || !is_string($branches[0]['$ref'] ?? null)
-            || array_diff(array_keys($branches[0]), ['$ref', 'description', 'title']) !== []
+        if (!is_array($branches) || !array_is_list($branches) || $branches === []
             || array_diff(array_keys($raw), ['allOf', 'default', 'description', 'title', 'readOnly', 'writeOnly']) !== []) {
             return null;
         }
-        return array_diff_key($raw, ['allOf' => true]) + $branches[0];
+        // One reference branch; any other branch only annotates (a description in a branch of its own is how OpenAPI 3.0 spells
+        // "a reference with a description").
+        $reference = null;
+        $annotations = [];
+        foreach ($branches as $branch) {
+            if (!is_array($branch)) {
+                return null;
+            }
+            if ($reference === null && is_string($branch['$ref'] ?? null) && array_diff(array_keys($branch), ['$ref', 'description', 'title']) === []) {
+                $reference = $branch;
+            } elseif ($branch !== [] && array_diff(array_keys($branch), ['description', 'title', 'example', 'examples', 'deprecated']) === []) {
+                $annotations += $branch;
+            } else {
+                return null;
+            }
+        }
+        if ($reference === null) {
+            return null;
+        }
+        // An annotation of a property beside it (a default, readOnly or writeOnly) is enough: a bare one-branch allOf is
+        // inheritance, which has its own handling. A description or a title, or a branch that only annotates, is the same idiom when
+        // the schema it reaches is not an object: only an object can be inherited.
+        $nonObject = $this->reachesANonObject($reference);
+        if ($annotations !== [] && !$nonObject) {
+            return null;
+        }
+        $annotated = array_key_exists('default', $raw) || array_key_exists('readOnly', $raw) || array_key_exists('writeOnly', $raw)
+            || ($nonObject && (array_key_exists('description', $raw) || array_key_exists('title', $raw) || $annotations !== []))
+            // A bare allOf of one reference to something that is not an object (Infobip's `{allOf: [{$ref: SortField}]}` for a
+            // parameter) can only mean that reference.
+            || ($nonObject && count($branches) === 1);
+        if (!$annotated) {
+            return null;
+        }
+        return array_diff_key($raw, ['allOf' => true]) + $annotations + $reference;
     }
 
     /**
@@ -892,6 +1069,204 @@ final class SpecificationNormalizer
             }
         }
         return null;
+    }
+
+    /**
+     * `{anyOf: [{$ref: X}], nullable: true}` (or `oneOf`) is how OpenAPI 3.0 writes "X, or null" (Stripe writes it 426 times): a union
+     * of one reference is that reference, so it is read as `{$ref: X, nullable: true}` and does not get a wrapper class of its own.
+     *
+     * @param array<mixed> $raw
+     * @return array<string, mixed>|null
+     */
+    private static function singleBranchReference(array $raw): ?array
+    {
+        foreach (['anyOf', 'oneOf'] as $keyword) {
+            $branches = $raw[$keyword] ?? null;
+            if (!is_array($branches) || !array_is_list($branches) || count($branches) !== 1 || !is_array($branches[0])
+                || !is_string($branches[0]['$ref'] ?? null) || array_diff(array_keys($branches[0]), ['$ref', 'description', 'title']) !== []
+                || array_diff(array_keys($raw), [$keyword, 'nullable', 'description', 'title', 'readOnly', 'writeOnly', 'default']) !== []) {
+                continue;
+            }
+            return array_diff_key($raw, [$keyword => true]) + $branches[0];
+        }
+        return null;
+    }
+
+    /**
+     * Whether a `$ref` branch reaches a schema that declares a type other than `object` (a string, an array, a number...), which
+     * cannot be inherited from. A missing type, an object or a reference that does not resolve is not.
+     *
+     * @param array<mixed> $branch
+     */
+    private function reachesANonObject(array $branch): bool
+    {
+        if (!is_string($branch['$ref'] ?? null)) {
+            return false;
+        }
+        try {
+            $target = SchemaReferences::raw(['$ref' => $branch['$ref']], $this->document);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+        return is_string($target['type'] ?? null) && $target['type'] !== 'object' && !isset($target['properties']);
+    }
+
+    /**
+     * Whether the `type` beside a `oneOf`/`anyOf` is what every branch already is (the branch itself or the schema its reference
+     * reaches). One branch that differs, has no type or cannot be resolved makes it a contradiction or a new assertion, not a repetition.
+     *
+     * @param array<mixed> $raw
+     */
+    /**
+     * Whether every branch of a union declares all these property names, itself or through the `allOf` it extends.
+     *
+     * @param array<int, string|int> $names
+     */
+    private function branchesDeclare(mixed $branches, array $names): bool
+    {
+        if (!is_array($branches) || !array_is_list($branches) || $branches === [] || $names === []) {
+            return false;
+        }
+        foreach ($branches as $branch) {
+            $declared = $this->declaredProperties($branch, 0);
+            if ($declared === null || array_diff(array_map('strval', $names), $declared) !== []) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** @return list<string>|null The property names a schema declares, through references and allOf; null when it cannot be told. */
+    private function declaredProperties(mixed $schema, int $depth): ?array
+    {
+        if (!is_array($schema) || $depth > 8) {
+            return null;
+        }
+        if (isset($schema['$ref'])) {
+            try { $schema = SchemaReferences::raw(['$ref' => $schema['$ref']], $this->document); }
+            catch (InvalidArgumentException|\TypeError) { return null; }
+        }
+        $names = array_map('strval', array_keys(is_array($schema['properties'] ?? null) ? $schema['properties'] : []));
+        foreach ($schema['allOf'] ?? [] as $part) {
+            $inner = $this->declaredProperties($part, $depth + 1);
+            if ($inner === null) {
+                return null;
+            }
+            $names = [...$names, ...$inner];
+        }
+        return array_values(array_unique($names));
+    }
+
+    /** Whether every model the discriminator maps to extends this schema through its `allOf`. */
+    private function mappingExtends(array $raw): bool
+    {
+        foreach ($raw['discriminator']['mapping'] as $target) {
+            if (!is_string($target)) {
+                return false;
+            }
+            $reference = str_starts_with($target, '#') ? $target : '#/components/schemas/' . $target;
+            try { $subtype = SchemaReferences::raw(['$ref' => $reference], $this->document); }
+            catch (InvalidArgumentException|\TypeError) { return false; }
+            $extends = false;
+            foreach ($subtype['allOf'] ?? [] as $parent) {
+                if (!is_array($parent) || !is_string($parent['$ref'] ?? null)) {
+                    continue;
+                }
+                try { $base = SchemaReferences::raw(['$ref' => $parent['$ref']], $this->document); }
+                catch (InvalidArgumentException|\TypeError) { continue; }
+                if ($base == $raw) {
+                    $extends = true;
+                }
+            }
+            if (!$extends) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Whether every branch of the union is a reference to a model that extends, through its `allOf`, this very schema. */
+    private function listsItsSubtypes(array $raw, string $union): bool
+    {
+        $branches = $raw[$union];
+        if (!is_array($branches) || !array_is_list($branches) || $branches === []) {
+            return false;
+        }
+        $self = array_diff_key($raw, [$union => true]);
+        foreach ($branches as $branch) {
+            if (!is_array($branch) || !is_string($branch['$ref'] ?? null)) {
+                return false;
+            }
+            try { $subtype = SchemaReferences::raw(['$ref' => $branch['$ref']], $this->document); }
+            catch (InvalidArgumentException|\TypeError) { return false; }
+            $extends = false;
+            foreach ($subtype['allOf'] ?? [] as $parent) {
+                if (!is_array($parent) || !is_string($parent['$ref'] ?? null)) {
+                    continue;
+                }
+                try { $base = SchemaReferences::raw(['$ref' => $parent['$ref']], $this->document); }
+                catch (InvalidArgumentException|\TypeError) { continue; }
+                if (array_diff_key($base, [$union => true]) == $self) {
+                    $extends = true;
+                }
+            }
+            if (!$extends) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private function compositionRepeatsType(array $raw, string $composition): bool
+    {
+        $branches = $raw[$composition] ?? null;
+        if (!is_string($raw['type'] ?? null) || !is_array($branches) || !array_is_list($branches) || $branches === []) {
+            return false;
+        }
+        foreach ($branches as $branch) {
+            if (!is_array($branch)) {
+                return false;
+            }
+            try {
+                $resolved = is_string($branch['$ref'] ?? null) ? SchemaReferences::raw(['$ref' => $branch['$ref']], $this->document) : $branch;
+            } catch (InvalidArgumentException) {
+                return false;
+            }
+            if (($resolved['type'] ?? null) !== $raw['type']) {
+                // A branch that does not say its type but is built like an object (properties, or a composition) is one.
+                $objectLike = $raw['type'] === 'object' && is_string($branch['$ref'] ?? null) && !isset($resolved['type'])
+                    && array_intersect(['properties', 'allOf', 'oneOf', 'anyOf'], array_keys($resolved)) !== [];
+                if (!$objectLike) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Whether the `type` or `format` beside a `$ref` says what the schema the reference reaches (through any alias chain) already
+     * says, so it asserts nothing new. A type set, a missing keyword or an unresolvable reference is not a repetition. A width hint
+     * (`float`, `int64`...) beside a reference to a number or an integer is not either, but no SDK checks it, so it is read as one.
+     *
+     * @param array<mixed> $raw
+     */
+    private function repeatsReferenced(array $raw, string $keyword): bool
+    {
+        if (!in_array($keyword, ['type', 'format'], true) || !is_string($raw[$keyword] ?? null) || !is_string($raw['$ref'] ?? null)) {
+            return false;
+        }
+        try {
+            $target = SchemaReferences::raw(['$ref' => $raw['$ref']], $this->document);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+        if (($target[$keyword] ?? null) === $raw[$keyword]) {
+            return true;
+        }
+        return $keyword === 'format'
+            && in_array($raw['format'], self::NUMERIC_WIDTH_HINTS, true)
+            && in_array($target['type'] ?? null, ['integer', 'number'], true);
     }
 
     /**
@@ -923,7 +1298,15 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException("Schema must be an object at $where.");
         }
 
-        $metadata = array_filter($raw, static fn ($key): bool => in_array($key, ['example', 'examples', 'deprecated', 'externalDocs', 'xml', '$comment'], true) || (str_starts_with((string) $key, 'x-') && $key !== 'x-nullable'), ARRAY_FILTER_USE_KEY);
+        // Annotations are kept and never interpreted: `summary` beside a reference (OpenAPI 3.1 Reference Object), and in a 3.1 schema
+        // any keyword JSON Schema 2020-12 does not define, which that dialect reads as an annotation. A keyword that means something
+        // and that this generator cannot execute (`contentEncoding`, `$defs`, ...) is not among them and is still refused.
+        $metadata = array_filter($raw, fn ($key): bool => in_array($key, ['example', 'examples', 'deprecated', 'externalDocs', 'xml', '$comment'], true)
+            || (str_starts_with((string) $key, 'x-') && $key !== 'x-nullable')
+            || ($key === 'summary' && isset($raw['$ref']))
+            || ($this->jsonSchema31 && in_array($key, self::CONTENT_VOCABULARY, true))
+            || ($this->jsonSchema31 && is_string($key) && !in_array($key, self::SCHEMA_KEYWORDS, true) && !in_array($key, self::UNSUPPORTED_VOCABULARY, true)),
+            ARRAY_FILTER_USE_KEY);
         if ($metadata !== []) {
             if (array_key_exists('deprecated', $metadata) && !is_bool($metadata['deprecated'])) {
                 throw new InvalidArgumentException("Invalid schema deprecated flag at $where.");
@@ -944,22 +1327,144 @@ final class SpecificationNormalizer
             return $this->schema($folded, $dialect, $where);
         }
 
-        $wrapped = self::referenceWrapper($raw);
+        $wrapped = $this->referenceWrapper($raw);
         if ($wrapped !== null) {
             return $this->schema($wrapped, $dialect, $where);
         }
 
+        // A `oneOf` of scalars of different JSON types (GoCardless's `limit`: integer or string) cannot match two branches: it is the
+        // plain union, which is how it is executed.
+        if (isset($raw['oneOf']) && is_array($raw['oneOf']) && array_is_list($raw['oneOf']) && count($raw['oneOf']) > 1
+            && count(array_intersect(['anyOf', 'allOf'], array_keys($raw))) === 0) {
+            $types = [];
+            foreach ($raw['oneOf'] as $branch) {
+                $type = is_array($branch) && !isset($branch['enum']) && array_diff(array_keys($branch), ['type', 'description', 'title', 'example', 'format']) === []
+                    ? ($branch['type'] ?? null) : null;
+                if (!is_string($type) || !in_array($type, ['string', 'integer', 'number', 'boolean'], true)) { $types = null; break; }
+                $types[] = $type;
+            }
+            if ($types !== null && count(array_unique($types)) === count($types)
+                && !(in_array('integer', $types, true) && in_array('number', $types, true))) {
+                $raw['anyOf'] = $raw['oneOf'];
+                unset($raw['oneOf']);
+            }
+        }
+
+        // An allOf of one inline schema and branches that only annotate (GoCardless's refund `mandate`: a string, then a description)
+        // is that schema with the annotations; the last description wins.
+        if (isset($raw['allOf']) && is_array($raw['allOf']) && array_is_list($raw['allOf']) && count($raw['allOf']) > 1
+            && count(array_intersect(['anyOf', 'oneOf'], array_keys($raw))) === 0) {
+            $annotationKeys = ['description', 'title', 'example', 'examples', 'deprecated', 'externalDocs'];
+            $substantive = array_values(array_filter($raw['allOf'], static fn ($branch): bool => !is_array($branch)
+                || array_diff(array_keys($branch), $annotationKeys) !== [] && array_filter(array_keys($branch), static fn ($k): bool => !str_starts_with((string) $k, 'x-') && !in_array($k, $annotationKeys, true)) !== []));
+            if (count($substantive) === 1 && is_array($substantive[0]) && !isset($substantive[0]['$ref'])) {
+                $notes = [];
+                foreach ($raw['allOf'] as $branch) {
+                    if ($branch !== $substantive[0]) { $notes = array_replace($notes, $branch); }
+                }
+                $rest = array_diff_key($raw, ['allOf' => true]);
+                return $this->schema(array_replace($substantive[0], $notes, $rest), $dialect, $where);
+            }
+        }
+
+        // `type: null` beside an `allOf` of one reference (Infobip writes it for "this model, or null") cannot match anything as
+        // written; what it means is the nullable reference.
+        if (($raw['type'] ?? null) === 'null' && isset($raw['allOf']) && is_array($raw['allOf']) && count($raw['allOf']) === 1) {
+            if (!$this->repair) { throw new InvalidArgumentException("A null type beside allOf matches nothing at $where."); }
+            $this->repairs[] = ['where' => $where, 'message' => 'type: null beside allOf matches nothing: it was read as a nullable reference.'];
+            $raw = array_diff_key($raw, ['type' => true]) + ['nullable' => true];
+        }
+
+        // An object that declares its own `properties` and also `allOf` (Mailjet's `NewApikey`) is the conjunction of both: the own
+        // properties are one more branch of the allOf, after the others.
+        if (isset($raw['allOf']) && is_array($raw['allOf']) && array_is_list($raw['allOf'])
+            && count(array_intersect(['anyOf', 'oneOf'], array_keys($raw))) === 0
+            && (isset($raw['properties']) || isset($raw['required'])) && in_array($raw['type'] ?? 'object', ['object'], true)
+            && is_array($raw['properties'] ?? [])) {
+            $own = ['type' => 'object'] + array_intersect_key($raw, array_flip(['properties', 'required', 'additionalProperties']));
+            $raw = array_diff_key($raw, array_flip(['type', 'properties', 'required', 'additionalProperties']));
+            $raw['allOf'][] = $own;
+        }
+
+        // A discriminator whose mapping points at models that do not extend this one (Infobip's `Component`, mapped to standalone
+        // `Box`, `Text`...) selects nothing this SDK can build by inheritance: repaired by dropping the discriminator.
+        if ($this->repair && isset($raw['discriminator']['mapping'], $raw['properties']) && is_array($raw['discriminator']['mapping'])
+            && count(array_intersect(['allOf', 'oneOf', 'anyOf'], array_keys($raw))) === 0
+            && !$this->mappingExtends($raw)) {
+            if (!$this->repair) { throw new InvalidArgumentException("The discriminator mapping targets models that do not extend this one at $where."); }
+            $this->repairs[] = ['where' => $where, 'message' => 'The discriminator maps to models that do not extend this one: it was dropped.'];
+            unset($raw['discriminator']);
+        }
+
+        // A base model that lists, in `oneOf`, the models that extend it (Infobip's `CampaignBuilderRequest`: properties, a discriminator
+        // and a oneOf of subtypes whose `allOf` points back to it) is the base of a discriminated hierarchy; the list repeats it.
+        foreach (['oneOf', 'anyOf'] as $union) {
+            if (isset($raw['discriminator'], $raw['properties'], $raw[$union]) && $this->listsItsSubtypes($raw, $union)) {
+                unset($raw[$union]);
+            }
+        }
+
+        // `properties` (and `required`) beside a union whose every branch already declares those properties say nothing the branches
+        // do not (Infobip's `LineOaOutboundMessagePart`): the bare union.
+        foreach (['oneOf', 'anyOf'] as $union) {
+            if (isset($raw[$union], $raw['properties']) && count(array_intersect(['allOf', 'oneOf', 'anyOf'], array_keys($raw))) === 1
+                && $this->branchesDeclare($raw[$union], array_keys(is_array($raw['properties']) ? $raw['properties'] : []))) {
+                $raw = array_diff_key($raw, array_flip(['properties', 'required']));
+                if (($raw['type'] ?? null) === 'object') { unset($raw['type']); }
+            }
+        }
+
+        $single = self::singleBranchReference($raw);
+        if ($single !== null) {
+            return $this->schema($single, $dialect, $where);
+        }
+
         $compositionKeywords = array_values(array_intersect(['allOf', 'oneOf', 'anyOf'], array_keys($raw)));
         if ($this->jsonSchema31 && $compositionKeywords !== []) {
-            $siblings = array_diff(array_keys($raw), [...$compositionKeywords, 'title', 'description', 'discriminator', 'readOnly', 'writeOnly']);
+            $siblings = array_values(array_diff(array_keys($raw), [...$compositionKeywords, 'title', 'description', 'discriminator', 'readOnly', 'writeOnly', 'nullable']));
+            // `type: object` beside a oneOf/anyOf whose every branch is an object says nothing the branches do not: the bare union.
+            if ($siblings === ['type'] && count($compositionKeywords) === 1 && $compositionKeywords[0] !== 'allOf'
+                && $this->compositionRepeatsType($raw, $compositionKeywords[0])) {
+                unset($raw['type']);
+                $siblings = [];
+            }
             $nonObjectAllOf = isset($raw['allOf']) && is_array($raw['allOf'])
                 && count(array_filter($raw['allOf'], static fn ($branch): bool => !DeclarativeSchemaRules::objectBranch($branch))) > 0;
+            // `type: object` beside an allOf of objects (Trustpilot's `PrivateReview`) repeats what the branches already say.
+            // Limits (`minLength: 1`) beside an allOf of a single reference say what the referenced schema already says or less
+            // (Infobip's `EventFieldResource.type`): when asked to repair, they are dropped.
+            if ($this->repair && $siblings !== [] && $compositionKeywords === ['allOf'] && is_array($raw['allOf']) && count($raw['allOf']) === 1
+                && is_array($raw['allOf'][0] ?? null) && isset($raw['allOf'][0]['$ref'])
+                && array_diff($siblings, ['minLength', 'maxLength', 'minimum', 'maximum', 'minItems', 'maxItems', 'pattern', 'multipleOf', 'uniqueItems', 'minProperties', 'maxProperties']) === []) {
+                $this->repairs[] = ['where' => $where, 'message' => 'Limits (' . implode(', ', $siblings) . ') beside an allOf of one reference were ignored.'];
+                $raw = array_diff_key($raw, array_flip($siblings));
+                $siblings = [];
+            }
+            // The same for `type: string` beside an allOf of a single reference to a string (Infobip's `grant_type`).
+            if ($siblings === ['type'] && $compositionKeywords === ['allOf'] && is_string($raw['type'] ?? null) && $raw['type'] !== 'object'
+                && is_array($raw['allOf']) && count($raw['allOf']) === 1 && is_array($raw['allOf'][0] ?? null) && is_string($raw['allOf'][0]['$ref'] ?? null)) {
+                try { $target = SchemaReferences::raw(['$ref' => $raw['allOf'][0]['$ref']], $this->document); }
+                catch (InvalidArgumentException|\TypeError) { $target = []; }
+                if (($target['type'] ?? null) === $raw['type']) {
+                    unset($raw['type']);
+                    return $this->schema($raw, $dialect, $where); // Read again: it is now an allOf of one reference.
+                }
+            }
+            if ($siblings === ['type'] && $compositionKeywords === ['allOf'] && ($raw['type'] ?? null) === 'object' && !$nonObjectAllOf) {
+                unset($raw['type']);
+                $siblings = [];
+            }
             if (count($compositionKeywords) > 1 || $siblings !== [] || $nonObjectAllOf) {
                 return DeclarativeSchemaRules::native($raw, $where);
             }
         }
 
-        $declarative = DeclarativeSchemaRules::extract($raw, $this->jsonSchema31, $where);
+        $declarative = DeclarativeSchemaRules::extract(
+            $raw,
+            $this->jsonSchema31,
+            $where,
+            fn (string $reference): array => SchemaReferences::raw(['$ref' => $reference], $this->document),
+        );
         if ($declarative !== null) {
             [$structural, $guard] = $declarative;
             $schema = $this->schema($structural, $dialect, $where);
@@ -1075,9 +1580,17 @@ final class SpecificationNormalizer
                 throw new InvalidArgumentException("Only one composition keyword is supported at $where.");
             }
             $composition = $compositionKeys[0];
-            $siblings = array_diff(array_keys($raw), [$composition, 'description', 'title', 'discriminator', 'readOnly', 'writeOnly']);
+            $siblings = array_values(array_diff(array_keys($raw), [$composition, 'description', 'title', 'discriminator', 'readOnly', 'writeOnly', 'nullable']));
+            if ($siblings === ['type'] && $composition !== 'allOf' && $this->compositionRepeatsType($raw, $composition)) {
+                $siblings = [];
+            }
             if ($siblings !== []) {
-                throw new InvalidArgumentException("Composition siblings are not supported at $where.");
+                if (!$this->repair) { throw new InvalidArgumentException("Composition siblings are not supported at $where."); }
+                $this->repairs[] = ['where' => $where, 'message' => 'Keywords beside ' . $composition . ' (' . implode(', ', $siblings) . ') are not executed with it: they were ignored.'];
+                $raw = array_diff_key($raw, array_flip($siblings));
+            }
+            if (isset($raw['nullable']) && !is_bool($raw['nullable'])) {
+                throw new InvalidArgumentException("Invalid nullable value at $where.");
             }
             $branches = $raw[$composition];
             if (!is_array($branches) || !array_is_list($branches) || $branches === []) {
@@ -1091,6 +1604,7 @@ final class SpecificationNormalizer
                 description: $raw['description'] ?? null,
                 readOnly: $raw['readOnly'] ?? false,
                 writeOnly: $raw['writeOnly'] ?? false,
+                nullable: ($raw['nullable'] ?? false) === true,
                 branches: array_map(
                     fn (mixed $branch, int $index): SchemaDefinition =>
                         $this->schema($branch, $dialect, "$where.$composition.$index"),
@@ -1103,8 +1617,23 @@ final class SpecificationNormalizer
         if (isset($raw['$ref'])) {
             // readOnly and writeOnly beside a $ref are the usual way Swagger tooling marks a model-typed property;
             // the property reads them from its own node, so the reference only has to tolerate them.
-            if (count(array_diff(array_keys($raw), ['$ref', 'description', 'title', 'readOnly', 'writeOnly', 'default'])) > 0) {
+            $siblings = array_values(array_diff(array_keys($raw), ['$ref', 'description', 'title', 'readOnly', 'writeOnly', 'default', 'nullable']));
+            // OpenAPI 3.1 documents write `{$ref: Status, type: string}`; a `type` or `format` that repeats what the referenced
+            // schema says (or a width hint such as `float`) asserts nothing new. Any other sibling could change the meaning and
+            // stays refused.
+            $siblings = array_values(array_filter($siblings, fn (string $keyword): bool => !$this->repeatsReferenced($raw, $keyword)));
+            // `{$ref: Recipient, required: [Email]}` asks for the referenced model and, besides, that these fields be present:
+            // the referenced model extended by an object that requires them.
+            if ($siblings === ['required'] && is_array($raw['required']) && array_is_list($raw['required'])
+                && array_filter($raw['required'], static fn ($name): bool => !is_string($name)) === []) {
+                $annotations = array_diff_key($raw, ['$ref' => true, 'required' => true]);
+                return $this->schema($annotations + ['allOf' => [['$ref' => $raw['$ref']], ['type' => 'object', 'required' => $raw['required']]]], $dialect, $where);
+            }
+            if ($siblings !== []) {
                 throw new InvalidArgumentException("Reference siblings are not supported at $where.");
+            }
+            if (isset($raw['nullable']) && !is_bool($raw['nullable'])) {
+                throw new InvalidArgumentException("Invalid nullable value at $where.");
             }
             foreach (['readOnly', 'writeOnly'] as $flag) {
                 if (isset($raw[$flag]) && !is_bool($raw[$flag])) {
@@ -1114,7 +1643,17 @@ final class SpecificationNormalizer
             $reference = $raw['$ref'];
             if (!is_string($reference)) { throw new InvalidArgumentException("Invalid model reference at $where."); }
             try { $name = SchemaReferences::localName($reference, $dialect); }
-            catch (InvalidArgumentException $error) { throw new InvalidArgumentException("Unsupported model reference at $where: " . $error->getMessage(), 0, $error); }
+            catch (InvalidArgumentException $error) {
+                // A reference into the inside of a model (`#/components/schemas/Query/properties/Id`) is that schema, read in place.
+                if (preg_match('~^#/(components/schemas|definitions)/[^/]+/~', $reference) === 1 && !isset($this->inlining[$reference]) && count($this->inlining) < 32) {
+                    $target = \Dmorenof\SdkGenerator\Diagnostics\JsonPointer::resolve($this->document, $reference);
+                    if (is_array($target)) {
+                        $this->inlining[$reference] = true;
+                        try { return $this->schema(array_diff_key($raw, ['$ref' => true]) + $target, $dialect, $where); }
+                        finally { unset($this->inlining[$reference]); }
+                    }
+                }
+                throw new InvalidArgumentException("Unsupported model reference at $where: " . $error->getMessage(), 0, $error); }
             return new SchemaDefinition(
                 SchemaKind::Reference,
                 reference: $name,
@@ -1124,6 +1663,7 @@ final class SpecificationNormalizer
                 description: $raw['description'] ?? null,
                 default: $raw['default'] ?? null,
                 hasDefault: array_key_exists('default', $raw),
+                nullable: ($raw['nullable'] ?? false) === true,
             );
         }
 
@@ -1161,12 +1701,16 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException("Invalid schema pattern at $where.");
         }
         if (isset($raw['pattern'])) {
+            // JSON Schema patterns are ECMA-262: a code unit is `\u0080` there and `\x{0080}` in PCRE, which the SDK runs.
+            $raw['pattern'] = EcmaPattern::toPcre($raw['pattern']);
             $regex = '~' . str_replace('~', '\\~', $raw['pattern']) . '~u';
             if (@preg_match($regex, '') === false) {
                 throw new InvalidArgumentException("Unsupported or invalid schema pattern at $where.");
             }
             if (!in_array($kind, [SchemaKind::String, SchemaKind::Mixed], true)) {
-                throw new InvalidArgumentException("Constraint pattern is not applicable to $kind->value at $where.");
+                if (!$this->repair) { throw new InvalidArgumentException("Constraint pattern is not applicable to $kind->value at $where."); }
+                $this->repairs[] = ['where' => $where, 'message' => "The constraint pattern does not apply to $kind->value: it was ignored."];
+                unset($raw['pattern']);
             }
         }
         if (isset($raw['readOnly']) && !is_bool($raw['readOnly'])) {
@@ -1212,6 +1756,11 @@ final class SpecificationNormalizer
             }
         } elseif ($kind === SchemaKind::Array) {
             if ($this->jsonSchema31 && !array_key_exists('items', $raw)) { $raw['items'] = true; }
+            // OpenAPI 3.0 requires `items` on an array, but a contract that leaves it out (GoCardless's `ids`) means a list of anything.
+            if ($this->repair && !array_key_exists('items', $raw)) {
+                $this->repairs[] = ['where' => $where, 'message' => 'An array without items was read as a list of any value.'];
+                $raw['items'] = [];
+            }
             if (!is_array($raw['items'] ?? null) && !($this->jsonSchema31 && is_bool($raw['items'] ?? null))) {
                 throw new InvalidArgumentException("Array items are missing at $where.");
             }
@@ -1223,6 +1772,13 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException("Invalid enum at $where.");
         }
         usort($enumValues, static fn ($a, $b): int => strcmp(json_encode($a), json_encode($b)));
+        // A value listed twice is one value (Infobip lists `CARD` twice, and PHP refuses an enum with the same value in two cases).
+        $distinct = [];
+        foreach ($enumValues as $value) { $distinct[json_encode($value)] = $value; }
+        if (count($distinct) !== count($enumValues)) {
+            $this->repairs[] = ['where' => $where, 'message' => 'An enum lists a value more than once: the duplicates were dropped.'];
+            $enumValues = array_values($distinct);
+        }
         // A null among the values means the field may be null; the other values can still be a backed enum.
         $enumHasNull = in_array(null, $enumValues, true);
         $enumCandidates = array_values(array_filter($enumValues, static fn ($value): bool => $value !== null));
@@ -1256,7 +1812,10 @@ final class SpecificationNormalizer
             $applies = $kind === $expected
                 || (in_array($rule, ['minimum', 'maximum', 'multipleOf'], true) && in_array($kind, [SchemaKind::Number, SchemaKind::Integer], true));
             if (!$applies) {
-                throw new InvalidArgumentException("Constraint $rule is not applicable to $kind->value at $where.");
+                // JSON Schema ignores a constraint on a type it does not constrain (`minLength` on an array): repaired, not refused.
+                if (!$this->repair) { throw new InvalidArgumentException("Constraint $rule is not applicable to $kind->value at $where."); }
+                $this->repairs[] = ['where' => $where, 'message' => "The constraint $rule does not apply to $kind->value: it was ignored."];
+                continue;
             }
             $numeric = in_array($rule, ['minimum', 'maximum', 'multipleOf'], true);
             if ($numeric ? (!is_int($value) && !is_float($value))

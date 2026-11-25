@@ -21,7 +21,7 @@ final class PhpContractEmitter
 {
     /** Namespace of the shared runtime that generated SDKs build on. */
     public const RUNTIME_NAMESPACE = 'Dmorenof\\SdkRuntime';
-    public const RUNTIME_CONSTRAINT = '^1.12.0';
+    public const RUNTIME_CONSTRAINT = '^1.13.0';
     private ?PhpModelNameResolver $modelNames = null;
     /** @var array<string, ModelDefinition> */
     private array $modelDefinitions = [];
@@ -47,6 +47,27 @@ final class PhpContractEmitter
     private array $operationParameterTypes = [];
     /** @var array<string,array<string,array<string,string>>> Operation ID / location / wire name => enum type of a scalar parameter. */
     private array $operationParameterEnums = [];
+    /** @var array<string, string> Class name of a union => the union that first used it for naming its branches. */
+    private array $branchHintOwners = [];
+    /** Whether the contract was read in repair mode: what cannot be honored (a discriminator) is left out instead of refused. */
+    private bool $repairing = false;
+    /** @var list<array{where: string, message: string}> What the emitter left out or chose when repairing. */
+    private array $repairNotes = [];
+
+    /**
+     * What the last emission repaired (only for a contract read in repair mode): each thing it could not honor and what it did.
+     *
+     * @return list<array{where: string, message: string}>
+     */
+    public function repairs(): array
+    {
+        return [...$this->repairNotes, ...array_map(
+            static fn (string $name, array $d): array => ['where' => $name, 'message' => "Another schema has the same class name but for case: this one is called {$d['to']}."],
+            array_keys($this->modelNames->disambiguated()), $this->modelNames->disambiguated(),
+        )];
+    }
+    /** @var array<string, string> Route, location, parameter, backing type and values of an enum parameter => its type, so an identical one is shared. */
+    private array $routeParameterEnums = [];
     /** @var array<string, string> Collection item type and rules => generated FQCN. */
     private array $collectionTypes = [];
     /** @var array<int,true> Body schema identities requiring native multipart file lists. */
@@ -85,7 +106,9 @@ final class PhpContractEmitter
     {
         $files = [];
         $roles = self::modelRolesFor($contract);
-        $this->modelNames = new PhpModelNameResolver($this->namespace, $contract->models, $roles);
+        $this->repairing = ($contract->annotations['x-sdk-repair'] ?? false) === true;
+        $this->repairNotes = [];
+        $this->modelNames = new PhpModelNameResolver($this->namespace, $contract->models, $roles, $this->repairing);
         $this->modelDefinitions = [];
         $this->operationSuccessTypes = [];
         $this->operationErrorTypes = [];
@@ -93,9 +116,11 @@ final class PhpContractEmitter
         $this->errorShapeUses = [];
         $this->sharedErrorTypes = [];
         $this->sharedErrorVariants = [];
+        $this->branchHintOwners = [];
         $this->operationBodyTypes = [];
         $this->operationParameterTypes = [];
         $this->operationParameterEnums = [];
+        $this->routeParameterEnums = [];
         $this->collectionTypes = [];
         foreach ($contract->models as $model) {
             $this->modelDefinitions[$model->name] = $model;
@@ -123,7 +148,7 @@ final class PhpContractEmitter
         foreach ($contract->models as $model) {
             if ($model->schema->kind === SchemaKind::Reference) { continue; }
             $key = strtolower($model->name);
-            if (isset($names[$key])) {
+            if (isset($names[$key]) && !$this->repairing) {
                 throw new InvalidArgumentException("Duplicate PHP model name: $model->name");
             }
             $names[$key] = true;
@@ -390,9 +415,9 @@ final class PhpContractEmitter
             // The runtime reads REQUIRED_FIELDS from the model when it declares them; an empty list is the default.
             // A subclass keeps its own, because an empty one overrides what its parent requires.
             . ($required === [] && $parent === null ? '' : "    public const array REQUIRED_FIELDS = " . PhpLiteral::export($required) . ";\n\n");
-        if ($schema->discriminator !== null) {
-            $mapping = $this->discriminatorMapping($schema, $hint);
-            $source .= "    public const string DISCRIMINATOR_BASE = self::class;\n"
+        $mapping = $schema->discriminator !== null ? $this->discriminatorOrNull($schema, $hint) : null;
+        if ($mapping !== null && $schema->discriminator !== null) {
+            $source .="    public const string DISCRIMINATOR_BASE = self::class;\n"
                 . "    public const string DISCRIMINATOR_PROPERTY = " . PhpLiteral::export($schema->discriminator->propertyName) . ";\n"
                 . "    public const array DISCRIMINATOR_MAPPING = " . PhpLiteral::export($mapping) . ";\n\n";
         }
@@ -803,11 +828,14 @@ final class PhpContractEmitter
         }
         $class = substr($fqcn, strrpos($fqcn, '\\') + 1);
         $namespace = substr($fqcn, 1, strrpos($fqcn, '\\') - 1);
+        // Two unions of the same class name in different namespaces (the second is placed apart when the first owns the name) would
+        // give their branches the same hint, and with it the same class: the later union's hint carries its namespace.
+        $stem = ($this->branchHintOwners[$class] ??= $fqcn) === $fqcn ? $class : trim(str_replace('\\', '.', $fqcn), '.');
         $types = [];
         foreach ($schema->branches as $index => $branch) {
             $type = $branch->kind === SchemaKind::Null
                 ? 'null'
-                : $this->typeFor($branch, $class . 'Variant' . ($index + 1), $files, $baseClass);
+                : $this->typeFor($branch, $stem . 'Variant' . ($index + 1), $files, $baseClass);
             $types[] = str_starts_with($type, '\\')
                 ? $type . '::class'
                 : var_export($type, true);
@@ -832,9 +860,10 @@ final class PhpContractEmitter
             . '    protected const array TYPES = [' . implode(', ', $types) . "];\n"
             . '    protected const array BRANCH_SCHEMAS = ' . PhpLiteral::export($branches) . ";\n"
             . '    protected const array SCHEMA_DEFINITIONS = ' . PhpLiteral::export($definitions) . ";\n";
-        if ($schema->discriminator !== null) {
+        $unionMapping = $schema->discriminator !== null ? $this->discriminatorOrNull($schema, $fqcn) : null;
+        if ($unionMapping !== null && $schema->discriminator !== null) {
             $source .= "    protected const string DISCRIMINATOR_PROPERTY = " . PhpLiteral::export($schema->discriminator->propertyName) . ";\n"
-                . "    protected const array DISCRIMINATOR_MAPPING = " . PhpLiteral::export($this->discriminatorMapping($schema, $fqcn)) . ";\n";
+                . "    protected const array DISCRIMINATOR_MAPPING = " . PhpLiteral::export($unionMapping) . ";\n";
         }
         return $source . "}\n";
     }
@@ -886,6 +915,22 @@ final class PhpContractEmitter
         return $node;
     }
 
+    /**
+     * The discriminator mapping, or null when the document is being repaired and the mapping cannot be honored (the model is then
+     * generated without its tag dispatch: a plain model, or a union that tries its branches).
+     *
+     * @return array<string, string>|null
+     */
+    private function discriminatorOrNull(SchemaDefinition $schema, string $where): ?array
+    {
+        try { return $this->discriminatorMapping($schema, $where); }
+        catch (InvalidArgumentException $error) {
+            if (!$this->repairing) { throw $error; }
+            $this->repairNotes[] = ['where' => $where, 'message' => 'The discriminator cannot be honored (' . $error->getMessage() . '): it was left out.'];
+            return null;
+        }
+    }
+
     /** @return array<string, string> Discriminator values to generated class names. */
     private function discriminatorMapping(SchemaDefinition $schema, string $where): array
     {
@@ -906,7 +951,10 @@ final class PhpContractEmitter
                         $tagProperty = $property->schema;
                     }
                 }
-                if ($targetSchema->kind !== SchemaKind::Object || $tagProperty?->kind !== SchemaKind::String) {
+                // The tag is a string, whether written as one or as a reference to a string enum (an enum of one value fixes it).
+                $tagKind = $tagProperty === null ? null
+                    : \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($tagProperty, array_values($this->modelDefinitions))->kind;
+                if ($targetSchema->kind !== SchemaKind::Object || $tagKind !== SchemaKind::String) {
                     throw new InvalidArgumentException("Discriminator branches must declare a string tag property at $where.");
                 }
                 $candidates[] = $branch->reference;
@@ -928,8 +976,11 @@ final class PhpContractEmitter
             foreach ($schema->properties as $property) {
                 $properties[$property->wireName] = $property->schema;
             }
-            if (!isset($properties[$discriminator->propertyName])
-                || $properties[$discriminator->propertyName]->kind !== SchemaKind::String) {
+            // The tag may be a reference to a string enum (`type: {$ref: ActionType}`), which is a string tag.
+            $tagKind = isset($properties[$discriminator->propertyName])
+                ? \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($properties[$discriminator->propertyName], array_values($this->modelDefinitions))->kind
+                : null;
+            if ($tagKind !== SchemaKind::String) {
                 throw new InvalidArgumentException("Discriminator property must be a declared string at $where.");
             }
         }
@@ -975,6 +1026,12 @@ final class PhpContractEmitter
         return false;
     }
 
+    /** The schema without its documentation (title, description, annotations): two declarations that differ only there agree. */
+    private static function withoutNotes(SchemaDefinition $schema): SchemaDefinition
+    {
+        return new SchemaDefinition(...array_replace(get_object_vars($schema), ['title' => null, 'description' => null, 'annotations' => []]));
+    }
+
     /** Bounded scalar enum intersection; the inherited PHP property keeps its original type. */
     private function refineProperty(SchemaDefinition $left, SchemaDefinition $right, string $where, string $name): SchemaDefinition
     {
@@ -984,11 +1041,68 @@ final class PhpContractEmitter
             $this->flattened[$where] = true;
             return $right;
         }
-        $a = get_object_vars($left);
-        $b = get_object_vars($right);
+        // A property that the extension re-declares as a model that extends the model the base declared (`action`: `VoiceActionDetails`
+        // in the base, `PlainVoiceActionDetails` in the extension) is the narrower model, as with lists above.
+        if ($left->kind === SchemaKind::Reference && $right->kind === SchemaKind::Reference && $left->nullable === $right->nullable) {
+            $known = array_values($this->modelDefinitions);
+            $base = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($left, $known);
+            $narrow = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::name($right, $known);
+            if ($base !== null && $narrow !== null) {
+                if ($this->extendsModel($narrow, $base)) { $this->flattened[$where] = true; return $right; }
+                if ($this->extendsModel($base, $narrow)) { $this->flattened[$where] = true; return $left; }
+            }
+        }
+        // allOf asks for both declarations of a property: when one is the bare scalar (`type: string`, or an integer with its
+        // width) and the other the same scalar with limits or a model of that type, the limited one is the intersection.
+        $models = array_values($this->modelDefinitions);
+        try {
+            $l = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($left, $models);
+            $r = \Dmorenof\SdkGenerator\Parsing\SchemaReferences::resolve($right, $models);
+        } catch (InvalidArgumentException) {
+            $l = $r = null;
+        }
+        $scalars = [SchemaKind::String, SchemaKind::Integer, SchemaKind::Number, SchemaKind::Boolean];
+        if ($l !== null && $r !== null && $l->kind === $r->kind && in_array($l->kind, $scalars, true) && $l->nullable === $r->nullable) {
+            $bare = static fn (SchemaDefinition $x): bool => array_diff_key($x->validation, ['format' => true]) === [] && $x->pattern === null && $x->enumValues === [];
+            $width = ['int32', 'int64', 'float', 'double'];
+            $sameFormat = $l->format === $r->format || $l->format === null || $r->format === null
+                || (in_array($l->format, $width, true) && in_array($r->format, $width, true));
+            if ($sameFormat && $bare($l)) { return $right; }
+            if ($sameFormat && $bare($r)) { return $left; }
+        }
+        if ($left->kind === SchemaKind::Object && $right->kind === SchemaKind::Object && $left->enumValues === [] && $right->enumValues === []
+            && $left->nullable === $right->nullable && $left->additionalProperties == $right->additionalProperties
+            && $left->discriminator === null && $right->discriminator === null) {
+            // Two inline objects for one property (a base model's `consumer` and the extension's `consumer` with more fields) are
+            // one object with the fields of both: allOf asks for both, and a field both declare must be declared the same.
+            $merged = [];
+            foreach ($left->properties as $property) { $merged[$property->wireName] = $property; }
+            foreach ($right->properties as $property) {
+                $known = $merged[$property->wireName] ?? null;
+                if ($known !== null && self::withoutNotes($known->schema) != self::withoutNotes($property->schema)) {
+                    throw new InvalidArgumentException("Conflicting allOf property '$name.$property->wireName' at $where");
+                }
+                $merged[$property->wireName] = $known === null ? $property
+                    : new \Dmorenof\SdkGenerator\Contract\PropertyDefinition($property->wireName, $property->schema, $known->required || $property->required);
+            }
+            $this->flattened[$where] = true;
+            return new SchemaDefinition(...array_replace(get_object_vars($left), ['properties' => array_values($merged)]));
+        }
+        $a = get_object_vars(self::withoutNotes($left));
+        $b = get_object_vars(self::withoutNotes($right));
         unset($a['enumValues'], $b['enumValues']);
         if ($a !== $b || !in_array($left->kind, [SchemaKind::String, SchemaKind::Integer], true)) {
+            if ($this->repairing) {
+                // Two declarations that cannot be reconciled (two unrelated models for one property): the extension's stands, as
+                // the most specific one, and the model is flattened so that it does not inherit the other.
+                $this->flattened[$where] = true;
+                $this->repairNotes[] = ['where' => $where, 'message' => "The property '$name' is declared twice in an allOf in ways that cannot be reconciled: the extension's declaration was kept."];
+                return $right;
+            }
             throw new InvalidArgumentException("Conflicting allOf property '$name' at $where");
+        }
+        if ($left->enumValues === [] && $right->enumValues === []) {
+            return $left; // The same declaration twice (only its documentation may differ).
         }
         $values = $left->enumValues === [] ? $right->enumValues
             : ($right->enumValues === [] ? $left->enumValues
@@ -1087,8 +1201,14 @@ final class PhpContractEmitter
             if ($branch->kind === SchemaKind::AllOf) {
                 $branch = $this->expandAllOf($branch, "$where.allOf.$index", $seen);
             }
+            // An extension that also says what its extra fields are (`additionalProperties`) is read, when repairing, by its
+            // declared properties: a model with a fixed shape cannot also be a map.
+            if ($this->repairing && $branch->kind !== SchemaKind::Object) {
+                $this->repairNotes[] = ['where' => "$where.allOf.$index", 'message' => 'An allOf branch that is not an object adds no fields: it was ignored.'];
+                continue; // An allOf branch that is not an object (a string, say) adds no fields to a model.
+            }
             if ($branch->kind !== SchemaKind::Object
-                || ($branch->additionalProperties !== null && $branch->additionalProperties !== false)) {
+                || (!$this->repairing && $branch->additionalProperties !== null && $branch->additionalProperties !== false)) {
                 throw new InvalidArgumentException("Unsupported allOf branch at $where.allOf.$index");
             }
             foreach ($branch->validation as $rule => $limit) {
@@ -1278,7 +1398,7 @@ final class PhpContractEmitter
                     $pathNames[] = $parameter->wireName;
                 }
                 if ($parameter->serialization->allowReserved === true
-                    && ($parameter->location !== 'query' || $parameter->wireName === '')) {
+                    && (($parameter->location !== 'query' && !($parameter->location === 'path' && $this->repairing)) || $parameter->wireName === '')) {
                     throw new InvalidArgumentException('Reserved expansion requires a named OpenAPI query parameter.');
                 }
                 if ($parameter->serialization->allowEmptyValue === true && $parameter->location !== 'query') {
@@ -1325,7 +1445,12 @@ final class PhpContractEmitter
                     if (in_array($base->kind, [SchemaKind::String, SchemaKind::Integer], true) && $base->enumValues !== []) {
                         $segments = PhpRouteNameResolver::resolve($contract)['parameterSegments'][$operation->operationId];
                         $hint = implode('.', [...$segments, ucfirst(strtolower($operation->method)), ucfirst($parameter->location), ucfirst($parameter->wireName)]);
-                        $this->operationParameterEnums[$operation->operationId][$parameter->location][$parameter->wireName] = $this->typeFor($parameter->schema, $hint, $files);
+                        // The operations of one route share the one file of path parameters, so an enum that is identical on that route
+                        // (same parameter, same backing type, same values) is one class, as identical error bodies are: the first
+                        // operation names it, the others use it. A different enum on the same route stays a different class.
+                        $shared = implode('|', [implode('/', $segments), $parameter->location, $parameter->wireName, $base->kind->value, json_encode($base->enumValues, JSON_THROW_ON_ERROR)]);
+                        $this->operationParameterEnums[$operation->operationId][$parameter->location][$parameter->wireName]
+                            = $this->routeParameterEnums[$shared] ??= $this->typeFor($parameter->schema, $hint, $files);
                     }
                 }
             }

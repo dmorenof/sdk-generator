@@ -170,11 +170,11 @@ final class PathItemHeaderReferencesTest extends TestCase
     public function testHeaderSchemaDiagnosticsIncludeTheWholeHttpReferenceChain(): void
     {
         $document = self::document();
-        $document['components']['headers']['Page'] = ['schema' => ['type' => 'integer', 'contentSchema' => ['type' => 'null']]];
+        $document['components']['headers']['Page'] = ['schema' => ['type' => 'integer', 'additionalItems' => ['type' => 'null']]];
         $document['components']['responses']['User/~']['headers'] = ['X-Page' => ['$ref' => '#/components/headers/Page']];
         $issues = self::issues($document, 'unsupported_schema_keyword');
         $issue = array_values(array_filter($issues, static fn ($issue): bool => count($issue->referenceChain) === 5))[0];
-        self::assertSame('/components/headers/Page/schema/contentSchema', $issue->pointer);
+        self::assertSame('/components/headers/Page/schema/additionalItems', $issue->pointer);
         self::assertSame('getUser', $issue->operationId);
         self::assertSame(['#/components/pathItems/ReadAlias', '#/components/pathItems/ReadUser',
             '#/components/responses/ReadAlias', '#/components/responses/User~1~0', '#/components/headers/Page'], $issue->referenceChain);

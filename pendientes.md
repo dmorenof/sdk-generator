@@ -1,6 +1,6 @@
 # Pendientes — sdk-generator
 
-> **Estado (2026-11-23):** publicada la **1.13.0**. En la rama de trabajo, sin publicar, está la **1.14.0** (hooks en las clases de parámetros, clases de error compartidas, a la par del runtime 1.12.0).
+> **Estado (2026-11-25):** publicada la **1.15.0** (cobertura de especificaciones reales: formularios anidados, modo de reparación con aviso, Stripe, uDA, Sendbird, DeepL y otras 10 integraciones; a la par del runtime 1.13.0). La 1.14.0 fue la anterior (hooks en las clases de parámetros, clases de error compartidas).
 >
 > **Qué es este fichero:** lo que **falta**. Lo hecho y publicado está en [CHANGELOG.md](CHANGELOG.md); lo soportado, en [docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md). La auditoría larga de noviembre, ya desfasada, se conserva como [archivo histórico](docs/HISTORICO_AUDITORIA_PENDIENTES.md).
 
@@ -16,10 +16,11 @@ El workflow `Live public APIs` genera un SDK desde la especificación **sin modi
 
 Los puntos que el propio repositorio documenta como límites actuales ([docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md), «Remaining boundaries»):
 
-- [ ] **Referencias:** remotas o dinámicas, ubicaciones arbitrarias de esquema, `$id`/`$anchor`/referencias dinámicas y hermanos de validación generales de un `$ref`. (Se acepta un `default` junto a un `allOf` de una sola rama; otras aserciones junto a un `$ref` se rechazan.)
+- [ ] **Referencias:** remotas o dinámicas, ubicaciones arbitrarias de esquema, `$id`/`$anchor`/referencias dinámicas y hermanos de validación generales de un `$ref`. (Se acepta un `default` junto a un `allOf` de una sola rama y un `type` que repite el del esquema referenciado junto a un `$ref`; otras aserciones —`format`, `nullable`, `enum`, un `type` distinto— se rechazan.)
 - [ ] **Esquemas:** uniones nativas de objeto/array, `allOf` general que no sea de objetos, `not` y vocabularios condicionales generales, `const` complejo.
 - [ ] **Parámetros HTTP:** estructuras anidadas o sin restringir, cookies estructuradas/JSON, cabeceras avanzadas de multipart y comportamiento de `explode`, entradas no seekables.
 - [ ] **Medios:** comodines MIME, negociación entre representaciones incompatibles, modelos XML/CSV estructurados, transcodificación de charsets, errores binarios sin buffer completo.
+- [ ] **Formularios y multipart:** el cuerpo ha de ser un objeto plano; si no dice nada de `additionalProperties` se construye con sus campos declarados, y si lo declara abierto (`true` o un esquema) se rechaza ([docs/FORMS.md](docs/FORMS.md)).
 - [ ] **Cabeceras de respuesta:** los esquemas declarados se conservan pero no se validan ni se exponen en un envoltorio de respuesta tipado.
 - [ ] **Servidores:** variables con nombre y selección dinámica de servidor más allá de lo que expone el runtime.
 
@@ -27,8 +28,31 @@ Y lo que se sabe de la última sesión:
 - [ ] **Listas de parámetros sin hook:** PHP no permite hook en una propiedad que es un array nativo, así que las reglas de una lista de parámetros (`minItems`) no se comprueban al asignar.
 - [ ] **Nombres de las clases de error de varios SDKs ya generados:** quien regenere con la 1.14.0 verá las clases de error idénticas compartidas (`Responses/Errors/Status401Response`); el cambio de nombre está documentado en el CHANGELOG.
 
+## Cobertura medida con especificaciones oficiales
+
+`--inspect` el 2026-11-24, con este cambio. Solo dice si el generador **acepta** el contrato; no que el SDK generado funcione.
+
+| Especificación | Resultado | Bloqueo |
+| --- | --- | --- |
+| Casafari | genera | — |
+| SendGrid (46, una por producto, OpenAPI 3.1) | **46 de 46 se generan** (43 supported, 3 partial por avisos; antes 13); 2.242 ficheros sin error de sintaxis; los 13 eventos de `logs` se hidratan por el `OneOf` | — |
+| DeepL | **genera** (574 ficheros, estricto) | — |
+| Sendbird | **genera** tal como se publica (457 ficheros), con 3 reparaciones avisadas (dos `type` junto a `oneOf`, un parámetro de ruta sin marcador) | — |
+| Stripe | **genera** (13.564 ficheros, estricto; PHPStan max limpio en una muestra) | requiere runtime 1.13.0 |
+| Mailjet, GoCardless, NeutrinoAPI, Marketo, Infobip, Floorfy | **generan** (ver el CHANGELOG): carpetas `mailjet-sdk`, `gocardless-sdk`, `neutrinoapi-sdk`, `marketo-sdk`, `infobip-sdk`, `floorfy-sdk`; PHPStan max limpio | falta probarlos contra el servicio real (necesitan cuenta) |
+| Aplazame (reconstruido de su documentación, leída con el navegador) y Restb.ai (solo lo que muestra el código de su SDK público: su documentación exige login) | **generan** (`aplazame-sdk`, `restb-sdk`); PHPStan max limpio | el contrato de Aplazame deja abiertos la respuesta de `POST /checkout` y los artículos de campaña; el de Restb.ai no conoce los modelos ni sus respuestas |
+| Redsys (reconstruido de sus documentos públicos) | **genera** (50 ficheros; PHPStan max limpio); es solo el contrato REST sin firma: la firma HMAC y la verificación están en `redsys-sdk`, hecho a mano | no se publica como paquete aparte |
+| Trustpilot (apis.io, 2 definiciones, OpenAPI 3.2) | **genera** (66 ficheros; PHPStan max limpio); `trustpilot-sdk/` | la especificación no es oficial: falta contrastarla y probarla con una clave |
+| Catastro (16 operaciones, escrita a mano) | **genera** (74 ficheros; PHPStan max limpio; probado contra el servicio real); `catastro-sdk/` | solo 3 respuestas están tipadas: las demás son JSON sin tipo |
+| uDA | **genera** tal como se publica (61 ficheros), con 24 reparaciones avisadas | un marcador `{url_path}` que debe llevar barras se codifica como un segmento (`%2F`): falta decidir su semántica |
+
+- [ ] Reproducir cada bloqueo con una especificación mínima antes de arreglarlo.
+- [x] **Stripe:** genera (supported, strictly accepted) desde su especificación publicada; necesita el runtime 1.13.0 (serialización anidada). Falta probarlo contra su servidor real (clave de prueba del titular) y medirlo con el workflow de CI de este repositorio.
+- [ ] **uDA:** `{url_path}` es un resto de ruta con barras; codificado como parámetro de ruta se envía con `%2F`. Decidir si un marcador pegado a texto (`asset{url_path}`) admite barras.
+
 ## Historial
 
 | Fecha | Cambio |
 | --- | --- |
+| 2026-11-24 | Se acepta un `type` repetido junto a un `$ref` y se renombran con sufijo las clases cuyo nombre PHP reserva; DeepL y SendGrid (13 → 46 de 46) se generan, Sendbird con su especificación corregida. Se anota la cobertura medida con especificaciones oficiales. |
 | 2026-11-23 | Se archiva la auditoría de noviembre (desfasada) y se reescribe esta hoja de ruta: solo lo pendiente, más la regla de publicación. |

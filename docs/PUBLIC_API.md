@@ -99,6 +99,23 @@ schema referred to elsewhere in the document.
 This naming policy is tested against the 46 Casafari operations and the
 Accounts and Catalog fixtures (Swagger 2.0, OpenAPI 3.0 and 3.1).
 
+### Schema names that PHP reserves
+
+PHP has no class called `Default` or `List`. When the last segment of a schema name is a
+reserved word, its class takes a suffix: the singular of its category folder at the top level
+(`Enums\Default` becomes `Enums\DefaultEnum`, `DTOs\List` becomes `DTOs\ListDTO`), and the singular
+of the folder that holds it below that (`Enums\Assets\Default` becomes `Enums\Assets\DefaultAsset`,
+`Categories` gives `DefaultCategory`; `Status` and `Address` are kept). The singular is the one the
+resource names already use. The rule fixes the suffix, so the same document always gives the same
+names: no number, no hash. A rename
+that lands on the name of another schema is the explicit collision error above. Only the PHP
+class name changes; JSON names and enum values do not.
+
+Every rename is a `renamed_reserved_class` warning at the schema, in `--inspect` and on stderr.
+An alias of a native type (a boolean enum called `Default`) has no class, so nothing is renamed
+or reported. A composition wrapper (`OneOfList`) is already prefixed and keeps its name. A
+folder that is a reserved word is still refused.
+
 
 ## Validation, formatting and external API smoke
 

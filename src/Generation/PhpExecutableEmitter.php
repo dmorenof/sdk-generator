@@ -30,16 +30,31 @@ final class PhpExecutableEmitter
         private readonly array $apiGroups = [],
     ) {}
 
+    /** @var list<array{where: string, message: string}> */
+    private array $repairs = [];
+
+    /**
+     * What the last emission repaired in a contract read in repair mode.
+     *
+     * @return list<array{where: string, message: string}>
+     */
+    public function repairs(): array
+    {
+        return $this->repairs;
+    }
+
     /** @return array<string, string> */
     public function emit(ApiContract $contract): array
     {
         $this->securitySchemes = $contract->securitySchemes;
         $contractEmitter = new PhpContractEmitter($this->namespace, $this->packageName);
         $files = $contractEmitter->emit($contract);
+        $this->repairs = $contractEmitter->repairs();
         $this->modelNames = new PhpModelNameResolver(
             $this->namespace,
             $contract->models,
             PhpContractEmitter::modelRolesFor($contract),
+            ($contract->annotations['x-sdk-repair'] ?? false) === true,
         );
         $this->operationSuccessTypes = $contractEmitter->operationSuccessTypes();
         $this->operationErrorTypes = $contractEmitter->operationErrorTypes();
