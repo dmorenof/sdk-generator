@@ -5,7 +5,7 @@
     "license": "MIT",
     "require": {
         "composer-runtime-api": "^2.2",
-        "dmorenof/sdk-runtime": "^1.12.0",
+        "dmorenof/sdk-runtime": "dev-main as 1.13.0",
         "ext-intl": "*",
         "friendsofphp/php-cs-fixer": "^3.95",
         "php": "^8.4",
@@ -24,6 +24,8 @@
     "config": {
         "sort-packages": true
     },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "scripts": {
         "validate": "@composer validate --strict --no-check-lock"
     },
