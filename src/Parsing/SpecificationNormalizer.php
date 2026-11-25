@@ -41,13 +41,13 @@ final class SpecificationNormalizer
     private const array NUMERIC_WIDTH_HINTS = ['int32', 'int64', 'float', 'double'];
 
     /** @param bool $validateFormats Emit a runtime `format` rule for string and integer schemas, so declared formats are asserted (they are annotations otherwise). */
-    public function __construct(private readonly bool $validateFormats = false, private readonly bool $skipUnsupported = false, private readonly ?string $origin = null, private readonly bool $repair = false) {}
+    public function __construct(private readonly bool $validateFormats = false, private readonly bool $skipUnsupported = false, private readonly ?string $origin = null, private readonly bool $repair = false) { $this->policy = new RepairPolicy($repair); }
 
     /** @var array<string, true> References into the inside of a model being read in place, against loops. */
     private array $inlining = [];
 
-    /** @var list<array{where: string, message: string}> Defects of the document that were repaired instead of refused (only when asked to repair). */
-    private array $repairs = [];
+    /** Defects of the document that are repaired instead of refused (only when asked to repair); see {@see RepairPolicy}. */
+    private RepairPolicy $policy;
 
     /**
      * What the last contract read changed to make a defective document executable, each with where and what was done.
@@ -56,7 +56,7 @@ final class SpecificationNormalizer
      */
     public function repairs(): array
     {
-        return $this->repairs;
+        return $this->policy->notes();
     }
 
     /** @var array<string, string> The operations left out because the generator cannot execute them, with the reason. */
@@ -162,7 +162,7 @@ final class SpecificationNormalizer
         $document = (new LocalObjectResolver($document))->expandOperations();
         $this->document = $document;
         $this->skipped = [];
-        $this->repairs = [];
+        $this->policy = new RepairPolicy($this->repair);
         $info = $document['info'] ?? [];
         $title = $info['title'] ?? null;
         if (!is_string($title) || $title === '') {
@@ -202,7 +202,7 @@ final class SpecificationNormalizer
             throw new InvalidArgumentException('paths must be an object.');
         }
         ksort($paths);
-        if ($this->repair) { $paths = $this->mergeEquivalentPaths($paths); }
+        if ($this->policy->enabled()) { $paths = $this->mergeEquivalentPaths($paths); }
         $operations = [];
         $seen = [];
         $pathIdentities = [];
@@ -293,7 +293,7 @@ final class SpecificationNormalizer
             ? array_map(static fn (string $url): array => ['url' => $url], $servers)
             : ($document['servers'] ?? []);
         $contract = new ApiContract($title, $servers, $models, $operations, $securitySchemes, $rootSecurity,
-            $serverDefinitions, ($this->repair ? ['x-sdk-repair' => true] : []) + ['info' => $info] + $this->annotations($document) + ($this->annotations($paths) === [] ? [] : ['paths' => $this->annotations($paths)]));
+            $serverDefinitions, ($this->policy->enabled() ? ['x-sdk-repair' => true] : []) + ['info' => $info] + $this->annotations($document) + ($this->annotations($paths) === [] ? [] : ['paths' => $this->annotations($paths)]));
         $knownModels = array_fill_keys(array_map(
             static fn (ModelDefinition $model): string => $model->name,
             $models,
@@ -472,10 +472,10 @@ final class SpecificationNormalizer
                 if (in_array($key, self::METHODS, true) && !isset($paths[$base][$key])) {
                     $paths[$base][$key] = $value;
                 } elseif (in_array($key, self::METHODS, true)) {
-                    $this->repairs[] = ['where' => "$key $path", 'message' => "The path is the same URL as $base and that one already has this method: it was left out."];
+                    $this->policy->note("$key $path", "The path is the same URL as $base and that one already has this method: it was left out.");
                 }
             }
-            $this->repairs[] = ['where' => $path, 'message' => "The path is the same URL as $base with other placeholder names: its operations were moved under it."];
+            $this->policy->note($path, "The path is the same URL as $base with other placeholder names: its operations were moved under it.");
             unset($paths[$path]);
         }
         return $paths;
@@ -505,13 +505,11 @@ final class SpecificationNormalizer
         foreach ($parameters as $parameter) {
             if ($parameter->location !== 'path') { $kept[] = $parameter; continue; }
             if (!in_array($parameter->wireName, $names, true)) {
-                if (!$this->repair) { throw new InvalidArgumentException("Path parameter '$parameter->wireName' has no matching placeholder at $where."); }
-                $this->repairs[] = ['where' => $where, 'message' => "The path parameter '$parameter->wireName' has no placeholder in the path: it was dropped."];
+                $this->policy->mend($where, "Path parameter '$parameter->wireName' has no matching placeholder at $where.", "The path parameter '$parameter->wireName' has no placeholder in the path: it was dropped.");
                 continue;
             }
             if (!$parameter->required) {
-                if (!$this->repair) { throw new InvalidArgumentException("Path parameter '$parameter->wireName' must be required at $where."); }
-                $this->repairs[] = ['where' => $where, 'message' => "The path parameter '$parameter->wireName' is not required, and a placeholder always is: it was made required."];
+                $this->policy->mend($where, "Path parameter '$parameter->wireName' must be required at $where.", "The path parameter '$parameter->wireName' is not required, and a placeholder always is: it was made required.");
                 $parameter = new ParameterDefinition($parameter->wireName, $parameter->location, $parameter->schema, true, $parameter->serialization, $parameter->content, $parameter->annotations);
             }
             $declared[$parameter->wireName] = true;
@@ -519,8 +517,7 @@ final class SpecificationNormalizer
         }
         foreach ($names as $name) {
             if (isset($declared[$name])) { continue; }
-            if (!$this->repair) { throw new InvalidArgumentException("Missing declared path parameter '$name' at $where."); }
-            $this->repairs[] = ['where' => $where, 'message' => "The placeholder '{{$name}}' has no path parameter: a required string was declared."];
+            $this->policy->mend($where, "Missing declared path parameter '$name' at $where.", "The placeholder '{{$name}}' has no path parameter: a required string was declared.");
             // A placeholder called `url_path` or `full_path` is the rest of the path (Starlette's `path` converter, which uDA uses): it
             // keeps its slashes.
             $restOfPath = preg_match('/(^|_)path$/', $name) === 1;
@@ -666,8 +663,8 @@ final class SpecificationNormalizer
                 $mediaTypes = $this->collapseJsonMedia($operation['consumes'] ?? $document['consumes'] ?? ['application/json']);
                 // A Swagger `in: body` parameter with a model schema under a form `consumes` (Marketo's asset API) contradicts itself:
                 // a form has fields, not a model. When asked to repair, the body is the JSON model it describes.
-                if ($this->repair && count($mediaTypes) === 1 && in_array($mediaTypes[0], [FormSupport::MEDIA, FormSupport::MULTIPART], true)) {
-                    $this->repairs[] = ['where' => $where, 'message' => "A body model under consumes {$mediaTypes[0]} was read as application/json."];
+                if ($this->policy->enabled() && count($mediaTypes) === 1 && in_array($mediaTypes[0], [FormSupport::MEDIA, FormSupport::MULTIPART], true)) {
+                    $this->policy->note($where, "A body model under consumes {$mediaTypes[0]} was read as application/json.");
                     $mediaTypes = ['application/json'];
                 }
                 if (count($mediaTypes) !== 1 || !RawMediaSupport::supported(['schema' => $raw['schema']], $mediaTypes[0] ?? '', $document, true)) {
@@ -704,11 +701,11 @@ final class SpecificationNormalizer
             }
             // A free-form object in the query with no style (GoCardless's `metadata`) cannot be written in the default form style
             // without naming its keys; when asked to repair it is a map of strings written as `metadata[key]=value`, the usual way.
-            if ($this->repair && $loc === 'query' && !isset($raw['style']) && !isset($raw['content']) && $dialect !== 'swagger2') {
+            if ($this->policy->enabled() && $loc === 'query' && !isset($raw['style']) && !isset($raw['content']) && $dialect !== 'swagger2') {
                 try { $plain = SchemaReferences::raw($schema, $this->document); } catch (InvalidArgumentException|\TypeError) { $plain = []; }
                 if (($plain['type'] ?? null) === 'object' && !isset($plain['properties']) && !array_key_exists('additionalProperties', $plain)
                     && array_intersect(['allOf', 'anyOf', 'oneOf'], array_keys($plain)) === []) {
-                    $this->repairs[] = ['where' => "$where.parameters." . $raw['name'], 'message' => 'A free-form object parameter without style was read as a map of strings in deepObject style.'];
+                    $this->policy->note("$where.parameters." . $raw['name'], 'A free-form object parameter without style was read as a map of strings in deepObject style.');
                     $normalizedSchema = new SchemaDefinition(SchemaKind::Object, additionalProperties: new SchemaDefinition(SchemaKind::String));
                     $raw['style'] = 'deepObject';
                     $raw['explode'] = true;
@@ -744,9 +741,9 @@ final class SpecificationNormalizer
             $content = $raw['content'] ?? [];
             // A multipart body whose schema is just `type: string, format: binary` (Infobip's audio upload) is one file field: when
             // asked to repair, it is an object with a `file` part.
-            if ($this->repair && is_array($content) && is_array($content['multipart/form-data']['schema'] ?? null)
+            if ($this->policy->enabled() && is_array($content) && is_array($content['multipart/form-data']['schema'] ?? null)
                 && ($content['multipart/form-data']['schema']['type'] ?? null) === 'string' && ($content['multipart/form-data']['schema']['format'] ?? null) === 'binary') {
-                $this->repairs[] = ['where' => "$where.requestBody", 'message' => 'A multipart body that is a single binary string was read as an object with one `file` part.'];
+                $this->policy->note("$where.requestBody", 'A multipart body that is a single binary string was read as an object with one `file` part.');
                 $content['multipart/form-data']['schema'] = ['type' => 'object', 'required' => ['file'], 'additionalProperties' => false,
                     'properties' => ['file' => ['type' => 'string', 'format' => 'binary']]];
             }
@@ -819,9 +816,9 @@ final class SpecificationNormalizer
                 $representations = $raw['content'] ?? [];
                 // `application/octet-stream` means bytes, whatever schema is declared beside it (Infobip's recordings point at an object
                 // model): when asked to repair, the answer is read as binary.
-                if ($this->repair && is_array($representations) && isset($representations['application/octet-stream']) && is_array($representations['application/octet-stream'])
+                if ($this->policy->enabled() && is_array($representations) && isset($representations['application/octet-stream']) && is_array($representations['application/octet-stream'])
                     && count($representations) === 1 && BinaryResponseSupport::media($representations, $document) === null) {
-                    $this->repairs[] = ['where' => "$where.responses.$status", 'message' => 'An application/octet-stream answer with a model schema was read as binary.'];
+                    $this->policy->note("$where.responses.$status", 'An application/octet-stream answer with a model schema was read as binary.');
                     $representations['application/octet-stream']['schema'] = ['type' => 'string', 'format' => 'binary'];
                 }
                 $binary = BinaryResponseSupport::media($representations, $document);
@@ -943,9 +940,9 @@ final class SpecificationNormalizer
         }
         $json = [];
         // A contract whose only representation is `*/*` (Infobip's answers) with a schema describes JSON: when asked to repair, it is read so.
-        if ($this->repair && isset($content['*/*']) && is_array($content['*/*']) && array_key_exists('schema', $content['*/*'])
+        if ($this->policy->enabled() && isset($content['*/*']) && is_array($content['*/*']) && array_key_exists('schema', $content['*/*'])
             && array_filter(array_keys($content), fn ($type): bool => is_string($type) && $this->isJsonMediaType($type)) === []) {
-            $this->repairs[] = ['where' => $where, 'message' => 'The only representation is */* with a schema: it was read as application/json.'];
+            $this->policy->note($where, 'The only representation is */* with a schema: it was read as application/json.');
             $content = ['application/json' => $content['*/*']] + $content;
         }
         foreach ($content as $mediaType => $definition) {
@@ -1370,8 +1367,7 @@ final class SpecificationNormalizer
         // `type: null` beside an `allOf` of one reference (Infobip writes it for "this model, or null") cannot match anything as
         // written; what it means is the nullable reference.
         if (($raw['type'] ?? null) === 'null' && isset($raw['allOf']) && is_array($raw['allOf']) && count($raw['allOf']) === 1) {
-            if (!$this->repair) { throw new InvalidArgumentException("A null type beside allOf matches nothing at $where."); }
-            $this->repairs[] = ['where' => $where, 'message' => 'type: null beside allOf matches nothing: it was read as a nullable reference.'];
+            $this->policy->mend($where, "A null type beside allOf matches nothing at $where.", 'type: null beside allOf matches nothing: it was read as a nullable reference.');
             $raw = array_diff_key($raw, ['type' => true]) + ['nullable' => true];
         }
 
@@ -1388,11 +1384,10 @@ final class SpecificationNormalizer
 
         // A discriminator whose mapping points at models that do not extend this one (Infobip's `Component`, mapped to standalone
         // `Box`, `Text`...) selects nothing this SDK can build by inheritance: repaired by dropping the discriminator.
-        if ($this->repair && isset($raw['discriminator']['mapping'], $raw['properties']) && is_array($raw['discriminator']['mapping'])
+        if ($this->policy->enabled() && isset($raw['discriminator']['mapping'], $raw['properties']) && is_array($raw['discriminator']['mapping'])
             && count(array_intersect(['allOf', 'oneOf', 'anyOf'], array_keys($raw))) === 0
             && !$this->mappingExtends($raw)) {
-            if (!$this->repair) { throw new InvalidArgumentException("The discriminator mapping targets models that do not extend this one at $where."); }
-            $this->repairs[] = ['where' => $where, 'message' => 'The discriminator maps to models that do not extend this one: it was dropped.'];
+            $this->policy->mend($where, "The discriminator mapping targets models that do not extend this one at $where.", 'The discriminator maps to models that do not extend this one: it was dropped.');
             unset($raw['discriminator']);
         }
 
@@ -1433,10 +1428,10 @@ final class SpecificationNormalizer
             // `type: object` beside an allOf of objects (Trustpilot's `PrivateReview`) repeats what the branches already say.
             // Limits (`minLength: 1`) beside an allOf of a single reference say what the referenced schema already says or less
             // (Infobip's `EventFieldResource.type`): when asked to repair, they are dropped.
-            if ($this->repair && $siblings !== [] && $compositionKeywords === ['allOf'] && is_array($raw['allOf']) && count($raw['allOf']) === 1
+            if ($this->policy->enabled() && $siblings !== [] && $compositionKeywords === ['allOf'] && is_array($raw['allOf']) && count($raw['allOf']) === 1
                 && is_array($raw['allOf'][0] ?? null) && isset($raw['allOf'][0]['$ref'])
                 && array_diff($siblings, ['minLength', 'maxLength', 'minimum', 'maximum', 'minItems', 'maxItems', 'pattern', 'multipleOf', 'uniqueItems', 'minProperties', 'maxProperties']) === []) {
-                $this->repairs[] = ['where' => $where, 'message' => 'Limits (' . implode(', ', $siblings) . ') beside an allOf of one reference were ignored.'];
+                $this->policy->note($where, 'Limits (' . implode(', ', $siblings) . ') beside an allOf of one reference were ignored.');
                 $raw = array_diff_key($raw, array_flip($siblings));
                 $siblings = [];
             }
@@ -1585,8 +1580,7 @@ final class SpecificationNormalizer
                 $siblings = [];
             }
             if ($siblings !== []) {
-                if (!$this->repair) { throw new InvalidArgumentException("Composition siblings are not supported at $where."); }
-                $this->repairs[] = ['where' => $where, 'message' => 'Keywords beside ' . $composition . ' (' . implode(', ', $siblings) . ') are not executed with it: they were ignored.'];
+                $this->policy->mend($where, "Composition siblings are not supported at $where.", 'Keywords beside ' . $composition . ' (' . implode(', ', $siblings) . ') are not executed with it: they were ignored.');
                 $raw = array_diff_key($raw, array_flip($siblings));
             }
             if (isset($raw['nullable']) && !is_bool($raw['nullable'])) {
@@ -1708,8 +1702,7 @@ final class SpecificationNormalizer
                 throw new InvalidArgumentException("Unsupported or invalid schema pattern at $where.");
             }
             if (!in_array($kind, [SchemaKind::String, SchemaKind::Mixed], true)) {
-                if (!$this->repair) { throw new InvalidArgumentException("Constraint pattern is not applicable to $kind->value at $where."); }
-                $this->repairs[] = ['where' => $where, 'message' => "The constraint pattern does not apply to $kind->value: it was ignored."];
+                $this->policy->mend($where, "Constraint pattern is not applicable to $kind->value at $where.", "The constraint pattern does not apply to $kind->value: it was ignored.");
                 unset($raw['pattern']);
             }
         }
@@ -1757,8 +1750,8 @@ final class SpecificationNormalizer
         } elseif ($kind === SchemaKind::Array) {
             if ($this->jsonSchema31 && !array_key_exists('items', $raw)) { $raw['items'] = true; }
             // OpenAPI 3.0 requires `items` on an array, but a contract that leaves it out (GoCardless's `ids`) means a list of anything.
-            if ($this->repair && !array_key_exists('items', $raw)) {
-                $this->repairs[] = ['where' => $where, 'message' => 'An array without items was read as a list of any value.'];
+            if ($this->policy->enabled() && !array_key_exists('items', $raw)) {
+                $this->policy->note($where, 'An array without items was read as a list of any value.');
                 $raw['items'] = [];
             }
             if (!is_array($raw['items'] ?? null) && !($this->jsonSchema31 && is_bool($raw['items'] ?? null))) {
@@ -1776,7 +1769,7 @@ final class SpecificationNormalizer
         $distinct = [];
         foreach ($enumValues as $value) { $distinct[json_encode($value)] = $value; }
         if (count($distinct) !== count($enumValues)) {
-            $this->repairs[] = ['where' => $where, 'message' => 'An enum lists a value more than once: the duplicates were dropped.'];
+            $this->policy->note($where, 'An enum lists a value more than once: the duplicates were dropped.');
             $enumValues = array_values($distinct);
         }
         // A null among the values means the field may be null; the other values can still be a backed enum.
@@ -1813,8 +1806,7 @@ final class SpecificationNormalizer
                 || (in_array($rule, ['minimum', 'maximum', 'multipleOf'], true) && in_array($kind, [SchemaKind::Number, SchemaKind::Integer], true));
             if (!$applies) {
                 // JSON Schema ignores a constraint on a type it does not constrain (`minLength` on an array): repaired, not refused.
-                if (!$this->repair) { throw new InvalidArgumentException("Constraint $rule is not applicable to $kind->value at $where."); }
-                $this->repairs[] = ['where' => $where, 'message' => "The constraint $rule does not apply to $kind->value: it was ignored."];
+                $this->policy->mend($where, "Constraint $rule is not applicable to $kind->value at $where.", "The constraint $rule does not apply to $kind->value: it was ignored.");
                 continue;
             }
             $numeric = in_array($rule, ['minimum', 'maximum', 'multipleOf'], true);
