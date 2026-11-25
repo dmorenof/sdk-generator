@@ -1,0 +1,215 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Status API",
+    "version": "1"
+  },
+  "host": "api.example.test",
+  "basePath": "/v1",
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/users": {
+      "get": {
+        "operationId": "getUsers",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scenario",
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "body",
+            "type": "string"
+          },
+          {
+            "in": "header",
+            "name": "X-Trace",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          },
+          "201": {
+            "description": "JSON",
+            "schema": {
+              "$ref": "#/definitions/CreatedUser"
+            }
+          },
+          "202": {
+            "description": "JSON",
+            "schema": {
+              "type": "object",
+              "x-nullable": true,
+              "required": [
+                "message"
+              ],
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "204": {
+            "description": "No content"
+          },
+          "400": {
+            "description": "JSON",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "postUsers",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scenario",
+            "type": "string"
+          },
+          {
+            "in": "query",
+            "name": "body",
+            "type": "string"
+          },
+          {
+            "in": "header",
+            "name": "X-Trace",
+            "type": "string"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Export"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          },
+          "201": {
+            "description": "JSON",
+            "schema": {
+              "$ref": "#/definitions/CreatedUser"
+            }
+          },
+          "202": {
+            "description": "JSON",
+            "schema": {
+              "type": "object",
+              "x-nullable": true,
+              "required": [
+                "message"
+              ],
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "204": {
+            "description": "No content"
+          },
+          "400": {
+            "description": "JSON",
+            "schema": {
+              "$ref": "#/definitions/Problem"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "User": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "CreatedUser": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/User"
+        },
+        {
+          "type": "object",
+          "required": [
+            "ticket"
+          ],
+          "properties": {
+            "ticket": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "Export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Problem": {
+      "type": "object",
+      "required": [
+        "message"
+      ],
+      "properties": {
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
