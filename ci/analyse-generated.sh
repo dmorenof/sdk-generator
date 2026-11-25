@@ -61,6 +61,28 @@ analyse query-objects query-objects-openapi31.json 'Example\QueryObjectSdk'
 
 analyse forms forms-openapi31.json 'Example\FormSdk'
 
+analyse typed-collections typed-collections-openapi31.json 'Example\TypedCollectionsSdk'
+# The items of a generated collection are typed for static analysis: reading `->name` of an item or `->value` of an enum item would be an
+# error at PHPStan max if the collection said `mixed`.
+cat > "$OUT/typed-collections/items.php" <<'PHP'
+<?php
+declare(strict_types=1);
+
+function describe(\Example\TypedCollectionsSdk\DTOs\Bundle $bundle): string
+{
+    $parts = [];
+    foreach ($bundle->entries as $entry) {
+        $parts[] = $entry->name;
+    }
+    foreach ($bundle->roles as $role) {
+        $parts[] = $role->value;
+    }
+    return implode(',', $parts);
+}
+PHP
+vendor/bin/phpstan analyse "$OUT/typed-collections/items.php" --level=max \
+  --autoload-file="$OUT/typed-collections/vendor/autoload.php" --no-progress --memory-limit=2G
+
 analyse mutual-tls mutual-tls-openapi31.json 'Example\MutualTlsSdk'
 
 analyse openid-connect openid-connect-openapi31.json 'Example\OpenIdConnectSdk'

@@ -2,6 +2,10 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
+## [Unreleased]
+
+- **Fix: the items of a generated collection and the values of a generated map are typed for static analysis.** A collection extended the runtime's `TypedArray` and said nothing about its items, so iterating one gave `mixed` (`$holiday->name` was an error at PHPStan max in the code of anyone who analysed theirs). Each collection and map now carries `/** @extends \Dmorenof\SdkRuntime\TypedArray<\Ns\DTOs\Item> */` (or `Map<...>`) for a scalar or a class (a list of anything stays generic). PHPDoc only: no change at run time. **Needs runtime 1.14.1** (the version in which `TypedArray` and `Map` are generic): the generated `composer.json` now requires `^1.14.1`, and so does the generator. `ci/analyse-generated.sh` analyses a snippet that reads the items of a collection, which fails if they become `mixed` again.
+
 ## [1.15.3] — 2026-11-25
 
 - Tests: `SwaggerEquivalenceTest` (the same API in Swagger 2.0 and OpenAPI 3.1 gives the same SDK, for six fixtures) and a Swagger 2.0 twin of the status-responses fixture, generated, analysed at PHPStan max and run against the runtime's local server like its 3.1 twin. Nothing in `src/` changes.
