@@ -4,6 +4,7 @@ This project follows semantic versioning for tagged releases. The v0.1.0 release
 
 ## [Unreleased]
 
+- **Fix: OpenAPI 3.2 documents can use `components.pathItems`.** The references to a named path item (and the `summary`/`description` beside a reference) were accepted for `3.1.x` only; a `3.2.x` document that used them was refused with «Expected a local named pathItems reference». Found by the new `DialectVariantsTest`, which generates every OpenAPI 3.1 fixture again as 3.2 (it must give the same SDK) and as 3.0 (the same, or a refusal for what only 3.1 has).
 - **Repairs of a defective document live in one place.** Reading a contract used to decide in about twenty spots, with an `if` on the repair mode, whether to refuse a defect or mend it and note it. They now ask a single `RepairPolicy` (`src/Parsing/RepairPolicy.php`): strict, it refuses with the same message as before; repairing, it records where and what, which is what `--inspect` prints and `--strict` refuses. No behavior changes: the 15 SDKs published at the time regenerate byte for byte identical, and the 688 tests pass.
 - Documentation brought up to date: `pendientes.md` (SendGrid grouped into one SDK, Stripe and uDA published, the `{url_path}` question answered) and `tests/README.md` (it still described a scaffold).
 

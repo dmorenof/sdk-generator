@@ -56,7 +56,7 @@ final class LocalObjectResolver
             $seen[$pointer] = true;
             // OAS 3.0 / Swagger ignore Reference Object siblings. OAS 3.1
             // permits summary/description overrides; outer aliases take precedence.
-            if ($kind !== 'pathItems' && preg_match('/^3\.1\./', (string) ($this->document['openapi'] ?? '')) === 1) {
+            if ($kind !== 'pathItems' && preg_match('/^3\.[12]\./', (string) ($this->document['openapi'] ?? '')) === 1) {
                 foreach (['summary', 'description'] as $annotation) {
                     if (array_key_exists($annotation, $node) && !array_key_exists($annotation, $overrides)) {
                         $overrides[$annotation] = $node[$annotation];
@@ -83,7 +83,7 @@ final class LocalObjectResolver
     {
         if ($kind === 'pathItems') {
             return (count($tokens) === 2 && $tokens[0] === 'paths')
-                || (!$swagger && preg_match('/^3\.1\./', (string) ($this->document['openapi'] ?? '')) === 1
+                || (!$swagger && preg_match('/^3\.[12]\./', (string) ($this->document['openapi'] ?? '')) === 1
                     && count($tokens) === 3 && array_slice($tokens, 0, 2) === ['components', 'pathItems']);
         }
         $prefix = $swagger ? [$kind] : ['components', $kind];
