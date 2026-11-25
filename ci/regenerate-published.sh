@@ -13,7 +13,7 @@ owner="${SDK_OWNER:-dmorenof}"
 all=(
   trustpilot-sdk catastro-sdk floorfy-sdk neutrinoapi-sdk aplazame-sdk restb-sdk deepl-sdk sendbird-sdk
   'uda-sdk:--server=https://api.urbandataanalytics.com'
-  gocardless-sdk mailjet-sdk marketo-sdk infobip-sdk sendgrid-sdk stripe-sdk
+  gocardless-sdk mailjet-sdk marketo-sdk infobip-sdk sendgrid-sdk stripe-sdk frankfurter-sdk
 )
 
 selected=("$@")

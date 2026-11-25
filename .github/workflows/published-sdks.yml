@@ -1,6 +1,6 @@
 name: Published SDKs unchanged
 
-# Regenerates the 15 published SDKs from their own contracts and compares with what they publish. A generator change that is not meant
+# Regenerates the 16 published SDKs from their own contracts and compares with what they publish. A generator change that is not meant
 # to alter any generated code must leave all of them identical; one that is meant to shows exactly which it alters.
 on:
   pull_request:
