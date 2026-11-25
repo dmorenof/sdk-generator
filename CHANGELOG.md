@@ -2,7 +2,7 @@
 
 This project follows semantic versioning for tagged releases. The v0.1.0 release is an **early functional milestone**, not a claim of complete OpenAPI conformity.
 
-## [1.15.2] — unreleased
+## [1.15.2] — 2026-11-25
 
 - **Generated code is indented the way a reader expects.** The formatter ran `@PSR12` only, which leaves the arrays of class constants (`REQUIRED_FIELDS`, `OPERATION_FIELDS`, `VALIDATION`...) flush with the margin and a blank line before the closing brace of every class. It now also applies `array_indentation`, `no_extra_blank_lines` (inside braces) and `no_whitespace_in_blank_line`. Only whitespace changes; the 14 SDKs of this series were regenerated with it.
 
