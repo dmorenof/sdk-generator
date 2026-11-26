@@ -124,10 +124,12 @@ All 195 operations of the four contracts were generated, none left out. Less dis
 
 ```php
 // this generator                                       // OpenAPI Generator
-PokeApiSDK::configure(new Configuration());             $api = new PokemonApi($guzzle, new Configuration());
+PokeAPISDK::configure(new Configuration());             $api = new PokemonApi($guzzle, new Configuration());
 $pokemon = Pokemon::getById('25');                      $pokemon = $api->pokemonRetrieve('25');
 echo $pokemon->name;                                    echo $pokemon->getName();
-$params->limit = 20;                                    $api->pokemonList(20);
+$filters = new PokemonFilters();                        $list = $api->pokemonList(20);
+$filters->limit = 20;
+$list = Pokemon::get($filters);
 ```
 
 - **A model is plain typed properties**, checked where you assign (a PHP 8.4 `set` hook): the PHP type and the limits the contract declares. OpenAPI Generator's models are getters and setters with untyped parameters: they check `null` and the declared lengths and ranges, not the PHP type of what you pass.
