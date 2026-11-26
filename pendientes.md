@@ -26,6 +26,7 @@ Los puntos que el propio repositorio documenta como límites actuales ([docs/SUP
 
 Y lo que se sabe de la última sesión:
 - [ ] **Listas de parámetros sin hook:** PHP no permite hook en una propiedad que es un array nativo, así que las reglas de una lista de parámetros (`minItems`) no se comprueban al asignar.
+- [ ] **Construir un modelo con argumentos con nombre:** hoy hay que crear el objeto y asignar propiedad a propiedad (`$params = new PokemonFilters(); $params->limit = 20; Pokemon::get($params);`), porque el constructor de `DTO` es `__construct(?object $json = null)` y sirve para hidratar una respuesta. Lo deseable es `Pokemon::get(new PokemonFilters(limit: 20))`. Dos caminos: (a) constructor con argumentos con nombre, que ha de convivir con la hidratación desde JSON y obliga a revisar todos los puntos donde el runtime construye un modelo; (b) un método estático aditivo, `PokemonFilters::of(limit: 20)`, que no toca el constructor ni el hidratador y no rompe los SDK ya publicados. Cualquiera exige una versión nueva del generador y, para que lleguen a los 18 SDK, regenerarlos y publicarlos de nuevo. Antes de decidir: comprobar cómo afecta a las reglas de validación (los hooks `set` y `REQUIRED_FIELDS`) y a PHPStan max. Propuesto el 2026-11-26.
 - [ ] **Nombres de las clases de error de varios SDKs ya generados:** quien regenere con la 1.14.0 verá las clases de error idénticas compartidas (`Responses/Errors/Status401Response`); el cambio de nombre está documentado en el CHANGELOG.
 
 ## Cobertura medida con especificaciones oficiales
