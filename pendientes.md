@@ -14,7 +14,7 @@ El workflow `Live public APIs` genera un SDK desde la especificación **sin modi
 
 ## Pendiente
 
-Los puntos que el propio repositorio documenta como límites actuales ([docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md), «Remaining boundaries»):
+**Objetivo: cobertura completa de OpenAPI.** Lo que sigue es lo que falta para llegar, no un alcance elegido. Los puntos que el propio repositorio documenta como límites actuales ([docs/SUPPORTED_SCOPE.md](docs/SUPPORTED_SCOPE.md), «Remaining boundaries»):
 
 - [ ] **Referencias:** remotas o dinámicas, ubicaciones arbitrarias de esquema, `$id`/`$anchor`/referencias dinámicas y hermanos de validación generales de un `$ref`. (Se acepta un `default` junto a un `allOf` de una sola rama y un `type` que repite el del esquema referenciado junto a un `$ref`; otras aserciones —`format`, `nullable`, `enum`, un `type` distinto— se rechazan.)
 - [ ] **Esquemas:** uniones nativas de objeto/array, `allOf` general que no sea de objetos, `not` y vocabularios condicionales generales, `const` complejo.
